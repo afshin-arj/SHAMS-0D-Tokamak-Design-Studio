@@ -5,7 +5,7 @@
 It is designed to determine:
 
 - what tokamak designs are physically admissible,
-- why feasibility breaks (dominant mechanism attribution),
+- why feasibility breaks (explicit dominant mechanism attribution),
 - where design space is robust, fragile, mirage, or empty,
 - and how confident one can be in any conclusion.
 
@@ -17,10 +17,10 @@ SHAMS explicitly allows:
 SHAMS explicitly does **not**:
 - optimize *inside* physics truth,
 - hide infeasibility via solver convergence,
-- negotiate constraints using penalties, smoothing, or relaxation.
+- negotiate constraints using penalties, smoothing, relaxation, or weighting.
 
 All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:  
-same inputs → same outputs, with full auditability.
+**same inputs → same outputs**, with full auditability and replayability.
 
 ---
 
@@ -49,7 +49,7 @@ same inputs → same outputs, with full auditability.
 | Hidden smoothing | **Explicitly forbidden** | Common |
 | Determinism | **Bitwise reproducible** | Solver-path dependent |
 | Same inputs → same outputs | **Guaranteed** | Not guaranteed |
-| Numerical transparency | One-pass, visible evaluation | Convergence path opaque |
+| Numerical transparency | Single-pass, explicit evaluation | Convergence path opaque |
 
 ---
 
@@ -59,9 +59,9 @@ same inputs → same outputs, with full auditability.
 |------|-------|---------|
 | Constraint classification | **Hard / Diagnostic / Ignored (explicit)** | Implicit via penalties |
 | Constraint negotiation | **Not allowed** | Common |
-| Constraint violation | Reported and preserved | Reduced until convergence |
+| Constraint violation | Reported, preserved, attributed | Reduced until convergence |
 | Dominant failure mechanism | **Explicitly identified** | Often obscured |
-| Plasma limits (β, q, Greenwald) | Conservative envelopes | Often softened |
+| Plasma limits (β, q, Greenwald, density) | Conservative envelopes | Often softened |
 | Engineering margins | **First-class citizens** | Tunable |
 
 ---
@@ -70,24 +70,26 @@ same inputs → same outputs, with full auditability.
 
 | Area | SHAMS | PROCESS |
 |----|-------|---------|
-| Core confinement | 0-D scalings (conservative) | 0-D scalings |
-| Profiles | **1.5D proxy bundle (T, n, shear, pedestal)** | Parametric / implicit |
+| Core confinement | 0-D empirical scalings (conservative) | 0-D scalings |
+| Profiles | **1.5D proxy bundle** (T, n, shear, pedestal width) | Parametric / implicit |
 | Transport solvers | **Not implemented (by design)** | Not true transport either |
 | Burn physics | Deterministic α-heating balance | Solver-coupled |
-| Radiation | **Explicit impurity & detachment authority** | Simplified |
+| Radiation | **Explicit impurity radiation & detachment authority** | Simplified |
 | Edge / SOL | **Exhaust authority with detachment logic** | Simplified limits |
 
 ---
 
-### 5. Engineering Authorities
+### 5. Engineering Authorities (Explicitly Separated)
 
 | Subsystem | SHAMS | PROCESS |
 |---------|-------|---------|
-| Magnets | **HTS margins, stress envelopes** | Parametric coil models |
+| Magnet technology | **Explicitly separated HTS / LTS / resistive coils** | Generic coil models |
+| Magnet margins | **B–T–J envelopes, stress limits, quench proxies** | Parametric |
+| Structural stress | **Envelope-governed** | Simplified |
 | Exhaust / divertor | **Authority-grade heat flux & detachment** | Approximate |
 | Control & stability | **VS, RWM, PF, CS budgets** | Largely absent |
-| Disruptions | **Deterministic risk tiering** | Minimal |
-| Neutronics | **Domain-tightened authority** | Approximate |
+| Disruptions | **Deterministic risk tiering (non-predictive)** | Minimal |
+| Neutronics & materials | **Domain-tightened authority** | Approximate |
 | Fuel cycle / tritium | **Explicit authority** | Simplified |
 | Plant power ledger | **Explicit energy accounting** | Aggregated |
 
@@ -98,7 +100,7 @@ same inputs → same outputs, with full auditability.
 | Aspect | SHAMS | PROCESS |
 |------|-------|---------|
 | Internal optimization | **Forbidden** | Core feature |
-| External optimization | **Yes (firewalled)** | N/A |
+| External optimization | **Yes (certified & firewalled)** | N/A |
 | Optimizer influence on physics | **Impossible by construction** | Total |
 | Supported optimizers | NSGA-II, CMA-ES, BO, custom | Built-in |
 | Objective contracts | **Explicit, versioned** | Implicit |
@@ -119,7 +121,7 @@ same inputs → same outputs, with full auditability.
 | Mirage detection | **Yes (optimistic vs robust lanes)** | No |
 | Design families | **Explicit clustering & narratives** | No |
 | Regime maps | **Mechanism-labeled** | No |
-| Failure explanation | **Narrative + mechanism** | Limited |
+| Failure explanation | **Narrative + mechanism attribution** | Limited |
 
 ---
 
@@ -129,7 +131,7 @@ same inputs → same outputs, with full auditability.
 |------|-------|---------|
 | Audit trail | **Hash-manifested evidence packs** | None |
 | Replayability | **Guaranteed** | Not guaranteed |
-| Reviewer artifacts | **One-click reviewer pack** | Manual |
+| Reviewer artifacts | **One-click reviewer packs** | Manual |
 | Assumption visibility | Explicit | Often implicit |
 | Regulatory posture | **Review-ready** | Research-grade |
 
@@ -143,7 +145,7 @@ same inputs → same outputs, with full auditability.
 | Scroll walls | **Forbidden** | Common |
 | Expert guidance | Scope cards per mode | None |
 | Phantom features | **Impossible by rule** | Possible |
-| Inter-panel interoperability | Canonical promotion paths | N/A |
+| Inter-panel interoperability | **Canonical promotion paths** | N/A |
 
 ---
 
