@@ -1,8 +1,45 @@
 cff-version: 1.2.0
-message: "If you use SHAMS–FUSION-X, please cite it."
-title: "SHAMS–FUSION-X: Constraint-first, audit-ready fusion design authority system"
+message: "If you use SHAMS in academic work, please cite it using the metadata below."
+title: "SHAMS — Tokamak 0-D Design Studio"
 type: software
 authors:
-  - name: "SHAMS–FUSION-X Contributors"
-version: "v120_2026-01-17"
-date-released: "2026-01-17"
+  - family-names: "Arjhangmehr"
+    given-names: "Afshin"
+    name-suffix: "Dr."
+email: "ms.arjangmehr@gmail.com"
+repository-code: "https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio"
+abstract: >
+  SHAMS is a feasibility-authoritative tokamak 0-D system code and governance platform.
+  It determines physical admissibility, dominant failure mechanisms, robustness, and confidence
+  under explicit constraints. Physics is evaluated by a frozen, deterministic, algebraic evaluator
+  (no iteration, no Newton solvers, no hidden relaxation or smoothing), enabling replayable,
+  audit-safe evidence packs. Exploration includes deterministic scans, robust Pareto analysis,
+  design-family regime maps, and certified search. Optimization is supported only externally via
+  firewalled orchestration with explicit objective contracts and evidence dossiers; optimization
+  cannot modify truth.
+keywords:
+  - tokamak
+  - fusion
+  - systems code
+  - 0-D
+  - feasibility
+  - constraints
+  - robustness
+  - governance
+  - auditability
+  - external optimization
+license: "BSD-3-Clause"
+url: "https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio"
+version: "v326.1"
+date-released: "2026-02-08"
+preferred-citation:
+  type: software
+  title: "SHAMS — Tokamak 0-D Design Studio"
+  authors:
+    - family-names: "Arjhangmehr"
+      given-names: "Afshin"
+  year: 2026
+  version: "v326.1"
+  url: "https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio"
+  repository-code: "https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio"
+  license: "BSD-3-Clause"
