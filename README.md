@@ -1,75 +1,107 @@
-# SHAMS — Tokamak 0‑D Design Studio
+SHAMS — Tokamak 0-D Design Studio
 
-SHAMS is a **feasibility-authoritative tokamak system code and governance platform**.
-It is designed to answer:
+SHAMS is a feasibility-authoritative tokamak system code and governance platform.
+It is designed to determine what tokamak designs are physically admissible, why feasibility breaks, and how confident one can be in any conclusion.
 
-- **What tokamak designs are physically admissible**
-- **Why feasibility breaks** (dominant mechanism attribution)
-- **Where design space is robust, fragile, mirage, or empty**
-- **How confident one can be** in any conclusion (contracts + evidence)
+SHAMS explicitly allows:
 
-SHAMS is **not** an internal optimizer. Optimization is **external-only** and firewalled.
+infeasible designs,
 
-## Core laws (non-negotiable)
+empty regions of design space,
 
-1. **Frozen Truth**
-   - Deterministic, algebraic evaluator
-   - **No Newton solvers, no iteration, no hidden relaxation or smoothing**
-   - Same inputs → same outputs (bitwise reproducible)
+and NO-SOLUTION as a valid scientific outcome.
 
-2. **Separation of concerns**
-   - Truth (evaluator) ≠ Exploration (scans/trade) ≠ Optimization (external) ≠ Interpretation (governance)
+SHAMS explicitly does not:
 
-3. **Feasibility first**
-   - Constraints are explicit and classified: **hard / diagnostic / ignored**
-   - Violations are **reported, never negotiated**
+optimize inside physics truth,
 
-4. **Audit & reviewer safety**
-   - Replayable outputs
-   - Hash-manifested evidence packs
-   - Authority-tier visibility
+hide infeasibility via solver convergence,
 
-See: `GOVERNANCE.md` and `NON_OPTIMIZER_MANIFESTO.md`.
+negotiate constraints using penalties or smoothing.
 
-## What SHAMS includes (v326.1)
+All physics is evaluated using a frozen, deterministic, algebraic evaluator:
+same inputs → same outputs, with full auditability.
 
-- Frozen deterministic evaluator + conservative 0‑D physics
-- 1.5D profile proxy bundle (α_T, α_n, shear, pedestal width)
-- Robust Pareto Lab (worst-phase / worst-corner) + surrogate acceleration (non-authoritative)
-- Certified Search (budgeted, deterministic) + repair suggestions
-- Authorities: Exhaust/Divertor, Magnets, Control & Stability, Disruption risk tiering, Impurity radiation & detachment, Neutronics/Materials, Fuel cycle, Plant power ledger
-- Reviewer artifacts: One‑click reviewer pack builder, evidence ZIPs + SHA‑256 manifests
-- UI governance: deck-based, verdict-first Streamlit UI
-- UI wiring audits: **Interoperability contract validator**
+What Has Been Implemented
 
-## Quickstart (local)
+As of v326.1, SHAMS includes:
 
-### 1) Create a Python environment
-Python 3.10+ recommended.
+Frozen deterministic 0-D plasma physics with conservative scalings
 
-### 2) Install requirements
-```bash
-pip install -r requirements.txt
-```
+1.5D profile proxy bundle (temperature, density, shear, pedestal width)
 
-### 3) Run the UI
-- Windows: `run_ui.cmd`
-- Linux/macOS: `./run_ui.sh`
+Explicit constraint governance (hard / diagnostic / ignored)
 
-The launchers enforce hygiene (`PYTHONDONTWRITEBYTECODE=1` + cleaning).
+Exhaust & divertor authority (heat flux, detachment, impurity radiation)
 
-## Repository structure (high level)
+Magnet authority (HTS margins, stress, envelopes)
 
-- `src/`, `physics/`, `constraints/`, `models/`, `profiles/`: **Frozen truth and authoritative subsystems**
-- `tools/`, `clients/`: exploration and external optimizer interfaces (firewalled)
-- `ui/`: Streamlit decks and governance UI
-- `verification/`, `validation/`, `tests/`: harnesses and gatechecks
+Control & stability authority (VS, RWM, PF, CS budgets)
 
-## License
+Neutronics & materials authority (domain-tightened)
 
-Apache-2.0 (see `LICENSE`). Attribution: © 2026 Afshin Arjhangmehr.
+Fuel cycle & tritium authority
 
-## Citation
+Plant power ledger (explicit energy accounting)
 
-See `CITATION.cff`.
+Exploration and interpretation capabilities include:
 
+Intent-to-Machine compiler
+
+Deterministic scan lab
+
+Robust Pareto analysis (worst-phase / worst-corner)
+
+Design family clustering and regime maps
+
+Certified, firewalled external optimization orchestration
+
+Mirage detection (optimistic vs robust lanes)
+
+One-click reviewer-ready evidence packs with hash manifests
+
+The UI is Streamlit-only, deck-based, verdict-first, and expert-oriented, with full inter-panel interoperability and deterministic replay.
+
+SHAMS vs PROCESS (High-Level)
+Aspect	SHAMS	PROCESS
+Core role	Feasibility authority & governance	Design optimizer
+Evaluator	Frozen, algebraic, deterministic	Coupled nonlinear solvers
+Iteration / solvers	Not allowed	Central
+Constraint handling	Explicit, never negotiated	Penalties / relaxation
+Failure reporting	First-class outcome	Typically avoided
+Robustness	Explicit, worst-case	Nominal
+Auditability	Replayable, hash-manifested	Limited
+Optimization	External only, firewalled	Internal
+
+PROCESS answers:
+
+“What design optimizes a chosen objective, assuming constraints can be negotiated?”
+
+SHAMS answers:
+
+“Which tokamak designs are physically admissible, under explicit constraints, and why others fail.”
+
+SHAMS is intended to complement or retire PROCESS in roles requiring feasibility authority, reviewer safety, and regulatory-grade reasoning.
+
+Scope & Limitations (By Design)
+
+SHAMS intentionally does not implement:
+
+time-domain physics,
+
+transport solvers,
+
+Monte Carlo methods,
+
+probabilistic disruption prediction,
+
+internal optimization.
+
+All such capabilities must remain external and non-authoritative.
+
+Contact
+
+For technical questions, reviews, or collaboration inquiries:
+
+Afshin Arjhangmehr
+📧 ms.arjangmehr@gmail.com
