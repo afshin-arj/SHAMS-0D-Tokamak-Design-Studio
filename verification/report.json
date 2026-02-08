@@ -1,0 +1,550 @@
+{
+  "schema_version": 1,
+  "project": "SHAMS\u2013FUSION-X",
+  "ran_unix": 1770482829.781351,
+  "elapsed_s": 11.458219051361084,
+  "overall_ok": true,
+  "requirements": [
+    {
+      "id": "REQ-REG-001",
+      "title": "Regression benchmarks must pass",
+      "ok": true,
+      "seconds": 4.5683348178863525,
+      "model_cards": [
+        "plasma.hot_ion_point"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-GEO-001",
+      "title": "Inboard radial stack closure must be computed and reported",
+      "ok": true,
+      "seconds": 0.0286405086517334,
+      "model_cards": [
+        "engineering.radial_stack"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-GEO-002",
+      "title": "Baseline case should have a closing inboard stack",
+      "ok": true,
+      "seconds": 0.0026421546936035156,
+      "model_cards": [
+        "engineering.radial_stack"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-GEO-003",
+      "title": "A deliberately overbuilt coil case should fail inboard stack closure",
+      "ok": true,
+      "seconds": 0.035539865493774414,
+      "model_cards": [
+        "engineering.radial_stack"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-PROV-001",
+      "title": "Model card index must be emitted for audited outputs",
+      "ok": true,
+      "seconds": 4.5299530029296875e-06,
+      "model_cards": [
+        "engineering.radial_stack",
+        "plasma.hot_ion_point",
+        "economics.lifecycle_cost_proxy"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-TOPO-001",
+      "title": "Feasibility topology regression must remain stable",
+      "ok": true,
+      "seconds": 6.484448671340942,
+      "model_cards": [
+        "cartography.topology_slice"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-IMP-001",
+      "title": "Import policy: forbid legacy shams_v1941 imports in runtime paths",
+      "ok": true,
+      "seconds": 0.3385646343231201,
+      "model_cards": [],
+      "note": ""
+    }
+  ],
+  "baseline_model_cards": {
+    "availability_proxy": {
+      "id": "availability_proxy",
+      "name": "Availability proxy (planned + forced outages)",
+      "version": "0.1",
+      "hash": "c5b6bec169a043d525a2413547babf56d4552b6e97dbb929230afd8973e68315",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "availability.proxy": {
+      "id": "availability_proxy",
+      "name": "Availability proxy (planned + forced outages)",
+      "version": "0.1",
+      "hash": "c5b6bec169a043d525a2413547babf56d4552b6e97dbb929230afd8973e68315",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "bootstrap_sauter_proxy_v1": {
+      "id": "bootstrap_sauter_proxy_v1",
+      "name": "Bootstrap fraction (Sauter-inspired proxy)",
+      "version": "v1",
+      "hash": "991cf5ede70239fc6a7a0eb3db799a770f2cbb4a7ab91199eb2ab27a959d555a",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 2,
+        "notes": [
+          "Deterministic, monotone, bounded proxy.",
+          "Not a full Sauter collisionality/geometry fit implementation."
+        ]
+      },
+      "validity": {
+        "inputs": {
+          "R0_m": [
+            0.5,
+            15.0
+          ]
+        },
+        "outputs": {
+          "betaN_proxy": [
+            0.0,
+            8.0
+          ],
+          "q95_proxy": [
+            1.5,
+            10.0
+          ]
+        }
+      }
+    },
+    "bootstrap.sauter_proxy_v1": {
+      "id": "bootstrap_sauter_proxy_v1",
+      "name": "Bootstrap fraction (Sauter-inspired proxy)",
+      "version": "v1",
+      "hash": "991cf5ede70239fc6a7a0eb3db799a770f2cbb4a7ab91199eb2ab27a959d555a",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 2,
+        "notes": [
+          "Deterministic, monotone, bounded proxy.",
+          "Not a full Sauter collisionality/geometry fit implementation."
+        ]
+      },
+      "validity": {
+        "inputs": {
+          "R0_m": [
+            0.5,
+            15.0
+          ]
+        },
+        "outputs": {
+          "betaN_proxy": [
+            0.0,
+            8.0
+          ],
+          "q95_proxy": [
+            1.5,
+            10.0
+          ]
+        }
+      }
+    },
+    "economics_component_cost_proxy": {
+      "id": "economics_component_cost_proxy",
+      "name": "Component-based CAPEX proxy",
+      "version": "0.1",
+      "hash": "be8630a782c510d2e5678f205be95a53ac4510bd6182791404f114ff31f7bde7",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "economics.component_cost_proxy": {
+      "id": "economics_component_cost_proxy",
+      "name": "Component-based CAPEX proxy",
+      "version": "0.1",
+      "hash": "be8630a782c510d2e5678f205be95a53ac4510bd6182791404f114ff31f7bde7",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "economics.lifecycle_cost_proxy": {
+      "id": "economics.lifecycle_cost_proxy",
+      "name": "Lifecycle costing / LCOE proxy",
+      "version": "1.0.0",
+      "hash": "f9e992a63cae7130786c2a9eef66993498ba412d25ccab9fbd6cf41ddefe9ba1",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "note": "Replace with component-based costing when available"
+      }
+    },
+    "engineering_divertor_proxy_v2": {
+      "id": "engineering_divertor_proxy_v2",
+      "name": "Divertor heat exhaust proxy with tech modes",
+      "version": "0.2",
+      "hash": "0d8730787c07227e92415a55222512331f1f432f88739665d42486fab81133eb",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "lambda_q_m": [
+          0.001,
+          0.02
+        ]
+      }
+    },
+    "engineering.divertor_proxy_v2": {
+      "id": "engineering_divertor_proxy_v2",
+      "name": "Divertor heat exhaust proxy with tech modes",
+      "version": "0.2",
+      "hash": "0d8730787c07227e92415a55222512331f1f432f88739665d42486fab81133eb",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "lambda_q_m": [
+          0.001,
+          0.02
+        ]
+      }
+    },
+    "engineering_magnet_pack_proxy": {
+      "id": "engineering_magnet_pack_proxy",
+      "name": "TF magnet pack proxy",
+      "version": "0.1",
+      "hash": "41f4def052be64b273657fa56a4c7469205b91ac8d588f10d249daf19d47782d",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "Bt_T": [
+          3.0,
+          10.0
+        ],
+        "R0_m": [
+          2.0,
+          15.0
+        ]
+      }
+    },
+    "engineering.magnet_pack_proxy": {
+      "id": "engineering_magnet_pack_proxy",
+      "name": "TF magnet pack proxy",
+      "version": "0.1",
+      "hash": "41f4def052be64b273657fa56a4c7469205b91ac8d588f10d249daf19d47782d",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "Bt_T": [
+          3.0,
+          10.0
+        ],
+        "R0_m": [
+          2.0,
+          15.0
+        ]
+      }
+    },
+    "engineering.radial_stack": {
+      "id": "engineering.radial_stack",
+      "name": "Inboard radial build explicit stack closure",
+      "version": "1.0.0",
+      "hash": "7365c98c409066ba43a31a8a78f85e4c7c4b5f582c7f841a89c218b67aa4baa3",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "note": "Use for conceptual sizing; verify with CAD for final designs"
+      }
+    },
+    "engineering_tbr_proxy": {
+      "id": "engineering_tbr_proxy",
+      "name": "Tritium breeding ratio monotonic proxy",
+      "version": "0.1",
+      "hash": "beab3dd7ae552f52750784a90083fce34e17f56dc5c7614cf4f29cf4ef39b102",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "t_blanket_m": [
+          0.3,
+          1.5
+        ],
+        "blanket_coverage": [
+          0.5,
+          0.95
+        ]
+      }
+    },
+    "engineering.tbr_proxy": {
+      "id": "engineering_tbr_proxy",
+      "name": "Tritium breeding ratio monotonic proxy",
+      "version": "0.1",
+      "hash": "beab3dd7ae552f52750784a90083fce34e17f56dc5c7614cf4f29cf4ef39b102",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "t_blanket_m": [
+          0.3,
+          1.5
+        ],
+        "blanket_coverage": [
+          0.5,
+          0.95
+        ]
+      }
+    },
+    "magnet_tech_axis_v1": {
+      "id": "magnet_tech_axis_v1",
+      "name": "Magnet technology axis (HTS/LTS/Cu)",
+      "version": "v1",
+      "hash": "aca2fb7b345a33199d7f034a8287a326c5126538c3777580db6d480293a669f0",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 3,
+        "notes": [
+          "Technology axis is explicit and stamped into artifacts.",
+          "SC margin uses critical-surface proxies; copper uses I^2R with winding-pack proxy."
+        ]
+      },
+      "validity": {
+        "inputs": {
+          "magnet_technology": [
+            null,
+            null
+          ]
+        },
+        "outputs": {}
+      }
+    },
+    "magnet.tech_axis_v1": {
+      "id": "magnet_tech_axis_v1",
+      "name": "Magnet technology axis (HTS/LTS/Cu)",
+      "version": "v1",
+      "hash": "aca2fb7b345a33199d7f034a8287a326c5126538c3777580db6d480293a669f0",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 3,
+        "notes": [
+          "Technology axis is explicit and stamped into artifacts.",
+          "SC margin uses critical-surface proxies; copper uses I^2R with winding-pack proxy."
+        ]
+      },
+      "validity": {
+        "inputs": {
+          "magnet_technology": [
+            null,
+            null
+          ]
+        },
+        "outputs": {}
+      }
+    },
+    "physics.divertor_proxy": {
+      "id": "physics.divertor_proxy",
+      "name": "Divertor heat-load proxy",
+      "version": "1.0.0",
+      "hash": "7b70740e5ee7c634a7b73d25249027c74bf6f74276ad8a0a938af6bf9ad16715",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "note": "Proxy only; calibrate to reference studies"
+      }
+    },
+    "plasma.hot_ion_point": {
+      "id": "plasma.hot_ion_point",
+      "name": "Hot-ion tokamak system proxy (core stack)",
+      "version": "1.0.0",
+      "hash": "00b83a9685fc237fa604c6df1ed47c9ec659c70eeebb39bd14704443d71efdb7",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "R0_m": [
+          1.0,
+          15.0
+        ],
+        "Bt_T": [
+          1.0,
+          20.0
+        ],
+        "betaN": [
+          0.5,
+          6.0
+        ]
+      }
+    },
+    "profiles_analytic_v1": {
+      "id": "profiles_analytic_v1",
+      "name": "Analytic profiles (\u00bd-D scaffold)",
+      "version": "v1",
+      "hash": "1fa8ff2bbd38270818b7a65e47f9a356d4aeae87e7eb13fc83a2967fe120f724",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 2,
+        "notes": [
+          "Provides deterministic analytic profiles for diagnostics.",
+          "Used to compute gradient proxies and optional pedestal surrogate."
+        ]
+      },
+      "validity": {
+        "inputs": {},
+        "outputs": {}
+      }
+    },
+    "profiles.analytic_v1": {
+      "id": "profiles_analytic_v1",
+      "name": "Analytic profiles (\u00bd-D scaffold)",
+      "version": "v1",
+      "hash": "1fa8ff2bbd38270818b7a65e47f9a356d4aeae87e7eb13fc83a2967fe120f724",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 2,
+        "notes": [
+          "Provides deterministic analytic profiles for diagnostics.",
+          "Used to compute gradient proxies and optional pedestal surrogate."
+        ]
+      },
+      "validity": {
+        "inputs": {},
+        "outputs": {}
+      }
+    },
+    "radiation_impurity_mix_v1": {
+      "id": "radiation_impurity_mix_v1",
+      "name": "Radiation bookkeeping (brem + sync + impurity line)",
+      "version": "v1",
+      "hash": "eaa415bdd0078e047b812674a9cb3cc32e18c66ebe0a64800409e31e37de6db2",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 2,
+        "notes": [
+          "Deterministic bookkeeping model intended for scoping and comparative scans.",
+          "Uses simplified impurity cooling curve proxies; do not treat as predictive without calibration."
+        ]
+      },
+      "validity": {
+        "inputs": {
+          "zeff": [
+            1.0,
+            4.0
+          ]
+        },
+        "outputs": {
+          "Prad_core_MW": [
+            0.0,
+            5000.0
+          ]
+        }
+      }
+    },
+    "radiation.impurity_mix_v1": {
+      "id": "radiation_impurity_mix_v1",
+      "name": "Radiation bookkeeping (brem + sync + impurity line)",
+      "version": "v1",
+      "hash": "eaa415bdd0078e047b812674a9cb3cc32e18c66ebe0a64800409e31e37de6db2",
+      "maturity": {
+        "level": "exploratory",
+        "trl": 2,
+        "notes": [
+          "Deterministic bookkeeping model intended for scoping and comparative scans.",
+          "Uses simplified impurity cooling curve proxies; do not treat as predictive without calibration."
+        ]
+      },
+      "validity": {
+        "inputs": {
+          "zeff": [
+            1.0,
+            4.0
+          ]
+        },
+        "outputs": {
+          "Prad_core_MW": [
+            0.0,
+            5000.0
+          ]
+        }
+      }
+    },
+    "radiation_off_v1": {
+      "id": "radiation_off_v1",
+      "name": "Radiation bookkeeping (off)",
+      "version": "v1",
+      "hash": "8d5fcaf3fd44ff012a2c79b538796ad664d5cecee75cecec4e9c9b80e7c615ce",
+      "maturity": {
+        "level": "stable",
+        "trl": 5,
+        "notes": [
+          "Reviewer-safe scoping default."
+        ]
+      },
+      "validity": {
+        "inputs": {},
+        "outputs": {}
+      }
+    },
+    "radiation.off_v1": {
+      "id": "radiation_off_v1",
+      "name": "Radiation bookkeeping (off)",
+      "version": "v1",
+      "hash": "8d5fcaf3fd44ff012a2c79b538796ad664d5cecee75cecec4e9c9b80e7c615ce",
+      "maturity": {
+        "level": "stable",
+        "trl": 5,
+        "notes": [
+          "Reviewer-safe scoping default."
+        ]
+      },
+      "validity": {
+        "inputs": {},
+        "outputs": {}
+      }
+    }
+  }
+}

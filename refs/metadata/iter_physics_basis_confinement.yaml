@@ -1,0 +1,20 @@
+id: iter_physics_basis_confinement
+title: The Physics Basis (ITER-related confinement/transport overview)
+authors:
+- (unknown from scan)
+year: null
+source_pdf: 1.pdf
+sha256: bdfe13f227f21ab2f5e24bb1d36295bfe9b7254ae47912e23dcb9ab1a3ae761a
+extracted:
+  type: pending
+  items:
+  - Confinement/IPB98 context
+  pages:
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+usage: validation_only
+notes: Scanned images; extraction requires manual page review. Stored as provenance
+  anchor.

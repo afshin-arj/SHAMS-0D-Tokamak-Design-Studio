@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "atlas_v2": {
+      "type": "object"
+    },
+    "baseline_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_utc": {
+      "type": "string"
+    },
+    "grid": {
+      "type": "object"
+    },
+    "kind": {
+      "const": "shams_feasibility_atlas"
+    },
+    "lever_x": {
+      "type": "string"
+    },
+    "lever_y": {
+      "type": "string"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "created_utc",
+    "baseline_run_id",
+    "lever_x",
+    "lever_y",
+    "grid",
+    "atlas_v2"
+  ],
+  "title": "shams_feasibility_atlas",
+  "type": "object"
+}

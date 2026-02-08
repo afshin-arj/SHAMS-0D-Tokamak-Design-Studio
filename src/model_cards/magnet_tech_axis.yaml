@@ -1,0 +1,25 @@
+id: magnet_tech_axis_v1
+name: Magnet technology axis (HTS/LTS/Cu)
+version: v1
+module: src/engineering
+entrypoint: engineering.tf_coil + physics.plant
+maturity:
+  level: exploratory
+  trl: 3
+  notes:
+    - Technology axis is explicit and stamped into artifacts.
+    - SC margin uses critical-surface proxies; copper uses I^2R with winding-pack proxy.
+validity:
+  inputs:
+    magnet_technology: [null, null]
+  outputs: {}
+card:
+  what_it_does: |
+    Makes TF conductor technology explicit:
+      - HTS/LTS: report current-density margin and apply policy gating
+      - Copper: compute I^2R coil power and couple into recirculating power
+  proxy_vs_authority:
+    authoritative:
+      - Technology selection and bookkeeping are explicit.
+    proxy:
+      - Critical surface and winding-pack geometry are simplified proxies.

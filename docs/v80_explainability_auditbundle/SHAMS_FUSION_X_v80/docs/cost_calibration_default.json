@@ -1,0 +1,16 @@
+{
+  "availability": 0.7,
+  "blanket_MUSD_per_m3": 1.5,
+  "bop_MUSD_per_MWe": 1.2,
+  "capacity_factor": 0.75,
+  "cryo_MUSD_per_MW_recirc": 0.8,
+  "fixed_charge_rate": 0.1,
+  "magnet_MUSD_per_Tm3": 8.0,
+  "opex_fraction_of_capex": 0.04,
+  "plant_life_y": 30,
+  "discount_rate": 0.07,
+  "blanket_life_y": 5,
+  "divertor_life_y": 2,
+  "replacement_installation_factor": 1.15,
+  "decom_fraction_of_capex": 0.1
+}

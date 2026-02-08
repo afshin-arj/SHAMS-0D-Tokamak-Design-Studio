@@ -1,0 +1,17 @@
+id: rebco_senatore_scaling
+title: Field and temperature scaling of the critical current density in commercial
+  REBCO coated conductors
+authors:
+- C. Senatore
+- et al.
+year: null
+source_pdf: Field and temperature scaling of the critical current density in commercial
+  REBCO coated conductors.pdf
+sha256: 7ad34fc68efe87d0199399e15cdd063a8089db12940f663559f045df28f84895
+extracted:
+  type: pending
+  items:
+  - Jc(B,T) scaling parameters
+  pages: []
+usage: validation_only
+notes: Used to benchmark HTS critical-surface margin proxy; numeric extraction deferred.

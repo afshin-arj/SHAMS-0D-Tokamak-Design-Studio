@@ -1,0 +1,12 @@
+SHAMS — Tokamak 0‑D Design Studio
+© 2026 Afshin Arjhangmehr
+
+This project is a feasibility-authoritative, deterministic tokamak system code and governance platform.
+It is provided for research and engineering support purposes only.
+
+DISCLAIMER (Scientific / Safety / Regulatory)
+- This software does not constitute a safety case, certification, or regulatory approval.
+- Results depend on model assumptions, declared validity domains, and constraint governance.
+- Users are responsible for independent verification and for complying with applicable laws, codes, and standards.
+
+See GOVERNANCE.md and NON_OPTIMIZER_MANIFESTO.md for the non-negotiable project laws.

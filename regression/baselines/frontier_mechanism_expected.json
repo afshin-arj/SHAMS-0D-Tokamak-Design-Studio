@@ -1,0 +1,28 @@
+{
+  "compressed": [
+    "PLASMA",
+    "EXHAUST",
+    "MAGNETS"
+  ],
+  "envelope": {
+    "max_worst_hard_margin": 0.03,
+    "objective_at_max_margin": 3.0
+  },
+  "mech_col": "dominant_mechanism",
+  "switch_i": [
+    2,
+    4
+  ],
+  "transitions": [
+    {
+      "from": "EXHAUST",
+      "to": "EXHAUST",
+      "count": 1
+    },
+    {
+      "from": "EXHAUST",
+      "to": "MAGNETS",
+      "count": 1
+    }
+  ]
+}

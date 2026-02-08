@@ -1,0 +1,13 @@
+id: economics_component_cost_proxy
+name: Component-based CAPEX proxy
+version: '0.1'
+type: economics_proxy
+assumptions:
+- Cost scaling laws by size, field, net power
+outputs:
+- capex_total_MUSD
+- capex_tf_coils_MUSD
+maturity:
+  trl: 4
+  envelope: baseline
+  notes: Default maturity tag added in v35; update per proxy.

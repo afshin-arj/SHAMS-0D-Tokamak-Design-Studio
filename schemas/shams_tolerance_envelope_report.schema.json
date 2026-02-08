@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "created_utc": {
+      "type": "string"
+    },
+    "kind": {
+      "const": "shams_tolerance_envelope_report"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "samples": {
+      "type": "array"
+    },
+    "source_artifact_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "type": "object"
+    },
+    "tolerances": {
+      "type": "object"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "created_utc",
+    "source_artifact_id",
+    "tolerances",
+    "samples",
+    "summary"
+  ],
+  "title": "shams_tolerance_envelope_report",
+  "type": "object"
+}

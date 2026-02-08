@@ -1,0 +1,18 @@
+id: arc2015_design
+title: 'ARC: A compact, high-field, fusion nuclear science facility and demonstration
+  power plant with demountable magnets'
+authors:
+- P. T. Sorbom
+- et al.
+year: 2015
+source_pdf: ARC A compact, high-field, fusion nuclear science facility and demonstration
+  power plant with demountable magnets.pdf
+sha256: a03e380701a0a8ce515250ca6b35d647c9948e119e53221d88d41acd44ee3346
+extracted:
+  type: design_point
+  items:
+  - Representative ARC design point parameters (R0,a,B0,Ip,Pfus,Q)
+  pages: []
+usage: validation_only
+notes: Used as published integrated design anchor; values to be extracted from tables/figures
+  in later pass.

@@ -1,0 +1,144 @@
+{
+  "README": {
+    "purpose": "Publication-facing Point Designer benchmark cases. Replace inspired presets with cited parameter tables for your paper.",
+    "schema": {
+      "<case_id>": {
+        "title": "Human readable title",
+        "design_intent": "Reactor|Research",
+        "preset_key": "Optional: REF|REACTOR|ARC etc (uses src.models.reference_machines.reference_presets)",
+        "inputs": "Optional: PointInputs field overrides (dict). If preset_key is provided, inputs override the preset."
+      }
+    }
+  },
+  "PD|RESEARCH|ITER_INSPIRED": {
+    "title": "ITER-inspired (research intent policy)",
+    "design_intent": "Research",
+    "preset_key": "REF|REACTOR|ITER",
+    "inputs": {}
+  },
+  "PD|RESEARCH|JET_INSPIRED": {
+    "title": "JET-inspired",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|JET",
+    "inputs": {}
+  },
+  "PD|RESEARCH|DIII-D_INSPIRED": {
+    "title": "DIII-D-inspired",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|DIII-D",
+    "inputs": {}
+  },
+  "PD|REACTOR|SPARC_CLASS": {
+    "title": "SPARC-class compact HTS",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|SPARC",
+    "inputs": {}
+  },
+  "PD|REACTOR|ARC_CLASS": {
+    "title": "ARC-class HTS reactor",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|ARC",
+    "inputs": {}
+  },
+  "PD|REACTOR|STEP_BASELINE": {
+    "title": "STEP Prototype Plant baseline (literature table)",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|STEP",
+    "inputs": {}
+  },
+  "PD|REACTOR|EUDEMO_A26": {
+    "title": "EU DEMO low-A size point (A=2.6, literature table)",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|EUDEMO_A26",
+    "inputs": {}
+  },
+  "PD|REACTOR|EUDEMO_A31": {
+    "title": "EU DEMO low-A size point (A=3.1, literature table)",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|EUDEMO_A31",
+    "inputs": {}
+  },
+  "PD|REACTOR|EUDEMO_A33": {
+    "title": "EU DEMO low-A size point (A=3.3, literature table)",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|EUDEMO_A33",
+    "inputs": {}
+  },
+  "PD|RESEARCH|MASTU_INSPIRED": {
+    "title": "MAST-U-inspired (spherical tokamak research)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|MAST-U",
+    "inputs": {}
+  },
+  "PD|RESEARCH|NSTXU_INSPIRED": {
+    "title": "NSTX-U-inspired (spherical tokamak research)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|NSTX-U",
+    "inputs": {}
+  },
+
+  "PD|RESEARCH|EAST_INSPIRED": {
+    "title": "EAST-inspired (long-pulse research)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|EAST",
+    "inputs": {}
+  },
+  "PD|RESEARCH|KSTAR_INSPIRED": {
+    "title": "KSTAR-inspired (superconducting research)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|KSTAR",
+    "inputs": {}
+  },
+  "PD|RESEARCH|JT60SA_INSPIRED": {
+    "title": "JT-60SA-inspired (superconducting research)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|JT-60SA",
+    "inputs": {}
+  },
+  "PD|RESEARCH|ASDEXU_INSPIRED": {
+    "title": "ASDEX Upgrade-inspired (H-mode workhorse)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|ASDEX-U",
+    "inputs": {}
+  },
+  "PD|RESEARCH|TCV_INSPIRED": {
+    "title": "TCV-inspired (shaping laboratory)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|TCV",
+    "inputs": {}
+  },
+  "PD|RESEARCH|CMOD_INSPIRED": {
+    "title": "Alcator C-Mod-inspired (compact high-field research)",
+    "design_intent": "Research",
+    "preset_key": "REF|RESEARCH|C-MOD",
+    "inputs": {}
+  },
+
+  "PD|REACTOR|HH170": {
+    "title": "HH170 (Energy Singularity) — public slide values",
+    "design_intent": "Reactor",
+    "preset_key": "REF|REACTOR|HH170",
+    "inputs": {}
+  },
+
+  "TEMPLATE|RESEARCH|HIGH_POLOIDAL_BETA_PILOT": {
+    "enabled": false,
+    "title": "Template: high poloidal-beta pilot-plant scenario (fill from paper table)",
+    "design_intent": "Research",
+    "source": "Progress in the development and understanding of a high poloidal-beta tokamak operating scenario for an attractive fusion pilot plant.pdf",
+    "preset_key": "REF|REACTOR|ITER",
+    "inputs": {
+      "_note": "Fill from cited parameter table; this template is skipped until enabled=true."
+    }
+  },
+  "TEMPLATE|REACTOR|EUDEMO_LOW_A_REDESIGN": {
+    "enabled": false,
+    "title": "Template: EU DEMO low aspect ratio redesign (fill from paper table)",
+    "design_intent": "Reactor",
+    "source": "Re-design of EU DEMO with a low aspect ratio.pdf",
+    "preset_key": "REF|REACTOR|EUDEMO_A31",
+    "inputs": {
+      "_note": "Fill exact target set (Q/Pfus/H/Ip) from the paper; skipped until enabled=true."
+    }
+  }
+}

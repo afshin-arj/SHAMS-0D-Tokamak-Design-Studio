@@ -1,0 +1,14 @@
+- name: baseline
+  overrides:
+    divertor_tech_mode: baseline
+    availability_min: 0.6
+- name: conservative_divertor
+  overrides:
+    divertor_tech_mode: conservative
+- name: aggressive_divertor
+  overrides:
+    divertor_tech_mode: aggressive
+- name: high_availability
+  overrides:
+    blanket_replace_interval_y: 6.0
+    blanket_replace_duration_mo: 3.0

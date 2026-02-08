@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "project": "SHAMS\u2013FUSION-X",
+  "ran_unix": 1767630703.6320345,
+  "elapsed_s": 4.357467174530029,
+  "overall_ok": true,
+  "requirements": [
+    {
+      "id": "REQ-REG-001",
+      "title": "Regression benchmarks must pass",
+      "ok": true,
+      "seconds": 4.2969911098480225,
+      "model_cards": [
+        "plasma.hot_ion_point"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-GEO-001",
+      "title": "Inboard radial stack closure must be computed and reported",
+      "ok": true,
+      "seconds": 0.02860426902770996,
+      "model_cards": [
+        "engineering.radial_stack"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-GEO-002",
+      "title": "Baseline case should have a closing inboard stack",
+      "ok": true,
+      "seconds": 0.0025033950805664062,
+      "model_cards": [
+        "engineering.radial_stack"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-GEO-003",
+      "title": "A deliberately overbuilt coil case should fail inboard stack closure",
+      "ok": true,
+      "seconds": 0.02933502197265625,
+      "model_cards": [
+        "engineering.radial_stack"
+      ],
+      "note": ""
+    },
+    {
+      "id": "REQ-PROV-001",
+      "title": "Model card index must be emitted for audited outputs",
+      "ok": true,
+      "seconds": 6.4373016357421875e-06,
+      "model_cards": [
+        "engineering.radial_stack",
+        "plasma.hot_ion_point",
+        "economics.lifecycle_cost_proxy"
+      ],
+      "note": ""
+    }
+  ],
+  "baseline_model_cards": {
+    "availability_proxy": {
+      "id": "availability_proxy",
+      "name": "Availability proxy (planned + forced outages)",
+      "version": "0.1",
+      "hash": "c5b6bec169a043d525a2413547babf56d4552b6e97dbb929230afd8973e68315",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "availability.proxy": {
+      "id": "availability_proxy",
+      "name": "Availability proxy (planned + forced outages)",
+      "version": "0.1",
+      "hash": "c5b6bec169a043d525a2413547babf56d4552b6e97dbb929230afd8973e68315",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "economics_component_cost_proxy": {
+      "id": "economics_component_cost_proxy",
+      "name": "Component-based CAPEX proxy",
+      "version": "0.1",
+      "hash": "be8630a782c510d2e5678f205be95a53ac4510bd6182791404f114ff31f7bde7",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "economics.component_cost_proxy": {
+      "id": "economics_component_cost_proxy",
+      "name": "Component-based CAPEX proxy",
+      "version": "0.1",
+      "hash": "be8630a782c510d2e5678f205be95a53ac4510bd6182791404f114ff31f7bde7",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {}
+    },
+    "economics.lifecycle_cost_proxy": {
+      "id": "economics.lifecycle_cost_proxy",
+      "name": "Lifecycle costing / LCOE proxy",
+      "version": "1.0.0",
+      "hash": "f9e992a63cae7130786c2a9eef66993498ba412d25ccab9fbd6cf41ddefe9ba1",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "note": "Replace with component-based costing when available"
+      }
+    },
+    "engineering_divertor_proxy_v2": {
+      "id": "engineering_divertor_proxy_v2",
+      "name": "Divertor heat exhaust proxy with tech modes",
+      "version": "0.2",
+      "hash": "0d8730787c07227e92415a55222512331f1f432f88739665d42486fab81133eb",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "lambda_q_m": [
+          0.001,
+          0.02
+        ]
+      }
+    },
+    "engineering.divertor_proxy_v2": {
+      "id": "engineering_divertor_proxy_v2",
+      "name": "Divertor heat exhaust proxy with tech modes",
+      "version": "0.2",
+      "hash": "0d8730787c07227e92415a55222512331f1f432f88739665d42486fab81133eb",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "lambda_q_m": [
+          0.001,
+          0.02
+        ]
+      }
+    },
+    "engineering_magnet_pack_proxy": {
+      "id": "engineering_magnet_pack_proxy",
+      "name": "TF magnet pack proxy",
+      "version": "0.1",
+      "hash": "41f4def052be64b273657fa56a4c7469205b91ac8d588f10d249daf19d47782d",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "Bt_T": [
+          3.0,
+          10.0
+        ],
+        "R0_m": [
+          2.0,
+          15.0
+        ]
+      }
+    },
+    "engineering.magnet_pack_proxy": {
+      "id": "engineering_magnet_pack_proxy",
+      "name": "TF magnet pack proxy",
+      "version": "0.1",
+      "hash": "41f4def052be64b273657fa56a4c7469205b91ac8d588f10d249daf19d47782d",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "Bt_T": [
+          3.0,
+          10.0
+        ],
+        "R0_m": [
+          2.0,
+          15.0
+        ]
+      }
+    },
+    "engineering.radial_stack": {
+      "id": "engineering.radial_stack",
+      "name": "Inboard radial build explicit stack closure",
+      "version": "1.0.0",
+      "hash": "7365c98c409066ba43a31a8a78f85e4c7c4b5f582c7f841a89c218b67aa4baa3",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "note": "Use for conceptual sizing; verify with CAD for final designs"
+      }
+    },
+    "engineering_tbr_proxy": {
+      "id": "engineering_tbr_proxy",
+      "name": "Tritium breeding ratio monotonic proxy",
+      "version": "0.1",
+      "hash": "beab3dd7ae552f52750784a90083fce34e17f56dc5c7614cf4f29cf4ef39b102",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "t_blanket_m": [
+          0.3,
+          1.5
+        ],
+        "blanket_coverage": [
+          0.5,
+          0.95
+        ]
+      }
+    },
+    "engineering.tbr_proxy": {
+      "id": "engineering_tbr_proxy",
+      "name": "Tritium breeding ratio monotonic proxy",
+      "version": "0.1",
+      "hash": "beab3dd7ae552f52750784a90083fce34e17f56dc5c7614cf4f29cf4ef39b102",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "t_blanket_m": [
+          0.3,
+          1.5
+        ],
+        "blanket_coverage": [
+          0.5,
+          0.95
+        ]
+      }
+    },
+    "physics.divertor_proxy": {
+      "id": "physics.divertor_proxy",
+      "name": "Divertor heat-load proxy",
+      "version": "1.0.0",
+      "hash": "7b70740e5ee7c634a7b73d25249027c74bf6f74276ad8a0a938af6bf9ad16715",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "note": "Proxy only; calibrate to reference studies"
+      }
+    },
+    "plasma.hot_ion_point": {
+      "id": "plasma.hot_ion_point",
+      "name": "Hot-ion tokamak system proxy (core stack)",
+      "version": "1.0.0",
+      "hash": "00b83a9685fc237fa604c6df1ed47c9ec659c70eeebb39bd14704443d71efdb7",
+      "maturity": {
+        "trl": 4,
+        "envelope": "baseline",
+        "notes": "Default maturity tag added in v35; update per proxy."
+      },
+      "validity": {
+        "R0_m": [
+          1.0,
+          15.0
+        ],
+        "Bt_T": [
+          1.0,
+          20.0
+        ],
+        "betaN": [
+          0.5,
+          6.0
+        ]
+      }
+    }
+  }
+}

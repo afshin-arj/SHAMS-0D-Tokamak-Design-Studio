@@ -1,0 +1,14 @@
+id: economics.lifecycle_cost_proxy
+name: Lifecycle costing / LCOE proxy
+version: 1.0.0
+module: economics.lifecycle
+entrypoint: lifecycle_cost_proxy
+assumptions:
+- DCF-style proxy with simplified CAPEX/OPEX/availability representation
+- Intended for scenario comparison, not definitive costing
+validity:
+  note: Replace with component-based costing when available
+maturity:
+  trl: 4
+  envelope: baseline
+  notes: Default maturity tag added in v35; update per proxy.

@@ -1,0 +1,19 @@
+id: troyon1985_beta_limit
+title: A semi-empirical scaling law for the β-limit in tokamaks
+authors:
+- F. Troyon
+- R. Gruber
+- H. Saurenmann
+- S. Semenzato
+- S. Succi
+year: 1985
+source_pdf: A semi-empirical scaling law for the β-limit in tokamaks.pdf
+sha256: b63d1c2befd5d7c41497f2744714a42da64440fe8579f7a882f7b4db9994f6bd
+extracted:
+  type: equation
+  items:
+  - Troyon beta limit scaling
+  pages: []
+usage: validation_only
+notes: Store beta_N scaling form; coefficient g to be confirmed from paper text (formatting
+  hard to parse automatically).

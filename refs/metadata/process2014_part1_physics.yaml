@@ -1,0 +1,15 @@
+id: process2014_part1_physics
+title: 'PROCESS: A systems code for fusion power plants—Part 1: Physics'
+authors:
+- M. Kovari
+- et al.
+year: 2014
+source_pdf: PROCESS A systems code for fusion power plants—Part 1 Physics.pdf
+sha256: 9d87c48344cc856570af68986fc2fd1bb2b7dc594059a6e45d78a7dbfdafde7f
+extracted:
+  type: conceptual
+  items:
+  - Model conventions and definitions used in PROCESS
+  pages: []
+usage: validation_only
+notes: Used only to understand standard systems-code definitions; no copying of models.

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Flagship A \u2014 Net-electric, gain-aware",
+    "lens": "Reactor: maximize net electric power (with gain awareness)",
+    "seed": 0
+  },
+  {
+    "name": "Flagship B \u2014 Margin-conservative",
+    "lens": "Reactor: maximize net electric power (with gain awareness)",
+    "seed": 1
+  }
+]

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "project": "SHAMS\u2013FUSION-X",
+  "requirements": [
+    {
+      "id": "REQ-REG-001",
+      "title": "Regression benchmarks must pass",
+      "rationale": "Prevent unintended changes in decision-grade outputs.",
+      "acceptance": {
+        "type": "script_exit_code",
+        "command": "python benchmarks/run.py",
+        "expected_exit_code": 0
+      },
+      "model_cards": [
+        "plasma.hot_ion_point"
+      ]
+    },
+    {
+      "id": "REQ-GEO-001",
+      "title": "Inboard radial stack closure must be computed and reported",
+      "rationale": "Feasibility-first geometry closure for systems design decisions.",
+      "acceptance": {
+        "type": "output_keys_present",
+        "keys": [
+          "inboard_space_m",
+          "inboard_build_total_m",
+          "inboard_margin_m",
+          "R_coil_inner_m",
+          "radial_build_ok",
+          "stack_ok",
+          "radial_stack"
+        ]
+      },
+      "model_cards": [
+        "engineering.radial_stack"
+      ]
+    },
+    {
+      "id": "REQ-GEO-002",
+      "title": "Baseline case should have a closing inboard stack",
+      "rationale": "Ensure the default baseline remains a feasible reference point.",
+      "acceptance": {
+        "type": "case_check",
+        "case_name": "sparc_baseline",
+        "assert": {
+          "key": "stack_ok",
+          "op": ">=",
+          "value": 0.5
+        }
+      },
+      "model_cards": [
+        "engineering.radial_stack"
+      ]
+    },
+    {
+      "id": "REQ-GEO-003",
+      "title": "A deliberately overbuilt coil case should fail inboard stack closure",
+      "rationale": "Ensure clearly infeasible configurations are detected deterministically.",
+      "acceptance": {
+        "type": "case_check",
+        "case_name": "sparc_baseline",
+        "overrides": {
+          "t_tf_struct_m": 0.6,
+          "t_tf_wind_m": 0.45
+        },
+        "assert": {
+          "key": "stack_ok",
+          "op": "<",
+          "value": 0.5
+        }
+      },
+      "model_cards": [
+        "engineering.radial_stack"
+      ]
+    },
+    {
+      "id": "REQ-PROV-001",
+      "title": "Model card index must be emitted for audited outputs",
+      "rationale": "Every run artifact should declare which proxy models were used (versions + hashes).",
+      "model_cards": [
+        "engineering.radial_stack",
+        "plasma.hot_ion_point",
+        "economics.lifecycle_cost_proxy"
+      ],
+      "acceptance": {
+        "type": "model_cards_present",
+        "ids": [
+          "engineering.radial_stack",
+          "plasma.hot_ion_point"
+        ]
+      }
+    }
+  ]
+}

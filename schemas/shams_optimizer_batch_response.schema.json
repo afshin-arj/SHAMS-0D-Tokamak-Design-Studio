@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "created_utc": {
+      "type": "string"
+    },
+    "kind": {
+      "const": "shams_optimizer_batch_response"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "proposals": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "created_utc",
+    "proposals"
+  ],
+  "title": "shams_optimizer_batch_response",
+  "type": "object"
+}

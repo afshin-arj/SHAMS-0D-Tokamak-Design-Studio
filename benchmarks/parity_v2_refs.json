@@ -1,0 +1,26 @@
+[
+  {
+    "name": "ITER_like",
+    "reference": {
+      "plant.derived.P_e_net_MW": 0.0,
+      "plant.derived.Qe": 0.0
+    },
+    "tolerances": {
+      "plant.derived.P_e_net_MW": 0.25,
+      "plant.derived.Qe": 0.25
+    },
+    "notes": "Placeholder reference values for calibration mode. Replace with published or program-specific targets."
+  },
+  {
+    "name": "DEMO_like",
+    "reference": {
+      "plant.derived.P_e_net_MW": 500.0,
+      "costing.derived.LCOE_USD_per_MWh": 120.0
+    },
+    "tolerances": {
+      "plant.derived.P_e_net_MW": 0.25,
+      "costing.derived.LCOE_USD_per_MWh": 0.35
+    },
+    "notes": "Placeholder; set to your chosen DEMO study baseline."
+  }
+]

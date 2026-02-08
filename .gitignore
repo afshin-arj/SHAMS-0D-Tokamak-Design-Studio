@@ -1,0 +1,38 @@
+# Bytecode / caches (forbidden in releases)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+
+# IDEs / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Streamlit / local state
+.streamlit/
+*.log
+
+# Local runs / outputs (generated)
+runs/
+outputs/
+artifacts/
+hygiene_clean_report.json
+repo_mutation_guard.json
+optimizer_dossier.json
+regime_maps_report.json
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

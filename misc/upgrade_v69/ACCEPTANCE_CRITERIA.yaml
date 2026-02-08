@@ -1,0 +1,59 @@
+# SHAMS–FUSION-X Acceptance Criteria (Validation Gates)
+# Validation-only. Does not affect physics or solver behavior.
+#
+# All criteria are evaluated against:
+# - physics invariants (definition-level)
+# - literature envelopes (membership or bounded deviation)
+# - UI mode independence (Point/Systems/Scan/Pareto must agree)
+
+metadata:
+  schema_version: 1
+  created: 2026-01-07
+  notes: >
+    This file is the single source of truth for quantitative benchmarking gates.
+    It must be versioned alongside releases. No tuning is permitted; envelopes are
+    used for pass/fail classification only.
+
+gates:
+  invariants:
+    greenwald_fraction:
+      required: true
+      rule: "computed_greenwald_fraction == n_over_nG"
+      tolerance: 1e-10
+    beta_normalization:
+      required: true
+      rule: "beta_N_definition_matches"
+      tolerance: 1e-10
+
+  envelopes:
+    lambda_q:
+      required: false
+      status: PENDING_DATA
+      rule: "within_envelope"
+      references: ["Eich", "Goldston"]
+      notes: "Enable once reference datasets are populated."
+    bootstrap_fraction:
+      required: false
+      status: PENDING_DATA
+      rule: "within_reference_band"
+      references: ["Sauter"]
+    rebco_surface:
+      required: false
+      status: PENDING_DATA
+      rule: "within_material_limit_surface"
+      references: ["ARC", "REBCO literature"]
+    arc_point:
+      required: false
+      status: PENDING_DATA
+      rule: "bounded_deviation"
+      deviation_limits:
+        relative_percent: 5.0
+
+  ui_mode_independence:
+    required: true
+    quantities:
+      - "n_over_nG"
+      - "beta_N"
+      - "P_fus"
+      - "R0"
+    tolerance_relative: 1e-9

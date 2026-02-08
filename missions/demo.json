@@ -1,0 +1,14 @@
+{
+  "description": "DEMO mission emphasizing net-electric relevance, reliability, and maintainability proxies.",
+  "kind": "shams_mission_spec",
+  "name": "DEMO",
+  "notes": [
+    "Advisory overlays only."
+  ],
+  "targets": {
+    "Pn_MW_min": 200,
+    "Q_min": 10,
+    "availability_target": 0.4
+  },
+  "version": "v121"
+}

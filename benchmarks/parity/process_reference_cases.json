@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {
+      "case_id": "demo_case_001",
+      "inputs": {
+        "Bt": 12.0,
+        "Ip": 15000000.0,
+        "Paux": 50000000.0,
+        "f_G": 0.85
+      },
+      "intent": "reactor",
+      "process_reference": {
+        "P_el_net_W": null,
+        "P_fus_W": null,
+        "Q_plasma": null
+      }
+    }
+  ],
+  "notes": "Populate with PROCESS reference outputs for parity tracking. Values are user-supplied; SHAMS does not assume PROCESS results.",
+  "schema_version": "process.parity_cases.v1"
+}

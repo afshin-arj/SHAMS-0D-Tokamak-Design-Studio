@@ -1,0 +1,16 @@
+id: greenwald1988_density_limit
+title: A new look at density limits in tokamaks
+authors:
+- M. Greenwald
+- et al.
+year: 1988
+source_pdf: A new look at density limits in tokamaks.pdf
+sha256: 349bf894d9c75192affb0c07d47a5cdb785757b74208e1af6934b34bc0f34de7
+extracted:
+  type: equation
+  items:
+  - Greenwald density limit definition
+  pages: []
+usage: validation_only
+notes: Store canonical Greenwald limit definition used across literature; exact page
+  not reliably parsed in this pass.
