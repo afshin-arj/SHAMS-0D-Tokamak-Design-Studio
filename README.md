@@ -1,6 +1,7 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.  
+**SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
+
 It is designed to determine:
 
 - what tokamak designs are physically admissible,
@@ -11,87 +12,154 @@ It is designed to determine:
 SHAMS explicitly allows:
 - infeasible designs,
 - empty regions of design space,
-- and **NO-SOLUTION** as a valid scientific outcome.
+- **NO-SOLUTION** as a valid scientific outcome.
 
 SHAMS explicitly does **not**:
 - optimize *inside* physics truth,
 - hide infeasibility via solver convergence,
-- negotiate constraints using penalties or smoothing.
+- negotiate constraints using penalties, smoothing, or relaxation.
 
 All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:  
 same inputs → same outputs, with full auditability.
 
 ---
 
-## What Has Been Implemented
+## SHAMS vs PROCESS — Complete Comparison
 
-As of **v326.1**, SHAMS includes:
+### 1. Purpose & Philosophy
 
-### Physics & Truth (Frozen)
-- Frozen deterministic 0-D plasma physics with conservative scalings  
-- 1.5D profile proxy bundle (temperature, density, shear, pedestal width)  
-- Explicit constraint governance (hard / diagnostic / ignored)  
-- Exhaust & divertor authority (heat flux, detachment, impurity radiation)  
-- Magnet authority (HTS margins, stress, envelopes)  
-- Control & stability authority (VS, RWM, PF, CS budgets)  
-- Neutronics & materials authority (domain-tightened)  
-- Fuel cycle & tritium authority  
-- Plant power ledger (explicit energy accounting)
-
-### Exploration, Optimization & Interpretation (Firewalled)
-- Intent-to-Machine compiler  
-- Deterministic scan lab  
-- Robust Pareto analysis (worst-phase / worst-corner)  
-- Design family clustering and regime maps  
-- **Certified external optimization orchestration** (NSGA-II, CMA-ES, BO, etc.)  
-- Objective contracts and optimizer evidence dossiers  
-- Feasible-first surrogate acceleration (non-authoritative)  
-- Mirage detection (optimistic vs robust lanes)  
-- One-click reviewer-ready evidence packs with hash manifests  
-
-The UI is **Streamlit-only**, deck-based, verdict-first, and expert-oriented, with full inter-panel interoperability and deterministic replay.
+| Dimension | SHAMS | PROCESS |
+|---------|-------|---------|
+| Primary role | **Feasibility authority & governance system** | Design optimization system |
+| Core question | *What machines can physically exist, and why others cannot?* | *What machine optimizes a chosen objective?* |
+| Treatment of failure | **First-class scientific result** | Avoided if possible |
+| Empty design space | **Explicitly allowed** | Implicitly discouraged |
+| Scientific posture | Constraint-first, mechanism-explicit | Objective-first, solver-driven |
+| Intended use | Review, feasibility authority, governance | Parametric design optimization |
 
 ---
 
-## Optimization Philosophy (Important)
-
-SHAMS **does support optimization**, but **never inside physics truth**.
-
-Optimization in SHAMS is:
-- **external** (runs outside the evaluator),
-- **firewalled** (cannot mutate physics, constraints, or closures),
-- **contract-governed** (explicit objectives, bounds, and feasibility rules),
-- **evidence-integrated** (every optimizer result is traceable and auditable).
-
-Optimizers explore the design space that SHAMS defines as admissible;  
-they **cannot negotiate constraints or force convergence**.
-
-This allows SHAMS to:
-- compete directly with PROCESS-style optimization workflows,
-- while preserving determinism, feasibility authority, and reviewer safety.
-
----
-
-## SHAMS vs PROCESS (High-Level)
+### 2. Numerical & Algorithmic Discipline
 
 | Aspect | SHAMS | PROCESS |
 |------|-------|---------|
-| Core role | **Feasibility authority + optimization governor** | Design optimizer |
-| Evaluator | Frozen, algebraic, deterministic | Coupled nonlinear solvers |
-| Iteration / solvers | **Not allowed in truth** | Central |
-| Optimization | **External, firewalled, evidence-checked** | Internal |
-| Constraint handling | Explicit, never negotiated | Penalties / relaxation |
-| Failure reporting | **First-class outcome** | Typically avoided |
-| Robustness | Explicit, worst-case | Nominal |
-| Auditability | **Replayable, hash-manifested** | Limited |
+| Evaluator type | **Frozen deterministic algebraic evaluator** | Coupled nonlinear solver system |
+| Iteration | **Forbidden** | Central |
+| Newton / relaxation solvers | **Not allowed** | Required |
+| Hidden smoothing | **Explicitly forbidden** | Common |
+| Determinism | **Bitwise reproducible** | Solver-path dependent |
+| Same inputs → same outputs | **Guaranteed** | Not guaranteed |
+| Numerical transparency | One-pass, visible evaluation | Convergence path opaque |
+
+---
+
+### 3. Constraint Handling & Limits
+
+| Topic | SHAMS | PROCESS |
+|------|-------|---------|
+| Constraint classification | **Hard / Diagnostic / Ignored (explicit)** | Implicit via penalties |
+| Constraint negotiation | **Not allowed** | Common |
+| Constraint violation | Reported and preserved | Reduced until convergence |
+| Dominant failure mechanism | **Explicitly identified** | Often obscured |
+| Plasma limits (β, q, Greenwald) | Conservative envelopes | Often softened |
+| Engineering margins | **First-class citizens** | Tunable |
+
+---
+
+### 4. Plasma Physics Modeling
+
+| Area | SHAMS | PROCESS |
+|----|-------|---------|
+| Core confinement | 0-D scalings (conservative) | 0-D scalings |
+| Profiles | **1.5D proxy bundle (T, n, shear, pedestal)** | Parametric / implicit |
+| Transport solvers | **Not implemented (by design)** | Not true transport either |
+| Burn physics | Deterministic α-heating balance | Solver-coupled |
+| Radiation | **Explicit impurity & detachment authority** | Simplified |
+| Edge / SOL | **Exhaust authority with detachment logic** | Simplified limits |
+
+---
+
+### 5. Engineering Authorities
+
+| Subsystem | SHAMS | PROCESS |
+|---------|-------|---------|
+| Magnets | **HTS margins, stress envelopes** | Parametric coil models |
+| Exhaust / divertor | **Authority-grade heat flux & detachment** | Approximate |
+| Control & stability | **VS, RWM, PF, CS budgets** | Largely absent |
+| Disruptions | **Deterministic risk tiering** | Minimal |
+| Neutronics | **Domain-tightened authority** | Approximate |
+| Fuel cycle / tritium | **Explicit authority** | Simplified |
+| Plant power ledger | **Explicit energy accounting** | Aggregated |
+
+---
+
+### 6. Optimization Capability (Critical Distinction)
+
+| Aspect | SHAMS | PROCESS |
+|------|-------|---------|
+| Internal optimization | **Forbidden** | Core feature |
+| External optimization | **Yes (firewalled)** | N/A |
+| Optimizer influence on physics | **Impossible by construction** | Total |
+| Supported optimizers | NSGA-II, CMA-ES, BO, custom | Built-in |
+| Objective contracts | **Explicit, versioned** | Implicit |
+| Optimizer evidence | **Hash-manifested dossiers** | Not native |
+| Feasibility enforcement | **Absolute** | Negotiable |
+
+> SHAMS **can compete directly with PROCESS-style optimization**  
+> while preserving frozen truth, determinism, and feasibility authority.
+
+---
+
+### 7. Robustness, Exploration & Interpretation
+
+| Feature | SHAMS | PROCESS |
+|------|-------|---------|
+| Deterministic scans | Yes | Limited |
+| Robust Pareto (worst-case) | **Yes** | Nominal |
+| Mirage detection | **Yes (optimistic vs robust lanes)** | No |
+| Design families | **Explicit clustering & narratives** | No |
+| Regime maps | **Mechanism-labeled** | No |
+| Failure explanation | **Narrative + mechanism** | Limited |
+
+---
+
+### 8. Governance, Audit & Review
+
+| Feature | SHAMS | PROCESS |
+|------|-------|---------|
+| Audit trail | **Hash-manifested evidence packs** | None |
+| Replayability | **Guaranteed** | Not guaranteed |
+| Reviewer artifacts | **One-click reviewer pack** | Manual |
+| Assumption visibility | Explicit | Often implicit |
+| Regulatory posture | **Review-ready** | Research-grade |
+
+---
+
+### 9. User Interface & Human Factors
+
+| Aspect | SHAMS | PROCESS |
+|------|-------|---------|
+| UI paradigm | **Streamlit, deck-based, verdict-first** | Input files |
+| Scroll walls | **Forbidden** | Common |
+| Expert guidance | Scope cards per mode | None |
+| Phantom features | **Impossible by rule** | Possible |
+| Inter-panel interoperability | Canonical promotion paths | N/A |
+
+---
+
+## Bottom Line
 
 **PROCESS** answers:  
-> *“What design optimizes a chosen objective, assuming constraints can be negotiated?”*
+> *“What design optimizes my chosen objective, assuming constraints can be negotiated?”*
 
 **SHAMS** answers:  
-> *“Which designs are physically admissible, how robust they are, and—if optimized externally—why the optimizer succeeded or failed.”*
+> *“Which tokamak designs are physically admissible, how robust they are, why others fail, and—if optimized externally—why the optimizer succeeded or failed.”*
 
-SHAMS can therefore **complement or retire PROCESS** in roles requiring feasibility authority, robustness assessment, and regulatory-grade reasoning.
+SHAMS can therefore **complement or retire PROCESS** in roles requiring:
+- feasibility authority,
+- robustness assessment,
+- auditability,
+- and regulatory-grade reasoning.
 
 ---
 
@@ -112,7 +180,5 @@ All such capabilities must remain **external and non-authoritative**.
 
 For technical questions, reviews, or collaboration inquiries:
 
-**Dr. Afshin Arjhangmehr**  
+**Afshin Arjhangmehr**  
 📧 **ms.arjangmehr@gmail.com**
-
-((I will try to answer in short))
