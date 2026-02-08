@@ -180,5 +180,5 @@ All such capabilities must remain **external and non-authoritative**.
 
 For technical questions, reviews, or collaboration inquiries:
 
-**Afshin Arjhangmehr**  
+**Dr. Afshin Arjhangmehr**  
 📧 **ms.arjangmehr@gmail.com**
