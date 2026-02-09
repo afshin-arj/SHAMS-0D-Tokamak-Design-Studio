@@ -140,6 +140,16 @@ def _classify(nominal_feasible: bool, env_verdict: str, uq_verdict: str) -> str:
     if ev == "PASS" and uv == "FRAGILE":
         return "FRAGILE"
     # nominal feasible but fails under worst-phase or worst-corner
+
+    # v327.5: pipeline-native DSG subset linking (best-effort)
+    try:
+        from ui.handoff import render_subset_linker_best_effort  # type: ignore
+        _df_for_link = locals().get("df_show") or locals().get("df_ranked") or locals().get("df")
+        if _df_for_link is not None:
+            render_subset_linker_best_effort(df=_df_for_link, label="Pareto", kind="pareto_select", note="Selection from Pareto table")
+    except Exception:
+        pass
+
     return "MIRAGE"
 
 
@@ -398,6 +408,11 @@ def _render_results(artifact: Dict[str, Any]) -> None:
         st.info("No robust results yet.")
         return
     df = pd.DataFrame(rows)
+    try:
+        from ui.handoff import maybe_add_dsg_node_id_column
+        df = maybe_add_dsg_node_id_column(df)
+    except Exception:
+        pass
 
     st.markdown("#### Robust mix")
     vc = df["tier"].astype(str).value_counts()
@@ -440,7 +455,11 @@ def _render_results(artifact: Dict[str, Any]) -> None:
                         pick = p
                         break
                 if isinstance(pick, dict) and isinstance(pick.get("inputs"), dict):
-                    st.session_state["pd_candidate_apply"] = dict(pick.get("inputs"))
+                    try:
+                        from ui.handoff import stage_pd_candidate_apply as _stage
+                    except Exception:
+                        from .handoff import stage_pd_candidate_apply as _stage
+                    _stage(dict(pick.get("inputs")), source="📈 Pareto Lab / Robust Pareto Promote", note="Selected robust Pareto point")
                     from datetime import datetime
                     st.session_state["last_promotion_event"] = {
                         "source": "📈 Pareto Lab / Robust Pareto Promote",

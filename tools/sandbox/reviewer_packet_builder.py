@@ -27,6 +27,7 @@ import zipfile
 
 from tools.sandbox.report_pack import build_report_pack
 from tools.sandbox.review_room import build_review_trinity, build_attack_simulation
+from tools.ui_wiring_index import build_ui_wiring_index_markdown
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,8 @@ class ReviewerPacketOptions:
     include_attack_simulation: bool = True
     include_scan_grounding: bool = True
     include_run_capsule: bool = True
+    include_ui_wiring_index: bool = True
+    include_design_state_graph_snapshot: bool = True
     include_do_not_build_brief: bool = True
     include_repo_manifests: bool = True
 
@@ -171,7 +174,54 @@ def build_reviewer_packet_zip(
     if options.include_do_not_build_brief and isinstance(do_not_build_brief, dict) and do_not_build_brief:
         add_bytes("do_not_build_brief.json", _canonical_json_bytes(do_not_build_brief))
 
-    # --- Repo manifests (audit context) ---
+    
+    # --- UI wiring index (static, reviewer-safe) ---
+    if options.include_ui_wiring_index:
+        try:
+            md = build_ui_wiring_index_markdown(repo_root=repo_root)
+            add_text("ui/UI_WIRING_INDEX.md", md)
+        except Exception as e:
+            # Never fail packet build on auxiliary artifact; include diagnostic note.
+            add_text("ui/UI_WIRING_INDEX_ERROR.txt", f"{type(e).__name__}: {e}")
+
+    # --- Design State Graph snapshot (inter-panel continuity artifact) ---
+    if options.include_design_state_graph_snapshot and repo_root is not None:
+        try:
+            p = repo_root / "artifacts" / "dsg" / "current_dsg.json"
+            t = _read_text_if_exists(p)
+            if t is not None:
+                add_text("dsg/CURRENT_DSG.json", t)
+                # Add a small active-node summary for reviewers
+                try:
+                    import json as _json
+                    data = _json.loads(t)
+                    active = str(data.get("active_node_id") or "")
+                    if active:
+                        # find node record
+                        nodes = list(data.get("nodes", []) or [])
+                        rec = next((r for r in nodes if str(r.get("node_id")) == active), None)
+                        if rec is not None:
+                            ok = "OK" if bool(rec.get("ok", True)) else "FAIL"
+                            md = [
+                                "# Active Design Node",
+                                "",
+                                f"- node_id: `{active}`",
+                                f"- seq: `{rec.get('seq', '')}`",
+                                f"- status: **{ok}**",
+                                f"- origin: `{rec.get('origin','')}`",
+                                f"- inputs_sha256: `{rec.get('inputs_sha256','')}`",
+                                f"- outputs_sha256: `{rec.get('outputs_sha256','')}`",
+                            ]
+                            msg = str(rec.get("message", "") or "").strip()
+                            if msg:
+                                md += ["", "## Message", "", msg]
+                            add_text("dsg/ACTIVE_NODE.md", "\n".join(md) + "\n")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+# --- Repo manifests (audit context) ---
     if options.include_repo_manifests:
         for name in ["MANIFEST_SHA256.txt", "MANIFEST_UPGRADE_SHA256.txt", "RELEASE_NOTES.md", "GOVERNANCE.md"]:
             t = _read_text_if_exists(repo_root / name)

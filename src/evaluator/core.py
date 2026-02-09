@@ -23,6 +23,7 @@ except Exception:
     from calibration.calibration import apply_calibration  # type: ignore
     from provenance.model_cards import model_cards_index  # type: ignore
 from .derivatives import get_derivative
+from .cache_key import sha256_cache_key
 
 
 @dataclass
@@ -51,9 +52,10 @@ class Evaluator:
         self._cache_enabled = bool(cache_enabled)
         self._cache_max = int(cache_max)
 
-        # Memoization cache keyed by hash(PointInputs)
-        self._cache: dict[int, EvalResult] = {}
-        self._cache_order: list[int] = []
+        # Memoization cache keyed by sha256(canonical_json(PointInputs))
+        # (stable across Python processes and hash seeds)
+        self._cache: dict[str, EvalResult] = {}
+        self._cache_order: list[str] = []
 
         # Simple stats for debugging/telemetry
         self._cache_hits = 0
@@ -89,8 +91,8 @@ class Evaluator:
             """
             t0 = time.perf_counter()
 
-            # Hash inputs deterministically (frozen dataclass) for caching
-            cache_key = hash(inp)
+            # Deterministic cache key (canonical JSON -> SHA-256) for caching
+            cache_key = sha256_cache_key(inp)
             cache = getattr(self, "_cache", {})
             if bool(getattr(self, "_cache_enabled", True)) and cache_key in cache:
                 self._cache_hits = int(getattr(self, "_cache_hits", 0) or 0) + 1

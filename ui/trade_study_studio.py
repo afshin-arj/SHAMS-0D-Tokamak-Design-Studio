@@ -59,6 +59,16 @@ def _objectives_catalog() -> Tuple[List[str], Dict[str, str]]:
     reg = list_objectives()
     names = sorted(reg.keys())
     senses = {k: str(reg[k].sense) for k in names}
+
+    # v327.5: pipeline-native DSG subset linking (best-effort)
+    try:
+        from ui.handoff import render_subset_linker_best_effort  # type: ignore
+        _df_for_link = locals().get("df_show") or locals().get("df_ranked") or locals().get("df") or locals().get("df_out")
+        if _df_for_link is not None:
+            render_subset_linker_best_effort(df=_df_for_link, label="Trade Study", kind="trade_select", note="Selection from Trade Study table")
+    except Exception:
+        pass
+
     return names, senses
 
 
@@ -201,8 +211,14 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         df_feas = pd.DataFrame(rep.get("feasible", []) or [])
         df_pareto = pd.DataFrame(rep.get("pareto", []) or [])
 
+        if maybe_add_dsg_node_id_column is not None:
+            df_all = maybe_add_dsg_node_id_column(df_all)
         st.dataframe(df_all, use_container_width=True, table_title="All samples")
+        if maybe_add_dsg_node_id_column is not None:
+            df_feas = maybe_add_dsg_node_id_column(df_feas)
         st.dataframe(df_feas, use_container_width=True, table_title="Feasible samples")
+        if maybe_add_dsg_node_id_column is not None:
+            df_pareto = maybe_add_dsg_node_id_column(df_pareto)
         st.dataframe(df_pareto, use_container_width=True, table_title="Feasible Pareto subset")
 
         # Promote a selected Pareto point into Point Designer workspace
@@ -220,7 +236,22 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                                 dd[k] = float(row[k])
                             except Exception:
                                 pass
-                    st.session_state["pd_candidate_apply"] = dict(dd)
+                    if _stage_pd is not None:
+                        _stage_pd(dict(dd), source="🧪 Trade Study Studio", note="Promoted selected trade-study row")
+                    else:
+                        st.session_state["pd_candidate_apply"] = dict(dd)
+
+                    # --- v327.3: DSG pipeline capture for Trade promotions (no truth evaluation) ---
+                    try:
+                        from evaluator.cache_key import canonical_json
+                        import hashlib
+                        _parent = st.session_state.get("dsg_selected_node_id") or st.session_state.get("active_design_node_id")
+                        _inp_json = canonical_json(dict(dd))
+                        _nid = hashlib.sha256(_inp_json.encode("utf-8")).hexdigest()
+                        st.session_state["trade_last_parent_node_id"] = str(_parent) if _parent else ""
+                        st.session_state["trade_last_node_ids"] = [_nid]
+                    except Exception:
+                        pass
                     from datetime import datetime
                     st.session_state["last_promotion_event"] = {
                         "source": "🧪 Trade Study Studio / Pareto Promote",
@@ -234,6 +265,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
 
         # Family summary
         fam = family_summary(rep.get("records", []) or [])
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame(fam.get("rows", []) or []), use_container_width=True, table_title="Design family summary")
 
         # Lane classification for Pareto points
@@ -267,6 +300,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                     "laneO_worst_margin_frac": float(sO.get("worst_hard_margin_frac", float("nan")) or float("nan")),
                     "laneR_worst_margin_frac": float(sR.get("worst_hard_margin_frac", float("nan")) or float("nan")),
                 })
+            if maybe_add_dsg_node_id_column is not None:
+                pd = maybe_add_dsg_node_id_column(pd)
             st.dataframe(pd.DataFrame(rows), use_container_width=True, table_title="Lane-O vs Lane-R verdicts")
 
     # -------------------------------------------
@@ -349,6 +384,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             st.info("Propose a batch to continue.")
             return
 
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame(list(cand)), use_container_width=True, table_title="Proposed knob candidates (unverified)")
 
         if st.button("Verify proposed candidates (truth)", use_container_width=True, key="ts_sa_verify"):
@@ -373,6 +410,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             return
 
         dfv = pd.DataFrame(vrows)
+        if maybe_add_dsg_node_id_column is not None:
+            dfv = maybe_add_dsg_node_id_column(dfv)
         st.dataframe(dfv, use_container_width=True, table_title="Verified candidates (frozen truth)")
 
         # Append verified rows into the active study capsule for cross-panel use
@@ -522,6 +561,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         if runs_dir.exists():
             runs = sorted([p for p in runs_dir.iterdir() if p.is_dir()], key=lambda p: p.name, reverse=True)
             if runs:
+                if maybe_add_dsg_node_id_column is not None:
+                    pd = maybe_add_dsg_node_id_column(pd)
                 st.dataframe(pd.DataFrame([{"run": r.name, "path": str(r)} for r in runs[:30]]), use_container_width=True, table_title="Recent kit runs")
 
     # --------------------
@@ -547,7 +588,11 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         cls = "ROBUST" if vR == "ROBUST_PASS" else ("MIRAGE" if vO == "ROBUST_PASS" else "FAIL")
 
         st.markdown(f"**Lane-O:** `{vO}`   **Lane-R:** `{vR}`   **Class:** **{cls}**")
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame([sO]), use_container_width=True, table_title="Lane-O summary")
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame([sR]), use_container_width=True, table_title="Lane-R summary")
 
     # --------------------
@@ -565,10 +610,16 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         if df.empty:
             st.warning("No records available.")
             return
+        if maybe_add_dsg_node_id_column is not None:
+            df = maybe_add_dsg_node_id_column(df)
         st.dataframe(df, use_container_width=True, table_title="Records with family labels")
         fam = family_summary(rep.get("records", []) or [])
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame(fam.get("rows", []) or []), use_container_width=True, table_title="Family summary")
         with st.expander("Family definitions", expanded=False):
+            if maybe_add_dsg_node_id_column is not None:
+                pd = maybe_add_dsg_node_id_column(pd)
             st.dataframe(pd.DataFrame([{"family": f.key, "title": f.title, "notes": f.notes} for f in FAMILIES]), use_container_width=True)
 
     # --------------------
@@ -649,6 +700,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                     "median_margin_frac": (c.get("margin") or {}).get("median_margin_frac"),
                 }
             )
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame(rows), use_container_width=True, table_title="Regime clusters")
 
         # Narrative blocks
@@ -723,5 +776,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         if rep is None:
             st.info("Run a scan to view results.")
             return
+        if maybe_add_dsg_node_id_column is not None:
+            pd = maybe_add_dsg_node_id_column(pd)
         st.dataframe(pd.DataFrame(rep.get("rows", []) or []), use_container_width=True, table_title="Path scan")
         st.write("First robust-pass:", rep.get("first_robust_pass"))

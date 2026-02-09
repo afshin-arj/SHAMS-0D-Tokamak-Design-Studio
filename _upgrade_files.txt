@@ -1,0 +1,12 @@
+MANIFEST_SHA256.txt
+MANIFEST_UPGRADE_SHA256.txt
+RELEASE_NOTES.md
+VERSION
+tests/test_ui_wiring_index.py
+tools/sandbox/reviewer_packet_builder.py
+tools/ui_wiring_index.py
+ui/app.py
+ui/extopt_workbench.py
+ui/handoff.py
+ui/robust_pareto_lab.py
+ui/trade_study_studio.py

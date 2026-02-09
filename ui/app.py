@@ -222,9 +222,95 @@ if "ui_tablekit_enabled" not in st.session_state:
     st.session_state["ui_tablekit_enabled"] = True
 if "ui_tablekit_default_expanded" not in st.session_state:
     st.session_state["ui_tablekit_default_expanded"] = False
+
+# --- v327.0: Design State Graph (DSG) — inter-panel continuity (exploration layer)
+_DSG_SNAPSHOT_PATH = "artifacts/dsg/current_dsg.json"
+from typing import Any, Optional
+try:
+    from src.dsg import DesignStateGraph  # type: ignore
+except Exception:
+    try:
+        from dsg import DesignStateGraph  # type: ignore
+    except Exception:
+        DesignStateGraph = None  # type: ignore
+
+if "_shams_dsg" not in st.session_state and DesignStateGraph is not None:
+    try:
+        st.session_state["_shams_dsg"] = DesignStateGraph.load(_DSG_SNAPSHOT_PATH)
+    except Exception:
+        st.session_state["_shams_dsg"] = DesignStateGraph()
+
+def _dsg_save_best_effort() -> None:
+    try:
+        if DesignStateGraph is None:
+            return
+        g = st.session_state.get("_shams_dsg")
+        if g is None:
+            return
+        g.save(_DSG_SNAPSHOT_PATH)
+    except Exception:
+        return
+
+def _dsg_record_best_effort(*, inp: Any, res: Any, origin: str, parents: Optional[list[str]] = None, tags: Optional[list[str]] = None, edge_kind: Optional[str] = None, edge_note: str = "") -> None:
+    """Record an evaluation into the DSG if available.
+
+    This is an exploration-layer side effect only; it must not affect truth.
+    """
+    try:
+        if DesignStateGraph is None:
+            return
+        g = st.session_state.get("_shams_dsg")
+        if g is None:
+            return
+        out = getattr(res, "out", {}) if res is not None else {}
+        ok = bool(getattr(res, "ok", True))
+        msg = str(getattr(res, "message", "") or "")
+        el = float(getattr(res, "elapsed_s", 0.0) or 0.0)
+        node = g.record(inp=inp, out=out, ok=ok, message=msg, elapsed_s=el, origin=str(origin), parents=parents, tags=tags, edge_kind=edge_kind, edge_note=edge_note)
+        st.session_state["active_design_node_id"] = node.node_id
+        _dsg_save_best_effort()
+    except Exception:
+        return
+
+def _dsg_evaluator(*, origin: str = "UI", **evaluator_kwargs: Any):
+    """Construct an Evaluator wrapper that records evaluations into DSG.
+
+    This is an exploration-layer adapter only.
+    """
+    try:
+        from src.evaluator.core import Evaluator  # type: ignore
+    except Exception:
+        from evaluator.core import Evaluator  # type: ignore
+
+    ev = Evaluator(**evaluator_kwargs)
+
+    class _Wrap:
+        def __init__(self, _ev: Any, _origin: str):
+            self._ev = _ev
+            self._origin = str(_origin)
+
+        def evaluate(self, inp: Any):
+            res = self._ev.evaluate(inp)
+            parent = st.session_state.get("dsg_selected_node_id") or st.session_state.get("active_design_node_id")
+            kind = st.session_state.get("dsg_context_edge_kind") or "derived"
+            parents = [str(parent)] if parent else None
+            _dsg_record_best_effort(inp=inp, res=res, origin=self._origin, parents=parents, edge_kind=str(kind))
+            return res
+
+        def get(self, *args: Any, **kwargs: Any):
+            return self._ev.get(*args, **kwargs)
+
+        def cache_stats(self):
+            return self._ev.cache_stats()
+
+        def reset_cache_stats(self):
+            return self._ev.reset_cache_stats()
+
+    return _Wrap(ev, origin)
 install_expandable_tables(st)
 
 from ui.icons import label as ui_label, render_mode_scope
+from ui.dsg_panel import render_dsg_sidebar
 # ---- SHAMS UX guardrails: global run lock + fusion-expert notifications
 from ui import runlock as _shams_runlock
 import atexit as _shams_atexit
@@ -278,6 +364,21 @@ st.button = _shams_button
 
 # Show lock banner early (Control Ledger will inherit this)
 _shams_lock_banner()
+
+# --- v327.1: DSG selector + lineage breadcrumb (sidebar)
+try:
+    from ui.dsg_panel import render_dsg_sidebar  # type: ignore
+    _g = st.session_state.get("_shams_dsg")
+    if _g is not None:
+        render_dsg_sidebar(_g)
+        try:
+            _sel = st.session_state.get("dsg_selected_node_id") or getattr(_g, "active_node_id", None)
+            if _sel:
+                st.caption(f"🧬 Active design node: `{_sel}`  ·  lineage edge kind: `{st.session_state.get('dsg_context_edge_kind','derived')}`")
+        except Exception:
+            pass
+except Exception:
+    pass
 
 
 # ---- Systems solver adapter imports (v178.9) ----
@@ -933,76 +1034,16 @@ def stage_pd_candidate_apply(cand: dict, source: str, note: str | None = None) -
     """Canonical cross-panel handoff to Point Designer + provenance breadcrumb.
 
     Panels propose candidates. Point Designer evaluates frozen truth.
+
+    v327.4: staging is delegated to ui.handoff to ensure deterministic DSG node-id propagation
+    without requiring evaluator execution.
     """
-    if not isinstance(cand, dict) or not cand:
-        return
-    st.session_state["pd_candidate_apply"] = dict(cand)
-    from datetime import datetime
-    st.session_state["last_promotion_event"] = {
-        "source": str(source),
-        "note": str(note) if note is not None else "",
-        "ts": datetime.now().isoformat(timespec="seconds"),
-    }
-
-_consume_pd_candidate_apply()
-
-
-# Plotting (matplotlib only; keep dependencies minimal)
-try:
-    import matplotlib.pyplot as plt  # type: ignore
-    _HAVE_MPL = True
-except Exception:
-    plt = None  # type: ignore
-    _HAVE_MPL = False
-
-
-# ---- Exit / Shutdown ----
-try:
-    import signal, os
-    if st.sidebar.button("Exit UI", help="Stop the Streamlit server and close this UI."):
-        st.sidebar.success("Shutting down...")
-        # Try graceful termination first
-        try:
-            os.kill(os.getpid(), signal.SIGTERM)
-        except Exception:
-            os._exit(0)
-except Exception:
-    pass
-
-# ---- Global Workspace Reset (Step-0) ----
-# Clears session state and any stuck run-lock, returning the UI to a fresh-launch state.
-try:
-    if st.sidebar.button("🔄 Reset Workspace (start over)", help="Clear all results/panels and return SHAMS to the initial fresh-launch state.", use_container_width=True):
-        try:
-            _shams_runlock.force_clear()
-        except Exception:
-            pass
-        try:
-            st.session_state.clear()
-        except Exception:
-            pass
-        st.rerun()
-except Exception:
-    pass
-
-
-# ---- Workflow Trace (global provenance card) ----
-try:
     try:
-        from ui.workflow_trace import render_workflow_trace
+        from ui.handoff import stage_pd_candidate_apply as _stage  # type: ignore
     except Exception:
-        from workflow_trace import render_workflow_trace  # type: ignore
-except Exception:
-    render_workflow_trace = None  # type: ignore
-
-if callable(render_workflow_trace):
-    render_workflow_trace(expanded=False)
-
-
-
-
-import subprocess
-import time
+        # fallback relative import for environments that package ui as a module
+        from .handoff import stage_pd_candidate_apply as _stage  # type: ignore
+    _stage(cand=cand, source=source, note=note)
 
 def _verification_report_paths():
     rep = os.path.join(ROOT, "verification", "report.json")
@@ -1602,6 +1643,17 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     best_g = None
 
+    # --- v327.3: pipeline DSG edge automation (best-effort; does not change truth) ---
+    dsg_parent = spec.get("_dsg_parent_node_id")
+    if not dsg_parent:
+        try:
+            dsg_parent = st.session_state.get("dsg_selected_node_id") or st.session_state.get("active_design_node_id")
+        except Exception:
+            dsg_parent = None
+
+    scan_node_ids: List[str] = []
+    scan_edge_note = f"scan: g_conf[{len(g_grid)}] Ti[{len(Ti_grid)}] H98[{len(H_grid)}] a[{len(a_grid)}] Q[{len(Q_grid)}]"
+
 
     for g_conf in g_grid:
         for Ti in Ti_grid:
@@ -1718,6 +1770,41 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                             "Paux_for_Q_MW": spec["Paux_for_Q"],
                             "H98_eff": H98_eff,
                         })
+
+                        # --- v327.3: DSG pipeline capture for scan points (best-effort) ---
+                        try:
+                            g = st.session_state.get("_shams_dsg")
+                            if g is not None:
+                                node = g.record(
+                                    inp=sol_inp,
+                                    out=dict(sol_out),
+                                    ok=True,
+                                    message="scan_feasible",
+                                    elapsed_s=0.0,
+                                    origin="ScanLab",
+                                    parents=[str(dsg_parent)] if dsg_parent else None,
+                                    tags=["scan", "feasible"],
+                                    edge_kind="scan",
+                                    edge_note=scan_edge_note,
+                                )
+                                scan_node_ids.append(node.node_id)
+                                st.session_state["active_design_node_id"] = node.node_id
+                        except Exception:
+                            pass                        # --- v327.4: pipeline-native dsg_node_id column for scan tables ---
+                        try:
+                            if "dsg_node_id" not in row:
+                                _nid = None
+                                try:
+                                    _nid = node.node_id  # type: ignore[name-defined]
+                                except Exception:
+                                    _nid = None
+                                if not _nid:
+                                    from evaluator.cache_key import sha256_cache_key
+                                    _nid = sha256_cache_key(sol_inp)
+                                row["dsg_node_id"] = str(_nid)
+                        except Exception:
+                            pass
+
                         rows.append(row)
 
     df = pd.DataFrame(rows)
@@ -1729,6 +1816,15 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     meta.pop("_progress_cb", None)
     meta.pop("_log_cb", None)
     meta["scan_log_text"] = "\n".join(log_lines)
+    # --- v327.3: expose scan DSG node IDs for downstream panels ---
+    try:
+        meta["dsg_parent_node_id"] = str(dsg_parent) if dsg_parent else ""
+        meta["dsg_scan_node_ids"] = list(scan_node_ids)
+        st.session_state["scan_last_node_ids"] = list(scan_node_ids)
+        st.session_state["scan_last_parent_node_id"] = str(dsg_parent) if dsg_parent else ""
+        _dsg_save_best_effort()
+    except Exception:
+        pass
     _log(f"Scan complete: feasible={meta['n_feasible']}  best_g_conf_found={meta['best_g_conf_found']}")
 
     return df, meta
@@ -6416,6 +6512,10 @@ with tab_point:
         pass
 
 with tab_systems:
+    # DSG: auto edge-kind tagging by active panel (exploration only)
+    if bool(st.session_state.get("dsg_edge_kind_auto", True)):
+        st.session_state["dsg_context_edge_kind"] = "systems_eval"
+
     st.header("🧠 Systems Mode")
     st.caption("Feasibility-first system explanation around the frozen Point Designer truth. Deterministic, audit-safe, no hidden solvers.")
     render_mode_scope("systems")
@@ -8732,7 +8832,7 @@ with tab_systems:
                             from evaluator.core import Evaluator
                         except Exception:
                             from src.evaluator.core import Evaluator  # type: ignore
-                        _ev_at = Evaluator(cache_enabled=True, cache_max=4096)
+                        _ev_at = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=4096)
                         atlas = compute_micro_atlas(base, variables, var_x, var_y, nx=grid_n, ny=grid_n, evaluator=_ev_at)
                         st.session_state['v177_last_micro_atlas'] = atlas
 
@@ -8912,7 +9012,7 @@ with tab_systems:
                 except Exception:
                     pass
 
-            _sys_ev_pre = Evaluator(cache_enabled=True, cache_max=4096)
+            _sys_ev_pre = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=4096)
             _pre = run_precheck(
                 base_for_pre,
                 targets,
@@ -9099,7 +9199,7 @@ with tab_systems:
                             except Exception:
                                 pass
 
-                            _ev_props = Evaluator(cache_enabled=True, cache_max=4096)
+                            _ev_props = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=4096)
                             props = propose_feasibility_completion(
                                 base_for_props,
                                 targets,
@@ -9437,7 +9537,7 @@ with tab_systems:
                         # Build bounds dict for recovery (solved vars + optional base vars)
                         _bounds_rec = {k: {'lo': float(v.get('lo')), 'hi': float(v.get('hi'))} for k, v in (bounds_rec or {}).items()}
                         _weights_rec = weights_rec if isinstance(weights_rec, dict) else None
-                        ev = Evaluator(cache_enabled=True, cache_max=4096)
+                        ev = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=4096)
                         # Safety rails (MUST): validate bounds before running.
                         _okb, _errs, _warns = _sys_validate_bounds(_bounds_rec)
                         for _w in _warns:
@@ -9916,7 +10016,7 @@ with tab_systems:
                 from evaluator.core import Evaluator
             except Exception:
                 from src.evaluator.core import Evaluator  # type: ignore
-            ev_fs = Evaluator(cache_enabled=True, cache_max=8192)
+            ev_fs = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=8192)
 
             base_fs = base
             try:
@@ -10503,7 +10603,7 @@ with tab_systems:
                 from src.systems.feasibility_completion import run_precheck, propose_feasibility_completion  # type: ignore
 
             # Share a single evaluator cache for precheck + atlas + scout within this run
-            _sys_ev = Evaluator(cache_enabled=True, cache_max=4096)
+            _sys_ev = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=4096)
 
             try:
                 _pre = run_precheck(
@@ -10665,7 +10765,7 @@ with tab_systems:
                 from evaluator.core import Evaluator
             except Exception:
                 from src.evaluator.core import Evaluator  # type: ignore
-            _ev2 = Evaluator(cache_enabled=True, cache_max=4096)
+            _ev2 = _dsg_evaluator(origin="UI", cache_enabled=True, cache_max=4096)
             scout = feasibility_scout(
                 base_for_solve,
                 variables,
@@ -10950,6 +11050,10 @@ with tab_systems:
             st.error(f"Systems solver error: {e}")
 
 with tab_scan:
+    # DSG: auto edge-kind tagging by active panel (exploration only)
+    if bool(st.session_state.get("dsg_edge_kind_auto", True)):
+        st.session_state["dsg_context_edge_kind"] = "scan"
+
     st.header("🗺️ Scan Lab")
     st.caption("Cartography over the frozen evaluator: map feasibility, emptiness, fragility, and dominant mechanisms. Deterministic; no internal optimizer.")
     render_mode_scope("scan")
@@ -11360,7 +11464,7 @@ with tab_scan:
                     if st.button("Run quick replay determinism audit", use_container_width=True, key="scan_replay_audit_btn"):
                         try:
                             import numpy as _np
-                            ev = Evaluator(cache_enabled=True)
+                            ev = _dsg_evaluator(origin="UI", cache_enabled=True)
                             # Small deterministic neighborhood around the current base point
                             base0 = st.session_state.get("last_point_inp")
                             if base0 is None:
@@ -11542,7 +11646,7 @@ with tab_scan:
                             base2 = replace(base2, **{k: base_override[k] for k in base_override if k in base2.__dict__})
                         except Exception:
                             pass
-                    ev = Evaluator(cache_enabled=True)
+                    ev = _dsg_evaluator(origin="UI", cache_enabled=True)
                     x_vals = list(np.linspace(float(x_lo), float(x_hi), int(nx)))
                     y_vals = list(np.linspace(float(y_lo), float(y_hi), int(ny)))
                     import time
@@ -12271,7 +12375,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                     z_key = st.selectbox("3rd variable (z)", options=klist, index=0, key="scan_nt_z")
                     it0 = st.selectbox("Intent lens", options=intents2, index=0, key="scan_nt_proj_int")
                     rel = float(st.slider("z variation ±%", 1, 20, 5, 1, key="scan_nt_zrel")) / 100.0
-                    ev_local = Evaluator(cache_enabled=True)
+                    ev_local = _dsg_evaluator(origin="UI", cache_enabled=True)
                     st.write(projection_stability_check(evaluator=ev_local, base_inputs=base, report=rep, intent=it0, i0=ii, j0=jj, z_key=z_key, rel_step=rel))
 
             elif insight == "Path-follow scan (hold a target output)":
@@ -12282,7 +12386,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                     target_key = st.selectbox("Target output to hold", options=["q95", "B_peak_T", "q_div_MW_m2", "P_fus_MW"], index=0, key="scan_nt_tgt")
                     st.caption("This follows a trajectory by adjusting y to hold the target output approximately constant as x varies.")
                     if st.button("Run path-follow", use_container_width=True, key="scan_nt_run_path"):
-                        ev_local = Evaluator(cache_enabled=True)
+                        ev_local = _dsg_evaluator(origin="UI", cache_enabled=True)
                         out = path_follow_scan(evaluator=ev_local, base_inputs=base, x_key=x_key, y_key=y_key, x_vals=list(x_vals), target_output=target_key)
                         st.session_state["scan_path_follow_last"] = out
                     out = st.session_state.get("scan_path_follow_last")
@@ -12627,7 +12731,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                         rel_step = st.slider("Sensitivity step (relative)", 0.005, 0.05, 0.01, 0.005, key=f"scan_caus_step_{it}")
                         if st.button("Compute causality trace", key=f"scan_caus_run_{it}", use_container_width=True):
                             try:
-                                ev_local = Evaluator(cache_enabled=True)
+                                ev_local = _dsg_evaluator(origin="UI", cache_enabled=True)
                                 tr = build_causality_trace(
                                     evaluator=ev_local,
                                     base_inputs=base,
@@ -12651,7 +12755,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                         max_rel = st.slider("Max relative push", 0.05, 1.0, 0.5, 0.05, key=f"scan_ttf_max_{it}")
                         if st.button("Compute push-to-fail", key=f"scan_ttf_run_{it}", use_container_width=True):
                             try:
-                                ev_local = Evaluator(cache_enabled=True)
+                                ev_local = _dsg_evaluator(origin="UI", cache_enabled=True)
                                 rel = time_to_failure_along_knob(
                                     evaluator=ev_local,
                                     base_inputs=base,
@@ -12680,7 +12784,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                         seed = int(st.number_input("Seed", value=7, step=1, key=f"scan_unc_seed_{it}"))
                         if st.button("Run uncertainty stress-test", key=f"scan_unc_run_{it}", use_container_width=True):
                             try:
-                                ev_local = Evaluator(cache_enabled=True)
+                                ev_local = _dsg_evaluator(origin="UI", cache_enabled=True)
                                 u = uncertainty_stress_test(
                                     evaluator=ev_local,
                                     base_inputs=base,
@@ -12776,6 +12880,10 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
     # NOTE: Scan Lab freeze/legacy/parameter-guide/mapping panels are rendered inside Scan Lab
     # (before Cartography) to reduce scroll fatigue and keep the instrument literacy in one place.
 with tab_pareto:
+    # DSG: auto edge-kind tagging by active panel (exploration only)
+    if bool(st.session_state.get("dsg_edge_kind_auto", True)):
+        st.session_state["dsg_context_edge_kind"] = "pareto"
+
     st.header("📈 Pareto Lab")
     st.caption("Trade-off observatory over the feasible set. External optimization is firewalled; truth remains frozen.")
     render_mode_scope("pareto")
@@ -13866,6 +13974,10 @@ with tab_pareto:
 
 
 with tab_trade:
+    # DSG: auto edge-kind tagging by active panel (exploration only)
+    if bool(st.session_state.get("dsg_edge_kind_auto", True)):
+        st.session_state["dsg_context_edge_kind"] = "trade"
+
     try:
         from ui.trade_study_studio import render_trade_study_studio
         render_trade_study_studio(st, repo_root=Path(__file__).resolve().parent.parent)

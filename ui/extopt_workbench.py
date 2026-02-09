@@ -3,6 +3,12 @@ import json
 from pathlib import Path
 import streamlit as st
 
+try:
+    from ui.handoff import maybe_add_dsg_node_id_column
+except Exception:  # pragma: no cover
+    maybe_add_dsg_node_id_column = None
+
+
 def render_extopt_workbench(repo_root: Path):
     st.markdown("## 📈 External Optimization Workbench")
     st.caption("Firewalled reference optimizer client + audit-grade handoff bundle (problem spec, runspec, trace).")
@@ -73,3 +79,13 @@ def render_extopt_workbench(repo_root: Path):
                     mime="application/json",
                     use_container_width=True,
                 )
+
+
+    # v327.5: pipeline-native DSG subset linking (best-effort)
+    try:
+        from ui.handoff import render_subset_linker_best_effort  # type: ignore
+        _df_for_link = locals().get("df_show") or locals().get("df") or locals().get("df_props") or locals().get("df_candidates")
+        if _df_for_link is not None:
+            render_subset_linker_best_effort(df=_df_for_link, label="ExtOpt", kind="extopt_select", note="Selection from ExtOpt table")
+    except Exception:
+        pass

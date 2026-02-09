@@ -1,3 +1,49 @@
+
+## v327.5 — DSG subset linking from table selections
+- Added Streamlit-only subset linker for tables carrying `dsg_node_id` (no truth re-runs).
+- Integrated best-effort subset-link UI into Pareto, Trade Study, and ExtOpt tables.
+- Added `ui/dsg_subset_linker.py` and a handoff wrapper in `ui/handoff.py`.
+
+## v327.3 — DSG Pipeline Edge Automation (2026-02-09)
+
+- Added DSG support for **edges between existing nodes** (`DesignStateGraph.add_edge/add_edges`) to attach lineage for batch pipelines without re-evaluating truth.
+- Scan Lab now records **scan-feasible points into DSG** and exposes `scan_last_node_ids` + `scan_last_parent_node_id` for downstream linkage.
+- Cross-panel candidate promotion (`stage_pd_candidate_apply`) now computes the deterministic **predicted node_id** and populates pipeline linkage slots for Scan/Pareto/Trade/ExtOpt.
+- Rebuilt `ui/dsg_panel.py` (fixed indentation) and added **Pipeline edge capture** buttons to link last Scan/Pareto/Trade/ExtOpt sets.
+
+Non-goals (preserved): frozen truth unchanged; no internal optimization; no solver creep.
+
+## v327.2 — DSG Node Binding Contracts (2026-02-09)
+
+- Added DSG→UI binding layer (`ui/dsg_bindings.py`) enabling **Adopt active DSG node into Point Designer** (UI-only).
+- Added best-effort conversion helpers to DSG for PointInputs-like reconstruction.
+- Added UI toggle to auto-set edge kind by active panel.
+
+Non-goals (preserved): frozen truth unchanged; no internal optimization; no solver creep.
+
+## v327.1 — DSG Active Node Selector & Lineage Breadcrumbs (2026-02-09)
+
+- Added **DSG sidebar selector** (`ui/dsg_panel.py`) for choosing an active design node and declaring the **edge kind** context for downstream evaluations.
+- Evaluator wrapper now records **lineage edges** from the selected node to new evaluations with explicit edge kind (derived/systems/scan/pareto/trade/extopt/repair).
+- Reviewer Packet now includes `dsg/ACTIVE_NODE.md` when a DSG snapshot exists (best-effort).
+- Added tests for lineage determinism and DSG panel summary generation.
+
+Non-goals (preserved): frozen truth unchanged; no internal optimization; no solver creep.
+
+## v327.0 — Design State Graph Inter-Panel Continuity (2026-02-09)
+
+- Introduced a deterministic **Design State Graph (DSG)** (exploration layer) to persist evaluated design points and lineage across panels.
+- Added Streamlit-side **DSG recorder** that wraps evaluator calls (no truth changes) and writes `artifacts/dsg/current_dsg.json` in canonical JSON form.
+- Reviewer Packet now includes `dsg/CURRENT_DSG.json` by default (best-effort, never breaks packet build).
+
+Non-goals (preserved): no solver/iteration added to truth; no internal optimization; frozen evaluator unchanged.
+
+## v326.3 — UI Wiring Index Artifact + Reviewer Packet Integration (2026-02-08)
+
+- Added static UI wiring index generator (`tools/ui_wiring_index.py`) that inspects `ui/app.py` without running Streamlit.
+- Reviewer packet builder now includes `ui/UI_WIRING_INDEX.md` by default (reviewer-safe, deterministic).
+- Added tests to guarantee presence of required wiring anchors and packet inclusion.
+
 ## v322.0 — One-Click Reviewer Pack Builder (Publication / Regulatory Artifact Export)
 
 This upgrade hardens the **Reviewer Packet** into a complete, deterministic export bundle suitable for
@@ -268,3 +314,20 @@ Author: © 2026 Afshin Arjhangmehr
 - Version bump only; **no changes to frozen truth**.
 
 Author: © 2026 Afshin Arjhangmehr
+## v327.2 — DSG Node Binding Contracts (UI Adoption + Auto Edge-Kind)
+- Added deterministic DSG→UI bindings: adopt active DSG node inputs into Point Designer widget keys and Systems baseline (`ui/dsg_bindings.py`).
+- Enhanced DSG sidebar with:
+  - “Adopt active node into Point Designer” action (UI-only)
+  - Auto edge-kind tagging by active panel (Systems/Scan/Pareto/Trade) with disable-able manual override.
+- Extended DSG core with decoded inputs/outputs helpers and best-effort conversion to `PointInputs`.
+- No physics truth changes; evaluator outputs unchanged.
+
+
+## v327.4 — DSG Pipeline-native Node IDs
+
+- Added pipeline-native `dsg_node_id` propagation into Scan/Pareto/Trade/ExtOpt tables when PointInputs columns are present.
+- Added `ui/handoff.py` cross-panel staging helper to ensure promotions carry deterministic DSG node ids.
+- Updated robust Pareto and Trade Study promotions to use the staging helper (no direct session_state mutation).
+- Hygiene: removed cache directories from release.
+
+Truth outputs unchanged.
