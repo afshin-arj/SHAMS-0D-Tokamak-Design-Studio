@@ -199,6 +199,7 @@ SHAMS runs on **Windows, Linux, and macOS**.
 ```bash
 git clone https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio.git
 cd SHAMS-0D-Tokamak-Design-Studio
+```bash
 
 ### 2. Create a Python Virtual Environment (Recommended)
 
