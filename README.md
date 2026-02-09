@@ -178,6 +178,65 @@ All such capabilities must remain **external and non-authoritative**.
 
 ---
 
+---
+
+## Installation & Quick Start
+
+SHAMS is designed to be **easy to run locally** with a clean, deterministic setup.
+No system-wide installation is required.
+
+### Prerequisites
+- **Python 3.10+** (3.10 or 3.11 recommended)
+- **Git**
+- Internet connection (for first-time dependency install only)
+
+SHAMS runs on **Windows, Linux, and macOS**.
+
+---
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio.git
+cd SHAMS-0D-Tokamak-Design-Studio
+
+### 2. Create a Python Virtual Environment (Recommended)
+
+Windows
+
+python -m venv .venv
+.venv\Scripts\activate
+
+
+Linux / macOS
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+3. Install Dependencies
+pip install -r requirements.txt
+
+4. Launch SHAMS (UI)
+
+Windows
+
+run_ui.cmd
+
+
+Linux / macOS
+
+./run_ui.sh
+
+
+The SHAMS UI will open automatically in your web browser.
+
+Usage Notes:
+- SHAMS executes no solvers, no iteration, and no hidden optimization.
+- All evaluations are deterministic and replayable.
+- External optimizers (if used) are firewalled and cannot modify physics truth.
+- Failed designs and NO-SOLUTION outcomes are expected and meaningful.
+
+
 ## Contact
 
 For technical questions, reviews, or collaboration inquiries:
