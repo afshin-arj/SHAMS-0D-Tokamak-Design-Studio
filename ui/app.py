@@ -217,6 +217,15 @@ from decision.kpis import headline_kpis
 import streamlit as st
 from ui.tablekit import install_expandable_tables
 
+# --- Optional plotting dependency (matplotlib) ---
+# Matplotlib is intentionally optional in SHAMS. The UI must never crash if it is missing.
+try:  # pragma: no cover (availability depends on user environment)
+    import matplotlib.pyplot as plt  # type: ignore
+    _HAVE_MPL = True
+except Exception:  # pragma: no cover
+    plt = None  # type: ignore
+    _HAVE_MPL = False
+
 # --- Global UI preference: make all tables collapsible to prevent scroll walls
 if "ui_tablekit_enabled" not in st.session_state:
     st.session_state["ui_tablekit_enabled"] = True
@@ -714,6 +723,13 @@ def _render_provenance_sidebar():
         except Exception:
             v = "unknown"
         st.code(v)
+        st.markdown("---")
+        st.subheader("Session")
+        _exit_confirm = st.checkbox("Confirm exit", value=False, key="shams_exit_confirm")
+        if st.button("🔴 Exit SHAMS", type="primary", use_container_width=True, disabled=not _exit_confirm, key="shams_exit_btn"):
+            st.info("SHAMS UI shutdown requested by user.")
+            # Hard-exit is the only reliable cross-platform Streamlit shutdown mechanism.
+            _os._exit(0)
         st.caption("Authoritative feasibility lives in SHAMS core. Sandbox results are non-authoritative.")
 
 def _feasibility_narrative(point):

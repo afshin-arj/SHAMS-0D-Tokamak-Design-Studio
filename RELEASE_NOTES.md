@@ -1,3 +1,7 @@
+## v327.9.2 — Exit UI Button Hotfix (2026-02-09)
+
+- Added a professional **Exit SHAMS** button in the sidebar (confirm-to-exit) to cleanly terminate the Streamlit process without stack traces.
+- Implemented as UI-only control in `ui/app.py` using `_os._exit(0)` (truth and artifacts unchanged).
 
 ## v327.5 — DSG subset linking from table selections
 - Added Streamlit-only subset linker for tables carrying `dsg_node_id` (no truth re-runs).
@@ -329,5 +333,39 @@ Author: © 2026 Afshin Arjhangmehr
 - Added `ui/handoff.py` cross-panel staging helper to ensure promotions carry deterministic DSG node ids.
 - Updated robust Pareto and Trade Study promotions to use the staging helper (no direct session_state mutation).
 - Hygiene: removed cache directories from release.
+
+Truth outputs unchanged.
+
+
+## v327.6 — DSG Selection-native Subset Linking
+
+- Removed dependence on multiselect UI widgets for DSG subset linking.
+- Subset linker now supports deterministic **Top-N** selection with optional **stable sort** by a numeric column.
+- Added power-user paste mode: link by pasting `dsg_node_id` list (comma- or newline-separated), filtered to ids present in the table.
+- No truth re-runs; this upgrade only adds exploration-layer lineage edges.
+
+Truth outputs unchanged.
+
+
+## v327.7 — DSG table row-selection linking
+- Added selection-native DSG subset linking using Streamlit dataframe row selection when available, with deterministic fallbacks.
+- New UI helper: ui/table_select.py.
+- Enhanced ui/dsg_subset_linker.py to offer row-selection capture inside the linker expander.
+
+
+## v327.8 — Panel-native table selection capture
+- Wrapped primary pipeline tables (Pareto, Trade Study) with Streamlit row-selection when supported.
+- Selected `dsg_node_id` lists stored in session_state for DSG linking.
+- No changes to frozen truth.
+
+## v327.9 — Table-embedded DSG linking buttons
+- Added one-click DSG lineage linking buttons embedded beside primary Pareto and Trade Study tables.
+- New UI-only helper: `ui/dsg_actions.py` to attach DSG edges (exploration-layer only) and persist snapshot best-effort.
+- No truth re-runs; no physics changes.
+
+## v327.9.1 — Hotfix: optional matplotlib flag
+
+- Fix `NameError: _HAVE_MPL is not defined` by defining `_HAVE_MPL` and `plt` as a safe, optional dependency in `ui/app.py`.
+- UI plotting helpers now degrade gracefully when `matplotlib` is not installed (no crash; Streamlit fallbacks).
 
 Truth outputs unchanged.

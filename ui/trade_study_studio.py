@@ -213,13 +213,67 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
 
         if maybe_add_dsg_node_id_column is not None:
             df_all = maybe_add_dsg_node_id_column(df_all)
-        st.dataframe(df_all, use_container_width=True, table_title="All samples")
+        render_dataframe_with_selection(df=df_all, key="trade_table_1", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "All samples"})
+
+        # v327.9: One-click DSG linking from table selection
+        try:
+            from ui.dsg_actions import link_selected_to_parent as _link_selected
+        except Exception:
+            try:
+                from .dsg_actions import link_selected_to_parent as _link_selected
+            except Exception:
+                _link_selected = None
+        sel_ids = st.session_state.get("trade_selected_dsg_node_ids") or []
+        if _link_selected is not None and isinstance(sel_ids, list) and len(sel_ids) > 0:
+            if st.button("Link selected ➜ active parent (DSG) — All samples", use_container_width=True, key="trade_link_tbl1"):
+                n = _link_selected(selected_node_ids=sel_ids, kind="trade_select", note="UI: Trade table selection")
+                if n > 0:
+                    st.success(f"Linked {n} selected node(s) to active parent.")
+                else:
+                    st.info("No DSG edges were added.")
+
         if maybe_add_dsg_node_id_column is not None:
             df_feas = maybe_add_dsg_node_id_column(df_feas)
-        st.dataframe(df_feas, use_container_width=True, table_title="Feasible samples")
+        render_dataframe_with_selection(df=df_feas, key="trade_table_2", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Feasible samples"})
+
+        # v327.9: One-click DSG linking from table selection
+        try:
+            from ui.dsg_actions import link_selected_to_parent as _link_selected
+        except Exception:
+            try:
+                from .dsg_actions import link_selected_to_parent as _link_selected
+            except Exception:
+                _link_selected = None
+        sel_ids = st.session_state.get("trade_selected_dsg_node_ids") or []
+        if _link_selected is not None and isinstance(sel_ids, list) and len(sel_ids) > 0:
+            if st.button("Link selected ➜ active parent (DSG) — Feasible samples", use_container_width=True, key="trade_link_tbl2"):
+                n = _link_selected(selected_node_ids=sel_ids, kind="trade_select", note="UI: Trade table selection")
+                if n > 0:
+                    st.success(f"Linked {n} selected node(s) to active parent.")
+                else:
+                    st.info("No DSG edges were added.")
+
         if maybe_add_dsg_node_id_column is not None:
             df_pareto = maybe_add_dsg_node_id_column(df_pareto)
-        st.dataframe(df_pareto, use_container_width=True, table_title="Feasible Pareto subset")
+        render_dataframe_with_selection(df=df_pareto, key="trade_table_3", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Feasible Pareto subset"})
+
+        # v327.9: One-click DSG linking from table selection
+        try:
+            from ui.dsg_actions import link_selected_to_parent as _link_selected
+        except Exception:
+            try:
+                from .dsg_actions import link_selected_to_parent as _link_selected
+            except Exception:
+                _link_selected = None
+        sel_ids = st.session_state.get("trade_selected_dsg_node_ids") or []
+        if _link_selected is not None and isinstance(sel_ids, list) and len(sel_ids) > 0:
+            if st.button("Link selected ➜ active parent (DSG) — Feasible Pareto subset", use_container_width=True, key="trade_link_tbl3"):
+                n = _link_selected(selected_node_ids=sel_ids, kind="trade_select", note="UI: Trade table selection")
+                if n > 0:
+                    st.success(f"Linked {n} selected node(s) to active parent.")
+                else:
+                    st.info("No DSG edges were added.")
+
 
         # Promote a selected Pareto point into Point Designer workspace
         if not df_pareto.empty:
@@ -267,7 +321,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         fam = family_summary(rep.get("records", []) or [])
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame(fam.get("rows", []) or []), use_container_width=True, table_title="Design family summary")
+        render_dataframe_with_selection(df=pd.DataFrame(fam.get("rows", []) or []), key="trade_table_4", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Design family summary"})
 
         # Lane classification for Pareto points
         if st.session_state.get("ts_last_lane") == "Optimistic vs Robust" and not df_pareto.empty:
@@ -302,7 +356,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                 })
             if maybe_add_dsg_node_id_column is not None:
                 pd = maybe_add_dsg_node_id_column(pd)
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, table_title="Lane-O vs Lane-R verdicts")
+            render_dataframe_with_selection(df=pd.DataFrame(rows), key="trade_table_5", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Lane-O vs Lane-R verdicts"})
 
     # -------------------------------------------
     # Deck: Feasible-First Surrogate Acceleration
@@ -386,7 +440,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
 
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame(list(cand)), use_container_width=True, table_title="Proposed knob candidates (unverified)")
+        render_dataframe_with_selection(df=pd.DataFrame(list(cand)), key="trade_table_6", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Proposed knob candidates (unverified)"})
 
         if st.button("Verify proposed candidates (truth)", use_container_width=True, key="ts_sa_verify"):
             try:
@@ -412,7 +466,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         dfv = pd.DataFrame(vrows)
         if maybe_add_dsg_node_id_column is not None:
             dfv = maybe_add_dsg_node_id_column(dfv)
-        st.dataframe(dfv, use_container_width=True, table_title="Verified candidates (frozen truth)")
+        render_dataframe_with_selection(df=dfv, key="trade_table_7", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Verified candidates (frozen truth)"})
 
         # Append verified rows into the active study capsule for cross-panel use
         if st.button("Append verified rows to active Study Capsule", use_container_width=True, key="ts_sa_append"):
@@ -563,7 +617,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             if runs:
                 if maybe_add_dsg_node_id_column is not None:
                     pd = maybe_add_dsg_node_id_column(pd)
-                st.dataframe(pd.DataFrame([{"run": r.name, "path": str(r)} for r in runs[:30]]), use_container_width=True, table_title="Recent kit runs")
+                render_dataframe_with_selection(df=pd.DataFrame([{"run": r.name, "path": str(r)} for r in runs[:30]]), key="trade_table_8", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Recent kit runs"})
 
     # --------------------
     # Deck 3: Two-Lane
@@ -590,10 +644,10 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         st.markdown(f"**Lane-O:** `{vO}`   **Lane-R:** `{vR}`   **Class:** **{cls}**")
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame([sO]), use_container_width=True, table_title="Lane-O summary")
+        render_dataframe_with_selection(df=pd.DataFrame([sO]), key="trade_table_9", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Lane-O summary"})
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame([sR]), use_container_width=True, table_title="Lane-R summary")
+        render_dataframe_with_selection(df=pd.DataFrame([sR]), key="trade_table_10", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Lane-R summary"})
 
     # --------------------
     # Deck 4: Design Families
@@ -612,15 +666,15 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             return
         if maybe_add_dsg_node_id_column is not None:
             df = maybe_add_dsg_node_id_column(df)
-        st.dataframe(df, use_container_width=True, table_title="Records with family labels")
+        render_dataframe_with_selection(df=df, key="trade_table_11", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Records with family labels"})
         fam = family_summary(rep.get("records", []) or [])
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame(fam.get("rows", []) or []), use_container_width=True, table_title="Family summary")
+        render_dataframe_with_selection(df=pd.DataFrame(fam.get("rows", []) or []), key="trade_table_12", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Family summary"})
         with st.expander("Family definitions", expanded=False):
             if maybe_add_dsg_node_id_column is not None:
                 pd = maybe_add_dsg_node_id_column(pd)
-            st.dataframe(pd.DataFrame([{"family": f.key, "title": f.title, "notes": f.notes} for f in FAMILIES]), use_container_width=True)
+            render_dataframe_with_selection(df=pd.DataFrame([{"family": f.key, "title": f.title, "notes": f.notes} for f in FAMILIES]), key="trade_table_13", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True})
 
     # --------------------
     # Deck 5: Regime Maps & Narratives (v324)
@@ -702,7 +756,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             )
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, table_title="Regime clusters")
+        render_dataframe_with_selection(df=pd.DataFrame(rows), key="trade_table_14", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Regime clusters"})
 
         # Narrative blocks
         with st.expander("Narratives (per cluster)", expanded=False):
@@ -711,17 +765,13 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                 st.write(c.get("narrative"))
                 fs = c.get("feature_stats") or {}
                 if isinstance(fs, dict) and fs:
-                    st.dataframe(
-                        pd.DataFrame(
+                    render_dataframe_with_selection(df=pd.DataFrame(
                             [
                                 {"feature": k, **(v if isinstance(v, dict) else {})}
                                 for k, v in fs.items()
                                 if isinstance(k, str)
                             ]
-                        ),
-                        use_container_width=True,
-                        table_title=f"Cluster {c.get('cluster_id')} feature ranges",
-                    )
+                        ), key="trade_table_15", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": f"Cluster {c.get('cluster_id')} feature ranges"})
                 st.markdown("---")
 
         # Regime map scatter
@@ -778,5 +828,5 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             return
         if maybe_add_dsg_node_id_column is not None:
             pd = maybe_add_dsg_node_id_column(pd)
-        st.dataframe(pd.DataFrame(rep.get("rows", []) or []), use_container_width=True, table_title="Path scan")
+        render_dataframe_with_selection(df=pd.DataFrame(rep.get("rows", []) or []), key="trade_table_16", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True, "table_title": "Path scan"})
         st.write("First robust-pass:", rep.get("first_robust_pass"))

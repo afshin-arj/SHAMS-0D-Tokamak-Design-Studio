@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import streamlit as st
+from ui.table_select import render_dataframe_with_selection  # type: ignore
 
 import pandas as pd
 
@@ -439,7 +440,24 @@ def _render_results(artifact: Dict[str, Any]) -> None:
                 pass
 
     st.markdown("#### Robust results table")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    render_dataframe_with_selection(df=df, key="pareto_main_table", store_key="pareto_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True})  # noqa: E501
+
+    # v327.9: One-click DSG linking from main table selection
+    try:
+        from ui.dsg_actions import link_selected_to_parent as _link_selected
+    except Exception:
+        try:
+            from .dsg_actions import link_selected_to_parent as _link_selected
+        except Exception:
+            _link_selected = None
+    sel_ids = st.session_state.get("pareto_selected_dsg_node_ids") or []
+    if _link_selected is not None and isinstance(sel_ids, list) and len(sel_ids) > 0:
+        if st.button("Link selected ➜ active parent (DSG)", use_container_width=True, key="pareto_link_selected_btn"):
+            n = _link_selected(selected_node_ids=sel_ids, kind="pareto_select", note="UI: Pareto main table selection")
+            if n > 0:
+                st.success(f"Linked {n} selected node(s) to active parent.")
+            else:
+                st.info("No DSG edges were added.")
 
     # Promote a robust-interrogated point back into Point Designer workspace
     try:
