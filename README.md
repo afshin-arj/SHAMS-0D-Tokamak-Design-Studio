@@ -204,34 +204,37 @@ cd SHAMS-0D-Tokamak-Design-Studio
 ### 2. Create a Python Virtual Environment (Recommended)
 
 Windows
-
+```bash
 python -m venv .venv
 .venv\Scripts\activate
-
+```
 
 Linux / macOS
-
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
 
-3. Install Dependencies
+### 3. Install Dependencies
+```bash
 pip install -r requirements.txt
+```
 
-4. Launch SHAMS (UI)
+### 4. Launch SHAMS (UI)
 
 Windows
-
+```bash
 run_ui.cmd
-
+```
 
 Linux / macOS
-
+```bash
 ./run_ui.sh
-
+```
 
 The SHAMS UI will open automatically in your web browser.
 
-Usage Notes:
+## Usage Notes:
 - SHAMS executes no solvers, no iteration, and no hidden optimization.
 - All evaluations are deterministic and replayable.
 - External optimizers (if used) are firewalled and cannot modify physics truth.
