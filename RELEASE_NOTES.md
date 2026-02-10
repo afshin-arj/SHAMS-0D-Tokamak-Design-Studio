@@ -1,3 +1,18 @@
+## v331.0 — External Optimization Interpretation Layer + Exit UI Wiring Audit
+
+**Governance upgrade:** interpretation-only tooling to explain external optimizer outcomes (feasibility attrition, dominant-killer histograms, reviewer narratives), while preserving frozen truth.
+
+- New contract (metadata only): `contracts/optimizer_capability_registry.json`
+- New interpretation engine: `src/extopt/interpretation.py` (no optimization; consumes traces)
+- New UI deck: **Pareto Lab → 🧪 External Optimization Interpretation**
+  - Loads `optimizer_trace.json` (last run) or user-uploaded trace
+  - Produces deterministic attrition tables, dominance breakdowns, and a reviewer-safe narrative
+- Exit UI button visibility fix: **Exit SHAMS** is now rendered in the sidebar Activity Log section with a confirm latch (always visible; no phantom wiring)
+
+Non-goals preserved: no solvers, no iteration, no internal optimization.
+
+---
+
 ## v330.0 — Authority Dominance Engine
 
 **Governance upgrade:** deterministic identification of the **dominant feasibility killer authority** (PLASMA / EXHAUST / MAGNET / CONTROL / NEUTRONICS / FUEL / PLANT), plus a top-k limiter table.

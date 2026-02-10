@@ -2504,13 +2504,43 @@ def _render_activity_log_sidebar() -> None:
                         _alog("UI", "ClearLog", {})
                     except Exception:
                         pass
-                    _lg.clear()
-                    # Ensure the widget reflects the cleared state immediately.
+
+                    # Clear log on disk (authoritative: reflect immediately).
+                    try:
+                        _lg.clear()
+                    except Exception:
+                        pass
                     try:
                         st.session_state["activity_log_view"] = ""
                     except Exception:
                         pass
                     st.rerun()
+
+            # -------------------------------------------------------------------
+            # Session shutdown (Exit SHAMS) — MUST be visible in UI
+            # -------------------------------------------------------------------
+            st.markdown("---")
+            st.markdown("### Session shutdown")
+            _exit_confirm = st.checkbox(
+                "Confirm exit",
+                value=bool(st.session_state.get("shams_exit_confirm", False)),
+                key="shams_exit_confirm",
+                help="Safety latch to prevent accidental shutdown.",
+            )
+            if st.button(
+                "🔴 Exit SHAMS",
+                type="primary",
+                use_container_width=True,
+                disabled=not bool(_exit_confirm),
+                key="shams_exit_btn",
+                help="Hard-exit Streamlit process. Only reliable cross-platform shutdown.",
+            ):
+                try:
+                    _alog("UI", "ExitRequested", {})
+                except Exception:
+                    pass
+                st.info("SHAMS UI shutdown requested by user.")
+                _os._exit(0)
     except Exception:
         # Never block UI.
         return
@@ -13023,6 +13053,7 @@ with tab_pareto:
         "Feasible Optimizer (External)",
         "Concept Optimization Cockpit",
         "External Optimization Workbench",
+        "External Optimization Interpretation",
         "External Optimizer Suite",
         "Optimization Evidence Packs",
     ]
@@ -13033,6 +13064,7 @@ with tab_pareto:
         "Feasible Optimizer (External)": "🧲 Feasible Optimizer (External)",
         "Concept Optimization Cockpit": "🧬 Concept Optimization Cockpit",
         "External Optimization Workbench": "📈 External Optimization Workbench",
+        "External Optimization Interpretation": "🧪 External Optimization Interpretation",
         "External Optimizer Suite": "📦 External Optimizer Suite",
         "Optimization Evidence Packs": "🧾 Optimization Evidence Packs",
     }
@@ -13083,6 +13115,12 @@ with tab_pareto:
         from ui.extopt_workbench import render_extopt_workbench
 
         render_extopt_workbench(Path(__file__).resolve().parent.parent)
+        st.stop()
+
+    if _pareto_deck == "External Optimization Interpretation":
+        from ui.extopt_interpretation import render_extopt_interpretation
+
+        render_extopt_interpretation(Path(__file__).resolve().parent.parent)
         st.stop()
 
     if _pareto_deck == "External Optimizer Suite":
