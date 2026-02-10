@@ -1113,15 +1113,52 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     out["sigma_allow_MPa"] = float(inp.sigma_allow_MPa)
 
 
+    
+
     # =========================================================================
-    # Added: (2) Magnet technology axis (HTS/LTS/Cu) -> margin + resistive proxy
+    # Added: (2) Magnet Technology Authority 4.1 (LTS/HTS/Cu) -> regime contract
     # =========================================================================
     tech = str(getattr(inp, "magnet_technology", "HTS_REBCO") or "HTS_REBCO").strip().upper()
     out["magnet_technology"] = tech
     out["tf_sc_flag"] = float(tf_sc_flag(tech))
 
+    # Contract-driven regime and limits (no runtime overrides).
+    try:
+        from ..contracts.magnet_tech_contract import (
+            CONTRACT_SHA256,
+            infer_magnet_regime,
+            limits_for_regime,
+            regime_consistent,
+            classify_fragility,
+        )  # type: ignore
+        regime = infer_magnet_regime(tech)
+        lims = limits_for_regime(regime)
+        out["magnet_regime"] = str(regime)
+        out["magnet_contract_sha256"] = str(CONTRACT_SHA256)
+        out.update(lims.to_outputs_dict())
+        out["magnet_regime_consistent"] = float(1.0 if regime_consistent(tech, regime) else 0.0)
+    except Exception:
+        # Fail-safe: keep legacy behavior if contract import fails (should not happen).
+        out["magnet_regime"] = "UNKNOWN"
+        out["magnet_contract_sha256"] = ""
+        out["magnet_regime_consistent"] = float("nan")
+
+    # Technology temperature (used by SC critical-surface proxy).
     out["Tcoil_K"] = float(getattr(inp, "Tcoil_K", 20.0))
-    if math.isfinite(Bpk) and out["tf_sc_flag"] >= 0.5:
+
+    # Engineering current density proxy (A/mm^2): NI/A with A ~ t_tf_wind * (2*kappa*a).
+    try:
+        MU0 = 4e-7 * math.pi
+        wp_width_m = float(getattr(inp, "t_tf_wind_m", 0.0))
+        wp_height_m = 2.0 * float(inp.kappa) * float(inp.a_m)
+        area_wp_m2 = max(wp_width_m * wp_height_m, 1e-12)
+        J_eng_A_m2 = required_ampere_turns_A(float(inp.Bt_T), float(inp.R0_m)) / area_wp_m2
+        out["J_eng_A_mm2"] = float(J_eng_A_m2 / 1e6)
+    except Exception:
+        out["J_eng_A_mm2"] = float("nan")
+
+    # SC (HTS/LTS) margin proxy
+    if math.isfinite(Bpk) and out.get("tf_sc_flag", 0.0) >= 0.5 and out.get("magnet_regime_consistent", 1.0) >= 0.5:
         # Unified SC margin (back-compat key kept as hts_margin)
         hts_margin = sc_operating_margin(
             Bpk,
@@ -1132,21 +1169,61 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             Jc_mult=float(getattr(inp, "hts_Jc_mult", 1.0)),
         )
         out["hts_margin"] = float(hts_margin)
-        out["hts_margin_min"] = float(getattr(inp, "hts_margin_min", 1.0))
+        # hts_margin_min is already provided by contract (fallback to legacy input if absent)
+        if "hts_margin_min" not in out or not math.isfinite(float(out.get("hts_margin_min", float("nan")))):
+            out["hts_margin_min"] = float(getattr(inp, "hts_margin_min", 1.0))
         out["P_tf_ohmic_MW"] = float("nan")
     elif math.isfinite(Bpk) and tech == "COPPER":
-        # Copper: margin is not defined; provide a resistive power proxy for audit visibility.
-        # Winding-pack area proxy: width ~ t_tf_wind, height ~ 2*kappa*a
+        # Copper: margin not defined; provide resistive power proxy.
         wp_area = float(getattr(inp, "t_tf_wind_m", 0.0)) * (2.0 * float(inp.kappa) * float(inp.a_m))
-        # Engineering current density proxy: NI/A = (B0*2πR0/μ0)/A
         MU0 = 4e-7 * math.pi
         Jop = (float(inp.Bt_T) * 2.0 * math.pi * float(inp.R0_m) / MU0) / max(wp_area, 1e-12)
         out["P_tf_ohmic_MW"] = float(copper_tf_ohmic_power_MW(Jop, wp_area, float(inp.R0_m)))
+        out["hts_margin"] = float("nan")
     else:
         # Undefined build or unknown tech
+        out["hts_margin"] = float("nan")
         out["P_tf_ohmic_MW"] = float("nan")
 
-    # Stored energy / dump voltage proxy (TF system)
+    # Quench proxy margin (conservative, deterministic):
+    # use the minimum of (dump-voltage headroom) and coil thermal margin when available.
+    try:
+        vdump = float(out.get("V_dump_kV", float("nan")))
+        vmax = float(out.get("Vmax_kV", float("nan")))
+        dv = (vmax - vdump) / max(vmax, 1e-9) if (math.isfinite(vdump) and math.isfinite(vmax)) else float("nan")
+        th = float(out.get("coil_thermal_margin", float("nan")))
+        qproxy = min(dv, th) if (math.isfinite(dv) and math.isfinite(th)) else (dv if math.isfinite(dv) else th)
+        out["quench_proxy_margin"] = float(qproxy)
+    except Exception:
+        out["quench_proxy_margin"] = float("nan")
+
+    # Magnet min-margin diagnostic (for verdict banners / fragility).
+    try:
+        margins = []
+        # Signed margins as fractions (positive ok). Where limits exist.
+        if math.isfinite(float(out.get("B_peak_T", float("nan")))) and math.isfinite(float(out.get("B_peak_allow_T", float("nan")))):
+            margins.append((float(out["B_peak_allow_T"]) - float(out["B_peak_T"])) / max(float(out["B_peak_allow_T"]), 1e-9))
+        if math.isfinite(float(out.get("sigma_vm_MPa", float("nan")))) and math.isfinite(float(out.get("sigma_allow_MPa", float("nan")))):
+            margins.append((float(out["sigma_allow_MPa"]) - float(out["sigma_vm_MPa"])) / max(float(out["sigma_allow_MPa"]), 1e-9))
+        if math.isfinite(float(out.get("J_eng_A_mm2", float("nan")))) and math.isfinite(float(out.get("J_eng_max_A_mm2", float("nan")))):
+            margins.append((float(out["J_eng_max_A_mm2"]) - float(out["J_eng_A_mm2"])) / max(float(out["J_eng_max_A_mm2"]), 1e-9))
+        if math.isfinite(float(out.get("coil_heat_nuclear_MW", float("nan")))) and math.isfinite(float(out.get("coil_heat_nuclear_max_MW", float("nan")))):
+            margins.append((float(out["coil_heat_nuclear_max_MW"]) - float(out["coil_heat_nuclear_MW"])) / max(float(out["coil_heat_nuclear_max_MW"]), 1e-9))
+        if margins:
+            mmin = min(margins)
+        else:
+            mmin = float("nan")
+        out["magnet_margin_min"] = float(mmin)
+        try:
+            out["magnet_fragility_class"] = str(classify_fragility(float(mmin)))
+        except Exception:
+            out["magnet_fragility_class"] = "UNKNOWN"
+    except Exception:
+        out["magnet_margin_min"] = float("nan")
+        out["magnet_fragility_class"] = "UNKNOWN"
+
+
+# Stored energy / dump voltage proxy (TF system)
     # Effective magnetic volume proxy:
     #   - take toroidal circumference ~ 2πR0
     #   - vertical extent ~ 2 κ a

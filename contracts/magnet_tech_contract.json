@@ -1,0 +1,165 @@
+{
+  "authority": "MAGNET",
+  "contract_id": "magnet_tech_contract",
+  "global": {
+    "evaluation_scope": [
+      "TF"
+    ],
+    "fragile_margin_frac": 0.05,
+    "hard_fail_on_regime_mismatch": true,
+    "units": {
+      "B": "T",
+      "J_eng": "A/mm^2",
+      "P": "MW",
+      "T": "K",
+      "stress": "MPa"
+    }
+  },
+  "provenance": {
+    "author": "\u00a9 2026 Afshin Arjhangmehr",
+    "notes": "Deterministic magnet technology regime contract (LTS/HTS/CU) for TF coil screening. Conservative proxy allowables; no runtime overrides."
+  },
+  "regimes": {
+    "CU": {
+      "B_peak_limit_T": 12.0,
+      "J_eng_max_A_mm2": 35.0,
+      "P_tf_ohmic_max_MW": 200.0,
+      "Tcoil_max_K": 500.0,
+      "Tcoil_min_K": 250.0,
+      "aliases": [
+        "CU",
+        "COPPER",
+        "RESISTIVE",
+        "COPPER_TF"
+      ],
+      "coil_heat_nuclear_max_MW": 5.0,
+      "coil_thermal_margin_min": 0.0,
+      "sigma_allow_MPa": 400.0
+    },
+    "HTS": {
+      "B_peak_limit_T": 23.0,
+      "J_eng_max_A_mm2": 90.0,
+      "Tcoil_max_K": 30.0,
+      "Tcoil_min_K": 10.0,
+      "aliases": [
+        "HTS",
+        "HTS_REBCO",
+        "REBCO",
+        "BI2212",
+        "BI-2212"
+      ],
+      "coil_heat_nuclear_max_MW": 3.0,
+      "coil_thermal_margin_min": 0.0,
+      "quench_proxy_min": 0.0,
+      "sc_margin_min": 1.1,
+      "sigma_allow_MPa": 750.0
+    },
+    "LTS": {
+      "B_peak_limit_T": 13.0,
+      "J_eng_max_A_mm2": 55.0,
+      "Tcoil_max_K": 6.0,
+      "Tcoil_min_K": 4.2,
+      "aliases": [
+        "LTS",
+        "LTS_NBTI",
+        "LTS_NB3SN",
+        "NBTI",
+        "NB3SN"
+      ],
+      "coil_heat_nuclear_max_MW": 2.0,
+      "coil_thermal_margin_min": 0.0,
+      "quench_proxy_min": 0.0,
+      "sc_margin_min": 1.2,
+      "sigma_allow_MPa": 650.0
+    }
+  },
+  "repair_map": {
+    "B_peak": {
+      "primary_knobs": [
+        "Bt_T",
+        "R0_m",
+        "t_tf_wind_m",
+        "t_tf_struct_m"
+      ],
+      "suggestions": [
+        {
+          "direction": "decrease",
+          "knob": "Bt_T",
+          "rationale": "reduces TF peak field"
+        },
+        {
+          "direction": "increase",
+          "knob": "R0_m",
+          "rationale": "reduces required ampere-turns for given Bt"
+        },
+        {
+          "direction": "increase",
+          "knob": "t_tf_wind_m",
+          "rationale": "increases winding pack area, lowers J_eng and can reduce B_peak factor"
+        }
+      ]
+    },
+    "J_eng": {
+      "primary_knobs": [
+        "Bt_T",
+        "R0_m",
+        "t_tf_wind_m",
+        "kappa",
+        "a_m"
+      ],
+      "suggestions": [
+        {
+          "direction": "increase",
+          "knob": "t_tf_wind_m",
+          "rationale": "increases conductor area, lowers J_eng"
+        },
+        {
+          "direction": "decrease",
+          "knob": "Bt_T",
+          "rationale": "reduces required ampere-turns"
+        }
+      ]
+    },
+    "coil_heat_nuclear": {
+      "primary_knobs": [
+        "t_shield_m",
+        "t_blanket_m",
+        "t_vv_m",
+        "R0_m"
+      ],
+      "suggestions": [
+        {
+          "direction": "increase",
+          "knob": "t_shield_m",
+          "rationale": "reduces nuclear heat to coils"
+        },
+        {
+          "direction": "increase",
+          "knob": "R0_m",
+          "rationale": "reduces wall load for fixed power density"
+        }
+      ]
+    },
+    "sigma_vm": {
+      "primary_knobs": [
+        "Bt_T",
+        "R0_m",
+        "t_tf_struct_m",
+        "t_tf_wind_m"
+      ],
+      "suggestions": [
+        {
+          "direction": "decrease",
+          "knob": "Bt_T",
+          "rationale": "reduces magnetic pressure and stress"
+        },
+        {
+          "direction": "increase",
+          "knob": "t_tf_struct_m",
+          "rationale": "increases structural section for stress proxy"
+        }
+      ]
+    }
+  },
+  "schema_version": "1.0"
+}

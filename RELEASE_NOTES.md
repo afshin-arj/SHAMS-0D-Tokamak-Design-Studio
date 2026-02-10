@@ -1,3 +1,10 @@
+## v328.0 — Magnet Technology Authority 4.1 (2026-02-10)
+
+- Added explicit magnet technology regimes (**LTS / HTS / Cu**) governed by a deterministic contract: `contracts/magnet_tech_contract.json`.
+- Truth outputs now include: `magnet_regime`, `magnet_contract_sha256`, `J_eng_A_mm2`, `quench_proxy_margin`, and `magnet_margin_min` with a fragility class (FEASIBLE/FRAGILE/INFEASIBLE).
+- Constraint set expanded with regime consistency, TF engineering current density, coil thermal/nuclear budget checks, temperature window checks, and quench proxy check (all deterministic, no solvers).
+- UI: Point Designer → Truth Console now renders a dedicated **Magnet Authority** panel (contract hash + key limits/margins).
+
 ## v327.9.2 — Exit UI Button Hotfix (2026-02-09)
 
 - Added a professional **Exit SHAMS** button in the sidebar (confirm-to-exit) to cleanly terminate the Streamlit process without stack traces.

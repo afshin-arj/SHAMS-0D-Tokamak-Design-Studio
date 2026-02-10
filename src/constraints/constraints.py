@@ -260,6 +260,41 @@ def evaluate_constraints(
         mmin = outputs.get("hts_margin_min", 1.0)
         ge("HTS margin", outputs["hts_margin"], mmin, units="-", note="SC critical-surface margin proxy (technology-aware)", group="magnets")
 
+    # Magnet technology regime + additional margins (v328.0)
+    if "magnet_regime_consistent" in outputs:
+        ge("MAG_REGIME_OK", outputs["magnet_regime_consistent"], 1.0, units="bool",
+           note="Magnet technology string is consistent with selected regime contract", group="magnets")
+
+    if "J_eng_A_mm2" in outputs:
+        lim = outputs.get("J_eng_max_A_mm2", float("nan"))
+        if lim == lim:
+            le("J_eng", outputs["J_eng_A_mm2"], lim, units="A/mm^2", note="TF winding-pack engineering current density", group="magnets")
+
+    if "Tcoil_K" in outputs:
+        tmin = outputs.get("Tcoil_min_K", float("nan"))
+        tmax = outputs.get("Tcoil_max_K", float("nan"))
+        if tmin == tmin:
+            ge("Tcoil_min", outputs["Tcoil_K"], tmin, units="K", note="TF coil temperature within regime window (min)", group="magnets")
+        if tmax == tmax:
+            le("Tcoil_max", outputs["Tcoil_K"], tmax, units="K", note="TF coil temperature within regime window (max)", group="magnets")
+
+    if "coil_heat_nuclear_MW" in outputs:
+        lim = outputs.get("coil_heat_nuclear_max_MW", float("nan"))
+        if lim == lim:
+            le("coil_heat_nuclear", outputs["coil_heat_nuclear_MW"], lim, units="MW",
+               note="Nuclear heating to TF coils (proxy) below regime budget", group="magnets")
+
+    if "coil_thermal_margin" in outputs:
+        lim = outputs.get("coil_thermal_margin_min", 0.0)
+        ge("coil_thermal_margin", outputs["coil_thermal_margin"], lim, units="-",
+           note="Coil thermal margin proxy (cooling headroom) must be non-negative", group="magnets")
+
+    if "quench_proxy_margin" in outputs:
+        lim = outputs.get("quench_proxy_min", float("nan"))
+        if lim == lim:
+            ge("quench_proxy", outputs["quench_proxy_margin"], lim, units="-",
+               note="Conservative quench proxy margin (min of dump-voltage headroom and coil thermal margin)", group="magnets")
+
     if "P_tf_ohmic_MW" in outputs:
         lim = outputs.get("P_tf_ohmic_max_MW", float("nan"))
         if lim == lim and outputs["P_tf_ohmic_MW"] == outputs["P_tf_ohmic_MW"]:

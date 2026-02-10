@@ -1009,6 +1009,97 @@ def _compute_run_summary_from_out(out: Dict[str, Any]) -> Dict[str, Any]:
     }
 # One-shot synchronization: when a preset is loaded we set this flag, and on the next
 # rerun we push preset values into Point Designer widget keys.
+def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
+    """Render Magnet Technology Authority panel (v328.0).
+
+    UI-only: reads frozen truth outputs and displays contract-driven limits and margins.
+    """
+    if not isinstance(out, dict) or not out:
+        return
+
+    with st.expander("🧲 Magnet Authority — Technology Regime (v328.0)", expanded=False):
+        regime = str(out.get("magnet_regime", "UNKNOWN"))
+        tech = str(out.get("magnet_technology", ""))
+        contract_sha = str(out.get("magnet_contract_sha256", ""))[:12]
+        cls = str(out.get("magnet_fragility_class", "UNKNOWN"))
+        mmin = out.get("magnet_margin_min", float("nan"))
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("Regime", regime)
+        with c2:
+            st.metric("Tech string", tech if tech else "—")
+        with c3:
+            st.metric("Class", cls)
+        with c4:
+            try:
+                st.metric("Min margin (frac)", f"{float(mmin):.3g}")
+            except Exception:
+                st.metric("Min margin (frac)", str(mmin))
+
+        st.caption(f"Contract SHA-256 (prefix): {contract_sha if contract_sha else '—'}")
+
+        # Build a compact table of key limits and values
+        rows = []
+        def _add(name: str, vkey: str, lkey: str, units: str):
+            v = out.get(vkey, float('nan'))
+            l = out.get(lkey, float('nan'))
+            try:
+                v_f = float(v)
+                l_f = float(l)
+                if (v_f == v_f) or (l_f == l_f):
+                    margin = (l_f - v_f) / max(abs(l_f), 1e-9) if (v_f == v_f and l_f == l_f) else float('nan')
+                else:
+                    margin = float('nan')
+            except Exception:
+                v_f, l_f, margin = v, l, float('nan')
+            rows.append({
+                "Quantity": name,
+                "Value": v_f,
+                "Limit": l_f,
+                "Margin(frac)": margin,
+                "Units": units,
+            })
+
+        _add("TF peak field", "B_peak_T", "B_peak_allow_T", "T")
+        _add("TF von Mises stress", "sigma_vm_MPa", "sigma_allow_MPa", "MPa")
+        _add("TF engineering J", "J_eng_A_mm2", "J_eng_max_A_mm2", "A/mm^2")
+        _add("Coil nuclear heat", "coil_heat_nuclear_MW", "coil_heat_nuclear_max_MW", "MW")
+        # SC margin (>=)
+        try:
+            rows.append({
+                "Quantity": "SC critical-surface margin",
+                "Value": float(out.get("hts_margin", float("nan"))),
+                "Limit": float(out.get("hts_margin_min", float("nan"))),
+                "Margin(frac)": float(out.get("hts_margin", float("nan"))) - float(out.get("hts_margin_min", float("nan"))),
+                "Units": "-"
+            })
+        except Exception:
+            pass
+        try:
+            rows.append({
+                "Quantity": "Quench proxy margin",
+                "Value": float(out.get("quench_proxy_margin", float("nan"))),
+                "Limit": float(out.get("quench_proxy_min", float("nan"))),
+                "Margin(frac)": float(out.get("quench_proxy_margin", float("nan"))) - float(out.get("quench_proxy_min", float("nan"))),
+                "Units": "-"
+            })
+        except Exception:
+            pass
+
+        try:
+            import pandas as pd  # type: ignore
+            df = pd.DataFrame(rows)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        except Exception:
+            st.write(rows)
+
+        # Deterministic repair hints (high-level; detailed mapping lives in contract artifact)
+        st.markdown("**Deterministic repair levers (non-exhaustive):**")
+        st.markdown("- Decrease **Bt** or increase **R0** (reduces required ampere-turns and peak field).")
+        st.markdown("- Increase **TF build** (winding/structure) to improve **J** and **stress** margins.")
+        st.markdown("- Increase **shielding/build** to reduce **nuclear heat** to coils (when coupled).")
+
 def _sync_point_designer_from_last_point_inp() -> None:
     if not st.session_state.get("pd_needs_sync", False):
         return
@@ -4490,6 +4581,11 @@ with tab_point:
             unsafe_allow_html=True,
         )
 
+        # v328.0: Magnet Technology Authority panel
+        try:
+            _render_magnet_authority_panel(_pd_out0 or {})
+        except Exception:
+            pass
 
         # Telemetry Deck navigation (reduces scrolling)
         _pd_tel_views = [
