@@ -3268,11 +3268,12 @@ with tab_control_room:
     with deck_prov:
         st.subheader("Provenance")
         st.caption("Study protocol, repro lock, regression visibility, and replay tools.")
-        p_studies, p_deck, p_auth, p_dec, p_epoch, p_delta, p_regress, p_dash = st.tabs([
+        p_studies, p_deck, p_auth, p_dec, p_dom, p_epoch, p_delta, p_regress, p_dash = st.tabs([
             "Studies",
             "Case Deck Runner",
             "Authority & Confidence",
             "Decision Consequences",
+            "Authority Dominance",
             "Epoch Feasibility",
             "Scenario Delta",
             "Regression Viewer",
@@ -3282,6 +3283,7 @@ with tab_control_room:
         tab_deck = p_deck
         tab_authority_conf = p_auth
         tab_decision_conseq = p_dec
+        tab_authority_dominance = p_dom
         tab_epoch_feas = p_epoch
         tab_delta = p_delta
         tab_regress = p_regress
@@ -5217,6 +5219,17 @@ with tab_point:
                                 cB.metric("q_div limit", f"{_safe_num('q_div_max_MW_m2'):.1f}" if _safe_num('q_div_max_MW_m2') == _safe_num('q_div_max_MW_m2') else "n/a")
                                 cC.metric("f_rad_div", f"{_safe_num('f_rad_div'):.2f}" if _safe_num('f_rad_div') == _safe_num('f_rad_div') else "n/a")
                                 cD.metric("Divertor regime", str(out.get("div_regime", "unknown")))
+                                # v329.0: exhaust & radiation regime authority
+                                if str(out.get("exhaust_regime","")):
+                                    st.divider()
+                                    e1, e2, e3, e4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                    e1.metric("Exhaust regime", str(out.get("exhaust_regime","unknown")))
+                                    e2.metric("Fragility", str(out.get("exhaust_fragility_class","UNKNOWN")))
+                                    _mr = _safe_num("exhaust_min_margin_frac")
+                                    e3.metric("Min margin (frac)", f"{_mr:.3f}" if _mr == _mr else "n/a")
+                                    _rad = _safe_num("exhaust_radiation_dominated")
+                                    e4.metric("Radiation-dom", "YES" if (_rad == _rad and _rad >= 0.5) else ("NO" if _rad == _rad else "n/a"))
+                                    st.caption("Exhaust regime is a deterministic classifier (attached / marginal_detach / detached / radiation_dominated / overheat) based on P_SOL/R overload, q_div margin, and (if enabled) required SOL+div radiation fraction. No solvers, no iteration.")
                                 if bool(getattr(base, "include_sol_radiation_control", False)):
                                     st.divider()
                                     c1, c2, c3, c4 = st.columns([1.0, 1.0, 1.0, 1.0])
@@ -18657,6 +18670,69 @@ with tab_decision_conseq:
         ]
         st.subheader("Snapshot")
         st.table(rows)
+
+
+# ----------------------------------
+# Authority Dominance Engine (v330.0)
+# ----------------------------------
+with tab_authority_dominance:
+    st.header("Authority Dominance")
+    st.caption(
+        "Deterministic dominance engine: identifies the dominant feasibility killer authority "
+        "(PLASMA/EXHAUST/MAGNET/CONTROL/NEUTRONICS/FUEL/PLANT) and ranks the top limiting constraints. "
+        "Post-processing only; truth unchanged."
+    )
+
+    colA, colB = st.columns([0.55, 0.45], gap="large")
+    with colA:
+        st.markdown("### Load artifact")
+        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authdom_upload")
+        art = _load_json_from_upload(up_art)
+        if not art:
+            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+            if not art:
+                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+
+        if not art:
+            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
+        else:
+            ad = art.get("authority_dominance") if isinstance(art, dict) else None
+            if not isinstance(ad, dict):
+                st.warning("No authority_dominance found. (Older artifact?)")
+                st.json({"available_keys": sorted(list(art.keys()))[:60]}, expanded=False)
+            else:
+                st.markdown(f"**Dominance verdict:** `{str(ad.get('dominance_verdict','UNKNOWN'))}`")
+                st.markdown(f"**Dominant authority:** `{str(ad.get('dominant_authority',''))}`")
+                st.markdown(f"**Dominant constraint:** `{str(ad.get('dominant_constraint',''))}`")
+                mm = ad.get("dominant_margin_frac", None)
+                try:
+                    mm_s = f"{float(mm):.4f}" if mm is not None else "-"
+                except Exception:
+                    mm_s = "-"
+                st.markdown(f"**Dominant margin (frac):** {mm_s}")
+                st.caption(f"stamp_sha256: {str(ad.get('stamp_sha256',''))[:16]}…")
+
+    with colB:
+        st.markdown("### Interpretation")
+        st.markdown("- **INFEASIBLE**: at least one hard constraint violated; dominance points to the worst hard margin.")
+        st.markdown("- **FRAGILE**: hard-feasible but the tightest hard margin is near-binding (default < 0.05).")
+        st.markdown("- **FEASIBLE**: hard-feasible with comfortable margins.")
+
+    if isinstance(art, dict) and isinstance(art.get("authority_dominance"), dict):
+        ad = art["authority_dominance"]
+        with st.expander("Top limiting constraints (hard)", expanded=False):
+            rows = ad.get("dominance_topk") or []
+            if isinstance(rows, list) and rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("No top-k rows available.")
+
+        with st.expander("Authority ranking", expanded=False):
+            rows = ad.get("authority_ranked") or []
+            if isinstance(rows, list) and rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("No authority ranking available.")
 
 
 # -----------------------------

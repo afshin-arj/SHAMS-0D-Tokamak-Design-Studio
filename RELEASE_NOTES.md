@@ -1,3 +1,28 @@
+## v330.0 — Authority Dominance Engine
+
+**Governance upgrade:** deterministic identification of the **dominant feasibility killer authority** (PLASMA / EXHAUST / MAGNET / CONTROL / NEUTRONICS / FUEL / PLANT), plus a top-k limiter table.
+
+- New post-processing engine: `src/provenance/authority_dominance.py`
+- Run artifacts now include: `authority_dominance` (schema `authority_dominance.v1`) and convenience fields: `dominant_authority`, `dominant_constraint`, `dominant_mechanism` (mapped to authority for legacy dashboards)
+- UI: **Provenance → Authority Dominance** tab renders dominance verdict, ranked authorities, and top limiting hard constraints
+
+Non-goals preserved: no solvers, no iteration, no optimization inside truth.
+
+---
+
+## v329.0 — Exhaust & Radiation Regime Authority
+
+**Authority upgrade:** deterministic exhaust regime classifier (attached / marginal_detach / detached / radiation_dominated / overheat) with fragility margins and contract hash stamping.
+
+- New immutable contract: `contracts/exhaust_radiation_regime_contract.json`
+- New loader + classifier: `src/contracts/exhaust_radiation_regime_contract.py`
+- Frozen evaluator now emits: `exhaust_regime`, `exhaust_fragility_class`, `exhaust_min_margin_frac`, `exhaust_detach_metric_MW_m`, `exhaust_q_margin_MW_m2`, `exhaust_radiation_dominated`, `exhaust_contract_sha256`
+- UI: Point Designer → Physics Deepening → **Edge/Divertor & Exhaust Control** shows regime + fragility when available
+
+No solvers, no iteration, no optimization inside truth.
+
+---
+
 ## v328.0 — Magnet Technology Authority 4.1 (2026-02-10)
 
 - Added explicit magnet technology regimes (**LTS / HTS / Cu**) governed by a deterministic contract: `contracts/magnet_tech_contract.json`.

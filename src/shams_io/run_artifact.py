@@ -648,6 +648,33 @@ def build_run_artifact(
     except Exception:
         art["constraint_ledger"] = {"schema_version": "constraint_ledger.v1", "entries": [], "top_blockers": []}
 
+    # Authority Dominance Engine (v330.0): deterministic ranking of which authority
+    # (PLASMA/EXHAUST/MAGNET/CONTROL/...) is the dominant feasibility killer.
+    # Post-processing only; MUST NOT modify physics truth.
+    try:
+        from provenance.authority_dominance import authority_dominance_from_constraints_json  # type: ignore
+
+        art["authority_dominance"] = authority_dominance_from_constraints_json(constraints_json)
+        if isinstance(art.get("authority_dominance"), dict):
+            ad = art["authority_dominance"]
+            # Lightweight top-level convenience fields for dashboards/evidence packs.
+            art["dominant_authority"] = str(ad.get("dominant_authority", "") or "")
+            # Keep existing conventions: dominant_constraint is already used downstream.
+            art["dominant_constraint"] = str(ad.get("dominant_constraint", "") or art.get("dominant_constraint", "") or "")
+            # Mechanism label (for legacy UIs): map to authority label.
+            art["dominant_mechanism"] = str(ad.get("dominant_authority", "") or art.get("dominant_mechanism", "") or "")
+    except Exception:
+        art["authority_dominance"] = {
+            "schema_version": "authority_dominance.v1",
+            "dominance_verdict": "UNKNOWN",
+            "dominant_authority": "",
+            "dominant_constraint": "",
+            "dominant_margin_frac": None,
+            "dominance_topk": [],
+            "authority_ranked": [],
+            "stamp_sha256": "",
+        }
+
     # Authority contracts + confidence (v256.0): deterministic trust ledger.
     try:
         from provenance.authority import authority_snapshot_from_outputs  # type: ignore

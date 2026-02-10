@@ -1408,6 +1408,40 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["detachment_fz_max"] = float("nan")
         out["detachment_validity"] = {}
 
+    
+
+    # ---------------------------
+    # v329.0 Exhaust & Radiation Regime Authority (deterministic)
+    # ---------------------------
+    try:
+        from src.contracts.exhaust_radiation_regime_contract import classify_exhaust_regime, CONTRACT_SHA256 as _EXH_CONTRACT_SHA
+        _q = float(out.get('q_div_MW_m2', float('nan')))
+        _qmax = float(out.get('q_div_max_MW_m2', float('nan')))
+        _fr = float(out.get('f_rad_div_eff', out.get('f_rad_div', float('nan'))))
+        _thr = float(getattr(inp, 'P_SOL_over_R_max_MW_m', float('nan')))
+        _freq = float(out.get('detachment_f_sol_div_required', float('nan')))
+        cls = classify_exhaust_regime(
+            P_SOL_MW=float(out.get('P_SOL_MW', float('nan'))),
+            R0_m=float(getattr(inp, 'R0_m', float('nan'))),
+            P_SOL_over_R_max_MW_m=float(_thr),
+            q_div_MW_m2=float(_q),
+            q_div_max_MW_m2=float(_qmax),
+            f_rad_div_eff=float(_fr),
+            f_sol_div_required=float(_freq),
+        )
+        out.update(cls.to_outputs_dict())
+        out['exhaust_regime_validity'] = {'contract_sha256': str(_EXH_CONTRACT_SHA)}
+    except Exception:
+        out['exhaust_regime'] = 'unknown'
+        out['exhaust_fragility_class'] = 'UNKNOWN'
+        out['exhaust_min_margin_frac'] = float('nan')
+        out['exhaust_detach_metric_MW_m'] = float('nan')
+        out['exhaust_detach_thr_MW_m'] = float('nan')
+        out['exhaust_detach_margin_MW_m'] = float('nan')
+        out['exhaust_q_margin_MW_m2'] = float('nan')
+        out['exhaust_radiation_dominated'] = float('nan')
+        out['exhaust_contract_sha256'] = ''
+
     # ---------------------------
     # v296.0 Disruption risk tiering (screening)
     # ---------------------------

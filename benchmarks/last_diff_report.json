@@ -1,8 +1,8 @@
 {
   "atol": 1e-06,
-  "created_unix": 1770611883.24763,
+  "created_unix": 1770708866.8394656,
   "n_failed": 0,
-  "n_rows": 117,
+  "n_rows": 104,
   "rows": [
     {
       "abs_err": 0.0,
@@ -78,15 +78,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_alpha_ash_on",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_baseline",
       "golden": 29.710954794972416,
       "got": 29.710954794972416,
@@ -154,15 +145,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_baseline",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
       "ok": true,
       "rel_err": 0.0
     },
@@ -240,15 +222,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_coil_tight",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_current_drive",
       "golden": 29.710954794972416,
       "got": 29.710954794972416,
@@ -321,15 +294,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_current_drive",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_double_null",
       "golden": 29.710954794972416,
       "got": 29.710954794972416,
@@ -397,15 +361,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_double_null",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
       "ok": true,
       "rel_err": 0.0
     },
@@ -483,15 +438,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_high_Q_target",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_high_field",
       "golden": 29.521883893141542,
       "got": 29.521883893141542,
@@ -559,15 +505,6 @@
       "golden": 5204.397395911251,
       "got": 5204.397395911251,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_high_field",
-      "golden": 0.032308305080254805,
-      "got": 0.032308305080254805,
-      "key": "hts_margin",
       "ok": true,
       "rel_err": 0.0
     },
@@ -645,15 +582,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_impurity_ar",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_low_aux",
       "golden": 65.79588605115,
       "got": 65.79588605115,
@@ -726,15 +654,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_low_aux",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_particle_balance_diag",
       "golden": 29.710954794972416,
       "got": 29.710954794972416,
@@ -802,15 +721,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_particle_balance_diag",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
       "ok": true,
       "rel_err": 0.0
     },
@@ -888,15 +798,6 @@
     },
     {
       "abs_err": 0.0,
-      "case": "sparc_pedestal_profile",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
       "case": "sparc_pulsed_20s",
       "golden": 29.710954794972416,
       "got": 29.710954794972416,
@@ -964,15 +865,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_pulsed_20s",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
       "ok": true,
       "rel_err": 0.0
     },
@@ -1045,15 +937,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_radiation_mix_physics",
-      "golden": 0.04111796198711743,
-      "got": 0.04111796198711743,
-      "key": "hts_margin",
       "ok": true,
       "rel_err": 0.0
     }
