@@ -13054,6 +13054,7 @@ with tab_pareto:
         "Concept Optimization Cockpit",
         "External Optimization Workbench",
         "External Optimization Interpretation",
+        "Design Family Narratives",
         "External Optimizer Suite",
         "Optimization Evidence Packs",
     ]
@@ -13065,6 +13066,7 @@ with tab_pareto:
         "Concept Optimization Cockpit": "🧬 Concept Optimization Cockpit",
         "External Optimization Workbench": "📈 External Optimization Workbench",
         "External Optimization Interpretation": "🧪 External Optimization Interpretation",
+        "Design Family Narratives": "🧬 Design Family Narratives",
         "External Optimizer Suite": "📦 External Optimizer Suite",
         "Optimization Evidence Packs": "🧾 Optimization Evidence Packs",
     }
@@ -13121,6 +13123,12 @@ with tab_pareto:
         from ui.extopt_interpretation import render_extopt_interpretation
 
         render_extopt_interpretation(Path(__file__).resolve().parent.parent)
+        st.stop()
+
+    if _pareto_deck == "Design Family Narratives":
+        from ui.design_families import render_design_families
+
+        render_design_families(Path(__file__).resolve().parent.parent)
         st.stop()
 
     if _pareto_deck == "External Optimizer Suite":

@@ -1,3 +1,21 @@
+## v332.0 — Design Family Narratives
+
+**Governance upgrade:** deterministic, interpretable **design-family clustering** over evaluated designs, replacing “best point” thinking with regime- and mechanism-based families.
+
+- New deterministic family engine: `src/narratives/design_families.py`
+  - Rule-based (no ML), stable across runs
+  - Family keys built from labels already produced by SHAMS authorities:
+    - intent, magnet regime, exhaust regime, dominant authority/constraint
+    - coarse geometry buckets (R0/B0/A) for interpretability
+  - Deterministic archetype selection (max margin; hash tie-break)
+- New UI deck: **Pareto Lab → 🧬 Design Family Narratives**
+  - Builds families from **Pareto** points or **all feasible** points (session-local)
+  - Expandable family table + family narrative + archetype drill-down
+
+Non-goals preserved: no optimization, no solvers in truth, no stochastic clustering.
+
+---
+
 ## v331.0 — External Optimization Interpretation Layer + Exit UI Wiring Audit
 
 **Governance upgrade:** interpretation-only tooling to explain external optimizer outcomes (feasibility attrition, dominant-killer histograms, reviewer narratives), while preserving frozen truth.
