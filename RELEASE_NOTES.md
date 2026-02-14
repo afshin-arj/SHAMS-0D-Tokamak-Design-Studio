@@ -1,10 +1,11 @@
 # Release Notes
 
-## v372.1 — UI Gatecheck + Deck Navigation Hotfix
+## v372.2 — UI Gatecheck + Deck Navigation Hotfix
 
 - Fix: Gatecheck runner NameError by importing `subprocess` in UI.
 - Fix: Replace Streamlit tab navigation with persisted sidebar deck selector (prevents rerun jump-back to Point Designer).
 - Fix: Systems solve `max_iter` NameError caused by tab reset on rerun (resolved by persisted deck selector).
+- Fix: Publication Benchmarks sub-tabs scope: ensure `_pb_tabs` is defined and used only inside the Publication Benchmarks deck (prevents `_pb_tabs` NameError).
 - Fix: Transport Contracts v371: contract JSON loader + contract file; ensure import-safe and enabled when requested.
 - Fix: Economics import hygiene: use relative imports in `src/economics/cost.py`.
 - Validation: `pytest -q` passes.

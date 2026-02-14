@@ -2618,7 +2618,7 @@ except Exception:
     pass
 
 
-# --- Deck Navigation (v372.1 hotfix) ---
+# --- Deck Navigation (v372.2 hotfix) ---
 # Streamlit tabs reset to the first tab on reruns, which can cause the UI to "jump" back
 # to Point Designer when interacting with other decks (and can unbind solver parameter
 # names on button-click reruns). We therefore use a deterministic, persisted deck selector.
@@ -3226,239 +3226,239 @@ if _deck == "📚 Publication Benchmarks":
 
     
 
-with _pb_tabs[1]:
-    st.subheader("🧭 Cross‑Code Constitutions")
-    st.caption("Documentation-level comparison: map other system codes' effective enforcement semantics against SHAMS intent constitutions. This does not execute external codes; it records and diffs declared clause semantics, with citations.")
-    try:
-        from benchmarks.crosscode.crosscode_compare import list_crosscode_constitutions, load_crosscode_constitution, compare_to_shams_intent
-    except Exception as e:
-        st.error(f"Cross-code module import failed: {e}")
-    else:
-        _items = list_crosscode_constitutions()
-        if not _items:
-            st.info("No cross-code constitution records found.")
-        else:
-            labels = [k for k,_ in _items]
-            paths_map = {k:p for k,p in _items}
-            colA, colB = st.columns([2,1], vertical_alignment="top")
-            with colA:
-                code_key = st.selectbox("External code", labels, index=0, key="cc_code_sel")
-            with colB:
-                intent = st.radio("SHAMS intent", ["research","reactor"], horizontal=True, key="cc_intent_sel")
-            cc = load_crosscode_constitution(paths_map[code_key])
-            comp = compare_to_shams_intent(intent, cc)
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Unknown clauses", comp["unknown_clause_count"])
-            c2.metric("Clauses total", len(comp["crosscode_constitution"]["clauses"]))
-            c3.metric("Diff entries", len(comp["diff"]))
-            st.markdown("#### Notes")
-            st.write(cc.source_notes)
-            if cc.citations:
-                st.markdown("#### Citations")
-                for c in cc.citations:
-                    st.write(f"- {c}")
-            st.markdown("#### Constitution Diff")
-            st.json(comp["diff"], expanded=False)
-            st.markdown("#### Clause Table")
-            st.dataframe(
-                [{"clause": k, "shams": comp["baseline_constitution"].get(k, "(missing)"), "external": v}
-                 for k, v in sorted(comp["crosscode_constitution"]["clauses"].items())],
-                use_container_width=True,
-                hide_index=True,
-            )
-            st.markdown("#### 📤 Export")
-            st.download_button(
-                "Download comparison (JSON)",
-                data=json.dumps(comp, indent=2).encode("utf-8"),
-                file_name=f"crosscode_comparison__{code_key}__{intent}.json",
-                mime="application/json",
-            )
-
-with _pb_tabs[2]:
-
-            # Status pill (simple, honest)
-            _status = "🟢 Ready"
-            _status_help = "Benchmarks are available. Runs use the frozen evaluator and configured machine list."
-            st.markdown(f"**Status:** {_status}")
-            st.caption(_status_help)
-
-            # Topology regression (CI-grade): shows whether feasibility topology drifted vs baseline.
-            with st.expander(" Topology regression (robust/fragile/empty stability)", expanded=False):
-                rep_path = Path(ROOT) / "verification" / "topology_regression_report.json"
-                if rep_path.exists():
-                    try:
-                        rep = json.loads(rep_path.read_text(encoding="utf-8"))
-                    except Exception:
-                        rep = {}
-                    ok = bool(rep.get("ok", False))
-                    st.markdown(f"**Result:** {' PASS' if ok else ' FAIL'}")
-                    if not ok:
-                        st.warning("Topology regression failed. See report details below; run gatecheck for full context.")
-                    st.json(rep, expanded=False)
-                else:
-                    st.info("No topology regression report found yet. Run **Run gatecheck** (or run `python verification/topology_regression.py`).")
-
-            with st.container(border=True):
-                st.subheader("What this does")
-                st.write(
-                    "Generates paper-ready benchmark tables and per-machine artifacts by evaluating the configured "
-                    "reference machines with the frozen Point Designer. No physics, constraints, or policies are modified."
-                )
-                st.markdown("**Outputs include:**")
-                st.markdown("- CSV benchmark tables (Research & Reactor)\n- Per-machine JSON artifacts (inputs, outputs, constraint ledger)\n- Run metadata (timestamp, version, hash)")
-
-                cL, cR = st.columns(2, gap="large")
-                with cL:
-                    st.markdown("###  Research Machines")
-                    st.caption("Policy: Research Intent • q95 hard • Plant constraints diagnostic/ignored")
-                    st.markdown("- ITER / JET / DIII-D / EAST / KSTAR / JT-60SA\n- SPARC / NSTX-U / MAST-U (as configured)")
-                with cR:
-                    st.markdown("### ⚡ Reactor & Pilot Plants")
-                    st.caption("Policy: Reactor Intent • Full feasibility gates enforced")
-                    st.markdown("- ARC / ARIES-class\n- EU DEMO (incl. low-A variants)\n- STEP Prototype Plant (as configured)")
-
-                st.divider()
-
-                st.markdown("### Reproducibility contract")
-                st.markdown("- ✔ Frozen Point Designer evaluator\n- ✔ Deterministic run (no stochastic elements)\n- ✔ Explicit Design Intent policies\n- ✔ Versioned artifact schema")
-                st.caption("Every run is replayable. Every table is traceable.")
-
-                st.divider()
-
-                # One-button launcher with explicit acknowledgment (keeps it review-safe)
-                if "pubbench_ack" not in st.session_state:
-                    st.session_state.pubbench_ack = False
-                if "pubbench_running" not in st.session_state:
-                    st.session_state.pubbench_running = False
-                if "pubbench_last_outdir" not in st.session_state:
-                    st.session_state.pubbench_last_outdir = None
-                if "pubbench_last_rc" not in st.session_state:
-                    st.session_state.pubbench_last_rc = None
-
-                st.markdown("### Action")
-                st.checkbox("I understand this is a non-interactive, audit-grade run.", key="pubbench_ack")
-
-                run_btn = st.button("▶ Generate Publication Benchmark Pack", type="primary", disabled=(not st.session_state.pubbench_ack or st.session_state.pubbench_running))
-                prog = st.empty()
-                log_box = st.empty()
-
-                if run_btn:
-                    st.session_state.pubbench_running = True
-                    try:
-                        import sys, subprocess, time, os
-                        ts = time.strftime("%Y%m%d_%H%M%S")
-                        outdir = os.path.join("benchmarks", "publication", "out_ui", ts)
-                        os.makedirs(outdir, exist_ok=True)
-                        cases = os.path.join("benchmarks", "publication", "cases_point_designer.json")
-                        runner = os.path.join("benchmarks", "publication", "run_point_designer_benchmarks.py")
-
-                        cmd = [sys.executable, runner, "--cases", cases, "--outdir", outdir, "--also-run-opposite-intent"]
-                        prog.progress(0.05)
-                        p = subprocess.run(cmd, capture_output=True, text=True)
-                        prog.progress(1.0)
-
-                        st.session_state.pubbench_last_outdir = outdir
-                        st.session_state.pubbench_last_rc = int(p.returncode)
-
-                        _out = (p.stdout or "").strip()
-                        _err = (p.stderr or "").strip()
-                        if _out:
-                            log_box.code(_out[:8000])
-                        if _err:
-                            st.warning("Runner warnings/errors (stderr):")
-                            st.code(_err[:8000])
-
-                        if p.returncode == 0:
-                            st.success(f"Completed. Output: {outdir}")
-                        else:
-                            st.error(f"Benchmark run failed (exit code {p.returncode}). Output folder: {outdir}")
-                    except Exception as e:
-                        st.error(f"Benchmark run failed: {e}")
-                    finally:
-                        st.session_state.pubbench_running = False
-
-                if st.session_state.pubbench_last_outdir:
-                    st.caption(f"Last output: {st.session_state.pubbench_last_outdir} (rc={st.session_state.pubbench_last_rc})")
-
-                if st.session_state.pubbench_last_outdir and int(st.session_state.pubbench_last_rc or 0) == 0:
-                    st.markdown("#### 🧾 Pack inspection (topology + delta)")
-                    outdir = st.session_state.pubbench_last_outdir
-                    # B3: topology
-                    try:
-                        import os, json
-                        topo_p = os.path.join(outdir, "topology.json")
-                        if os.path.exists(topo_p):
-                            topo = json.loads(open(topo_p, "r", encoding="utf-8").read())
-                            cA, cB, cC, cD = st.columns(4)
-                            fr = (topo.get("fractions") or {})
-                            cA.metric("Pass frac", f"{float(fr.get('pass',0.0)):.2f}")
-                            cB.metric("Robust frac", f"{float(fr.get('robust',0.0)):.2f}")
-                            cC.metric("Fragile frac", f"{float(fr.get('fragile',0.0)):.2f}")
-                            cD.metric("Fail frac", f"{float(fr.get('fail',0.0)):.2f}")
-                            st.json({"dominant_mechanism_hist": topo.get("dominant_mechanism_hist", {})})
-                    except Exception:
-                        pass
-
-                    # B2: delta explainer
-                    st.markdown("##### Explain delta vs baseline")
-                    try:
-                        import os, glob
-                        base_dir = os.path.join("benchmarks", "publication", "baselines")
-                        opts = []
-                        if os.path.isdir(base_dir):
-                            # allow baseline packs as directories, else fall back to shipped CSV baseline
-                            for d in sorted(glob.glob(os.path.join(base_dir, "*"))):
-                                opts.append(d)
-                        baseline_sel = st.selectbox("Baseline pack/folder", opts if opts else [base_dir], index=0, key="pubbench_delta_base_v235")
-                        if st.button("🧠 Explain delta (baseline → last pack)", use_container_width=True, key="pubbench_delta_btn_v235"):
-                            runner = os.path.join("benchmarks", "publication", "explain_delta.py")
-                            cmd = [sys.executable, runner, "--baseline", baseline_sel, "--candidate", outdir]
-                            p = subprocess.run(cmd, capture_output=True, text=True)
-                            if p.returncode == 0:
-                                st.success("Delta explanation written to delta.md in the candidate pack.")
-                                delta_path = os.path.join(outdir, "delta.md")
-                                if os.path.exists(delta_path):
-                                    st.code(open(delta_path, "r", encoding="utf-8").read()[:12000])
-                            else:
-                                st.error(f"Delta explainer failed (rc={p.returncode}).")
-                                if p.stderr:
-                                    st.code(p.stderr[:8000])
-                    except Exception as e:
-                        st.warning(f"Delta tools unavailable: {e}")
-
-            st.caption("Exploration happens elsewhere in the UI. Evidence is generated here.")
-
-            st.divider()
-            st.markdown("### Evidence exports")
-            st.caption("Generate reviewer/regulator and licensing packs from the current session artifact (read-only).")
-
-            with st.expander("🧾 Regulatory & Reviewer Evidence Packs (v334)", expanded=False):
-                try:
-                    from ui.regulatory_evidence_pack import render_regulatory_evidence_pack_panel
-                    render_regulatory_evidence_pack_panel(REPO_ROOT)
-                except Exception as _e:
-                    st.error(f"Regulatory evidence pack panel import failed: {_e}")
-
-            with st.expander("🏛️ Licensing Evidence Tier 2 (v355)", expanded=False):
-                try:
-                    from ui.licensing_evidence_tier2 import render_licensing_evidence_tier2_panel
-                    render_licensing_evidence_tier2_panel(REPO_ROOT)
-                except Exception as _e:
-                    st.error(f"Licensing Tier 2 panel import failed: {_e}")
-
-with _pb_tabs[3]:
-    st.subheader("🧾 Contract Studio")
-    st.caption("Validate and export governance contracts (read-only).")
-    try:
-        from ui.contract_studio import render_contract_studio
-        from pathlib import Path
-        _repo_root = Path(__file__).resolve().parents[1]
-        render_contract_studio(_repo_root, ui_key_prefix="pb_contract_studio")
-    except Exception as e:
+    with _pb_tabs[1]:
+        st.subheader("🧭 Cross‑Code Constitutions")
+        st.caption("Documentation-level comparison: map other system codes' effective enforcement semantics against SHAMS intent constitutions. This does not execute external codes; it records and diffs declared clause semantics, with citations.")
         try:
-            st.error(f"Contract Studio import failed: {e}")
-        except Exception:
-            pass
+            from benchmarks.crosscode.crosscode_compare import list_crosscode_constitutions, load_crosscode_constitution, compare_to_shams_intent
+        except Exception as e:
+            st.error(f"Cross-code module import failed: {e}")
+        else:
+            _items = list_crosscode_constitutions()
+            if not _items:
+                st.info("No cross-code constitution records found.")
+            else:
+                labels = [k for k,_ in _items]
+                paths_map = {k:p for k,p in _items}
+                colA, colB = st.columns([2,1], vertical_alignment="top")
+                with colA:
+                    code_key = st.selectbox("External code", labels, index=0, key="cc_code_sel")
+                with colB:
+                    intent = st.radio("SHAMS intent", ["research","reactor"], horizontal=True, key="cc_intent_sel")
+                cc = load_crosscode_constitution(paths_map[code_key])
+                comp = compare_to_shams_intent(intent, cc)
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Unknown clauses", comp["unknown_clause_count"])
+                c2.metric("Clauses total", len(comp["crosscode_constitution"]["clauses"]))
+                c3.metric("Diff entries", len(comp["diff"]))
+                st.markdown("#### Notes")
+                st.write(cc.source_notes)
+                if cc.citations:
+                    st.markdown("#### Citations")
+                    for c in cc.citations:
+                        st.write(f"- {c}")
+                st.markdown("#### Constitution Diff")
+                st.json(comp["diff"], expanded=False)
+                st.markdown("#### Clause Table")
+                st.dataframe(
+                    [{"clause": k, "shams": comp["baseline_constitution"].get(k, "(missing)"), "external": v}
+                     for k, v in sorted(comp["crosscode_constitution"]["clauses"].items())],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+                st.markdown("#### 📤 Export")
+                st.download_button(
+                    "Download comparison (JSON)",
+                    data=json.dumps(comp, indent=2).encode("utf-8"),
+                    file_name=f"crosscode_comparison__{code_key}__{intent}.json",
+                    mime="application/json",
+                )
+
+    with _pb_tabs[2]:
+
+                # Status pill (simple, honest)
+                _status = "🟢 Ready"
+                _status_help = "Benchmarks are available. Runs use the frozen evaluator and configured machine list."
+                st.markdown(f"**Status:** {_status}")
+                st.caption(_status_help)
+
+                # Topology regression (CI-grade): shows whether feasibility topology drifted vs baseline.
+                with st.expander(" Topology regression (robust/fragile/empty stability)", expanded=False):
+                    rep_path = Path(ROOT) / "verification" / "topology_regression_report.json"
+                    if rep_path.exists():
+                        try:
+                            rep = json.loads(rep_path.read_text(encoding="utf-8"))
+                        except Exception:
+                            rep = {}
+                        ok = bool(rep.get("ok", False))
+                        st.markdown(f"**Result:** {' PASS' if ok else ' FAIL'}")
+                        if not ok:
+                            st.warning("Topology regression failed. See report details below; run gatecheck for full context.")
+                        st.json(rep, expanded=False)
+                    else:
+                        st.info("No topology regression report found yet. Run **Run gatecheck** (or run `python verification/topology_regression.py`).")
+
+                with st.container(border=True):
+                    st.subheader("What this does")
+                    st.write(
+                        "Generates paper-ready benchmark tables and per-machine artifacts by evaluating the configured "
+                        "reference machines with the frozen Point Designer. No physics, constraints, or policies are modified."
+                    )
+                    st.markdown("**Outputs include:**")
+                    st.markdown("- CSV benchmark tables (Research & Reactor)\n- Per-machine JSON artifacts (inputs, outputs, constraint ledger)\n- Run metadata (timestamp, version, hash)")
+
+                    cL, cR = st.columns(2, gap="large")
+                    with cL:
+                        st.markdown("###  Research Machines")
+                        st.caption("Policy: Research Intent • q95 hard • Plant constraints diagnostic/ignored")
+                        st.markdown("- ITER / JET / DIII-D / EAST / KSTAR / JT-60SA\n- SPARC / NSTX-U / MAST-U (as configured)")
+                    with cR:
+                        st.markdown("### ⚡ Reactor & Pilot Plants")
+                        st.caption("Policy: Reactor Intent • Full feasibility gates enforced")
+                        st.markdown("- ARC / ARIES-class\n- EU DEMO (incl. low-A variants)\n- STEP Prototype Plant (as configured)")
+
+                    st.divider()
+
+                    st.markdown("### Reproducibility contract")
+                    st.markdown("- ✔ Frozen Point Designer evaluator\n- ✔ Deterministic run (no stochastic elements)\n- ✔ Explicit Design Intent policies\n- ✔ Versioned artifact schema")
+                    st.caption("Every run is replayable. Every table is traceable.")
+
+                    st.divider()
+
+                    # One-button launcher with explicit acknowledgment (keeps it review-safe)
+                    if "pubbench_ack" not in st.session_state:
+                        st.session_state.pubbench_ack = False
+                    if "pubbench_running" not in st.session_state:
+                        st.session_state.pubbench_running = False
+                    if "pubbench_last_outdir" not in st.session_state:
+                        st.session_state.pubbench_last_outdir = None
+                    if "pubbench_last_rc" not in st.session_state:
+                        st.session_state.pubbench_last_rc = None
+
+                    st.markdown("### Action")
+                    st.checkbox("I understand this is a non-interactive, audit-grade run.", key="pubbench_ack")
+
+                    run_btn = st.button("▶ Generate Publication Benchmark Pack", type="primary", disabled=(not st.session_state.pubbench_ack or st.session_state.pubbench_running))
+                    prog = st.empty()
+                    log_box = st.empty()
+
+                    if run_btn:
+                        st.session_state.pubbench_running = True
+                        try:
+                            import sys, subprocess, time, os
+                            ts = time.strftime("%Y%m%d_%H%M%S")
+                            outdir = os.path.join("benchmarks", "publication", "out_ui", ts)
+                            os.makedirs(outdir, exist_ok=True)
+                            cases = os.path.join("benchmarks", "publication", "cases_point_designer.json")
+                            runner = os.path.join("benchmarks", "publication", "run_point_designer_benchmarks.py")
+
+                            cmd = [sys.executable, runner, "--cases", cases, "--outdir", outdir, "--also-run-opposite-intent"]
+                            prog.progress(0.05)
+                            p = subprocess.run(cmd, capture_output=True, text=True)
+                            prog.progress(1.0)
+
+                            st.session_state.pubbench_last_outdir = outdir
+                            st.session_state.pubbench_last_rc = int(p.returncode)
+
+                            _out = (p.stdout or "").strip()
+                            _err = (p.stderr or "").strip()
+                            if _out:
+                                log_box.code(_out[:8000])
+                            if _err:
+                                st.warning("Runner warnings/errors (stderr):")
+                                st.code(_err[:8000])
+
+                            if p.returncode == 0:
+                                st.success(f"Completed. Output: {outdir}")
+                            else:
+                                st.error(f"Benchmark run failed (exit code {p.returncode}). Output folder: {outdir}")
+                        except Exception as e:
+                            st.error(f"Benchmark run failed: {e}")
+                        finally:
+                            st.session_state.pubbench_running = False
+
+                    if st.session_state.pubbench_last_outdir:
+                        st.caption(f"Last output: {st.session_state.pubbench_last_outdir} (rc={st.session_state.pubbench_last_rc})")
+
+                    if st.session_state.pubbench_last_outdir and int(st.session_state.pubbench_last_rc or 0) == 0:
+                        st.markdown("#### 🧾 Pack inspection (topology + delta)")
+                        outdir = st.session_state.pubbench_last_outdir
+                        # B3: topology
+                        try:
+                            import os, json
+                            topo_p = os.path.join(outdir, "topology.json")
+                            if os.path.exists(topo_p):
+                                topo = json.loads(open(topo_p, "r", encoding="utf-8").read())
+                                cA, cB, cC, cD = st.columns(4)
+                                fr = (topo.get("fractions") or {})
+                                cA.metric("Pass frac", f"{float(fr.get('pass',0.0)):.2f}")
+                                cB.metric("Robust frac", f"{float(fr.get('robust',0.0)):.2f}")
+                                cC.metric("Fragile frac", f"{float(fr.get('fragile',0.0)):.2f}")
+                                cD.metric("Fail frac", f"{float(fr.get('fail',0.0)):.2f}")
+                                st.json({"dominant_mechanism_hist": topo.get("dominant_mechanism_hist", {})})
+                        except Exception:
+                            pass
+
+                        # B2: delta explainer
+                        st.markdown("##### Explain delta vs baseline")
+                        try:
+                            import os, glob
+                            base_dir = os.path.join("benchmarks", "publication", "baselines")
+                            opts = []
+                            if os.path.isdir(base_dir):
+                                # allow baseline packs as directories, else fall back to shipped CSV baseline
+                                for d in sorted(glob.glob(os.path.join(base_dir, "*"))):
+                                    opts.append(d)
+                            baseline_sel = st.selectbox("Baseline pack/folder", opts if opts else [base_dir], index=0, key="pubbench_delta_base_v235")
+                            if st.button("🧠 Explain delta (baseline → last pack)", use_container_width=True, key="pubbench_delta_btn_v235"):
+                                runner = os.path.join("benchmarks", "publication", "explain_delta.py")
+                                cmd = [sys.executable, runner, "--baseline", baseline_sel, "--candidate", outdir]
+                                p = subprocess.run(cmd, capture_output=True, text=True)
+                                if p.returncode == 0:
+                                    st.success("Delta explanation written to delta.md in the candidate pack.")
+                                    delta_path = os.path.join(outdir, "delta.md")
+                                    if os.path.exists(delta_path):
+                                        st.code(open(delta_path, "r", encoding="utf-8").read()[:12000])
+                                else:
+                                    st.error(f"Delta explainer failed (rc={p.returncode}).")
+                                    if p.stderr:
+                                        st.code(p.stderr[:8000])
+                        except Exception as e:
+                            st.warning(f"Delta tools unavailable: {e}")
+
+                st.caption("Exploration happens elsewhere in the UI. Evidence is generated here.")
+
+                st.divider()
+                st.markdown("### Evidence exports")
+                st.caption("Generate reviewer/regulator and licensing packs from the current session artifact (read-only).")
+
+                with st.expander("🧾 Regulatory & Reviewer Evidence Packs (v334)", expanded=False):
+                    try:
+                        from ui.regulatory_evidence_pack import render_regulatory_evidence_pack_panel
+                        render_regulatory_evidence_pack_panel(REPO_ROOT)
+                    except Exception as _e:
+                        st.error(f"Regulatory evidence pack panel import failed: {_e}")
+
+                with st.expander("🏛️ Licensing Evidence Tier 2 (v355)", expanded=False):
+                    try:
+                        from ui.licensing_evidence_tier2 import render_licensing_evidence_tier2_panel
+                        render_licensing_evidence_tier2_panel(REPO_ROOT)
+                    except Exception as _e:
+                        st.error(f"Licensing Tier 2 panel import failed: {_e}")
+
+    with _pb_tabs[3]:
+        st.subheader("🧾 Contract Studio")
+        st.caption("Validate and export governance contracts (read-only).")
+        try:
+            from ui.contract_studio import render_contract_studio
+            from pathlib import Path
+            _repo_root = Path(__file__).resolve().parents[1]
+            render_contract_studio(_repo_root, ui_key_prefix="pb_contract_studio")
+        except Exception as e:
+            try:
+                st.error(f"Contract Studio import failed: {e}")
+            except Exception:
+                pass
 
 if _deck == "🎛️ Control Room":
     st.header("🛡️ Control Room")
