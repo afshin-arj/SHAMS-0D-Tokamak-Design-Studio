@@ -244,6 +244,15 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Neutron wall load", "neutron_wall_load_MW_m2", hi_key="neutron_wall_load_max_MW_m2", units="MW/m^2",
         description="Optional cap on neutron wall loading proxy when neutron_wall_load_max_MW_m2 is set.")
 
+    # v372.0: Neutronics–Materials Coupling Authority 2.0 (governance-only)
+    # These constraints are active only when the corresponding caps are explicitly set (NaN disables).
+    add("Eff. DPA rate (v372)", "dpa_rate_eff_per_fpy_v372", hi_key="dpa_rate_eff_max_v372", units="DPA/FPY",
+        description="Material+ spectrum-conditioned effective DPA rate proxy (screening).")
+    add("Damage margin (v372)", "damage_margin_v372", lo_key="damage_margin_min_v372", units="-",
+        description="Normalized margin against the explicit DPA cap (>=0 is feasible).")
+    add_bool("Materials temp window (v372)", "nm_temp_window_ok_v372",
+        description="If operating temperature is provided, 1 indicates within material window; outside triggers conservative penalty.")
+
     # Nuclear heating / materials replacement (optional; NaN disables)
     add("Total nuclear heating", "P_nuc_total_MW", hi_key="P_nuc_total_max_MW", units="MW",
         description="Optional cap on total nuclear heating proxy from stack region shares.")

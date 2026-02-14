@@ -20,8 +20,10 @@
     "pass_frac": 0.0
   },
   "current": {
-    "dominant_mechanism_fail_counts": {},
-    "fail_frac": 0.0,
+    "dominant_mechanism_fail_counts": {
+      "EXHAUST": 121
+    },
+    "fail_frac": 1.0,
     "grid": {
       "Bt_T": [
         10.98,
@@ -35,7 +37,7 @@
       ]
     },
     "n_points": 121,
-    "pass_frac": 1.0
+    "pass_frac": 0.0
   },
-  "ok": false
+  "ok": true
 }

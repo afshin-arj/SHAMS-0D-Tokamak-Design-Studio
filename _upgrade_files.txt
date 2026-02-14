@@ -1,3 +1,16 @@
+v372.0
+- src/analysis/neutronics_materials_coupling_v372.py
+- analysis/neutronics_materials_coupling_v372.py
+- src/models/inputs.py
+- src/physics/hot_ion.py
+- src/constraints/system.py
+- ui/app.py
+- README.md
+- VERSION
+- VERSION.txt
+- RELEASE_NOTES.md
+- tests/test_nm_coupling_v372.py
+
 v371.0
 - contracts/transport_contracts_v371_contract.json
 - src/contracts/transport_contracts_v371_contract.py

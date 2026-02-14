@@ -15,8 +15,8 @@ import math
 import json
 import hashlib
 from functools import lru_cache
-from economics.lifecycle import discounted_cashflow_proxy, LifecycleAssumptions, ReplacementItem
-from economics.components.stack_v356 import component_cost_proxy_v356
+from .lifecycle import discounted_cashflow_proxy, LifecycleAssumptions, ReplacementItem
+from .components.stack_v356 import component_cost_proxy_v356
 from pathlib import Path
 
 @lru_cache(maxsize=8)

@@ -15,7 +15,6 @@ It MUST NOT modify the physics operating point.
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from contracts.transport_contracts_v371_contract import load_transport_contract_v371
 from phase1_models import (
     tauE_ipb98y2,
     tauE_iter89p,
@@ -26,6 +25,35 @@ from phase1_models import (
     p_LH_martin08,
     q95_proxy_cyl,
 )
+
+
+
+from pathlib import Path
+
+def load_transport_contract_v371(profile: str = "default") -> Dict[str, Any]:
+    """Load the v371 transport contract (JSON).
+
+    The contract is part of governance (assumption registry). It is a static
+    JSON file in repo_root/contracts/. If the file is missing (should not
+    happen in a release), a minimal deterministic fallback is used to remain
+    import-safe.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    p = repo_root / "contracts" / "transport_contracts_v371_contract.json"
+    if p.is_file():
+        try:
+            import json
+            return json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    # Minimal fallback (deterministic)
+    return {
+        "name": "Transport Contract Library v371",
+        "version": "v371.0",
+        "envelopes": ["IPB98Y2", "ITER89P", "KG", "NEOALC"],
+        "regime_classifier": "P_LH proxy (Martin-2008) using P_SOL vs P_LH",
+        "notes": "Fallback contract used because JSON could not be read.",
+    }
 
 
 def _norm(s: Any) -> str:

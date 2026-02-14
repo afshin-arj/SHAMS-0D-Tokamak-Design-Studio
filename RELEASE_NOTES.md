@@ -1,5 +1,23 @@
 # Release Notes
 
+## v372.1 — UI Gatecheck + Deck Navigation Hotfix
+
+- Fix: Gatecheck runner NameError by importing `subprocess` in UI.
+- Fix: Replace Streamlit tab navigation with persisted sidebar deck selector (prevents rerun jump-back to Point Designer).
+- Fix: Systems solve `max_iter` NameError caused by tab reset on rerun (resolved by persisted deck selector).
+- Fix: Transport Contracts v371: contract JSON loader + contract file; ensure import-safe and enabled when requested.
+- Fix: Economics import hygiene: use relative imports in `src/economics/cost.py`.
+- Validation: `pytest -q` passes.
+
+
+
+## v372.0 — Neutronics–Materials Coupling Authority 2.0 (Governance)
+
+- Adds governance-only neutronics–materials coupling diagnostics (material/spectrum-conditioned DPA-rate proxy).
+- Provides component damage partitions (FW / blanket / structure) and lifetime proxy (FPY) under explicit allowable-DPA tables.
+- Optional explicit constraints: effective DPA-rate cap and minimum damage margin (NaN disables).
+- Fully wired into Point Designer UI (deck expander) and frozen truth post-processing; does not modify the operating point.
+
 ## v371.0 — Transport Contract Library Authority 2.0
 
 - New governance authority: **Transport Contract Library (v371)**

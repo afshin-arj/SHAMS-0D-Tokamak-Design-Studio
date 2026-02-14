@@ -14,6 +14,8 @@ Design goals:
 
 from __future__ import annotations
 
+import subprocess
+
 
 # --- Branding (v175.4) ---
 APP_NAME = 'Tokamak 0-D Design Studio'
@@ -845,6 +847,13 @@ PD_KEYS = {
     "include_transport_contracts_v371": "pd_include_transport_contracts_v371",
     "H_required_max_optimistic": "pd_H_required_max_optimistic",
     "H_required_max_robust": "pd_H_required_max_robust",
+    # v372.0 neutronics–materials coupling keys
+    "include_neutronics_materials_coupling_v372": "pd_include_nm_coupling_v372",
+    "nm_material_class_v372": "pd_nm_material_class_v372",
+    "nm_spectrum_class_v372": "pd_nm_spectrum_class_v372",
+    "nm_T_oper_C_v372": "pd_nm_T_oper_C_v372",
+    "dpa_rate_eff_max_v372": "pd_dpa_rate_eff_max_v372",
+    "damage_margin_min_v372": "pd_damage_margin_min_v372",
 }
 
 
@@ -2608,7 +2617,12 @@ except Exception:
     # Never block UI on bootstrap failure.
     pass
 
-tab_point, tab_systems, tab_scan, tab_pareto, tab_trade, tab_sandbox, tab_systemsuite, tab_compare, tab_pubbench, tab_control_room = st.tabs([
+
+# --- Deck Navigation (v372.1 hotfix) ---
+# Streamlit tabs reset to the first tab on reruns, which can cause the UI to "jump" back
+# to Point Designer when interacting with other decks (and can unbind solver parameter
+# names on button-click reruns). We therefore use a deterministic, persisted deck selector.
+_DECK_LABELS = [
     "🧭 Point Designer",
     "🧠 Systems Mode",
     "🗺️ Scan Lab",
@@ -2619,10 +2633,22 @@ tab_point, tab_systems, tab_scan, tab_pareto, tab_trade, tab_sandbox, tab_system
     "🆚 Compare",
     "📚 Publication Benchmarks",
     "🎛️ Control Room",
-])
+]
+with st.sidebar:
+    st.markdown("## Navigation")
+    _sel = st.radio(
+        "Deck",
+        _DECK_LABELS,
+        index=int(st.session_state.get("nav_deck_index", 0)),
+        label_visibility="collapsed",
+        key="nav_deck_label",
+    )
+    st.session_state["nav_deck_index"] = _DECK_LABELS.index(_sel)
+_deck = _sel
 
 
-with tab_systemsuite:
+
+if _deck == "🧰 System Suite":
     st.header("🧰 System Suite")
     st.caption("System-code diagnostics as *read-only overlays* on the frozen Point Designer truth.")
     render_mode_scope("suite")
@@ -3010,7 +3036,7 @@ with tab_systemsuite:
 
 
 
-with tab_pubbench:
+if _deck == "📚 Publication Benchmarks":
     st.header(" Benchmarks")
     st.caption("Benchmark suite: publication tables and the Tokamak Constitutional Atlas (preset-driven, intent-aware).")
 
@@ -3434,7 +3460,7 @@ with _pb_tabs[3]:
         except Exception:
             pass
 
-with tab_control_room:
+if _deck == "🎛️ Control Room":
     st.header("🛡️ Control Room")
     st.caption("Governance, provenance, exports, and expert diagnostics - organized as compact decks (no scroll walls).")
 
@@ -3971,7 +3997,7 @@ if "compare_artifacts" not in st.session_state:
 # -----------------------------
 # Point Designer
 # -----------------------------
-with tab_point:
+if _deck == "🧭 Point Designer":
     st.info(
         " **Point Designer is frozen** - It evaluates a single operating point in a constraint-authoritative, assumption-explicit 0‑D framework. "
         "No optimization, relaxation, or exploration occurs here. Exploration is performed in **Systems Mode**, which calls Point Designer as a fixed evaluator.",
@@ -4191,6 +4217,89 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
                         help="If enabled, enforces H_required ≤ this tighter cap (robust).",
                     )
                 st.caption("These caps are explicit constraints (no smoothing): if set, infeasible points are reported as transport-limited.")
+
+            # -----------------------------------------------------------------
+            # v372.0: Neutronics–Materials coupling (governance-only)
+            # -----------------------------------------------------------------
+            with st.expander("🧬 Neutronics–Materials coupling (v372)", expanded=False):
+                include_neutronics_materials_coupling_v372 = st.checkbox(
+                    "Enable neutronics–materials coupling diagnostics",
+                    value=bool(getattr(_base_pd, "include_neutronics_materials_coupling_v372", False)),
+                    key=PD_KEYS["include_neutronics_materials_coupling_v372"],
+                    help=(
+                        "Governance-only: material/spectrum-conditioned DPA-rate proxy, component damage partitions, and optional explicit DPA caps. "
+                        "Does not modify frozen truth."
+                    ),
+                )
+                _mat0 = str(getattr(_base_pd, "nm_material_class_v372", "RAFM"))
+                _spec0 = str(getattr(_base_pd, "nm_spectrum_class_v372", "nominal"))
+                cNM1, cNM2 = st.columns(2)
+                with cNM1:
+                    nm_material_class_v372 = st.selectbox(
+                        "Material class (governance)",
+                        ["RAFM", "W", "SiC", "ODS"],
+                        index=max(0, ["RAFM","W","SiC","ODS"].index(_mat0) if _mat0 in ["RAFM","W","SiC","ODS"] else 0),
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["nm_material_class_v372"],
+                    )
+                with cNM2:
+                    nm_spectrum_class_v372 = st.selectbox(
+                        "Spectrum class (governance)",
+                        ["soft", "nominal", "hard"],
+                        index=max(0, ["soft","nominal","hard"].index(_spec0) if _spec0 in ["soft","nominal","hard"] else 1),
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["nm_spectrum_class_v372"],
+                    )
+                _T0 = getattr(_base_pd, "nm_T_oper_C_v372", float('nan'))
+                use_T = st.checkbox(
+                    "Use operating temperature window check",
+                    value=bool(np.isfinite(_T0)),
+                    disabled=not include_neutronics_materials_coupling_v372,
+                    key=PD_KEYS["nm_T_oper_C_v372"] + "_use",
+                )
+                nm_T_oper_C_v372 = float('nan')
+                if use_T:
+                    nm_T_oper_C_v372 = st.number_input(
+                        "Operating temperature (°C)",
+                        value=float(_T0) if np.isfinite(_T0) else 500.0,
+                        min_value=0.0,
+                        step=10.0,
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["nm_T_oper_C_v372"],
+                    )
+                _dpa0 = getattr(_base_pd, "dpa_rate_eff_max_v372", float('nan'))
+                use_dpa_cap = st.checkbox(
+                    "Enable explicit DPA-rate cap constraint",
+                    value=bool(np.isfinite(_dpa0)),
+                    disabled=not include_neutronics_materials_coupling_v372,
+                    key=PD_KEYS["dpa_rate_eff_max_v372"] + "_use",
+                )
+                dpa_rate_eff_max_v372 = float('nan')
+                if use_dpa_cap:
+                    dpa_rate_eff_max_v372 = st.number_input(
+                        "DPA-rate cap (DPA/FPY)",
+                        value=float(_dpa0) if np.isfinite(_dpa0) else 20.0,
+                        min_value=0.0,
+                        step=1.0,
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["dpa_rate_eff_max_v372"],
+                    )
+                _m0 = getattr(_base_pd, "damage_margin_min_v372", float('nan'))
+                use_margin = st.checkbox(
+                    "Enable minimum damage margin constraint",
+                    value=bool(np.isfinite(_m0)),
+                    disabled=not include_neutronics_materials_coupling_v372 or (not use_dpa_cap),
+                    key=PD_KEYS["damage_margin_min_v372"] + "_use",
+                )
+                damage_margin_min_v372 = float('nan')
+                if use_margin:
+                    damage_margin_min_v372 = st.number_input(
+                        "Minimum damage margin (fraction)",
+                        value=float(_m0) if np.isfinite(_m0) else 0.0,
+                        step=0.05,
+                        disabled=not include_neutronics_materials_coupling_v372 or (not use_dpa_cap),
+                        key=PD_KEYS["damage_margin_min_v372"],
+                    )
 
             st.caption("Tip: Use this for sensitivity studies (external systems codes-style). It does not change the solved operating point unless you also constrain power balance residuals.")
             profile_model = st.selectbox(
@@ -5597,6 +5706,12 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
                 include_transport_contracts_v371=bool(include_transport_contracts_v371),
                 H_required_max_optimistic=float(H_required_max_optimistic) if bool(include_transport_contracts_v371) else float('nan'),
                 H_required_max_robust=float(H_required_max_robust) if bool(include_transport_contracts_v371) else float('nan'),
+                include_neutronics_materials_coupling_v372=bool(include_neutronics_materials_coupling_v372),
+                nm_material_class_v372=str(nm_material_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, 'nm_material_class_v372', 'RAFM')),
+                nm_spectrum_class_v372=str(nm_spectrum_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, 'nm_spectrum_class_v372', 'nominal')),
+                nm_T_oper_C_v372=float(nm_T_oper_C_v372) if bool(include_neutronics_materials_coupling_v372) else float('nan'),
+                dpa_rate_eff_max_v372=float(dpa_rate_eff_max_v372) if bool(include_neutronics_materials_coupling_v372) else float('nan'),
+                damage_margin_min_v372=float(damage_margin_min_v372) if bool(include_neutronics_materials_coupling_v372) else float('nan'),
                 profile_model=profile_model,
                 profile_peaking_ne=profile_peaking_ne,
                 profile_peaking_T=profile_peaking_T,
@@ -7726,7 +7841,7 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
 # -----------------------------
 
 # --- v92: Stateful Results ---
-with tab_point:
+if _deck == "🧭 Point Designer":
     try:
         st.subheader("Stateful Results")
         s = _v92_state_get()
@@ -7766,7 +7881,7 @@ with tab_point:
     except Exception:
         pass
 
-with tab_systems:
+if _deck == "🧠 Systems Mode":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "systems_eval"
@@ -8719,7 +8834,7 @@ with tab_systems:
 # -----------------------------
 # Systems Mode freeze-readiness helpers (v180+)
 # -----------------------------
-with tab_systems:
+if _deck == "🧠 Systems Mode":
     SYS_RUN_CARD_SCHEMA_VERSION = 1
     SYS_TRACE_SCHEMA_VERSION = 1
     SYS_ARTIFACT_SCHEMA_VERSION = 1
@@ -12321,7 +12436,7 @@ with tab_systems:
         except Exception as e:
             st.error(f"Systems solver error: {e}")
 
-with tab_scan:
+if _deck == "🗺️ Scan Lab":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "scan"
@@ -14151,7 +14266,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
 
     # NOTE: Scan Lab freeze/legacy/parameter-guide/mapping panels are rendered inside Scan Lab
     # (before Cartography) to reduce scroll fatigue and keep the instrument literacy in one place.
-with tab_pareto:
+if _deck == "📈 Pareto Lab":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "pareto"
@@ -15277,7 +15392,7 @@ with tab_pareto:
         st.download_button("Download Pareto Freeze Statement", data=_pf, file_name="PARETO_V1_FREEZE_DECLARATION.md", mime="text/markdown", use_container_width=False)
 
 
-with tab_trade:
+if _deck == "🧪 Trade Study Studio":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "trade"
@@ -15289,7 +15404,7 @@ with tab_trade:
         st.error(f"Trade Study Studio failed to load: {e}")
 
 
-with tab_sandbox:
+if _deck == "⚒️ Reactor Design Forge":
     st.header("⚒️ Reactor Design Forge")
     st.caption("Concept assembly + candidate archives + traces. Feeds the frozen evaluator; does not replace it.")
     render_mode_scope("forge")
@@ -18712,7 +18827,7 @@ with tab_sandbox:
                 st.info("No candidates to inspect.")
 
 
-with tab_compare:
+if _deck == "🆚 Compare":
     st.header("🆚 Compare")
     st.caption("Side-by-side artifact comparison to isolate mechanism and constraint-margin deltas.")
     render_mode_scope("compare")
@@ -18905,7 +19020,7 @@ with tab_studies:
         st.info("No studies saved yet.")
 
 
-with tab_sandbox:
+if _deck == "⚒️ Reactor Design Forge":
     st.subheader("🧪 Operating envelope check (multi-point)")
     st.caption("Evaluates startup / nominal / end-of-life proxy points and reports the worst constraint.")
     colA, colB = st.columns([1,3])
@@ -22655,7 +22770,7 @@ def _v94_unified_export_bundle_panel():
         st.error(f"Bundle builder unavailable: {e!r}")
 
 
-with tab_control_room:
+if _deck == "🎛️ Control Room":
     try:
         _v94_run_records_page()
     except Exception:

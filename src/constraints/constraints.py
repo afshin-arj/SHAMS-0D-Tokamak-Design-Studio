@@ -425,6 +425,20 @@ def evaluate_constraints(
         lim = outputs.get("neutron_wall_load_max_MW_m2", 4.0)
         le("NWL", outputs["neutron_wall_load_MW_m2"], lim, units="MW/m²", note="Neutron wall load proxy", group="neutronics")
 
+    # v372.0 neutronics–materials coupling (optional; explicit caps activate)
+    if outputs.get("nm_coupling_v372_enabled", False) and ("dpa_rate_eff_per_fpy_v372" in outputs):
+        dpa = outputs.get("dpa_rate_eff_per_fpy_v372", float("nan"))
+        dpa_max = outputs.get("dpa_rate_eff_max_v372", float("nan"))
+        if dpa_max == dpa_max:
+            le("DPA_rate_eff_v372", dpa, dpa_max, units="DPA/FPY", note="Eff. DPA rate proxy (material+spectrum)", group="materials")
+        margin = outputs.get("damage_margin_v372", float("nan"))
+        margin_min = outputs.get("damage_margin_min_v372", float("nan"))
+        if (margin_min == margin_min) and (margin == margin):
+            ge("damage_margin_v372", margin, margin_min, units="-", note="Damage margin against DPA cap", group="materials")
+        tw = outputs.get("nm_temp_window_ok_v372", float("nan"))
+        if tw == tw:
+            ge("materials_temp_window_v372", tw, 0.5, units="-", note="1=in temperature window (if provided)", group="materials")
+
     # Nuclear heating caps (materials/neutronics authority; optional)
     if "P_nuc_total_MW" in outputs:
         lim = outputs.get("P_nuc_total_max_MW", float("nan"))

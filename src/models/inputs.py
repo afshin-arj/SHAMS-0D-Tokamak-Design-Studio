@@ -106,6 +106,20 @@ class PointInputs:
     H_required_max_optimistic: float = float("nan")
     H_required_max_robust: float = float("nan")
 
+    # ------------------------------------------------------------------
+    # v372.0: Neutronics–Materials Coupling Authority 2.0 (governance only)
+    # ------------------------------------------------------------------
+    include_neutronics_materials_coupling_v372: bool = False
+    # Governance labels (explicit, reviewer-visible): RAFM | W | SiC | ODS
+    nm_material_class_v372: str = "RAFM"
+    # Spectrum hardness class: soft | nominal | hard
+    nm_spectrum_class_v372: str = "nominal"
+    # Optional operating temperature used for window checks (°C). NaN disables window check.
+    nm_T_oper_C_v372: float = float("nan")
+    # Optional explicit caps / margins (NaN disables). When set, become explicit constraints.
+    dpa_rate_eff_max_v372: float = float("nan")
+    damage_margin_min_v372: float = float("nan")
+
 
     # Profile shape knobs (used when profile_model is 'pedestal' or 'eped')
     pedestal_rho_ped: float = 0.9

@@ -98,6 +98,18 @@ from .control_stability import compute_vertical_stability, compute_pf_envelope
 from .mhd_rwm import compute_rwm_screening
 from .neutronics import neutronics_proxies
 
+# Governance-only post-processing authorities (must be import-safe).
+try:
+    from analysis.transport_contracts_v371 import evaluate_transport_contracts_v371  # type: ignore
+except Exception:
+    evaluate_transport_contracts_v371 = None  # type: ignore
+
+try:
+    from analysis.neutronics_materials_coupling_v372 import evaluate_neutronics_materials_coupling_v372  # type: ignore
+except Exception:
+    evaluate_neutronics_materials_coupling_v372 = None  # type: ignore
+
+
 try:
     # Preferred when imported as `src.physics.*`
     from ..engineering.thermal_hydraulics import coolant_pumping_power_MW, coolant_dT_K  # type: ignore
@@ -229,6 +241,9 @@ except Exception:
 
     # v371.0: transport contract library (governance only; post-processing)
     from analysis.transport_contracts_v371 import evaluate_transport_contracts_v371  # type: ignore
+
+    # v372.0: neutronics–materials coupling (governance only; post-processing)
+    from analysis.neutronics_materials_coupling_v372 import evaluate_neutronics_materials_coupling_v372  # type: ignore
 
 _B_peak_T_tf = B_peak_T_tf  # keep a stable alias for the coil-geometry helper
 
@@ -783,6 +798,8 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # -----------------------------------------------------------------
     transport_contract_v371: Dict[str, Any] = {}
     try:
+        if evaluate_transport_contracts_v371 is None:
+            raise RuntimeError("transport contract module not importable")
         transport_contract_v371 = evaluate_transport_contracts_v371(
             inp=inp,
             out_partial={
@@ -790,17 +807,17 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
                 "P_SOL_MW": Ploss_MW,
                 "S_m2": S,
                 "Paux_MW": float(getattr(inp, "Paux_MW", 0.0) or 0.0),
-                "Palpha_dep_MW": Palpha_dep_MW,
+                "Palpha_dep_MW": float(locals().get("Palpha_dep_MW", 0.0) or 0.0),
                 "Pin_MW": Pin_MW,
                 "tauIPB_s": tauIPB_s,
                 "tauE_required_s": tauE_required_s,
                 "H_required": H_required,
             },
         )
-    except Exception:
+    except Exception as e:
         transport_contract_v371 = {
             "transport_contracts_v371_enabled": False,
-            "transport_contracts_v371_error": "transport contract evaluation failed",
+            "transport_contracts_v371_error": f"{type(e).__name__}: {e}",
         }
 
     # ---------------------------
@@ -2937,6 +2954,25 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
                         pass
     except Exception:
         pass
+
+
+    # v372.0 neutronics–materials coupling (governance-only diagnostics)
+    try:
+        if evaluate_neutronics_materials_coupling_v372 is None:
+            raise RuntimeError("nm coupling module not importable")
+        nm_cpl_v372 = evaluate_neutronics_materials_coupling_v372(out=out, inp=inp)
+        if isinstance(nm_cpl_v372, dict):
+            for k, v in nm_cpl_v372.items():
+                if k not in out:
+                    out[k] = v
+                else:
+                    try:
+                        if (out.get(k) != out.get(k)) and (v == v):
+                            out[k] = v
+                    except Exception:
+                        pass
+    except Exception:
+        out.setdefault('nm_coupling_v372_enabled', False)
 
     return out
 
