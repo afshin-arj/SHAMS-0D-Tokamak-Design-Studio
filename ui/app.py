@@ -3788,198 +3788,198 @@ This panel also performs a lightweight hygiene scan of the working tree.
         tab_surrogate = ch_surr
         tab_active_learning = ch_al
 
-# Populate Control Room sections (ensure they are never empty)
-with tab_pam:
-    _v175_panel_availability_map_panel()
-
-with tab_studies:
-    st.markdown("### Study authority & publishability")
-    st.write("Generate protocol → lock/replay → authority pack → citation → export.")
-    try:
-        _render_with_contract("_v165_study_protocol_panel", _v165_study_protocol_panel)
-    except Exception:
-        st.info('Panel unavailable in this build.')
-    st.divider()
-    try:
-        _render_with_contract("_v166_repro_lock_panel", _v166_repro_lock_panel)
-    except Exception:
-        st.info('Panel unavailable in this build.')
-    st.divider()
-    try:
-        _render_with_contract("_v167_authority_pack_panel", _v167_authority_pack_panel)
-    except Exception:
-        st.info('Panel unavailable in this build.')
-    st.divider()
-    try:
-        _render_with_contract("_v168_citation_panel", _v168_citation_panel)
-    except Exception:
-        st.info('Panel unavailable in this build.')
-    st.divider()
-    try:
-        _render_with_contract("_v170_process_export_panel", _v170_process_export_panel)
-    except Exception:
-        st.info('Panel unavailable in this build.')
-
-with tab_model:
-    # Render with proper scientific notation (MathJax) to avoid “ASCII-looking” formulas.
-    st.markdown(
-        """
-This section documents the **0‑D (global) physics + engineering surrogate** used by SHAMS for rapid point design.
-It is intentionally transparent: the goal is to show the **model structure**, **assumptions**, and **where each number comes from**.
-
-#### Symbol key (as used below)
-- $R_0$ major radius, $a$ minor radius, $\\kappa$ elongation, $\\delta$ triangularity
-- $B_t$ toroidal field on axis, $I_p$ plasma current
-- $n$ density, $T$ temperature, $V$ plasma volume, $W$ stored energy
-- $P_{fus}$ fusion power, $P_{\\alpha}$ alpha power, $P_{aux}$ auxiliary power, $P_{SOL}$ power crossing the separatrix
-- $\\tau_E$ energy confinement time, $H$ confinement multiplier (H‑factor)
-"""
-    )
-
-    st.markdown("#### High‑level flow (per point evaluation)")
-    st.markdown(
-        """
-1. **Geometry:** $(R_0, a, \\kappa, \\delta) \\rightarrow$ volumes/areas.
-2. **Plasma state:** choose targets/intent $\\rightarrow$ infer a consistent $(T, n, B_t, I_p)$ under constraints.
-3. **Power balance:** $P_{fus}, P_{\\alpha}, P_{aux}$ and losses $\\rightarrow$ steady‑state balance.
-4. **Confinement:** $\\tau_E$ from selected scaling (ITER98y2 / others) with $H$; enforce $Q$ consistency.
-5. **Current & stability:** $q_{95}$, $\\beta_N$, Greenwald fraction $f_G$.
-6. **Engineering proxies:** TF peak field / hoop stress, HTS margin.
-7. **Blanket/shield/TBR proxy:** thickness & coverage $\\rightarrow$ TBR screening.
-8. **Divertor proxy:** heat‑flux screening from $P_{SOL}$ and geometry.
-9. **Radial build closure:** inboard stack fits (gap + FW + blanket + shield + VV + TF).
-"""
-    )
-
-    st.markdown("#### Core relationships (representative)")
-    st.latex(
-        r"""
-\begin{aligned}
-P_{fus} &\propto n^2\,\langle\sigma v\rangle(T)\,V \\
-\tau_E &= H\,\tau_{\mathrm{ITER98y2}}(I_p, B_t, n, P, R_0, a, \kappa, \ldots) \\
-P_{heat} &= P_{\alpha} + P_{aux} \\
-P_{loss} &\approx \frac{W}{\tau_E}\;\; (\text{plus radiation terms where enabled}) \\
-q_{95} &\approx \frac{5\,a^2\,B_t}{R_0\,I_p}\,f(\kappa,\delta) \\
-\beta_N &\approx \beta\,\frac{a\,B_t}{I_p} \\
-q_{div} &\approx \frac{P_{SOL}}{2\pi R_0\,\lambda_q}\,g_{exh}(\text{geometry}) \\
-\sigma_{TF} &\propto \frac{B_{peak}^2\,R_{coil}}{\mu_0}
-\end{aligned}
-"""
-    )
-    st.caption(
-        "These are screening/closure relationships to support feasibility-first iteration. Exact authoritative pass/fail logic lives in SHAMS constraints and margins."
-    )
-
-
-with tab_pcm:
-    st.markdown("### 📎 Physics Capability Matrix")
-    st.caption(
-        "Read-only audit map: subsystems → equations/closures → authority tier (proxy/parametric/external) → intended validity domain."
-    )
-    try:
-        # v228+: prefer generator-derived snapshot if present (still read-only).
-        p_gen = (BASE_DIR / "docs" / "PHYSICS_CAPABILITY_MATRIX_GENERATED.md")
-        p_src = (BASE_DIR / "docs" / "PHYSICS_CAPABILITY_MATRIX.md")
-        if p_gen.exists():
-            _pcm = p_gen.read_text(encoding="utf-8", errors="ignore")
-        else:
-            _pcm = p_src.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
-        _pcm = "(missing docs/PHYSICS_CAPABILITY_MATRIX*.md)"
-    st.markdown(_pcm)
-    st.info(
-        "Bluemira-inspired lessons are adopted for provenance and capability clarity - without introducing optimization loops or CAD-level coupling.",
-        icon="🧭",
-    )
-with tab_bench:
-
-    st.markdown("### Benchmarks")
-    st.write("Benchmark runners (validation/regression) are available via the advanced panels once you have run artifacts.")
-
-    st.markdown("#### Reference superconducting tokamaks (quick lookup)")
-    st.markdown(
-        """
-| Tokamak | Country / Org | Status | SC type | Major R (m) | Minor a (m) | B₀ on axis (T) | Ip (MA) | Primary role |
-|---|---|---|---|---:|---:|---:|---:|---|
-| **ITER** | Intl (EU/JP/US/etc.) | Under construction | **Nb₃Sn / NbTi (LTS)** | 6.2 | 2.0 | 5.3 | 15 | Burning plasma, Q≈10 |
-| **JT-60SA** | Japan–EU | Commissioning | **NbTi (LTS)** | 2.96 | 1.18 | 2.25 | 5.5 | Advanced plasma physics |
-| **WEST** | France | Operating | **NbTi (LTS)** | 2.5 | 0.5 | 3.7 | ≤1 | Long-pulse, PFC/divertor |
-| **EAST** | China | Operating | **NbTi (LTS)** | 1.8–1.9 | 0.4–0.45 | ≤3.5 | ≤1 | Long-pulse operation |
-| **KSTAR** | Korea | Operating | **NbTi-based (LTS)** | ~1.8 | ~0.5 | 3.5 | ≤2 | Advanced tokamak scenarios |
-| **SST-1** | India | Operating | **NbTi (LTS)** | ~1.1 | ~0.2 | ≤3 | ≤0.1 | SC tokamak development |
-| **TRIAM-1M** | Japan | Historical | **Nb₃Sn (LTS)** | ~0.8 | ~0.12–0.18 | 8 | - | High-field SC operation |
-| **SPARC** | USA (MIT/CFS) | Under construction | **REBCO (HTS)** | 1.85 | 0.57 | 12.2 | 8.7 | Q>1, high-field compact |
-"""
-    )
-    st.caption(
-        "Values are typical/design-point numbers collected from public summaries. For rigorous comparison, cite primary machine parameter sheets."
-    )
-    st.write("Below is a quick reference table of major superconducting tokamaks used as comparison anchors.")
-
-    try:
-        import pandas as _pd
-        _bench_rows = [
-            {"Tokamak":"ITER","Country / Org":"Intl (EU/JP/US/etc.)","Status":"Under construction","SC type":"Nb₃Sn / NbTi (LTS)","Major R (m)":6.2,"Minor a (m)":2.0,"B₀ on axis (T)":5.3,"Ip (MA)":15.0,"Primary role":"Burning plasma, Q≈10"},
-            {"Tokamak":"JT-60SA","Country / Org":"Japan–EU","Status":"Commissioning","SC type":"NbTi (LTS)","Major R (m)":3.0,"Minor a (m)":1.0,"B₀ on axis (T)":2.3,"Ip (MA)":5.5,"Primary role":"Advanced plasma physics"},
-            {"Tokamak":"WEST","Country / Org":"France","Status":"Operating","SC type":"NbTi (LTS)","Major R (m)":2.5,"Minor a (m)":0.5,"B₀ on axis (T)":3.7,"Ip (MA)":1.0,"Primary role":"Long-pulse, PFC/divertor"},
-            {"Tokamak":"EAST","Country / Org":"China","Status":"Operating","SC type":"NbTi (LTS)","Major R (m)":1.9,"Minor a (m)":0.5,"B₀ on axis (T)":3.5,"Ip (MA)":1.0,"Primary role":"Long-pulse operation"},
-            {"Tokamak":"KSTAR","Country / Org":"Korea","Status":"Operating","SC type":"NbTi-based (LTS)","Major R (m)":1.8,"Minor a (m)":0.5,"B₀ on axis (T)":3.5,"Ip (MA)":2.0,"Primary role":"Advanced tokamak scenarios"},
-            {"Tokamak":"SST-1","Country / Org":"India","Status":"Operating","SC type":"NbTi (LTS)","Major R (m)":1.1,"Minor a (m)":0.2,"B₀ on axis (T)":3.0,"Ip (MA)":0.1,"Primary role":"SC tokamak development"},
-            {"Tokamak":"TRIAM-1M","Country / Org":"Japan","Status":"Historical","SC type":"Nb₃Sn (LTS)","Major R (m)":0.8,"Minor a (m)":0.15,"B₀ on axis (T)":8.0,"Ip (MA)":None,"Primary role":"High-field SC operation"},
-            {"Tokamak":"HT-7","Country / Org":"China","Status":"Historical","SC type":"LTS","Major R (m)":1.22,"Minor a (m)":0.27,"B₀ on axis (T)":2.0,"Ip (MA)":0.2,"Primary role":"Precursor to EAST"},
-            {"Tokamak":"SPARC","Country / Org":"USA (MIT/CFS)","Status":"Under construction","SC type":"REBCO (HTS)","Major R (m)":1.85,"Minor a (m)":0.57,"B₀ on axis (T)":12.2,"Ip (MA)":8.7,"Primary role":"Q>1, high-field compact"},
-            {"Tokamak":"HH70","Country / Org":"China (Energy Singularity)","Status":"Operating","SC type":"REBCO (HTS)","Major R (m)":0.7,"Minor a (m)":0.28,"B₀ on axis (T)":0.6,"Ip (MA)":None,"Primary role":"Full-HTS integration demo"},
-            {"Tokamak":"HH170","Country / Org":"China (Energy Singularity)","Status":"Planned","SC type":"REBCO (HTS)","Major R (m)":None,"Minor a (m)":None,"B₀ on axis (T)":None,"Ip (MA)":None,"Primary role":"Reactor-relevant HTS tokamak"},
-        ]
-        _df = _pd.DataFrame(_bench_rows)
-        st.dataframe(_df, use_container_width=True, hide_index=True)
-        st.caption("Notes: Some entries are approximate screening values (as shown). Replace with cited values if you enable web-backed references.")
-    except Exception:
-        st.info("Benchmark reference table unavailable in this environment.")
-
-with tab_docs:
-    st.markdown("### Documentation")
-    st.write("Offline docs are included in the package. Review-room and exposure guardrails are included as dedicated docs pages. Key references live in the `docs/` folder when present.")
-    st.caption("Note: The **Model Ledger (0‑D Physics)** panel renders equations using LaTeX/MathJax for scientific typography.")
-
-    try:
-        from pathlib import Path as _P
-
-        _readme = _P("README.md")
-        if _readme.exists():
-            with st.expander("README (excerpt)", expanded=False):
-                st.code(_readme.read_text(encoding="utf-8")[:3000])
-
-        _docs_dir = _P("docs")
-        _mds = []
-        if _docs_dir.exists():
-            _mds = sorted([pp for pp in _docs_dir.rglob("*.md") if pp.is_file()])
-
-        if _mds:
-            st.markdown("#### Docs library")
-            _labels = [str(pp.relative_to(_docs_dir)) for pp in _mds]
-            _sel = st.selectbox("Open a doc (read‑only)", _labels, index=0)
-            _path = _docs_dir / _sel
-            with st.expander(f"docs/{_sel}", expanded=False):
-                st.markdown(_path.read_text(encoding="utf-8"))
-        else:
-            st.info("No `docs/` folder was found in this build.")
-    except Exception:
-        pass
-
-with tab_artifacts:
-    st.markdown("### Artifacts")
-    st.write("Artifacts appear after you run Point Designer / Systems Mode.")
-    st.write("Use Run Library / Export tools to download bundles.")
-
-# For remaining expanders, ensure a minimal non-empty body
-for _exp in [tab_registry, tab_validation, tab_compliance, tab_deck, tab_delta, tab_library, tab_constraints,
-            tab_constraint_inspector, tab_sensitivity, tab_feasmap, tab_decision, tab_nonfeas, tab_cprov,
-            tab_knobs, tab_regress, tab_study_dash, tab_maturity, tab_assumptions, tab_export, tab_solver]:
-    with _exp:
-        st.write("This tool becomes active when required upstream artifacts exist (run history, packs, or reports).")
-        st.write("If you need something here, run a study first, then return to More.")
-
+    # Populate Control Room sections (ensure they are never empty)
+    with tab_pam:
+        _v175_panel_availability_map_panel()
+    
+    with tab_studies:
+        st.markdown("### Study authority & publishability")
+        st.write("Generate protocol → lock/replay → authority pack → citation → export.")
+        try:
+            _render_with_contract("_v165_study_protocol_panel", _v165_study_protocol_panel)
+        except Exception:
+            st.info('Panel unavailable in this build.')
+        st.divider()
+        try:
+            _render_with_contract("_v166_repro_lock_panel", _v166_repro_lock_panel)
+        except Exception:
+            st.info('Panel unavailable in this build.')
+        st.divider()
+        try:
+            _render_with_contract("_v167_authority_pack_panel", _v167_authority_pack_panel)
+        except Exception:
+            st.info('Panel unavailable in this build.')
+        st.divider()
+        try:
+            _render_with_contract("_v168_citation_panel", _v168_citation_panel)
+        except Exception:
+            st.info('Panel unavailable in this build.')
+        st.divider()
+        try:
+            _render_with_contract("_v170_process_export_panel", _v170_process_export_panel)
+        except Exception:
+            st.info('Panel unavailable in this build.')
+    
+    with tab_model:
+        # Render with proper scientific notation (MathJax) to avoid “ASCII-looking” formulas.
+        st.markdown(
+            """
+    This section documents the **0‑D (global) physics + engineering surrogate** used by SHAMS for rapid point design.
+    It is intentionally transparent: the goal is to show the **model structure**, **assumptions**, and **where each number comes from**.
+    
+    #### Symbol key (as used below)
+    - $R_0$ major radius, $a$ minor radius, $\\kappa$ elongation, $\\delta$ triangularity
+    - $B_t$ toroidal field on axis, $I_p$ plasma current
+    - $n$ density, $T$ temperature, $V$ plasma volume, $W$ stored energy
+    - $P_{fus}$ fusion power, $P_{\\alpha}$ alpha power, $P_{aux}$ auxiliary power, $P_{SOL}$ power crossing the separatrix
+    - $\\tau_E$ energy confinement time, $H$ confinement multiplier (H‑factor)
+    """
+        )
+    
+        st.markdown("#### High‑level flow (per point evaluation)")
+        st.markdown(
+            """
+    1. **Geometry:** $(R_0, a, \\kappa, \\delta) \\rightarrow$ volumes/areas.
+    2. **Plasma state:** choose targets/intent $\\rightarrow$ infer a consistent $(T, n, B_t, I_p)$ under constraints.
+    3. **Power balance:** $P_{fus}, P_{\\alpha}, P_{aux}$ and losses $\\rightarrow$ steady‑state balance.
+    4. **Confinement:** $\\tau_E$ from selected scaling (ITER98y2 / others) with $H$; enforce $Q$ consistency.
+    5. **Current & stability:** $q_{95}$, $\\beta_N$, Greenwald fraction $f_G$.
+    6. **Engineering proxies:** TF peak field / hoop stress, HTS margin.
+    7. **Blanket/shield/TBR proxy:** thickness & coverage $\\rightarrow$ TBR screening.
+    8. **Divertor proxy:** heat‑flux screening from $P_{SOL}$ and geometry.
+    9. **Radial build closure:** inboard stack fits (gap + FW + blanket + shield + VV + TF).
+    """
+        )
+    
+        st.markdown("#### Core relationships (representative)")
+        st.latex(
+            r"""
+    \begin{aligned}
+    P_{fus} &\propto n^2\,\langle\sigma v\rangle(T)\,V \\
+    \tau_E &= H\,\tau_{\mathrm{ITER98y2}}(I_p, B_t, n, P, R_0, a, \kappa, \ldots) \\
+    P_{heat} &= P_{\alpha} + P_{aux} \\
+    P_{loss} &\approx \frac{W}{\tau_E}\;\; (\text{plus radiation terms where enabled}) \\
+    q_{95} &\approx \frac{5\,a^2\,B_t}{R_0\,I_p}\,f(\kappa,\delta) \\
+    \beta_N &\approx \beta\,\frac{a\,B_t}{I_p} \\
+    q_{div} &\approx \frac{P_{SOL}}{2\pi R_0\,\lambda_q}\,g_{exh}(\text{geometry}) \\
+    \sigma_{TF} &\propto \frac{B_{peak}^2\,R_{coil}}{\mu_0}
+    \end{aligned}
+    """
+        )
+        st.caption(
+            "These are screening/closure relationships to support feasibility-first iteration. Exact authoritative pass/fail logic lives in SHAMS constraints and margins."
+        )
+    
+    
+    with tab_pcm:
+        st.markdown("### 📎 Physics Capability Matrix")
+        st.caption(
+            "Read-only audit map: subsystems → equations/closures → authority tier (proxy/parametric/external) → intended validity domain."
+        )
+        try:
+            # v228+: prefer generator-derived snapshot if present (still read-only).
+            p_gen = (BASE_DIR / "docs" / "PHYSICS_CAPABILITY_MATRIX_GENERATED.md")
+            p_src = (BASE_DIR / "docs" / "PHYSICS_CAPABILITY_MATRIX.md")
+            if p_gen.exists():
+                _pcm = p_gen.read_text(encoding="utf-8", errors="ignore")
+            else:
+                _pcm = p_src.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            _pcm = "(missing docs/PHYSICS_CAPABILITY_MATRIX*.md)"
+        st.markdown(_pcm)
+        st.info(
+            "Bluemira-inspired lessons are adopted for provenance and capability clarity - without introducing optimization loops or CAD-level coupling.",
+            icon="🧭",
+        )
+    with tab_bench:
+    
+        st.markdown("### Benchmarks")
+        st.write("Benchmark runners (validation/regression) are available via the advanced panels once you have run artifacts.")
+    
+        st.markdown("#### Reference superconducting tokamaks (quick lookup)")
+        st.markdown(
+            """
+    | Tokamak | Country / Org | Status | SC type | Major R (m) | Minor a (m) | B₀ on axis (T) | Ip (MA) | Primary role |
+    |---|---|---|---|---:|---:|---:|---:|---|
+    | **ITER** | Intl (EU/JP/US/etc.) | Under construction | **Nb₃Sn / NbTi (LTS)** | 6.2 | 2.0 | 5.3 | 15 | Burning plasma, Q≈10 |
+    | **JT-60SA** | Japan–EU | Commissioning | **NbTi (LTS)** | 2.96 | 1.18 | 2.25 | 5.5 | Advanced plasma physics |
+    | **WEST** | France | Operating | **NbTi (LTS)** | 2.5 | 0.5 | 3.7 | ≤1 | Long-pulse, PFC/divertor |
+    | **EAST** | China | Operating | **NbTi (LTS)** | 1.8–1.9 | 0.4–0.45 | ≤3.5 | ≤1 | Long-pulse operation |
+    | **KSTAR** | Korea | Operating | **NbTi-based (LTS)** | ~1.8 | ~0.5 | 3.5 | ≤2 | Advanced tokamak scenarios |
+    | **SST-1** | India | Operating | **NbTi (LTS)** | ~1.1 | ~0.2 | ≤3 | ≤0.1 | SC tokamak development |
+    | **TRIAM-1M** | Japan | Historical | **Nb₃Sn (LTS)** | ~0.8 | ~0.12–0.18 | 8 | - | High-field SC operation |
+    | **SPARC** | USA (MIT/CFS) | Under construction | **REBCO (HTS)** | 1.85 | 0.57 | 12.2 | 8.7 | Q>1, high-field compact |
+    """
+        )
+        st.caption(
+            "Values are typical/design-point numbers collected from public summaries. For rigorous comparison, cite primary machine parameter sheets."
+        )
+        st.write("Below is a quick reference table of major superconducting tokamaks used as comparison anchors.")
+    
+        try:
+            import pandas as _pd
+            _bench_rows = [
+                {"Tokamak":"ITER","Country / Org":"Intl (EU/JP/US/etc.)","Status":"Under construction","SC type":"Nb₃Sn / NbTi (LTS)","Major R (m)":6.2,"Minor a (m)":2.0,"B₀ on axis (T)":5.3,"Ip (MA)":15.0,"Primary role":"Burning plasma, Q≈10"},
+                {"Tokamak":"JT-60SA","Country / Org":"Japan–EU","Status":"Commissioning","SC type":"NbTi (LTS)","Major R (m)":3.0,"Minor a (m)":1.0,"B₀ on axis (T)":2.3,"Ip (MA)":5.5,"Primary role":"Advanced plasma physics"},
+                {"Tokamak":"WEST","Country / Org":"France","Status":"Operating","SC type":"NbTi (LTS)","Major R (m)":2.5,"Minor a (m)":0.5,"B₀ on axis (T)":3.7,"Ip (MA)":1.0,"Primary role":"Long-pulse, PFC/divertor"},
+                {"Tokamak":"EAST","Country / Org":"China","Status":"Operating","SC type":"NbTi (LTS)","Major R (m)":1.9,"Minor a (m)":0.5,"B₀ on axis (T)":3.5,"Ip (MA)":1.0,"Primary role":"Long-pulse operation"},
+                {"Tokamak":"KSTAR","Country / Org":"Korea","Status":"Operating","SC type":"NbTi-based (LTS)","Major R (m)":1.8,"Minor a (m)":0.5,"B₀ on axis (T)":3.5,"Ip (MA)":2.0,"Primary role":"Advanced tokamak scenarios"},
+                {"Tokamak":"SST-1","Country / Org":"India","Status":"Operating","SC type":"NbTi (LTS)","Major R (m)":1.1,"Minor a (m)":0.2,"B₀ on axis (T)":3.0,"Ip (MA)":0.1,"Primary role":"SC tokamak development"},
+                {"Tokamak":"TRIAM-1M","Country / Org":"Japan","Status":"Historical","SC type":"Nb₃Sn (LTS)","Major R (m)":0.8,"Minor a (m)":0.15,"B₀ on axis (T)":8.0,"Ip (MA)":None,"Primary role":"High-field SC operation"},
+                {"Tokamak":"HT-7","Country / Org":"China","Status":"Historical","SC type":"LTS","Major R (m)":1.22,"Minor a (m)":0.27,"B₀ on axis (T)":2.0,"Ip (MA)":0.2,"Primary role":"Precursor to EAST"},
+                {"Tokamak":"SPARC","Country / Org":"USA (MIT/CFS)","Status":"Under construction","SC type":"REBCO (HTS)","Major R (m)":1.85,"Minor a (m)":0.57,"B₀ on axis (T)":12.2,"Ip (MA)":8.7,"Primary role":"Q>1, high-field compact"},
+                {"Tokamak":"HH70","Country / Org":"China (Energy Singularity)","Status":"Operating","SC type":"REBCO (HTS)","Major R (m)":0.7,"Minor a (m)":0.28,"B₀ on axis (T)":0.6,"Ip (MA)":None,"Primary role":"Full-HTS integration demo"},
+                {"Tokamak":"HH170","Country / Org":"China (Energy Singularity)","Status":"Planned","SC type":"REBCO (HTS)","Major R (m)":None,"Minor a (m)":None,"B₀ on axis (T)":None,"Ip (MA)":None,"Primary role":"Reactor-relevant HTS tokamak"},
+            ]
+            _df = _pd.DataFrame(_bench_rows)
+            st.dataframe(_df, use_container_width=True, hide_index=True)
+            st.caption("Notes: Some entries are approximate screening values (as shown). Replace with cited values if you enable web-backed references.")
+        except Exception:
+            st.info("Benchmark reference table unavailable in this environment.")
+    
+    with tab_docs:
+        st.markdown("### Documentation")
+        st.write("Offline docs are included in the package. Review-room and exposure guardrails are included as dedicated docs pages. Key references live in the `docs/` folder when present.")
+        st.caption("Note: The **Model Ledger (0‑D Physics)** panel renders equations using LaTeX/MathJax for scientific typography.")
+    
+        try:
+            from pathlib import Path as _P
+    
+            _readme = _P("README.md")
+            if _readme.exists():
+                with st.expander("README (excerpt)", expanded=False):
+                    st.code(_readme.read_text(encoding="utf-8")[:3000])
+    
+            _docs_dir = _P("docs")
+            _mds = []
+            if _docs_dir.exists():
+                _mds = sorted([pp for pp in _docs_dir.rglob("*.md") if pp.is_file()])
+    
+            if _mds:
+                st.markdown("#### Docs library")
+                _labels = [str(pp.relative_to(_docs_dir)) for pp in _mds]
+                _sel = st.selectbox("Open a doc (read‑only)", _labels, index=0)
+                _path = _docs_dir / _sel
+                with st.expander(f"docs/{_sel}", expanded=False):
+                    st.markdown(_path.read_text(encoding="utf-8"))
+            else:
+                st.info("No `docs/` folder was found in this build.")
+        except Exception:
+            pass
+    
+    with tab_artifacts:
+        st.markdown("### Artifacts")
+        st.write("Artifacts appear after you run Point Designer / Systems Mode.")
+        st.write("Use Run Library / Export tools to download bundles.")
+    
+    # For remaining expanders, ensure a minimal non-empty body
+    for _exp in [tab_registry, tab_validation, tab_compliance, tab_deck, tab_delta, tab_library, tab_constraints,
+                tab_constraint_inspector, tab_sensitivity, tab_feasmap, tab_decision, tab_nonfeas, tab_cprov,
+                tab_knobs, tab_regress, tab_study_dash, tab_maturity, tab_assumptions, tab_export, tab_solver]:
+        with _exp:
+            st.write("This tool becomes active when required upstream artifacts exist (run history, packs, or reports).")
+            st.write("If you need something here, run a study first, then return to More.")
+    
 # Shared state
 if "last_point_out" not in st.session_state:
     st.session_state["last_point_out"] = None

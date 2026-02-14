@@ -1,5 +1,11 @@
 # Release Notes
 
+## v372.3 — UI Hotfix: Control Room tab scoping
+
+- Fix: Control Room Diagnostics panel variable scoping: ensure `tab_pam` (and sibling tab handles) are only used inside the `🎛️ Control Room` deck.
+- Fix: Remove stray top-level `with tab_pam:` block that caused `NameError: tab_pam is not defined` on app startup.
+- Validation: `python -m py_compile ui/app.py` clean.
+
 ## v372.2 — UI Gatecheck + Deck Navigation Hotfix
 
 - Fix: Gatecheck runner NameError by importing `subprocess` in UI.

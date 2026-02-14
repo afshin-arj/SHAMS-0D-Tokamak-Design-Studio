@@ -1,1 +1,1 @@
-v372.0 — Neutronics–Materials Coupling Authority 2.0
+v372.3 — UI Hotfix: Control Room tab scoping (tab_pam)
