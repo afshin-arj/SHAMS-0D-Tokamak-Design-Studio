@@ -42,7 +42,12 @@ def _make_point_inputs(inp_dict: Dict[str, Any]) -> PointInputs:
     return PointInputs(**filtered)
 
 
-def render_uncertainty_contracts_panel(repo_root: Path, *, point_artifact: Optional[Dict[str, Any]]):
+def render_uncertainty_contracts_panel(
+    repo_root: Path,
+    *,
+    point_artifact: Optional[Dict[str, Any]],
+    ui_key_prefix: str = "uq_contracts",
+):
     st.subheader("🛡️ Uncertainty Contracts")
     st.caption("Declare interval uncertainty on selected inputs. SHAMS enumerates all corners deterministically (2^N). Verdict: ROBUST_PASS / FRAGILE / FAIL. No probability, no Monte Carlo.")
 
@@ -64,13 +69,18 @@ def render_uncertainty_contracts_panel(repo_root: Path, *, point_artifact: Optio
     st.caption("Tip: keep N small enough to remain audit-tractable; corners scale as 2^N.")
     c1, c2, c3 = st.columns([1.6, 1, 1])
     with c1:
-        name = st.text_input("Contract name", value=str(st.session_state.get("uq_contract_name", "uq_contract")))
+        name = st.text_input(
+            "Contract name",
+            value=str(st.session_state.get("uq_contract_name", "uq_contract")),
+            key=f"{ui_key_prefix}__name",
+        )
 
         _group = st.selectbox(
             "Variable group",
             options=["PLASMA", "GEOMETRY", "HEATING", "EXHAUST", "MAGNETS", "CONTROL/PF", "NEUTRONICS", "OTHER", "ALL"],
             index=0,
             help="UI-only grouping to reduce cognitive load.",
+            key=f"{ui_key_prefix}__var_group",
         )
         _opts = list(numeric_fields)
         if _group != "ALL":
@@ -81,23 +91,43 @@ def render_uncertainty_contracts_panel(repo_root: Path, *, point_artifact: Optio
             options=_opts,
             default=st.session_state.get("uq_contract_dims", []),
             help="Select the inputs you want to treat as uncertain intervals.",
+            key=f"{ui_key_prefix}__dims",
         )
         st.session_state["uq_contract_name"] = name
         st.session_state["uq_contract_dims"] = dims
 
     with c2:
-        mode = st.selectbox("Interval mode", ["±% around baseline", "absolute [lo,hi]"], index=0)
-        pct = st.slider("± percent", min_value=0.0, max_value=30.0, value=float(st.session_state.get("uq_contract_pct", 5.0)), step=0.5)
+        mode = st.selectbox(
+            "Interval mode",
+            ["±% around baseline", "absolute [lo,hi]"],
+            index=0,
+            key=f"{ui_key_prefix}__mode",
+        )
+        pct = st.slider(
+            "± percent",
+            min_value=0.0,
+            max_value=30.0,
+            value=float(st.session_state.get("uq_contract_pct", 5.0)),
+            step=0.5,
+            key=f"{ui_key_prefix}__pct",
+        )
         st.session_state["uq_contract_pct"] = pct
 
     with c3:
-        max_dims = st.number_input("Max dims", min_value=1, max_value=20, value=int(st.session_state.get("uq_contract_max_dims", 12)), step=1)
+        max_dims = st.number_input(
+            "Max dims",
+            min_value=1,
+            max_value=20,
+            value=int(st.session_state.get("uq_contract_max_dims", 12)),
+            step=1,
+            key=f"{ui_key_prefix}__max_dims",
+        )
         _n = int(len(dims) if dims else 0)
         _corners = 2 ** _n if _n >= 0 else 0
         st.metric("Corner count", f"{_corners:,}" if _n > 0 else "0")
         if _n >= 16:
             st.warning("High N: corner count may become unwieldy for interactive use.")
-        run_btn = st.button("Run Uncertainty Contract", use_container_width=True)
+        run_btn = st.button("Run Uncertainty Contract", use_container_width=True, key=f"{ui_key_prefix}__run")
         st.caption("Deterministic corner enumeration. No probability.")
 
     # Build intervals

@@ -1,0 +1,35 @@
+{
+  "authority": "CURRENT_DRIVE_TECH",
+  "contract_id": "cd_tech_authority_contract",
+  "fragile_margin_frac": 0.05,
+  "notes": "Deterministic technology-regime authority for external current drive. Non-authoritative physics: trend-correct envelopes.",
+  "required_terms": [
+    "P_CD_MW",
+    "eta_CD_A_W",
+    "P_electric_MW"
+  ],
+  "schema_version": "1.0",
+  "tech_regimes": {
+    "ECCD": {
+      "P_cd_frac_max": 0.35,
+      "eta_CD_A_W_min": 3.5e-08,
+      "eta_wallplug_min": 0.25
+    },
+    "ICRF": {
+      "P_cd_frac_max": 0.4,
+      "eta_CD_A_W_min": 2.5e-08,
+      "eta_wallplug_min": 0.25
+    },
+    "LHCD": {
+      "P_cd_frac_max": 0.35,
+      "eta_CD_A_W_min": 5e-08,
+      "eta_wallplug_min": 0.25,
+      "nbar20_max_proxy": 1.3
+    },
+    "NBI": {
+      "P_cd_frac_max": 0.45,
+      "eta_CD_A_W_min": 2e-08,
+      "eta_wallplug_min": 0.3
+    }
+  }
+}

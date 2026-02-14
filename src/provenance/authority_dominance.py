@@ -35,6 +35,9 @@ CANON_AUTHORITIES: Tuple[str, ...] = (
     "EXHAUST",
     "MAGNET",
     "CONTROL",
+    "ACTUATORS",
+    "MAINTENANCE",
+    "MATERIALS",
     "NEUTRONICS",
     "FUEL",
     "PLANT",
@@ -95,6 +98,12 @@ def _infer_authority(*, group: str, mechanism_group: str, subsystem: str) -> str
         return "MAGNET"
     if any(k in g for k in ("control", "vs", "rwm", "pf", "cs")):
         return "CONTROL"
+    if any(k in g for k in ("actuator", "wallplug", "power_supply", "supply_peak")):
+        return "ACTUATORS"
+    if any(k in g for k in ("maintenance", "outage", "calendar", "schedule", "availability_v368")):
+        return "MAINTENANCE"
+    if any(k in g for k in ("materials", "lifetime", "dpa", "irradiat", "he_appm", "first-wall", "first wall")):
+        return "MATERIALS"
     if any(k in g for k in ("neutronic", "blanket", "shield", "material")):
         return "NEUTRONICS"
     if any(k in g for k in ("fuel", "trit", "tbr", "breeding")):
@@ -111,6 +120,10 @@ def _infer_authority(*, group: str, mechanism_group: str, subsystem: str) -> str
         return "CONTROL"
     if any(k in ss for k in ("divertor", "exhaust", "sol")):
         return "EXHAUST"
+    if any(k in ss for k in ("maintenance", "availability", "outage", "schedule")):
+        return "MAINTENANCE"
+    if any(k in ss for k in ("materials", "lifetime", "damage")):
+        return "MATERIALS"
     if any(k in ss for k in ("neutronic", "blanket", "shield")):
         return "NEUTRONICS"
     if any(k in ss for k in ("trit", "fuel")):

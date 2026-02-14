@@ -1,0 +1,23 @@
+{
+  "case_id": "low_field_large_machine",
+  "inputs": {
+    "Bt_T": 4.5,
+    "Ip_MA": 10.0,
+    "Paux_MW": 50.0,
+    "R0_m": 8.0,
+    "Ti_keV": 11.0,
+    "a_m": 2.6,
+    "delta": 0.28,
+    "fG": 1.6989733070613602,
+    "include_profile_family_v358": true,
+    "kappa": 1.8
+  },
+  "label": "Low-field large machine (synthetic)",
+  "notes": "Synthetic large/low-field case to exercise confinement scaling and plant power ledger. | Canonicalized to PointInputs keys for v364 runner.",
+  "process_intent_map": {
+    "notes": "Placeholder mapping fields for PROCESS parity; populate with PROCESS input deck values when available.",
+    "primary": {}
+  },
+  "schema": "shams_benchmark_case.v1",
+  "suite": "v364"
+}

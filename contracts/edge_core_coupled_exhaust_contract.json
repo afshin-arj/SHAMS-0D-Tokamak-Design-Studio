@@ -1,0 +1,10 @@
+{
+  "name": "edge_core_coupled_exhaust_authority",
+  "version": "v348.0",
+  "params": {
+    "chi_core_min": 0.0,
+    "chi_core_max": 1.0,
+    "delta_prad_core_max_frac_of_Pin": 0.30,
+    "eps_P_SOL_MW": 1e-9
+  }
+}

@@ -26,12 +26,29 @@ def parity_costing(inputs: Any, outputs: Dict[str, Any]) -> Dict[str, Any]:
         "LCOE_USD_per_MWh": float(econ.get("LCOE_proxy_USD_per_MWh", float("nan"))),
         "NPV_cost_MUSD": float(econ.get("NPV_cost_proxy_MUSD", float("nan"))),
         "breakdown_MUSD": {
+            # Prefer v356 component overlay when present; otherwise fall back to legacy 4-part split.
+            "TF coils": float(econ.get("capex_tf_coils_MUSD", float("nan"))),
+            "PF/CS": float(econ.get("capex_pf_cs_MUSD", float("nan"))),
+            "Blanket+shield": float(econ.get("capex_blanket_shield_MUSD", float("nan"))),
+            "Cryoplant": float(econ.get("capex_cryoplant_MUSD", float("nan"))),
+            "BOP": float(econ.get("capex_bop_MUSD", float("nan"))),
+            "Buildings": float(econ.get("capex_buildings_MUSD", float("nan"))),
+            "Heating/CD": float(econ.get("capex_heating_cd_MUSD", float("nan"))),
+            "Tritium plant": float(econ.get("capex_tritium_plant_MUSD", float("nan"))),
+        },
+    }
+
+    # Clean NaNs; if overlay not available, fallback to legacy keys.
+    bd = dict(derived.get("breakdown_MUSD", {}) or {})
+    if not any((v == v) and abs(v) > 0 for v in bd.values()):
+        derived["breakdown_MUSD"] = {
             "magnets": float(econ.get("cost_magnet_MUSD", 0.0)),
             "blanket": float(econ.get("cost_blanket_MUSD", 0.0)),
             "bop": float(econ.get("cost_bop_MUSD", 0.0)),
             "cryo": float(econ.get("cost_cryo_MUSD", 0.0)),
-        },
-    }
+        }
+    else:
+        derived["breakdown_MUSD"] = {k: float(v) for k, v in bd.items() if (v == v)}
 
     assumptions = {
         "note": "Proxy economics for relative comparisons. See docs/cost_calibration_default.json and src/economics/cost.py for details.",

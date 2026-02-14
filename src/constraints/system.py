@@ -216,6 +216,10 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Aux + CD electric draw", "P_aux_total_el_MW", hi_key="P_aux_max_MW", units="MW",
         description="Auxiliary+CD wallplug electric draw proxy must be below cap when enabled.")
 
+    # Economics overlay (v356.0) — optional hard cap on component CAPEX proxy (NaN disables)
+    add("Component CAPEX proxy", "CAPEX_component_proxy_MUSD", hi_key="CAPEX_max_proxy_MUSD", units="MUSD",
+        description="Optional cap on PROCESS-style component CAPEX proxy total. Diagnostic only; no hidden weighting.")
+
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")
@@ -223,6 +227,14 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         description="Required on-site tritium inventory proxy must exceed minimum inventory contract when enabled.")
     add("Tritium processing capacity", "T_processing_capacity_min_g_per_day", lo_key="T_processing_required_g_per_day", units="g/day",
         description="Processing capacity contract must exceed the required throughput proxy (conservative).")
+
+    # v350.0 tight closure caps (optional; NaN disables)
+    add("In-vessel tritium inventory (proxy)", "T_in_vessel_required_kg", hi_key="T_in_vessel_max_kg", units="kg",
+        description="In-vessel tritium inventory proxy from processing delay must be below max when enabled.")
+    add("Total tritium inventory (proxy)", "T_total_inventory_required_kg", hi_key="T_total_inventory_max_kg", units="kg",
+        description="Total tritium inventory proxy (reserve+in-vessel+startup) must be below max when enabled.")
+    add("Fuel-cycle self-sufficiency (effective TBR)", "TBR_eff_fuelcycle", lo_key="TBR_self_sufficiency_required", units="-",
+        description="Effective TBR after declared losses must exceed 1+margin when TBR_self_sufficiency_required is finite.")
 
     # Burn / ignition screening (optional; NaN disables)
     add("Ignition margin (Pα/Ploss)", "M_ign", lo_key="ignition_margin_min", units="-",
@@ -242,15 +254,34 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Blanket lifetime", "blanket_lifetime_yr", lo_key="blanket_lifetime_min_yr", units="yr",
         description="Optional minimum blanket lifetime proxy derived from blanket dpa/y and a material dpa limit.")
 
+    # (v367.0) Materials lifetime closure: cadence + plant-life policy
+    add("FW replacement cadence", "fw_replace_interval_y", lo_key="fw_replace_interval_min_yr", units="yr",
+        description="Optional minimum first-wall replacement cadence (years) applied to fw_replace_interval_y.")
+    add("Blanket replacement cadence", "blanket_replace_interval_y", lo_key="blanket_replace_interval_min_yr", units="yr",
+        description="Optional minimum blanket replacement cadence (years) applied to blanket_replace_interval_y.")
+
 
 # Risk / lifetime / availability / PF / Tritium
     # --- (v264.0) Non-inductive and disruption/radiative risk screens ---
     add("Non-inductive fraction", "f_NI", lo_key="f_NI_min", units="-",
     description="Requires (I_bootstrap + I_cd)/Ip ≥ min when enabled.")
+    # v357.0 CD channel engineering caps (optional; NaN disables)
+    add("LHCD n_parallel", "lhcd_n_parallel", lo_key="lhcd_n_parallel_min", hi_key="lhcd_n_parallel_max", units="-",
+    description="LHCD parallel refractive index (n||) must lie within optional bounds when set.")
+    add("ECCD launcher power density", "eccd_launcher_power_density_MW_m2", hi_key="eccd_launcher_power_density_max_MW_m2", units="MW/m^2",
+    description="ECCD launcher power density proxy P_cd/A_launcher must be below cap when set.")
+    add("NBI shine-through fraction", "nbi_shinethrough_frac", hi_key="nbi_shinethrough_frac_max", units="-",
+    description="NBI shine-through fraction proxy must be below cap when set.")
+
     add("Disruption risk proxy", "disruption_risk_proxy", hi_key="disruption_risk_max", units="-",
     description="Conservative disruption risk screening proxy (lower is better). Optional cap.")
     add("Core radiative fraction", "f_rad_core", hi_key="f_rad_core_max", units="-",
     description="Core radiative fraction proxy Prad_core/Ploss. Optional cap.")
+    add("Edge-core coupled radiative fraction", "f_rad_core_edge_core", hi_key="f_rad_core_edge_core_max", units="-",
+    description="Proxy: (Prad_core + chi_core·Prad_req(SOL+div))/Ploss. Optional cap when edge-core coupling is enabled.")
+
+    add("Bootstrap–pressure self-consistency |Δf_bs|", "bsp_abs_delta_f_bootstrap", hi_key="f_bootstrap_consistency_abs_max", units="-",
+    description="If enabled, requires |f_bs(reported) - f_bs(expected)| <= cap. Optional cap.")
 
     add("MHD risk proxy", "mhd_risk_proxy", hi_key="mhd_risk_max", units="-",
     description="Lightweight operational risk proxy (smaller is better). Optional hard cap.")
@@ -262,6 +293,23 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="Divertor erosion proxy from heat flux and duty factor.")
     add("Availability (model)", "availability_model", lo_key="availability_min", units="-",
     description="Availability proxy from scheduled replacements and trips.")
+
+    # --- (v359.0) Availability & replacement ledger authority (optional) ---
+    add("Availability (v359)", "availability_v359", lo_key="availability_v359_min", units="-",
+        description="Availability including planned/forced baselines and replacement downtime (v359).")
+    add("LCOE proxy (v359)", "LCOE_proxy_v359_USD_per_MWh", hi_key="LCOE_max_USD_per_MWh", units="USD/MWh",
+        description="Lifecycle-style LCOE proxy using CAPEX/OPEX proxies and v359 replacement cost rate.")
+
+    # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
+    add("Availability (v368)", "availability_v368", lo_key="availability_v368_min", units="-",
+        description="Maintenance-schedule-dominated availability including bundled replacements and trip model (v368).")
+    add("Total outage fraction (v368)", "outage_total_frac_v368", hi_key="outage_fraction_v368_max", units="-",
+        description="Optional cap on planned+forced+replacement outage fraction from v368 schedule closure.")
+    # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
+    add("OPEX (v360)", "OPEX_v360_total_MUSD_per_y", hi_key="OPEX_max_MUSD_per_y", units="MUSD/y",
+        description="Total OPEX decomposition including recirc+cryo+CD electricity, tritium processing, maintenance, and fixed OPEX (v360).")
+    add("LCOE proxy (v360)", "LCOE_proxy_v360_USD_per_MWh", hi_key="LCOE_max_USD_per_MWh", units="USD/MWh",
+        description="Availability-coupled LCOE proxy using CAPEX component proxy (v356), replacement cost rate (v359), and OPEX decomposition (v360).")
     add("Tritium inventory proxy", "T_inventory_proxy_g", hi_key="tritium_inventory_max_g", units="g",
     description="Tritium inventory proxy derived from burn rate and processing reserve.")
     add("PF coil current proxy", "pf_I_pf_MA", hi_key="pf_current_max_MA", units="MA",

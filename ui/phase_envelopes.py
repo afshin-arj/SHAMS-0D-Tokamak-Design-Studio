@@ -75,7 +75,12 @@ _DEFAULT_PHASES_JSON = json.dumps(
 )
 
 
-def render_phase_envelopes_panel(repo_root: Path, *, point_artifact: Optional[Dict[str, Any]]):
+def render_phase_envelopes_panel(
+    repo_root: Path,
+    *,
+    point_artifact: Optional[Dict[str, Any]],
+    ui_key_prefix: str = "phase_env",
+):
     st.subheader("🗺️ Phase Envelopes")
     st.caption("Ordered quasi-static phases (ramp/flat-top/ramp-down). Each phase is evaluated independently with frozen truth. Worst-phase determines the envelope verdict.")
 
@@ -117,6 +122,7 @@ def render_phase_envelopes_panel(repo_root: Path, *, point_artifact: Optional[Di
             options=["PLASMA", "GEOMETRY", "HEATING", "EXHAUST", "MAGNETS", "CONTROL/PF", "NEUTRONICS", "OTHER", "ALL"],
             index=0,
             help="UI-only grouping to reduce cognitive load.",
+            key=f"{ui_key_prefix}__var_group",
         )
 
         _candidate = _numeric_fields + _other_fields
@@ -128,6 +134,7 @@ def render_phase_envelopes_panel(repo_root: Path, *, point_artifact: Optional[Di
             options=_candidate,
             default=st.session_state.get("phase_env_override_vars", []),
             help="Select inputs to override per phase. Numeric fields get number inputs; others use text.",
+            key=f"{ui_key_prefix}__override_vars",
         )
         st.session_state["phase_env_override_vars"] = _sel
 
@@ -191,13 +198,19 @@ def render_phase_envelopes_panel(repo_root: Path, *, point_artifact: Optional[Di
             value=st.session_state.get("phase_envelopes_phases_json", _DEFAULT_PHASES_JSON),
             height=240,
             label_visibility="collapsed",
+            key=f"{ui_key_prefix}__phases_json",
         )
     with c2:
         st.markdown("### Run controls")
-        label_prefix = st.text_input("Label prefix", value="phase", help="Prefix used in per-phase artifact labels.")
+        label_prefix = st.text_input(
+            "Label prefix",
+            value="phase",
+            help="Prefix used in per-phase artifact labels.",
+            key=f"{ui_key_prefix}__label_prefix",
+        )
         st.session_state["phase_envelopes_phases_json"] = phases_json
 
-        run_btn = st.button("Run Phase Envelope", use_container_width=True)
+        run_btn = st.button("Run Phase Envelope", use_container_width=True, key=f"{ui_key_prefix}__run")
         st.caption("Deterministic. No iteration. No time integration.")
 
     if run_btn:
@@ -263,7 +276,7 @@ def render_phase_envelopes_panel(repo_root: Path, *, point_artifact: Optional[Di
 
     cX, cY = st.columns([1, 1])
     with cX:
-        if st.button("Export Phase Envelopes ZIP", use_container_width=True):
+        if st.button("Export Phase Envelopes ZIP", use_container_width=True, key=f"{ui_key_prefix}__export_zip"):
             try:
                 export_phase_envelope_zip(env, out_zip)
                 st.session_state["phase_envelopes_zip_path"] = str(out_zip)

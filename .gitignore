@@ -36,3 +36,6 @@ regime_maps_report.json
 build/
 dist/
 *.egg-info/
+
+# macOS AppleDouble files
+._*

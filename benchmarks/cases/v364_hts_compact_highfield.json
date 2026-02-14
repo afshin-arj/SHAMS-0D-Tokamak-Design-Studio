@@ -1,0 +1,23 @@
+{
+  "case_id": "hts_compact_highfield",
+  "inputs": {
+    "Bt_T": 12.0,
+    "Ip_MA": 10.0,
+    "Paux_MW": 50.0,
+    "R0_m": 2.6,
+    "Ti_keV": 18.0,
+    "a_m": 0.9,
+    "delta": 0.35,
+    "fG": 0.2799159054348506,
+    "include_profile_family_v358": true,
+    "kappa": 2.0
+  },
+  "label": "HTS compact high-field (synthetic)",
+  "notes": "Synthetic high-field compact case to exercise magnet+actuator dominance paths. | Canonicalized to PointInputs keys for v364 runner.",
+  "process_intent_map": {
+    "notes": "Placeholder mapping fields for PROCESS parity; populate with PROCESS input deck values when available.",
+    "primary": {}
+  },
+  "schema": "shams_benchmark_case.v1",
+  "suite": "v364"
+}

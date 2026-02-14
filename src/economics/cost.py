@@ -16,6 +16,7 @@ import json
 import hashlib
 from functools import lru_cache
 from economics.lifecycle import discounted_cashflow_proxy, LifecycleAssumptions, ReplacementItem
+from economics.components.stack_v356 import component_cost_proxy_v356
 from pathlib import Path
 
 @lru_cache(maxsize=8)
@@ -244,6 +245,129 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
         replacements=replacements,
     )
 
+    # --- v356.0 PROCESS-like component CAPEX overlay (diagnostic) ---
+    # This provides a richer CAPEX breakdown without changing legacy outputs.
+    legacy_costs = {
+        "cost_magnet_MUSD": float(cost_magnet),
+        "cost_blanket_MUSD": float(cost_blanket),
+        "cost_bop_MUSD": float(cost_bop),
+        "cost_cryo_MUSD": float(cost_cryo),
+    }
+    comp = {}
+    try:
+        if inputs is not None:
+            comp = component_cost_proxy_v356(inputs=inputs, outputs=outputs, legacy_costs=legacy_costs)
+    except Exception:
+        comp = {}
+
+    # Contract fingerprint (in-repo)
+    contract_sha = ""
+    try:
+        here = Path(__file__).resolve()
+        contract_path = here.parents[2] / "contracts" / "cost_overlay_v356_contract.json"
+        if contract_path.exists():
+            contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+    except Exception:
+        contract_sha = ""
+
+    # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
+    econ_v360 = {}
+    try:
+        if inputs is not None and bool(getattr(inputs, 'include_economics_v360', False)):
+            # Contract fingerprint
+            econ_contract_sha = ''
+            try:
+                econ_contract_path = (Path(__file__).resolve().parents[2] / 'contracts' / 'economics_v360_contract.json')
+                if econ_contract_path.exists():
+                    econ_contract_sha = hashlib.sha256(econ_contract_path.read_bytes()).hexdigest()
+            except Exception:
+                econ_contract_sha = ''
+
+            # Prefer v368 maintenance-aware net electric MWh/y if present, else v359
+            net_mwh = float(outputs.get('net_electric_MWh_per_year_v368', float('nan')))
+            if not (net_mwh == net_mwh):
+                net_mwh = float(outputs.get('net_electric_MWh_per_year_v359', float('nan')))
+            if not (net_mwh == net_mwh):
+                # fall back to previously computed E_net_MWh (based on Pnet and hours)
+                try:
+                    net_mwh = float(E_net_MWh)
+                except Exception:
+                    net_mwh = float('nan')
+            net_mwh = max(net_mwh, 0.0) if (net_mwh == net_mwh) else float('nan')
+
+            # Replacement annual cost rate (prefer v368 maintenance/material-authoritative, else v359)
+            repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v368', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v359', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = 0.0
+
+            # Electricity price
+            elec_price = float(getattr(inputs, 'electricity_price_USD_per_MWh', 60.0))
+
+            # Recirculating electricity already computed as opex_elec
+            opex_elec_recirc = float(opex_elec)
+
+            # Cryo wall-plug electricity
+            cryo_mult = float(getattr(inputs, 'cryo_wallplug_multiplier', 250.0))
+            Pcryo_wp_MW = max(float(Pcryo), 0.0) * max(cryo_mult, 0.0)
+            opex_elec_cryo = (elec_price * Pcryo_wp_MW * hours) / 1e6
+
+            # Heating/CD wall-plug electricity
+            P_cd = float(outputs.get('P_cd_MW', outputs.get('Pcd_MW', outputs.get('P_CD_MW', 0.0))))
+            eta_wp = float(outputs.get('eta_cd_wallplug', getattr(inputs, 'eta_cd_wallplug', 0.35)))
+            eta_wp = max(min(eta_wp, 1.0), 1e-6)
+            P_cd_wp = max(P_cd, 0.0) / eta_wp
+            opex_elec_cd = (elec_price * P_cd_wp * hours) / 1e6
+
+            # Tritium processing OPEX (throughput-based)
+            T_proc_g_per_day = float(outputs.get('T_processing_required_g_per_day', float('nan')))
+            if not (T_proc_g_per_day == T_proc_g_per_day):
+                # fall back to burn rate (kg/day -> g/day)
+                T_burn_kg_per_day = float(outputs.get('T_burn_kg_per_day', float('nan')))
+                T_proc_g_per_day = (T_burn_kg_per_day * 1000.0) if (T_burn_kg_per_day == T_burn_kg_per_day) else 0.0
+            T_cost = float(getattr(inputs, 'tritium_processing_cost_USD_per_g', 0.05))
+            opex_trit = (max(T_proc_g_per_day, 0.0) * 365.0 * max(T_cost, 0.0)) / 1e6
+
+            # Maintenance proxy (reuse)
+            opex_maint = float(opex_maint)
+
+            # Fixed OPEX
+            opex_fixed = float(getattr(inputs, 'opex_fixed_MUSD_per_y', 0.0))
+
+            opex_total = opex_fixed + opex_elec_recirc + opex_elec_cryo + opex_elec_cd + opex_trit + opex_maint
+
+            # LCOE decomposition
+            capex_for_lcoe = float(comp.get('CAPEX_component_proxy_MUSD', CAPEX)) if isinstance(comp, dict) else float(CAPEX)
+            annual_cost_MUSD = fcr * capex_for_lcoe + repl_MUSD_per_y + opex_total
+            if (net_mwh == net_mwh) and net_mwh > 1e-9:
+                lcoe = (annual_cost_MUSD * 1e6) / net_mwh
+                lcoe_capex = (fcr * capex_for_lcoe * 1e6) / net_mwh
+                lcoe_repl = (repl_MUSD_per_y * 1e6) / net_mwh
+                lcoe_opex = (opex_total * 1e6) / net_mwh
+            else:
+                lcoe = float('inf')
+                lcoe_capex = float('nan')
+                lcoe_repl = float('nan')
+                lcoe_opex = float('nan')
+
+            econ_v360 = {
+                'economics_v360_contract_sha256': str(econ_contract_sha),
+                'OPEX_v360_total_MUSD_per_y': float(opex_total),
+                'OPEX_v360_fixed_MUSD_per_y': float(opex_fixed),
+                'OPEX_v360_electric_recirc_MUSD_per_y': float(opex_elec_recirc),
+                'OPEX_v360_electric_cryo_MUSD_per_y': float(opex_elec_cryo),
+                'OPEX_v360_electric_cd_MUSD_per_y': float(opex_elec_cd),
+                'OPEX_v360_tritium_processing_MUSD_per_y': float(opex_trit),
+                'OPEX_v360_maint_MUSD_per_y': float(opex_maint),
+                'LCOE_proxy_v360_USD_per_MWh': float(lcoe),
+                'LCOE_v360_capex_USD_per_MWh': float(lcoe_capex),
+                'LCOE_v360_replacement_USD_per_MWh': float(lcoe_repl),
+                'LCOE_v360_opex_USD_per_MWh': float(lcoe_opex),
+            }
+    except Exception:
+        econ_v360 = {}
+
     return {
         "cost_magnet_MUSD": float(cost_magnet),
         "cost_blanket_MUSD": float(cost_blanket),
@@ -271,6 +395,11 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
         # lifecycle additions (backward compatible)
         "LCOE_proxy_USD_per_MWh": float(lifecycle.get("LCOE_proxy_USD_per_MWh", float("nan"))),
         "NPV_cost_proxy_MUSD": float(lifecycle.get("npv_cost_MUSD", float("nan"))),
+        # v356 overlay
+        "cost_overlay_contract_sha256": str(contract_sha),
+        "CAPEX_max_proxy_MUSD": float(getattr(inputs, "CAPEX_max_proxy_MUSD", float("nan"))) if inputs is not None else float("nan"),
+        **(comp if isinstance(comp, dict) else {}),
+        **(econ_v360 if isinstance(econ_v360, dict) else {}),
         # structured economics for artifact (optional consumer)
         "_economics": lifecycle,
     }

@@ -1,0 +1,24 @@
+{
+  "schema_version": "materials_lifetime.v367",
+  "description": "Deterministic materials lifetime and replacement cadence closure (FW/blanket) derived from neutronics/materials lifetime proxies. No solvers, no iteration.",
+  "defaults": {
+    "plant_design_lifetime_yr": 30.0,
+    "materials_life_cover_plant_enforce": false,
+    "fw_replace_interval_min_yr": 0.5,
+    "blanket_replace_interval_min_yr": 0.5,
+    "replacement_installation_factor": 1.15,
+    "fw_capex_fraction_of_blanket": 0.20
+  },
+  "outputs": [
+    "plant_design_lifetime_yr",
+    "fw_years_to_limit",
+    "blanket_years_to_limit",
+    "fw_replace_interval_y",
+    "blanket_replace_interval_y",
+    "fw_replacements_over_life",
+    "blanket_replacements_over_life",
+    "fw_replacement_cost_MUSD_per_year",
+    "blanket_replacement_cost_MUSD_per_year",
+    "materials_lifetime_contract_sha256"
+  ]
+}

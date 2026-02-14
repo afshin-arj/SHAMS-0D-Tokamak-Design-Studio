@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "contract_id": "control_stability_authority_contract",
+  "authority": "CONTROL",
+  "notes": "Deterministic caps/defaults for VS/PF/CS/RWM control & stability authority. This contract supplies defaults for optional caps when inputs do not provide them.",
+  "defaults": {
+    "vs": {
+      "vs_tau_nominal_s": 0.30,
+      "vs_bw_factor": 3.0,
+      "vs_bandwidth_max_Hz": 200.0,
+      "vs_control_margin_factor": 1.30,
+      "vs_control_power_max_MW": 300.0
+    },
+    "pf": {
+      "pf_ramp_s": 300.0,
+      "pf_R_eff_Ohm": 1.0e-4,
+      "pf_L_eff_H": 1.0e-5,
+      "pf_I_peak_max_MA": 30.0,
+      "pf_dIdt_max_MA_s": 0.30,
+      "pf_V_peak_max_V": 25000.0,
+      "pf_P_peak_max_MW": 2000.0,
+      "pf_E_pulse_max_MJ": 2.0e6
+    },
+    "cs": {
+      "cs_flux_margin_min_Wb": 0.0,
+      "cs_V_loop_max_V": 50.0
+    },
+    "rwm": {
+      "rwm_bandwidth_max_Hz": 500.0,
+      "rwm_control_power_max_MW": 500.0
+    }
+  }
+}

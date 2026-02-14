@@ -52,6 +52,9 @@ ICONS: Dict[str, str] = {
     "info": "ℹ️",
     "warn": "⚠️",
     "ok": "✅",
+
+    # governance
+    "contract": "📜",
 }
 
 def label(key: str, text: str) -> str:
@@ -132,6 +135,46 @@ MODE_SCOPE: Dict[str, Dict[str, List[str]]] = {
             "Does not add iterative balancing loops.",
         ],
     },
+
+    "profile_contracts": {
+        "does": [
+            "Evaluates the frozen truth at finite certified corners of profile/transport envelopes (C8/C16/C32).",
+            "Reports optimistic vs robust feasibility and margin ranges across corners.",
+            "Flags MIRAGE outcomes (optimistic-feasible but robust-infeasible) with a stamped contract fingerprint.",
+        ],
+        "does_not": [
+            "Does not run transport solvers, Newton iterations, or Monte Carlo sampling.",
+            "Does not modify frozen evaluator outputs; only re-evaluates at declared corner inputs.",
+            "Does not smooth or negotiate constraint violations across the envelope.",
+        ],
+    },
+
+    "campaign_pack": {
+        "does": [
+            "Exports deterministic campaign bundles (candidates + assumptions + fingerprints) for external optimizers.",
+            "Runs batch evaluation locally with the frozen evaluator to produce per-candidate evidence.",
+            "Keeps optimization firewalled: optimizers propose inputs; SHAMS evaluates and certifies.",
+        ],
+        "does_not": [
+            "Does not run internal optimization or adjust truth to satisfy objectives.",
+            "Does not hide infeasibility via solvers or relax constraints.",
+            "Does not mutate evaluator state; same inputs yield the same outputs.",
+        ],
+    },
+
+    "parity_harness": {
+        "does": [
+            "Runs a deterministic benchmark suite and exports reviewer-grade parity artifacts.",
+            "Produces SHAMS run artifacts, PROCESS-intent mapping notes, and optional delta dossiers against user-supplied PROCESS results.",
+            "Treats discrepancies as mechanisms to explain (constraints, dominance, contracts), not tuning targets.",
+        ],
+        "does_not": [
+            "Does not run PROCESS internally or assume PROCESS outputs are authoritative without provenance.",
+            "Does not tune SHAMS to match other codes; it only reports traced deltas and assumptions.",
+            "Does not modify the frozen evaluator; it is an overlay/export layer.",
+        ],
+    },
+
     "compare": {
         "does": [
             "Compares runs, artifacts, and ledgers to isolate why designs differ.",
@@ -166,6 +209,18 @@ MODE_SCOPE: Dict[str, Dict[str, List[str]]] = {
             "Does not change model outputs or evaluator behavior.",
             "Does not run background tasks that mutate artifacts.",
             "Does not bypass hygiene/verification requirements.",
+        ],
+    },
+    "regime_atlas": {
+        "does": [
+            "Partitions candidate sets by regime labels (plasma / exhaust / magnet) and governance class (dominance / robustness).",
+            "Extracts Pareto sets **within** each coherent regime bucket (no cross-regime mixing).",
+            "Exports deterministic atlas evidence packs (buckets, Pareto sets, fingerprints, and per-file hashes).",
+        ],
+        "does_not": [
+            "Does not run any optimization inside truth; it is purely interpretive post-processing.",
+            "Does not fabricate regimes; it only uses labels present in candidate records (or marks UNKNOWN).",
+            "Does not claim a global Pareto front across incompatible regimes.",
         ],
     },
 }

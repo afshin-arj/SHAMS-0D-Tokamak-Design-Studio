@@ -1,3 +1,28 @@
+v368.0
+- contracts/maintenance_scheduling_v368_contract.json
+- src/maintenance/scheduling_v368.py
+- src/maintenance/__init__.py
+- src/models/inputs.py
+- src/physics/hot_ion.py
+- src/economics/cost.py
+- src/constraints/system.py
+- src/shams_io/run_artifact.py
+- src/provenance/authority_dominance.py
+- ui/app.py
+- tests/test_maintenance_v368.py
+- README.md
+- VERSION
+- VERSION.txt
+- RELEASE_NOTES.md
+
+v340.0
+- contracts/certified_search_orchestrator_contract.json
+- src/solvers/certified_search_orchestrator.py
+- src/solvers/budgeted_search.py
+- ui/app.py
+- VERSION
+- VERSION.txt
+- RELEASE_NOTES.md
 MANIFEST_SHA256.txt
 MANIFEST_UPGRADE_SHA256.txt
 RELEASE_NOTES.md
@@ -10,3 +35,44 @@ ui/extopt_workbench.py
 ui/handoff.py
 ui/robust_pareto_lab.py
 ui/trade_study_studio.py
+tools/regulatory_pack.py
+ui/regulatory_evidence_pack.py
+README.md
+VERSION.txt
+src/analysis/coupling_narratives.py
+analysis/coupling_narratives.py
+src/shams_io/run_artifact.py
+v341.0
+contracts/feasible_first_surrogate_contract.json
+src/solvers/certified_search_orchestrator.py
+ui/app.py
+VERSION
+VERSION.txt
+RELEASE_NOTES.md
+
+# v341.0
+contracts/feasible_first_surrogate_contract.json
+analysis/plasma_regime.py
+tests/conftest.py
+conftest.py
+
+# v342.0
+src/extopt/copilot.py
+ui/extopt_copilot.py
+ui/app.py
+VERSION
+VERSION.txt
+RELEASE_NOTES.md
+
+# v344.0
+src/governance/contract_validator.py
+ui/contract_studio.py
+src/shams_io/run_artifact.py
+ui/app.py
+contracts (no change)
+contracts/cd_tech_authority_contract.json
+src/contracts/cd_tech_authority_contract.py
+src/analysis/cd_tech_authority.py
+analysis/cd_tech_authority.py
+src/physics/hot_ion.py
+ui/app.py

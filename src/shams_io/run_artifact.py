@@ -637,7 +637,15 @@ def build_run_artifact(
             "schema_version": "tables.v1",
             "plasma": {k: outd.get(k) for k in ["H98", "Q_DT_eqv", "beta_N", "nGW", "Ti_keV", "Te_keV", "Ip_MA", "B0_T"] if k in outd},
             "power_balance": {k: outd.get(k) for k in ["Paux_MW", "Pfus_DT_adj_MW", "P_net_e_MW", "P_rad_MW", "Pohm_MW"] if k in outd},
-            "tritium": {k: outd.get(k) for k in ["TBR", "TBR_margin", "TBR_req"] if k in outd},
+            "economics": {k: outd.get(k) for k in [
+                "CAPEX_proxy_MUSD", "CAPEX_component_proxy_MUSD", "OPEX_proxy_MUSD_per_y", "COE_proxy_USD_per_MWh", "LCOE_proxy_USD_per_MWh",
+                "availability_v368", "outage_total_frac_v368", "replacement_cost_MUSD_per_year_v368", "net_electric_MWh_per_year_v368",
+                "availability_v359", "replacement_cost_MUSD_per_year_v359", "LCOE_proxy_v359_USD_per_MWh",
+                "OPEX_v360_total_MUSD_per_y", "OPEX_v360_fixed_MUSD_per_y", "OPEX_v360_electric_recirc_MUSD_per_y", "OPEX_v360_electric_cryo_MUSD_per_y",
+                "OPEX_v360_electric_cd_MUSD_per_y", "OPEX_v360_tritium_processing_MUSD_per_y", "OPEX_v360_maint_MUSD_per_y", "replacement_cost_v360_MUSD_per_y",
+                "net_electric_v360_MWh_per_y", "LCOE_proxy_v360_USD_per_MWh", "economics_v360_contract_sha256", "cost_overlay_contract_sha256"
+            ] if k in outd},
+            "tritium": {k: outd.get(k) for k in ['TBR', 'TBR_required_fuelcycle', 'TBR_margin_fuelcycle', 'TBR_eff_fuelcycle', 'TBR_self_sufficiency_required', 'TBR_self_sufficiency_margin', 'T_burn_kg_per_day', 'T_processing_required_g_per_day', 'T_inventory_reserve_kg', 'T_inventory_required_kg', 'T_in_vessel_required_kg', 'T_startup_inventory_kg', 'T_total_inventory_required_kg', 'T_in_vessel_max_kg', 'T_total_inventory_max_kg', 'T_loss_fraction', 'tritium_fuelcycle_contract_sha256'] if k in outd},
         }
     except Exception:
         art["tables"] = {"schema_version": "tables.v1"}
@@ -675,6 +683,62 @@ def build_run_artifact(
             "stamp_sha256": "",
         }
 
+    # Plasma–Engineering Coupling Narratives (v339.0): deterministic explanatory layer.
+    # Post-processing only; MUST NOT modify physics truth.
+    try:
+        from analysis.coupling_narratives import evaluate_coupling_narratives  # type: ignore
+
+        art["coupling_narratives"] = evaluate_coupling_narratives(art if isinstance(art, dict) else {})
+        if isinstance(art.get("coupling_narratives"), dict):
+            cn = art["coupling_narratives"]
+            art["coupling_summary"] = str(cn.get("coupling_summary", "") or "")
+            art["coupling_severity_max"] = int(cn.get("coupling_severity_max", 0) or 0)
+    except Exception:
+        art["coupling_narratives"] = {
+            "schema_version": "coupling_narratives.v1",
+            "coupling_summary": "Coupling narratives unavailable.",
+            "coupling_severity_max": 0,
+            "coupling_flags": [],
+            "coupling_narratives": [],
+            "coupling_context": {},
+        }
+
+    # Regime Transition Detector (v353.0): deterministic regime labels + near-boundary flags.
+    # Post-processing only; MUST NOT modify physics truth.
+    try:
+        from analysis.regime_transition_detector_v353 import evaluate_regime_transitions  # type: ignore
+
+        art["regime_transitions"] = evaluate_regime_transitions(
+            inputs=inputs if isinstance(inputs, dict) else {},
+            outputs=outputs if isinstance(outputs, dict) else {},
+        )
+        if isinstance(art.get("regime_transitions"), dict):
+            rt = art["regime_transitions"]
+            art["regime_summary"] = str(rt.get("regime_summary", "") or "")
+            art["regime_labels"] = rt.get("labels", {})
+
+        # Also surface a compact table payload for UI/PDF.
+        try:
+            if isinstance(art.get("tables"), dict):
+                art["tables"]["regimes"] = {
+                    "regime_summary": art.get("regime_summary"),
+                    "confinement_regime": (art.get("regime_labels", {}) or {}).get("confinement_regime"),
+                    "exhaust_regime": (art.get("regime_labels", {}) or {}).get("exhaust_regime"),
+                    "magnet_regime": (art.get("regime_labels", {}) or {}).get("magnet_regime"),
+                    "greenwald_state": (art.get("regime_labels", {}) or {}).get("greenwald_state"),
+                    "betaN_state": (art.get("regime_labels", {}) or {}).get("betaN_state"),
+                }
+        except Exception:
+            pass
+    except Exception:
+        art["regime_transitions"] = {
+            "schema_version": "regime_transitions.v353",
+            "regime_summary": "Regime transitions unavailable.",
+            "labels": {},
+            "near_boundaries": [],
+            "context": {},
+        }
+
     # Authority contracts + confidence (v256.0): deterministic trust ledger.
     try:
         from provenance.authority import authority_snapshot_from_outputs  # type: ignore
@@ -687,6 +751,18 @@ def build_run_artifact(
         art["authority_confidence"] = authority_confidence_from_artifact(art)
     except Exception:
         art["authority_confidence"] = {"schema_version": "authority_confidence.v1", "design": {"design_confidence_class": "UNKNOWN"}, "subsystems": {}}
+
+    # Multi-fidelity authority tier stamp (v366.0): deterministic TRL/fidelity class.
+    # Post-processing only; MUST NOT modify physics truth.
+    try:
+        from provenance.fidelity_tiers import build_fidelity_tiers_snapshot  # type: ignore
+
+        art["fidelity_tiers"] = build_fidelity_tiers_snapshot(
+            authority_contracts=art.get("authority_contracts") if isinstance(art.get("authority_contracts"), dict) else {},
+            constraint_ledger=art.get("constraint_ledger") if isinstance(art.get("constraint_ledger"), dict) else {},
+        )
+    except Exception:
+        art["fidelity_tiers"] = {"schema_version": "fidelity_tiers.v366", "design": {"design_fidelity_label": "T0 (Conceptual scaling)"}, "subsystems": {}}
 
     # Decision Consequences (v257.0): advisory 'what next' layer derived from margins + authority.
     # Post-processing only; MUST NOT modify physics truth.
@@ -753,6 +829,21 @@ def build_run_artifact(
         art["subsystems"] = subsystems
     if scan:
         art["scan"] = scan
+
+    # --- Contract registry (v344.0) ---
+    # Collect all contract hashes emitted by truth. This is advisory metadata and does not affect truth.
+    try:
+        contracts_used = {}
+        for k, v in (outputs or {}).items():
+            if isinstance(k, str) and k.endswith("contract_sha256") and isinstance(v, str) and len(v) >= 16:
+                contracts_used[k] = v
+        if contracts_used:
+            # Stable combined fingerprint
+            _cj = json.dumps(contracts_used, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            art["contracts_used"] = contracts_used
+            art["contracts_fingerprint_sha256"] = hashlib.sha256(_cj).hexdigest()
+    except Exception:
+        pass
     return art
 
 def write_run_artifact(path: str | Path, artifact: Dict[str, Any]) -> Path:
@@ -782,3 +873,41 @@ def summarize_constraints(constraints_json: List[Dict[str, Any]]) -> Dict[str, A
             worst = mf
             worst_key = c.get("name")
     return {"n": n, "n_fail": n_fail, "worst_margin_frac": worst, "worst": worst_key}
+# (v359.0) Availability & replacement ledger (optional)
+try:
+    tables["availability_v359"] = {
+        "availability_v359": float(out.get("availability_v359", float('nan'))),
+        "planned_outage_frac_v359": float(out.get("availability_planned_outage_frac_v359", float('nan'))),
+        "forced_outage_frac_v359": float(out.get("availability_forced_outage_frac_v359", float('nan'))),
+        "replacement_downtime_frac_v359": float(out.get("availability_replacement_downtime_frac_v359", float('nan'))),
+        "replacement_cost_MUSD_per_year_v359": float(out.get("replacement_cost_MUSD_per_year_v359", float('nan'))),
+        "major_rebuild_interval_years_v359": float(out.get("major_rebuild_interval_years_v359", float('nan'))),
+        "net_electric_MWh_per_year_v359": float(out.get("net_electric_MWh_per_year_v359", float('nan'))),
+        "LCOE_proxy_v359_USD_per_MWh": float(out.get("LCOE_proxy_v359_USD_per_MWh", float('nan'))),
+        "availability_replacement_contract_sha256": str(out.get("availability_replacement_contract_sha256", "")),
+    }
+except Exception:
+    pass
+
+
+# (v368.0) Maintenance Scheduling Authority 1.0 (optional)
+try:
+    tables["maintenance_v368"] = {
+        "availability_v368": float(out.get("availability_v368", float('nan'))),
+        "outage_total_frac_v368": float(out.get("outage_total_frac_v368", float('nan'))),
+        "planned_outage_frac_v368": float(out.get("planned_outage_frac_v368", float('nan'))),
+        "forced_outage_frac_v368": float(out.get("forced_outage_frac_v368", float('nan'))),
+        "replacement_outage_frac_v368": float(out.get("replacement_outage_frac_v368", float('nan'))),
+        "net_electric_MWh_per_year_v368": float(out.get("net_electric_MWh_per_year_v368", float('nan'))),
+        "replacement_cost_MUSD_per_year_v368": float(out.get("replacement_cost_MUSD_per_year_v368", float('nan'))),
+        "maintenance_bundle_policy_v368": str(out.get("maintenance_bundle_policy_v368", "")),
+        "maintenance_bundle_overhead_days_v368": float(out.get("maintenance_bundle_overhead_days_v368", float('nan'))),
+        "maintenance_contract_sha256": str(out.get("maintenance_contract_sha256", "")),
+    }
+    # Keep event table as an auxiliary payload for UI/review.
+    if isinstance(out.get("maintenance_events_v368"), list):
+        tables["maintenance_v368"]["maintenance_events_v368"] = out.get("maintenance_events_v368")
+except Exception:
+    pass
+
+

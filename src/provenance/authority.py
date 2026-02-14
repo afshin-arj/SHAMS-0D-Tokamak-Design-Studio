@@ -43,6 +43,20 @@ AUTHORITY_CONTRACTS: Dict[str, AuthorityContract] = {
         equations=["p(r)=p0*(1-(r/a)^2)^alpha (core)", "two-zone core+pedestal integration"],
         notes="Profile shape is a scaffold for stored energy, bootstrap sensitivity, and radiation integrals.",
     ),
+    "plasma.profile_contracts": AuthorityContract(
+        subsystem="plasma.profile_contracts",
+        tier="semi-authoritative",
+        validity_domain=(
+            "Certified optimistic vs robust envelopes over v358 profile-family knobs (peaking, pedestal proxy, "
+            "confinement and bootstrap multipliers), evaluated by finite hypercube corners (C8/C16/C32)."
+        ),
+        equations=[
+            "x_i = clamp(x0_i*(1±span_i)) or clamp(x0_i±span_i) per axis",
+            "robust_feasible = AND_over_corners( hard_constraints_pass )",
+            "mirage = feasible_optimistic AND (NOT feasible_robust)",
+        ],
+        notes="Governance overlay only; does not modify frozen truth; no solvers/iteration.",
+    ),
     "current.bootstrap": AuthorityContract(
         subsystem="current.bootstrap",
         tier="semi-authoritative",
@@ -107,6 +121,38 @@ AUTHORITY_CONTRACTS: Dict[str, AuthorityContract] = {
         equations=["dpa_fw/y ~ 5 * NWL", "life_fw ~ dpa_limit / dpa_fw/y", "dpa_blanket/y ~ 0.6*dpa_fw/y"],
         notes="Screening-only; does not represent irradiation campaigns, temperature dependence, or transmutation.",
     ),
+
+    "materials.lifetime_closure": AuthorityContract(
+        subsystem="materials.lifetime_closure",
+        tier="semi-authoritative",
+        validity_domain=(
+            "Deterministic replacement cadence + cost-rate bookkeeping derived from existing FW/blanket lifetime proxies "
+            "and plant design lifetime policy. No time-domain simulation; no RAMI model."
+        ),
+        equations=[
+            "replace_interval = max(lifetime_proxy, interval_min)",
+            "replacements = ceil(plant_life / replace_interval) - 1",
+            "annual_cost_rate ~ capex_component * install_factor / replace_interval",
+        ],
+        notes="Post-processing-only closure; does not modify neutronics/materials lifetime proxy physics.",
+    ),
+
+    # v367.0: deterministic replacement cadence + annualized cost-rate closure.
+    "materials.lifetime_closure": AuthorityContract(
+        subsystem="materials.lifetime_closure",
+        tier="semi-authoritative",
+        validity_domain=(
+            "Deterministic post-processing over neutronics/materials lifetime proxies to produce replacement cadence, "
+            "counts over plant life, and annualized replacement cost-rate proxies."
+        ),
+        equations=[
+            "years_to_limit := lifetime_proxy_yr",
+            "interval_y := clamp(years_to_limit, min_interval, plant_life)",
+            "n_repl := ceil(plant_life/interval_y) - 1",
+            "cost_rate := capex_component * install_factor / interval_y",
+        ],
+        notes="Pure bookkeeping overlay; does not modify frozen truth or time-step component degradation.",
+    ),
     "fuel_cycle.tritium": AuthorityContract(
         subsystem="fuel_cycle.tritium",
         tier="proxy",
@@ -129,6 +175,18 @@ AUTHORITY_CONTRACTS: Dict[str, AuthorityContract] = {
         notes="Cartography semantics are frozen; new derived layers must be purely post-processing.",
     ),
 
+    "control.actuators": AuthorityContract(
+        subsystem="control.actuators",
+        tier="semi-authoritative",
+        validity_domain="Power-supply and actuator capacity caps: PF/CS envelope (I, V, P, dI/dt, pulse energy), CS loop-voltage ramp proxy, auxiliary+CD wallplug draw, and CD actuator capacity to meet NI target.",
+        equations=[
+            "P_aux_total_el = Paux/eta_aux + P_cd_launch/eta_cd",
+            "P_cd_required = (I_cd_required/gamma_cd)/1e6",
+            "PF envelope: V_peak = L dI/dt + R I; P_peak = V_peak I",
+            "P_supply_peak = max(PF_peak, Aux/CD_wallplug, VS_control, RWM_control)",
+        ],
+        notes="Deterministic capacity gating. Enforced only when corresponding *_max caps are finite; otherwise recorded as diagnostics.",
+    ),
     "control.rwm": AuthorityContract(
         subsystem="control.rwm",
         tier="proxy",

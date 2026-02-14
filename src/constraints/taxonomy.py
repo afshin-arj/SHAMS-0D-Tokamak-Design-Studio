@@ -63,6 +63,9 @@ def infer_mechanism_group(name: str, group: Optional[str] = None) -> str:
     if g in ("control", "vs", "pf_control"):
         return "CONTROL"
 
+    if g in ("actuators", "actuator", "power_supplies", "powersupply"):
+        return "CONTROL"
+
     # Name-based fallbacks
     if any(k in n for k in ["q95", "beta", "greenwald", "f_g", "h_required", "lh", "ignition", "m_ign", "bootstrap", "f_bs"]):
         return "PLASMA"
@@ -115,6 +118,8 @@ def infer_subsystem(name: str, mechanism_group: str) -> str:
     if mg == "CONTROL":
         if "rwm" in n:
             return "control.rwm"
+        if any(k in n for k in ("aux", "cd", "pf_", "pf ", "cs_", "cs ", "supply", "wallplug")):
+            return "control.actuators"
         return "engineering.magnets"  # actuator envelopes are engineering/control proxies
 
     return "scan.cartography" if "cartography" in n else "plasma.confinement"

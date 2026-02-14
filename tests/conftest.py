@@ -1,28 +1,77 @@
-"""Test bootstrap for SHAMS.
+"""Pytest session hygiene.
 
-Pytest is run with --import-mode=importlib to avoid path leakage.
-For SHAMS, we intentionally support importing modules both as:
-  - models.* (when repo_root/src is on sys.path)
-  - src.* (when repo_root is on sys.path)
+Prevents bytecode emission and cleans caches created during tests.
 
-This conftest makes the test environment mirror the UI/CLI environment.
+Author: © 2026 Afshin Arjhangmehr
 """
 
 from __future__ import annotations
 
-import os
 import sys
 
 
-# Repo hygiene law: never write bytecode caches into the working tree.
-os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
-sys.dont_write_bytecode = True
+from pathlib import Path
 
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SRC = os.path.join(REPO_ROOT, "src")
+def _purge(repo_root: Path) -> None:
+    # Remove __pycache__ directories
+    for d in repo_root.rglob("__pycache__"):
+        try:
+            for f in d.glob("*"):
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+            d.rmdir()
+        except Exception:
+            pass
 
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-if SRC not in sys.path:
-    sys.path.insert(0, SRC)
+    # Remove pytest cache
+    for d in repo_root.rglob(".pytest_cache"):
+        try:
+            for f in d.rglob("*"):
+                try:
+                    if f.is_file():
+                        f.unlink()
+                except Exception:
+                    pass
+            for sub in sorted([p for p in d.rglob("*") if p.is_dir()], reverse=True):
+                try:
+                    sub.rmdir()
+                except Exception:
+                    pass
+            d.rmdir()
+        except Exception:
+            pass
+
+    # Remove stray .pyc
+    for f in repo_root.rglob("*.pyc"):
+        try:
+            f.unlink()
+        except Exception:
+            pass
+
+
+def pytest_sessionstart(session):
+    sys.dont_write_bytecode = True
+    repo_root = Path(__file__).resolve().parents[1]
+    # Ensure repo-root and src/ are importable during tests
+    rr = str(repo_root)
+    rs = str(repo_root / "src")
+    if rr not in sys.path:
+        sys.path.insert(0, rr)
+    if rs not in sys.path:
+        sys.path.insert(0, rs)
+    _purge(repo_root)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    repo_root = Path(__file__).resolve().parents[1]
+    # Ensure repo-root and src/ are importable during tests
+    rr = str(repo_root)
+    rs = str(repo_root / "src")
+    if rr not in sys.path:
+        sys.path.insert(0, rr)
+    if rs not in sys.path:
+        sys.path.insert(0, rs)
+    _purge(repo_root)

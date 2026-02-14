@@ -48,6 +48,16 @@ class PointInputs:
     # Current-profile shear shape knob for the algebraic 1.5D profile bundle.
     # 0..1 increases qmin_proxy (stabilizing) when higher.
     profile_shear_shape: float = 0.5
+    # --- (v358.0) Profile Family Library Authority (transport proxy, deterministic) ---
+    include_profile_family_v358: bool = False
+    profile_family_v358: str = "CORE_FLAT"
+    profile_family_pedestal_frac: float = 0.0
+    profile_family_peaking_p: float = 1.0
+    profile_family_peaking_j: float = 1.0
+    profile_family_shear_shape: float = 0.5
+    profile_family_confinement_mult: float = 1.0
+    profile_family_bootstrap_mult: float = 1.0
+
     # Optional explicit pedestal enable independent of profile_model string.
     pedestal_enabled: bool = False
     pedestal_width_a: float = 0.05
@@ -349,6 +359,16 @@ class PointInputs:
     # Optional (materials) replacement / lifetime caps (NaN disables enforcement)
     fw_lifetime_min_yr: float = float('nan')
     blanket_lifetime_min_yr: float = float('nan')
+
+    # ------------------------------------------------------------------
+    # (v367.0) Materials lifetime closure policy (deterministic)
+    # ------------------------------------------------------------------
+    plant_design_lifetime_yr: float = 30.0
+    materials_life_cover_plant_enforce: bool = False
+    fw_replace_interval_min_yr: float = float('nan')
+    blanket_replace_interval_min_yr: float = float('nan')
+    fw_capex_fraction_of_blanket: float = 0.20
+    blanket_capex_fraction_of_blanket: float = 1.00
     # Optional helium limit overrides (NaN -> use library default; only used for constraints)
     fw_He_total_limit_appm: float = float('nan')
     blanket_He_total_limit_appm: float = float('nan')
@@ -407,6 +427,7 @@ class PointInputs:
     f_recirc_max: float = float('nan')        # max recirculating fraction (Precirc/Pe_gross)
     P_pf_avg_max_MW: float = float('nan')     # max average PF electric draw proxy [MW]
     P_aux_max_MW: float = float('nan')        # cap on auxiliary+CD wallplug draw proxy [MW]
+    P_supply_peak_max_MW: float = float('nan')  # optional cap on peak electrical power supply draw (max of PF peak, aux/CD wallplug, control power) [MW]
     P_cryo_max_MW: float = float('nan')       # cap on cryo electric draw proxy [MW]
 
     # --- (5c) Pulse scenario contract (quasi-static) ---
@@ -420,6 +441,15 @@ class PointInputs:
     TBR_required_override: float = float('nan')
     T_inventory_min_kg: float = float('nan')
     T_processing_capacity_min_g_per_day: float = float('nan')
+
+    # --- (v350.0) Tritium & Fuel Cycle Tight Closure (optional; NaN disables) ---
+    include_tritium_tight_closure: bool = False
+    T_processing_delay_days: float = 1.0
+    T_in_vessel_max_kg: float = float('nan')
+    T_total_inventory_max_kg: float = float('nan')
+    T_startup_inventory_kg: float = float('nan')
+    T_loss_fraction: float = float('nan')
+    TBR_self_sufficiency_margin: float = float('nan')
 
     # --- (New) TF winding-pack geometry + J limits (PROCESS-like) ---
     tf_wp_width_m: float = 0.25          # winding pack radial width [m]
@@ -473,12 +503,34 @@ class PointInputs:
 
     # --- (New) Current drive / heating system realism ---
     include_current_drive: bool = False
+    include_cd_library_v357: bool = False
+
+    # Target NI closure (used when include_current_drive=True)
     f_noninductive_target: float = 1.0
+
+    # CD efficiency proxy (legacy + scaling models)
     gamma_cd_A_per_W: float = 0.05
-    cd_model: str = "fixed_gamma"   # "fixed_gamma" (legacy) or "actuator_scaling"
-    cd_actuator: str = "ECCD"      # ECCD | LHCD | NBI
-    Pcd_max_MW: float = 200.0
     eta_cd_wallplug: float = 0.35
+    Pcd_max_MW: float = 200.0
+
+    # CD model selection
+    cd_model: str = "fixed_gamma"   # fixed_gamma | actuator_scaling | channel_library_v357
+    cd_actuator: str = "ECCD"      # ECCD | LHCD | NBI | ICRF
+
+    # v357.0 channel knobs (used only when include_cd_library_v357=True)
+    # LHCD
+    lhcd_n_parallel: float = 1.8
+    lhcd_n_parallel_min: float = float('nan')
+    lhcd_n_parallel_max: float = float('nan')
+
+    # ECCD
+    eccd_launcher_area_m2: float = 2.0
+    eccd_launch_factor: float = 1.0
+    eccd_launcher_power_density_max_MW_m2: float = float('nan')
+
+    # NBI
+    nbi_beam_energy_keV: float = 500.0
+    nbi_shinethrough_frac_max: float = float('nan')
 
     # --- (New) q-profile plausibility constraints ---
     q95_min: float = float('nan')
@@ -597,12 +649,43 @@ class PointInputs:
     # SOL radiative control contract cap (NaN disables). Requires include_sol_radiation_control=True.
     f_rad_SOL_max: float = float('nan')
 
+    # --- (v348.0) Edge–Core Coupled Exhaust Authority (optional) ---
+    include_edge_core_coupled_exhaust: bool = False
+    edge_core_coupling_chi_core: float = 0.25  # 0..1
+    f_rad_core_edge_core_max: float = float('nan')  # optional cap on coupled core radiative fraction proxy
+
+    # --- (v349.0) Bootstrap & Pressure Self-Consistency Authority (optional) ---
+    include_bootstrap_pressure_selfconsistency: bool = False
+    f_bootstrap_consistency_abs_max: float = float('nan')  # optional cap on |f_bs_reported - f_bs_expected|
+
     # --- Maintenance / replacement assumptions ---
     fw_replace_time_days: float = 30.0
     div_replace_time_days: float = 30.0
     blanket_replace_time_days: float = 90.0
     trips_per_year: float = 5.0  # unscheduled trips per year proxy
     trip_duration_days: float = 2.0
+
+
+    # --- (v359.0) Availability & replacement ledger authority (optional) ---
+    include_availability_replacement_v359: bool = False
+    planned_outage_base: float = 0.05
+    heating_cd_replace_interval_y: float = 8.0
+    heating_cd_replace_duration_days: float = 30.0
+    tritium_plant_replace_interval_y: float = 10.0
+    tritium_plant_replace_duration_days: float = 30.0
+    availability_v359_min: float = float('nan')
+    LCOE_max_USD_per_MWh: float = float('nan')
+
+
+    # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
+    # Deterministic outage calendar proxy (no time simulation; no optimization).
+    include_maintenance_scheduling_v368: bool = False
+    maintenance_planning_horizon_yr: float = float('nan')
+    maintenance_bundle_policy: str = "independent"  # independent|bundle_in_vessel|bundle_all
+    maintenance_bundle_overhead_days: float = 7.0
+    forced_outage_mode_v368: str = "max"  # max|baseline|trips
+    outage_fraction_v368_max: float = float('nan')  # optional cap on total outage fraction
+    availability_v368_min: float = float('nan')     # optional min availability under v368
 
 
     # --- Reference calibration knobs (transparent, optional) ---
@@ -660,6 +743,20 @@ class PointInputs:
     cost_k_cryo: float = 30.0
     cost_k_bop: float = 55.0
     cost_k_buildings: float = 80.0
+    # v356.0: additional PROCESS-style component proxies
+    # - Heating/CD cost is proportional to launched CD/aux power (MW)
+    # - Tritium plant cost is proportional to tritium burn throughput (kg/day)
+    cost_k_heating_cd: float = 25.0
+    cost_k_tritium_plant: float = 40.0
+    # Optional feasibility cap (NaN disables)
+    CAPEX_max_proxy_MUSD: float = float('nan')
+    # --- (v360.0) Plant Economics Authority 1.0 (optional; OFF by default) ---
+    include_economics_v360: bool = False
+    opex_fixed_MUSD_per_y: float = 0.0
+    tritium_processing_cost_USD_per_g: float = 0.05
+    cryo_wallplug_multiplier: float = 250.0
+    OPEX_max_MUSD_per_y: float = float('nan')
+
 
     @staticmethod
     def from_dict(d: dict) -> "PointInputs":

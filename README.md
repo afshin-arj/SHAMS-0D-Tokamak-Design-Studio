@@ -1,5 +1,7 @@
 # SHAMS — Tokamak 0-D Design Studio
 
+**Current version:** v368.0 — Maintenance Scheduling Authority 1.0
+
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
 It is designed to determine:

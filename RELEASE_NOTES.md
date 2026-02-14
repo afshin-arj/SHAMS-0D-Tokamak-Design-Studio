@@ -1,3 +1,346 @@
+# Release Notes
+
+## v368.0 — Maintenance Scheduling Authority 1.0
+
+**New authority:** deterministic maintenance scheduling closure that converts replacement cadences + durations
+into a schedule-dominated outage fraction and availability proxy.
+
+Key additions:
+- New module: `src/maintenance/scheduling_v368.py` (frozen-truth compliant; no solvers/iteration)
+- New contract: `contracts/maintenance_scheduling_v368_contract.json` (hashed into artifacts)
+- New outputs (when enabled): `availability_v368`, `outage_total_frac_v368`, and an explicit `maintenance_events_v368` table
+- New constraints (optional):
+  - `availability_v368 >= availability_v368_min`
+  - `outage_total_frac_v368 <= outage_fraction_v368_max`
+- Economics v360 now prefers maintenance-aware net generation and replacement annualization from v368 when present.
+- Authority Dominance Engine now recognizes `MAINTENANCE` as a canonical authority label.
+
+Truth outputs unchanged.
+
+---
+
+## v367.0 — Materials Lifetime Authority 1.0
+
+**New authority:** deterministic materials lifetime closure that links neutronics/materials lifetime proxies to
+plant design lifetime policy, replacement cadence, replacement counts, and annualized replacement cost rates.
+
+Key additions:
+- New module: `src/analysis/materials_lifetime_v367.py` (no solvers, no iteration)
+- New contract: `contracts/materials_lifetime_v367_contract.json` (hashed into artifacts)
+- Availability replacement ledger (v359) now includes FW/blanket annualized replacement cost rates if present
+- New constraint group `materials_lifetime`:
+  - optional minimum replacement cadence (FW/blanket)
+  - optional hard policy enforcement: lifetime proxy must cover declared plant design lifetime
+- Authority registry + dominance now recognize `MATERIALS` as a top-level driver.
+- UI: Point Designer includes v367 policy knobs under Neutronics & Materials; Neutronics deep-view displays
+  replacement counts/cadence and replacement cost rates.
+
+---
+
+## v366.0 — Multi‑Fidelity Authority Tiers (TRL Contracts)
+
+- Adds **Multi‑Fidelity Authority Tiers** as a deterministic, reviewer-facing stamp (T0–T3) derived from the authority contract snapshot and (optionally) constraint-ledger involvement.
+- New module: `src/provenance/fidelity_tiers.py` producing `artifact["fidelity_tiers"]` with:
+  - `design_fidelity_label`, `design_fidelity_min_tier`, plus per-subsystem tiering and a SHA‑256 stamp.
+- Artifact wiring: `src/shams_io/run_artifact.py` now attaches `fidelity_tiers` for every run (post‑processing only; frozen truth unchanged).
+- UI: shows **Fidelity tier** badges in Verdict, Campaign Pack, Parity Harness, and Regime‑Conditioned Atlas panels.
+- Tests: adds `tests/test_fidelity_tiers_v366_smoke.py`.
+
+## v365.0 — Regime-Conditioned Pareto Atlas 2.0
+
+- Adds **Regime-Conditioned Pareto Atlas 2.0**: partitions candidate sets by regime labels and governance class (dominance / robustness), and extracts per-bucket Pareto sets (no cross-regime mixing).
+- New deterministic atlas core: `analysis/regime_conditioned_atlas_v365.py` (stable JSON fingerprinting; feasibility gating: optimistic/robust/robust-only).
+- UI wiring: **📈 Pareto Lab** deck adds **🧭 Regime-Conditioned Pareto Atlas 2.0** with record uploader, bucket tables, per-bucket Pareto tables, and evidence-pack ZIP export.
+- Evidence pack includes per-file SHA-256 manifest.
+
+## v364.0 — PROCESS Benchmark & Parity Harness 3.0
+
+- Added a deterministic benchmark case library (synthetic templates) for parity workflows.
+- Implemented a parity runner that evaluates cases through the frozen evaluator and emits run artifacts.
+- Added optional PROCESS intent-mapping + delta dossier generation (user-supplied PROCESS outputs).
+- Added Streamlit System Suite tab: 🆚 Benchmark & Parity Harness 3.0 (fully wired, no phantom features).
+
+## v363.0 — Optimizer-Ready Campaign Pack
+
+- Adds **Campaign Pack (Optimizer-Ready)**: deterministic campaign specifications and bundle exports for external optimizers.
+- New campaign modules:
+  - `src/campaign/spec.py` (schema + validation)
+  - `src/campaign/generate.py` (deterministic grid/LHS/low-discrepancy generation)
+  - `src/campaign/export.py` (single ZIP export: candidates + assumptions + fingerprints + bundle manifest)
+  - `src/campaign/eval.py` (deterministic batch evaluation producing evidence per candidate)
+  - `src/campaign/cli.py` (minimal export/eval CLI)
+- UI wiring: **🧰 System Suite** gains a new tab **🚀 Campaign Pack** (scope card; export + local eval; no auto-expansion).
+- Governance: campaign exports include evaluator label, fixed-input assumptions, and Profile Contracts v362 fingerprint.
+
+## v362.0 — Profile Contracts 2.0
+
+- Adds **Profile Contracts 2.0**: a deterministic, finite-corner robustness screen over v358 profile-family knobs.
+- New contract: `contracts/profile_contracts_v362_contract.json` (SHA-256 fingerprinted).
+- New evaluator overlay: `src/analysis/profile_contracts_v362.py` producing:
+  - optimistic_feasible vs robust_feasible,
+  - MIRAGE flag (optimistic feasible but robust infeasible),
+  - worst-corner min-margin summary,
+  - per-corner constraint ledgers (hard/soft classification preserved).
+- UI wiring: **🧰 System Suite** gains a new tab **📜 Profile Contracts 2.0** (scope card, no auto-expansion), plus deterministic ZIP export.
+- Authority registry: adds `plasma.profile_contracts` (governance overlay; no truth modification).
+
+## v361.0 — Engineering Actuator Limits Authority
+
+- Adds explicit actuator-capacity constraints in the canonical constraints ledger (group: actuators) for:
+  - Aux+CD wallplug electric draw cap (P_aux_total_el_MW ≤ P_aux_max_MW).
+  - Current-drive installed capacity to meet NI target (P_cd_required_MW ≤ Pcd_max_MW).
+  - PF envelope caps (I_peak, V_peak, P_peak, dI/dt, and pulse energy) when finite *_max caps are provided.
+  - CS loop-voltage ramp cap (cs_V_loop_ramp_V ≤ cs_V_loop_max_V).
+  - Optional peak power-supply cap: P_supply_peak_MW ≤ P_supply_peak_max_MW.
+- Adds actuator authority contract: control.actuators (semi-authoritative) and dominance classification label ACTUATORS.
+- Frozen evaluator remains algebraic: no solvers, no iteration; limits gate feasibility only when caps are finite.
+
+## v360.0 — Plant Economics Authority 1.0
+
+- Added deterministic plant economics authority (optional, OFF by default): CAPEX+Replacement+OPEX decomposition into availability-coupled LCOE proxy.
+- New auditable OPEX breakdown outputs (recirc electricity, cryo wall-plug electricity, CD wall-plug electricity, tritium processing, maintenance, fixed OPEX).
+- New optional feasibility caps (NaN disables): OPEX_max_MUSD_per_y and LCOE_max_USD_per_MWh applied to v360 outputs when enabled.
+- Added contract fingerprinting: economics_v360_contract_sha256.
+
+## v359.1 — Compare Session Slots Interop Hotfix
+
+- Added session-based Compare Slot A/B interop: Point Designer can send the current run directly to Compare without file download/upload.
+- Compare tab now supports session slots with metadata, download/clear controls, and optional upload-to-slot promotion.
+- Added compare slot keys to UI cache invalidation to prevent stale cross-run confusion.
+
+## v359.0 — Availability & Replacement Ledger Authority
+
+- Added deterministic availability + replacement ledger overlay (planned/forced baselines + replacement downtime) (optional).
+- Added v359 LCOE proxy output and optional caps (NaN disables) without modifying existing parity/economics outputs.
+- Added contract fingerprinting for the v359 ledger authority.
+
+## v358.0 — Profile Family Library Authority
+
+- Added deterministic profile family library (transport proxy) with bounded confinement/bootstrap multipliers.
+- Integrated profile family multipliers into confinement time (tauE) reporting and profile-bundle bootstrap proxy.
+- UI: Point Designer includes a new "🧬 Profile family library (v358)" expander.
+- Added contract fingerprint: profile_family_contract_sha256.
+
+## v357.0 — Current Drive Library Expansion Authority (Channel Caps)
+
+- Expanded **Current Drive / NI closure authority** with a deterministic channel-aware library: `cd_model=channel_library_v357`.
+- New channel diagnostics (auditable outputs):
+  - LHCD: declared n∥ and accessibility margins (contracted window + density ceiling proxy).
+  - ECCD: launcher power density P_cd/A and declared launch factor.
+  - NBI: shine-through fraction proxy and beam energy.
+- New authority: `src/analysis/cd_library_v357_authority.py` + contract `contracts/cd_library_v357_contract.json` (SHA-256 fingerprinted).
+- Optional hard feasibility caps (NaN disables) surfaced to the constraint ledger: LHCD n∥ bounds, ECCD launcher power density max, NBI shine-through max.
+- UI wiring: **Engineering & plant feasibility** now exposes NI closure toggles and v357 channel knobs (deck-safe, no phantom features).
+- Hygiene + manifests regenerated; version bumped.
+
+## v356.0 — Cost Overlay Authority (CAPEX Cap)
+
+- Added deterministic component CAPEX proxy and an optional hard cap (diagnostic feasibility screen).
+- UI wiring: Engineering & plant feasibility adds CAPEX proxy controls.
+- Manifests regenerated; hygiene enforced.
+
+## v355.0 — Licensing Evidence Tier 2
+
+- Added **Licensing Evidence Tier 2 (v355)** deterministic pack builder (schema v3): `tools/licensing_pack_v355.py`.
+- Tier 2 pack adds: full contract fingerprint registry, authority audit snapshot, replay payload, optional regime transitions and v352 certification (when present).
+- UI wiring: Publication Benchmarks now includes **Evidence exports** with both reviewer/regulator packs (v334) and Licensing Tier 2 (v355).
+- Manifests regenerated; hygiene enforced.
+
+## v354.0 — Scenario Templates (Industrial Use)
+
+- Added industrial intent scenario templates (Pilot plant / Grid baseload / Compact HTS / Neutron source) as deterministic Point Designer presets.
+- Added scenario JSON library under `scenarios/industrial_v354/` and a loader at `tools/industrial_scenario_templates_v354.py`.
+- UI: new Point Designer control expander to preview and load templates (no solvers, no optimization).
+- Hygiene: manifests regenerated.
+
+# v353.0 — Regime Transition Detector
+
+- Added **Regime Transition Detector (v353)** as a deterministic post-processing layer over the last Point Designer artifact.
+- New module: `src/analysis/regime_transition_detector_v353.py` producing regime labels + near-boundary flags (no solvers, no iteration).
+- Artifact integration: `regime_transitions` report + compact `tables.regimes` payload.
+- UI: **🧰 System Suite** adds a new tab **🧭 Regime Transitions** (read-only, deck-safe).
+- Manifests regenerated; version bumped.
+
+# v352.0 — Robust Design Envelope Certification
+
+- Added **Robust Design Envelope Certification (v352)** as a deterministic, budgeted governance layer over explicit candidate sets.
+- New module: `src/certification/robust_envelope_v352.py` with tiering (A/B/C) based on worst hard margin under robust UQ corners.
+- New contract: `contracts/robust_envelope_certification_contract.json` (fingerprintable, reviewer-safe).
+- UI: new deck in **🧪 Trade Study Studio** with evidence ZIP download (report + optional corners).
+- Hygiene and manifests regenerated.
+
+## v351.0 — Multi-Objective Feasible Frontier Atlas
+
+**Authority objective**: provide a descriptive, deterministic atlas over evaluated point sets: feasible envelope, robust envelope, mirage set, and empty-region maps.
+
+What’s new:
+- Trade Study Studio adds a new deck: **🗺️ Multi-Objective Feasible Frontier Atlas (v351)**.
+- Feasible-only Pareto extraction for up to 4 objectives (no optimization; nondominated filtering only).
+- Optional two-lane classification on the Pareto subset (budgeted): optimistic vs robust uncertainty contracts.
+- Empty-region detection via deterministic 2D binning with downloadable atlas JSON.
+- New module: `src/atlas/frontier_atlas_v351.py` (deterministic atlas utilities).
+
+## v350.0 — Tritium & Fuel Cycle Tight Closure
+
+**Authority objective**: provide a deterministic, algebraic fuel-cycle ledger that tightens tritium closure without any time-domain simulation or iteration.
+
+What’s new:
+- New contract: `contracts/tritium_fuelcycle_tight_closure_contract.json` (SHA-256 stamped).
+- New inputs (optional; off by default): `include_tritium_tight_closure`, processing delay, inventory caps, loss fraction, and self-sufficiency margin.
+- New outputs: burn throughput, reserve/in-vessel/total inventory proxies, effective TBR after losses, and self-sufficiency margins.
+- New constraints (optional): in-vessel and total inventory caps; effective-TBR self-sufficiency requirement.
+- UI: Point Designer → Engineering & plant feasibility adds a Fuel-cycle section (deck-compliant, no auto-expansion).
+
+## v349.0 — Bootstrap & Pressure Self-Consistency Authority
+
+**Authority objective**: enforce optional algebraic consistency between bootstrap fraction and pressure/beta regime proxies (no iteration).
+
+(Release notes were missing in this file in prior baselines; added for continuity.)
+
+## v346.0 — Current Drive Technology Regimes (CD-Tech Authority)
+
+## v348.0 — Edge–Core Coupled Exhaust Authority
+
+**Authority objective**: provide a deterministic, one-pass coupling between detachment-required SOL+divertor radiation and an inferred increment in core/edge radiation that reduces effective SOL power, then re-evaluates exhaust proxies **without any iteration**.
+
+What’s new:
+- **New authority switch**: `include_edge_core_coupled_exhaust` (default: off; no behavior change unless enabled).
+- **Coupling knob**: `edge_core_coupling_chi_core` ∈ [0,1] maps required SOL+div radiation to additional core radiation: ΔP_rad,core = χ_core · P_rad,sol+div,req.
+- **Optional cap**: `f_rad_core_edge_core_max` limits the coupled radiative fraction (screening constraint + contract cap).
+- **New outputs** (when enabled): `P_SOL_edge_core_MW`, `edge_core_coupling_delta_Prad_core_MW`, `f_rad_core_edge_core`, plus `*_base` backups for divertor proxies.
+- **UI wiring**: controls added under Impurity radiation & detachment authority panel (Streamlit deck, no auto-expansion).
+- **Hygiene**: removed stray launcher under `examples/`, removed macOS `._*` artifact; added ignore rule.
+## v347.0 — Non-Inductive Closure Authority (NI-Closure)
+
+- Added deterministic NI closure authority (current balance + auxiliary electric power cap), contract-governed with SHA-256 fingerprint.
+- New contract: `contracts/ni_closure_authority_contract.json`
+- New analysis: `src/analysis/ni_closure_authority.py` (+ `analysis/` mirror)
+- Evaluator stamps NI closure regime, fragility, min margin, and top limiter (failure-safe).
+- UI: Physics Deepening adds “Non-Inductive Closure Authority” panel with expandable margins table.
+
+
+
+- Added deterministic Current Drive Technology Authority with explicit CD actuator regimes (ECCD/LHCD/NBI/ICRF) and conservative envelopes on CD efficiency (A/W), wall-plug proxy, CD plant power fraction, and LHCD density accessibility proxy where available.
+- Added governance contract `cd_tech_authority_contract.json` with SHA-256 fingerprint stamping into artifacts (`cd_contract_sha256`).
+- UI: added Physics Deepening deck "Current Drive Tech Authority" (verdict-first, expandable margins table).
+
+## v344.0 — Authority Contract Studio & Governance Validator 2.0
+
+## v345.0 — Current Profile Proxy Authority (Bootstrap / CD / q-profile plausibility)
+
+- Added deterministic Current Profile Proxy Authority (contract-governed): bootstrap fraction proxy bounds, q-profile proxy caps, CD feasibility proxies, NI consistency margin.
+- Added `current_profile_proxy_authority_contract.json` with SHA-256 stamping in outputs.
+- UI: Point Designer → Physics Deepening adds “Current Profile & Current Drive” diagnostics with expandable margin table.
+- Hygiene + manifests regenerated.
+
+
+- Added Contract Studio UI (Publication Benchmarks) to browse, validate, diff, and export governance contracts.
+- Added deterministic contract validator with canonical JSON SHA-256 hashing and combined contracts fingerprint.
+- Artifacts now include `contracts_used` and `contracts_fingerprint_sha256` derived from emitted `*_contract_sha256` keys.
+
+## v343.0 — Interval Narrowing & Repair Contracts
+
+- Added deterministic interval narrowing analysis (explanatory-only): flags dead regions (bins with zero PASS) and proposes advisory narrowed intervals from evaluated candidate sets.
+- New module: `src/solvers/interval_narrowing.py` with evidence schema `interval_narrowing_evidence.v1` and governance artifact `repair_contract.v1`.
+- UI: added Chronicle tab **Interval Narrowing** (read-only) with one-click evidence-pack export and repair_contract.json download: `ui/interval_narrowing.py`.
+- Governance: added `contracts/repair_contract.json` (default contract template).
+- Version bump to 343.0; manifests regenerated; hygiene enforced.
+
+## v342.0 — External Optimizer Co-Pilot
+
+- Added External Optimizer Co-Pilot (firewalled, interpretation-only orchestration): evaluate external candidate sets, write deterministic run folders, and export candidate dossiers.
+- New module: `src/extopt/copilot.py` writes `optimizer_trace.json`, `interpretation_report.json`, `RUN_MANIFEST_SHA256.json`, and optional per-candidate evidence packs.
+- UI: new Pareto Lab deck **🧭 External Optimizer Co-Pilot** (`ui/extopt_copilot.py`) for upload → batch evaluation → attrition narrative review → deterministic downloads.
+- Version bump to 342.0; manifests regenerated; hygiene enforced.
+
+## v341.0 — Feasible-first Surrogate Acceleration (Certified Search)
+
+- Added a non-authoritative feasible-first surrogate stage to Certified Search Orchestrator (still external to frozen truth).
+- UI: Certified Search now supports inserting a surrogate stage with explicit controls (budget fraction, pool multiplier, kappa, ridge alpha).
+- Evidence: verifier now stamps `min_margin_frac` + `worst_hard` to support deterministic feasibility proxy training.
+- Governance: added `contracts/feasible_first_surrogate_contract.json`; version bump to 341.0; manifests regenerated; hygiene enforced.
+
+## v340.0 — Certified Search Orchestrator 2.0
+
+- Upgraded Certified Search into a deterministic multi-stage orchestrator (external to frozen truth): `solvers/certified_search_orchestrator.py`.
+- Added deterministic Halton sampler option (no external dependencies) and surfaced in UI (`lhs | grid | halton`).
+- UI: Certified Search now supports optional two-stage local refinement; results are shown in an expandable table.
+- Governance: added `contracts/certified_search_orchestrator_contract.json`; version bump to 340.0; manifests regenerated; hygiene enforced.
+
+## v339.0 — Plasma–Engineering Coupling Narratives (Deterministic)
+
+- Added deterministic coupling narrative engine (post-processing only): flags + reviewer-safe narratives derived from authority dominance, regime labels, and margins.
+- UI: added *Coupling Narratives* sub-deck under 🧬 Physics Deepening (Point Designer) with expandable narratives.
+- Governance: version bump to 339.0; manifests regenerated; hygiene enforced.
+
+## v338.0 — Neutronics & Materials Authority Tightening
+
+- Added deterministic neutronics/materials authority contract: `contracts/neutronics_materials_authority_contract.json`
+- Added classifier with signed margins and regime labels (no solvers): `src/analysis/neutronics_materials.py`
+- Evaluator now stamps neutronics/materials regime outputs + contract hash.
+- UI: Neutronics deck now shows regime + fragility + min margin.
+- README enforced to canonical text.
+
+## v337.0 — Impurity Species & Radiation Partition Authority
+
+- Added `contracts/impurity_radiation_authority_contract.json` (deterministic thresholds, hash-stamped).
+- Added truth-safe contract loader and classifier (`src/contracts/impurity_radiation_authority_contract.py`, `src/analysis/impurity_radiation.py`).
+- Evaluator stamps impurity regime, species, fragility, and signed fractional margins (no solvers, no iteration).
+- UI: Physics Deepening now shows Impurity/Radiation regime block adjacent to Plasma regime.
+
+# v336.0 — Plasma Regime Authority (Deterministic Regimes & Margins)
+
+- Added plasma regime authority contract: `contracts/plasma_regime_authority_contract.json` (versioned, hashable).
+- Added deterministic regime classifier: `src/analysis/plasma_regime.py` producing:
+  - confinement + burn regime labels,
+  - signed fractional margins for H-mode access, Greenwald fraction, q95, betaN, and burn (M_ign_total),
+  - min margin + fragility class.
+- hot_ion evaluator now stamps: `plasma_regime`, `burn_regime`, `plasma_*_margin_frac`, and `plasma_contract_sha256`.
+- UI: Point Designer → ⚡ Mission Snapshot → 🧬 Physics Deepening → "Regime & Confinement" now shows Plasma Regime Authority summary.
+
+No solvers, no iteration, no hidden relaxation; classification is read-only and truth-safe.
+
+---
+
+# v335.0 — Control & Stability Authority Hardening (Contracted Caps)
+
+- Added deterministic control stability contract: contracts/control_stability_authority_contract.json
+- Control contracts now accept contract-provided defaults for optional caps (no input mutation; truth-safe).
+- hot_ion evaluator stamps control_contract_sha256 for reviewer packs.
+- README.md synchronized to canonical project doctrine text.
+
+---
+
+# v334.0 — Licensing-Grade Regulatory & Reviewer Evidence Packs
+
+- Upgrades evidence packs to schema v2 with strict required sections and pack-level `PACK_MANIFEST.json` (SHA-256 + metadata + contract fingerprints).
+- Adds deterministic pack validator (UI + CLI): detects missing sections, hash mismatches, and schema violations (fails fast; no silent omissions).
+- Adds publication-ready exports inside the pack: canonical CSV tables + a deterministic PDF summary report (static; no interactive dependencies).
+- Adds batch pack builder support (multi-artifact packs) without modifying truth.
+
+README remains pinned to canonical SHAMS doctrine text.
+
+---
+
+# v333.0 — Regulatory & Reviewer Evidence Packs
+
+- Adds one-click deterministic Regulatory/Reviewer Evidence Pack ZIP export (CSV+JSON+contracts+SHA-256 manifest).
+- New UI panel: 📚 Publication Benchmarks → 🧾 Regulatory Evidence Packs.
+- README pinned to canonical SHAMS doctrine text.
+
+---
+
+## v332.1 — UI Determinism & Systems Solve Robustness Hotfix
+
+- Fixed Streamlit widget ID collisions in **Phase Envelopes** and **Uncertainty Contracts** by adding deterministic `ui_key_prefix` keys (prevents "multiple ... elements with the same auto-generated ID" errors when panels are rendered in multiple UI contexts).
+- Hardened **Systems Mode** solver knob persistence:
+  - `systems_max_iter` is now seeded in session state on first entry and the Max Iterations control is keyed, preventing `NameError: max_iter is not defined` on first-run/rerun edge cases.
+- Performance: cached Evaluator construction via `st.cache_resource` inside `_dsg_evaluator`, reducing UI latency on reruns/tab switches.
+
+No changes to frozen truth physics semantics.
+
+---
+
 ## v332.0 — Design Family Narratives
 
 **Governance upgrade:** deterministic, interpretable **design-family clustering** over evaluated designs, replacing “best point” thinking with regime- and mechanism-based families.

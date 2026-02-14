@@ -291,7 +291,13 @@ def _dsg_evaluator(*, origin: str = "UI", **evaluator_kwargs: Any):
     except Exception:
         from evaluator.core import Evaluator  # type: ignore
 
-    ev = Evaluator(**evaluator_kwargs)
+    # Evaluator construction can be expensive. Cache the base evaluator instance deterministically
+    # so UI reruns (tab switches, widget edits) do not rebuild heavy objects.
+    @st.cache_resource(show_spinner=False)
+    def _cached_evaluator(**kwargs: Any):
+        return Evaluator(**kwargs)
+
+    ev = _cached_evaluator(**evaluator_kwargs)
 
     class _Wrap:
         def __init__(self, _ev: Any, _origin: str):
@@ -450,6 +456,8 @@ def _invalidate_mode_caches(reason: str = "") -> None:
             "opt_last_run_id","opt_last_meta","opt_last_records","opt_last_best",
             # Publication Benchmarks UI caches
             "pb_last_pack","pb_last_delta","pb_last_topology",
+            # Compare
+            "cmp_slot_A","cmp_slot_B","cmp_slot_A_meta","cmp_slot_B_meta",
         ]
         for k in keys:
             st.session_state.pop(k, None)
@@ -830,6 +838,8 @@ PD_KEYS = {
     "profile_shear_shape": "pd_profile_shear_shape",
     "pedestal_enabled": "pd_pedestal_enabled",
     "pedestal_width_a": "pd_pedestal_width_a",
+    "include_bootstrap_pressure_selfconsistency": "pd_include_bootstrap_pressure_selfconsistency",
+    "f_bootstrap_consistency_abs_max": "pd_f_bootstrap_consistency_abs_max",
 }
 
 
@@ -893,6 +903,8 @@ def _push_point_inputs_to_pd_widget_keys(base: Any) -> None:
         st.session_state[PD_KEYS["profile_shear_shape"]] = float(getattr(base, "profile_shear_shape", 0.5))
         st.session_state[PD_KEYS["pedestal_enabled"]] = bool(getattr(base, "pedestal_enabled", False))
         st.session_state[PD_KEYS["pedestal_width_a"]] = float(getattr(base, "pedestal_width_a", 0.05))
+        st.session_state[PD_KEYS["include_bootstrap_pressure_selfconsistency"]] = bool(getattr(base, "include_bootstrap_pressure_selfconsistency", False))
+        st.session_state[PD_KEYS["f_bootstrap_consistency_abs_max"]] = float(getattr(base, "f_bootstrap_consistency_abs_max", float("nan")))
     except Exception:
         pass
     try:
@@ -1833,7 +1845,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                         ok_ext = True
                         if sol_out["ne20"] > 1.2:
                             ok_ext = False
-                        if sol_out.get("q95_proxy", 1e9) < spec["q95_min"]:
+                        if sol_out.get('q95_proxy', 1e9) < spec["q95_min"]:
                             ok_ext = False
                         if sol_out.get("betaN_proxy", 0.0) > spec["betaN_max"]:
                             ok_ext = False
@@ -2637,13 +2649,17 @@ with tab_systemsuite:
             ops_availability_overlay = None  # type: ignore
             thermal_network_diagnostics_client = None  # type: ignore
 
-        t_closure, t_auth, t_ops, t_traj, t_life, t_phase, t_uq = st.tabs([
+        t_closure, t_auth, t_ops, t_traj, t_life, t_phase, t_regimes, t_prof, t_campaign, t_parity, t_uq = st.tabs([
             "🧮 Closure Ledger",
             "🔐 Authority Vault",
             "🔥 Ops & Thermal",
             "⏱️ Trajectory Lab",
             "🧬 Lifetime & Fuel",
             "🗺️ Phase Envelopes",
+            "🧭 Regime Transitions",
+            "📜 Profile Contracts 2.0",
+            "🚀 Campaign Pack",
+            "🆚 Benchmark & Parity Harness 3.0",
             "🛡️ Uncertainty Contracts",
         ])
 
@@ -2781,16 +2797,200 @@ with tab_systemsuite:
             st.caption("Outer-loop quasi-static phases evaluated against the frozen truth. Worst-phase determines verdict.")
             try:
                 from ui.phase_envelopes import render_phase_envelopes_panel
-                render_phase_envelopes_panel(REPO_ROOT, point_artifact=_point_art if isinstance(_point_art, dict) else None)
+                render_phase_envelopes_panel(
+                    REPO_ROOT,
+                    point_artifact=_point_art if isinstance(_point_art, dict) else None,
+                    ui_key_prefix="pd_phase_env",
+                )
             except Exception as _e:
                 st.error(f"Phase Envelopes panel import failed: {_e}")
+
+        with t_regimes:
+            st.subheader("Regime Transitions")
+            st.caption("Deterministic labels and near-boundary flags derived from the last Point Designer artifact. Read-only.")
+
+            _rt = None
+            if isinstance(_point_art, dict):
+                _rt = _point_art.get("regime_transitions")
+            if not isinstance(_rt, dict):
+                try:
+                    from src.analysis.regime_transition_detector_v353 import evaluate_regime_transitions
+                except Exception:
+                    try:
+                        from analysis.regime_transition_detector_v353 import evaluate_regime_transitions  # type: ignore
+                    except Exception:
+                        evaluate_regime_transitions = None  # type: ignore
+                if evaluate_regime_transitions is not None:
+                    try:
+                        _rt = evaluate_regime_transitions(
+                            inputs=_point_inp if isinstance(_point_inp, dict) else {},
+                            outputs=_point_out if isinstance(_point_out, dict) else {},
+                        )
+                    except Exception:
+                        _rt = None
+
+            if not isinstance(_rt, dict):
+                st.warning("Regime transition detector unavailable.")
+            else:
+                st.info(str(_rt.get("regime_summary", "")) or "")
+                labels = _rt.get("labels", {}) if isinstance(_rt.get("labels"), dict) else {}
+                c1, c2, c3, c4, c5 = st.columns(5)
+                c1.metric("Confinement", str(labels.get("confinement_regime", "-")))
+                c2.metric("Exhaust", str(labels.get("exhaust_regime", "-")))
+                c3.metric("Magnet", str(labels.get("magnet_regime", "-")))
+                c4.metric("Greenwald", str(labels.get("greenwald_state", "-")))
+                c5.metric("βN", str(labels.get("betaN_state", "-")))
+
+                with st.expander("Near-boundary flags", expanded=False):
+                    st.json(_rt.get("near_boundaries", []), expanded=False)
+                with st.expander("Detector context", expanded=False):
+                    st.json(_rt.get("context", {}), expanded=False)
+
+        with t_prof:
+            st.subheader("Profile Contracts 2.0")
+            st.caption("Robust vs optimistic feasibility under certified profile/transport envelopes (finite corners).")
+            render_mode_scope("profile_contracts")
+
+            try:
+                from src.analysis.profile_contracts_v362 import evaluate_profile_contracts_v362
+            except Exception:
+                try:
+                    from analysis.profile_contracts_v362 import evaluate_profile_contracts_v362  # type: ignore
+                except Exception:
+                    evaluate_profile_contracts_v362 = None  # type: ignore
+
+            if evaluate_profile_contracts_v362 is None:
+                st.error("Profile Contracts module unavailable.")
+            elif not isinstance(_point_inp, dict):
+                st.info("Run **Point Designer** first (inputs required).")
+            else:
+                try:
+                    from src.models.inputs import PointInputs
+                except Exception:
+                    from models.inputs import PointInputs  # type: ignore
+
+                c1, c2, c3 = st.columns(3)
+                preset = c1.selectbox("Corner preset", ["C8", "C16", "C32"], index=0, key="pc_preset_v362")
+                tier = c2.selectbox("Contract tier", ["both", "optimistic", "robust"], index=0, key="pc_tier_v362")
+                include_disabled = c3.checkbox(
+                    "Force-enable v358 profile family", value=False, key="pc_force_enable_v358_v362"
+                )
+
+                st.caption("Tip: robust-feasible implies envelope-certified; optimistic-feasible but robust-infeasible is a MIRAGE.")
+
+                run_btn = st.button("Run Profile Contracts", key="pc_run_v362")
+                if run_btn:
+                    # Ensure profile family library is active if user requests.
+                    d = dict(_point_inp)
+                    if include_disabled:
+                        d["include_profile_family_v358"] = True
+                    inp = PointInputs.from_dict(d)
+                    rep = evaluate_profile_contracts_v362(inp, preset=str(preset), tier=str(tier))
+                    rep_d = rep.to_dict()
+                    st.session_state["profile_contracts_v362_last"] = rep_d
+
+                rep_d = st.session_state.get("profile_contracts_v362_last", None)
+                if isinstance(rep_d, dict):
+                    v_rob = bool(rep_d.get("robust_feasible"))
+                    v_opt = bool(rep_d.get("optimistic_feasible"))
+                    mir = bool(rep_d.get("mirage"))
+
+                    k1, k2, k3, k4 = st.columns(4)
+                    k1.metric("Optimistic feasible", "YES" if v_opt else "NO")
+                    k2.metric("Robust feasible", "YES" if v_rob else "NO")
+                    k3.metric("MIRAGE", "YES" if mir else "NO")
+                    k4.metric("Corners", str(rep_d.get("corner_count", "-")))
+
+                    st.caption(f"Contract SHA-256: {str(rep_d.get('contract_sha256',''))[:12]}… | Run fingerprint: {str(rep_d.get('run_fingerprint_sha256',''))[:12]}…")
+
+                    with st.expander("Summary", expanded=False):
+                        st.json(rep_d.get("summary", {}), expanded=False)
+
+                    with st.expander("Corners (expandable)", expanded=False):
+                        # Light table: omit heavy constraints payload by default.
+                        rows = []
+                        for c in rep_d.get("corners", []) or []:
+                            if not isinstance(c, dict):
+                                continue
+                            rows.append({
+                                "tier": c.get("tier"),
+                                "corner": c.get("corner_index"),
+                                "hard_feasible": c.get("hard_feasible"),
+                                "min_margin_frac": c.get("min_margin_frac"),
+                                **{f"ax_{k}": v for k, v in (c.get("axes") or {}).items()},
+                            })
+                        try:
+                            st.dataframe(rows, use_container_width=True)
+                        except Exception:
+                            st.json(rows, expanded=False)
+
+                    with st.expander("Full report JSON", expanded=False):
+                        st.json(rep_d, expanded=False)
+
+                    # Optional ZIP export (deterministic)
+                    try:
+                        from tools.profile_contracts_v362 import export_profile_contracts_zip
+                        from pathlib import Path
+                        import tempfile
+                        if st.button("Export Profile Contracts ZIP", key="pc_export_zip_v362"):
+                            td = Path(tempfile.gettempdir()) / "shams_profile_contracts"
+                            td.mkdir(parents=True, exist_ok=True)
+                            out_zip = td / "profile_contracts_v362_report.zip"
+                            export_profile_contracts_zip(rep_d, out_zip)
+                            st.download_button(
+                                "Download ZIP",
+                                data=out_zip.read_bytes(),
+                                file_name="profile_contracts_v362_report.zip",
+                                mime="application/zip",
+                                key="pc_dl_zip_v362",
+                            )
+                    except Exception:
+                        pass
+
+        with t_campaign:
+            st.subheader("Campaign Pack")
+            st.caption("Deterministic campaign exports for external optimizers (firewalled).")
+            render_mode_scope("campaign_pack")
+
+            try:
+                from tools.campaign_pack_v363 import render_campaign_pack_panel
+            except Exception as _e:
+                render_campaign_pack_panel = None  # type: ignore
+                st.error(f"Campaign Pack import failed: {_e}")
+
+            if render_campaign_pack_panel is None:
+                st.info("Campaign Pack panel unavailable.")
+            else:
+                render_campaign_pack_panel(
+                    repo_root=REPO_ROOT,
+                    point_inputs=_point_inp if isinstance(_point_inp, dict) else None,
+                )
+
+
+        with t_parity:
+            st.subheader("Benchmark & Parity Harness 3.0")
+            st.caption("Deterministic parity study harness. PROCESS results are optional user-supplied references.")
+            render_mode_scope("parity_harness")
+            try:
+                from tools.benchmark_parity_harness_v364 import render_benchmark_parity_harness_v364
+            except Exception as _e:
+                render_benchmark_parity_harness_v364 = None  # type: ignore
+                st.warning(f"Parity harness unavailable: {_e}")
+            if render_benchmark_parity_harness_v364 is None:
+                st.info("Parity harness module not available.")
+            else:
+                render_benchmark_parity_harness_v364()
 
         with t_uq:
             st.subheader("Uncertainty Contracts")
             st.caption("Outer-loop deterministic interval corners (2^N). Verdict: ROBUST_PASS / FRAGILE / FAIL.")
             try:
                 from ui.uncertainty_contracts import render_uncertainty_contracts_panel
-                render_uncertainty_contracts_panel(REPO_ROOT, point_artifact=_point_art if isinstance(_point_art, dict) else None)
+                render_uncertainty_contracts_panel(
+                    REPO_ROOT,
+                    point_artifact=_point_art if isinstance(_point_art, dict) else None,
+                    ui_key_prefix="pd_uq_contracts",
+                )
             except Exception as _e:
                 st.error(f"Uncertainty Contracts panel import failed: {_e}")
 
@@ -2801,7 +3001,7 @@ with tab_pubbench:
     st.header(" Benchmarks")
     st.caption("Benchmark suite: publication tables and the Tokamak Constitutional Atlas (preset-driven, intent-aware).")
 
-    _pb_tabs = st.tabs(["🗺️ Tokamak Constitutional Atlas", "🧭 Cross‑Code Constitutions", "📦 Publication Benchmarks"])
+    _pb_tabs = st.tabs(["🗺️ Tokamak Constitutional Atlas", "🧭 Cross‑Code Constitutions", "📦 Publication Benchmarks", "🧾 Contract Studio"])
     with _pb_tabs[0]:
         st.subheader("🗺️ Tokamak Constitutional Atlas")
         st.caption("Select a famous tokamak preset and evaluate under **Research** or **Reactor** intent. No tuning. Deterministic, reviewer-safe.")
@@ -2906,6 +3106,13 @@ with tab_pubbench:
                         _ac = (_art.get("authority_confidence") or {}) if isinstance(_art, dict) else {}
                         _dc = str((_ac.get("design") or {}).get("design_confidence_class", "UNKNOWN"))
                         st.markdown(f"**Design confidence:** `{_dc}`")
+
+                        # v366.0: multi-fidelity tier stamp (reviewer-facing)
+                        _ft = (_art.get("fidelity_tiers") or {}) if isinstance(_art, dict) else {}
+                        _fl = str((_ft.get("design") or {}).get("design_fidelity_label", ""))
+                        if _fl:
+                            st.markdown(f"**Fidelity tier:** `{_fl}`")
+
                         _dcon = (_art.get("decision_consequences") or {}) if isinstance(_art, dict) else {}
                         _post = str(_dcon.get("decision_posture", "UNKNOWN"))
                         _risk = str(_dcon.get("primary_risk_driver", "") or "")
@@ -3181,6 +3388,38 @@ with _pb_tabs[2]:
                         st.warning(f"Delta tools unavailable: {e}")
 
             st.caption("Exploration happens elsewhere in the UI. Evidence is generated here.")
+
+            st.divider()
+            st.markdown("### Evidence exports")
+            st.caption("Generate reviewer/regulator and licensing packs from the current session artifact (read-only).")
+
+            with st.expander("🧾 Regulatory & Reviewer Evidence Packs (v334)", expanded=False):
+                try:
+                    from ui.regulatory_evidence_pack import render_regulatory_evidence_pack_panel
+                    render_regulatory_evidence_pack_panel(REPO_ROOT)
+                except Exception as _e:
+                    st.error(f"Regulatory evidence pack panel import failed: {_e}")
+
+            with st.expander("🏛️ Licensing Evidence Tier 2 (v355)", expanded=False):
+                try:
+                    from ui.licensing_evidence_tier2 import render_licensing_evidence_tier2_panel
+                    render_licensing_evidence_tier2_panel(REPO_ROOT)
+                except Exception as _e:
+                    st.error(f"Licensing Tier 2 panel import failed: {_e}")
+
+with _pb_tabs[3]:
+    st.subheader("🧾 Contract Studio")
+    st.caption("Validate and export governance contracts (read-only).")
+    try:
+        from ui.contract_studio import render_contract_studio
+        from pathlib import Path
+        _repo_root = Path(__file__).resolve().parents[1]
+        render_contract_studio(_repo_root, ui_key_prefix="pb_contract_studio")
+    except Exception as e:
+        try:
+            st.error(f"Contract Studio import failed: {e}")
+        except Exception:
+            pass
 
 with tab_control_room:
     st.header("🛡️ Control Room")
@@ -3475,12 +3714,13 @@ This panel also performs a lightweight hygiene scan of the working tree.
     with deck_chron:
         st.subheader("Chronicle")
         st.caption("Expert instruments and exploration aids (read-only; never modifies truth).")
-        ch_reg, ch_sens, ch_knobs, ch_fmap, ch_mat, ch_prof, ch_imp, ch_disr, ch_stab, ch_solve, ch_repair, ch_refine, ch_surr, ch_al = st.tabs([
+        ch_reg, ch_sens, ch_knobs, ch_fmap, ch_mat, ch_maint, ch_prof, ch_imp, ch_disr, ch_stab, ch_solve, ch_repair, ch_refine, ch_narrow, ch_surr, ch_al = st.tabs([
             "Variable Registry",
             "Sensitivity Explorer",
             "Knob Trade-Space",
             "Feasibility Map",
             "Maturity Heatmap",
+            "Maintenance & Availability",
             "Profile Authority",
             "Impurity & Radiation",
             "Disruption Risk",
@@ -3488,6 +3728,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
             "Certified Search",
             "Repair Suggestions",
             "Interval Refinement",
+            "Interval Narrowing",
             "Surrogate Overlay",
             "Active Learning",
         ])
@@ -3496,6 +3737,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
         tab_knobs = ch_knobs
         tab_feasmap = ch_fmap
         tab_maturity = ch_mat
+        tab_maintenance = ch_maint
         tab_profile_auth = ch_prof
         tab_impurity = ch_imp
         tab_disruption = ch_disr
@@ -3503,6 +3745,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
         tab_cert_search = ch_solve
         tab_repair = ch_repair
         tab_refine = ch_refine
+        tab_narrowing = ch_narrow
         tab_surrogate = ch_surr
         tab_active_learning = ch_al
 
@@ -3736,13 +3979,21 @@ with tab_point:
         if _pd_deck == "🗺️ Phase Envelopes":
             try:
                 from ui.phase_envelopes import render_phase_envelopes_panel
-                render_phase_envelopes_panel(REPO_ROOT, point_artifact=_pd_art)
+                render_phase_envelopes_panel(
+                    REPO_ROOT,
+                    point_artifact=_pd_art,
+                    ui_key_prefix="truth_phase_env",
+                )
             except Exception as _e:
                 st.error(f"Phase Envelopes panel import failed: {_e}")
         else:
             try:
                 from ui.uncertainty_contracts import render_uncertainty_contracts_panel
-                render_uncertainty_contracts_panel(REPO_ROOT, point_artifact=_pd_art)
+                render_uncertainty_contracts_panel(
+                    REPO_ROOT,
+                    point_artifact=_pd_art,
+                    ui_key_prefix="truth_uq_contracts",
+                )
             except Exception as _e:
                 st.error(f"Uncertainty Contracts panel import failed: {_e}")
         st.stop()
@@ -3783,6 +4034,43 @@ with tab_point:
                 st.session_state.pop(k, None)
             st.rerun()
 
+with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
+    st.caption("Deterministic intent templates that set *PointInputs defaults* (no optimization, no solvers).")
+    try:
+        from tools.industrial_scenario_templates_v354 import template_names, get_template_payload, get_template
+        _tmpl_names = template_names()
+        _sel_tmpl = st.selectbox("Industrial scenario template", ["(select)"] + _tmpl_names, index=0, key="pd_industrial_template_v354")
+        if _sel_tmpl != "(select)":
+            _payload = get_template_payload(_sel_tmpl)
+            st.code(json.dumps(_payload, indent=2, sort_keys=True), language="json")
+            if st.button("📥 Load template into Point Designer", use_container_width=True, key="pd_load_industrial_template_btn_v354"):
+                # Clear prior outputs and set a new base point for widget defaults.
+                for k in [
+                    "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
+                    "last_point_out","last_point_inp","last_solver_log",
+                ]:
+                    st.session_state.pop(k, None)
+                _ov = get_template(_sel_tmpl)
+                try:
+                    _base = asdict(_base_pd) if _base_pd is not None else {}
+                    _base.update({k: v for k, v in _ov.items() if k in _base})
+                    st.session_state["last_point_inp"] = PointInputs(**_base)
+                except Exception:
+                    # Fallback: apply only required keys
+                    st.session_state["last_point_inp"] = PointInputs(**{**{
+                        "R0_m": float(_ov.get("R0_m", 1.81)),
+                        "a_m": float(_ov.get("a_m", 0.62)),
+                        "kappa": float(_ov.get("kappa", 1.8)),
+                        "Bt_T": float(_ov.get("Bt_T", 10.0)),
+                        "Ip_MA": float(_ov.get("Ip_MA", 8.0)),
+                        "Ti_keV": float(_ov.get("Ti_keV", 10.0)),
+                        "fG": float(_ov.get("fG", 0.8)),
+                        "Paux_MW": float(_ov.get("Paux_MW", 50.0)),
+                    }, **{k:v for k,v in _ov.items() if k not in ("R0_m","a_m","kappa","Bt_T","Ip_MA","Ti_keV","fG","Paux_MW")}})
+                st.session_state["pd_loaded_template_name"] = str(_sel_tmpl)
+                st.rerun()
+    except Exception as _e:
+        st.warning(f"Scenario template library unavailable: {_e}")
         with st.expander("Plasma & geometry", expanded=False):
             R0 = _num("Major radius R₀ (m)", float(_base_pd.R0_m), 0.01, help="Distance from tokamak centerline to plasma magnetic axis (major radius).", key=PD_KEYS["R0_m"])
             a = _num("Minor radius a (m)", float(_base_pd.a_m), 0.01, min_value=0.1, help="Plasma minor radius (a). Together with R₀ sets aspect ratio.", key=PD_KEYS["a_m"])
@@ -3862,6 +4150,7 @@ with tab_point:
             profile_peaking_T = _num("T peaking (alpha)", 1.5, 0.1, min_value=0.0, help="Parabolic/pedestal core peaking control for temperature.")
 
             # v318.0: 1.5D profile authority knobs (deterministic; no solvers)
+            # v318.0: 1.5D profile authority knobs (deterministic; no solvers)
             profile_mode = st.checkbox(
                 "Enable 1.5D profile authority diagnostics",
                 value=bool(getattr(_base_pd, "profile_mode", False)),
@@ -3872,6 +4161,51 @@ with tab_point:
                     "It only produces additional diagnostics and (bounded) bootstrap sensitivity when explicitly selected."
                 ),
             )
+
+            # -----------------------------------------------------------------
+            # v358.0: Profile Family Library Authority (transport proxy)
+            # -----------------------------------------------------------------
+            with st.expander("🧬 Profile family library (v358)", expanded=False):
+                include_profile_family_v358 = st.checkbox(
+                    "Enable profile family transport proxy",
+                    value=bool(getattr(_base_pd, "include_profile_family_v358", False)),
+                    help="Deterministic profile-family tags and shape multipliers. No solvers, no iteration.",
+                )
+                _pf_opts = ["CORE_FLAT","CORE_PEAKED","PEDESTAL_MODERATE","PEDESTAL_STRONG","HYBRID_CORE_PEAKED_PED"]
+                _pf_base = str(getattr(_base_pd, "profile_family_v358", "CORE_FLAT")).upper().replace(" ", "_")
+                _pf_idx = _pf_opts.index(_pf_base) if _pf_base in _pf_opts else 0
+                profile_family_v358 = st.selectbox(
+                    "Profile family",
+                    options=_pf_opts,
+                    index=_pf_idx,
+                    help="Certified profile narratives used to derive bounded shape factors.",
+                )
+                profile_family_pedestal_frac = st.slider(
+                    "Pedestal fraction (proxy)",
+                    min_value=0.0, max_value=0.40, value=float(getattr(_base_pd, "profile_family_pedestal_frac", 0.0)), step=0.01,
+                )
+                profile_family_peaking_p = st.slider(
+                    "Pressure peaking factor",
+                    min_value=0.70, max_value=2.00, value=float(getattr(_base_pd, "profile_family_peaking_p", 1.0)), step=0.01,
+                )
+                profile_family_peaking_j = st.slider(
+                    "Current peaking factor",
+                    min_value=0.70, max_value=2.00, value=float(getattr(_base_pd, "profile_family_peaking_j", 1.0)), step=0.01,
+                )
+                profile_family_shear_shape = st.slider(
+                    "Shear shape (0–1)",
+                    min_value=0.0, max_value=1.0, value=float(getattr(_base_pd, "profile_family_shear_shape", 0.5)), step=0.01,
+                )
+                profile_family_confinement_mult = st.slider(
+                    "Confinement multiplier (bounded)",
+                    min_value=0.50, max_value=1.80, value=float(getattr(_base_pd, "profile_family_confinement_mult", 1.0)), step=0.01,
+                )
+                profile_family_bootstrap_mult = st.slider(
+                    "Bootstrap multiplier (bounded)",
+                    min_value=0.50, max_value=1.80, value=float(getattr(_base_pd, "profile_family_bootstrap_mult", 1.0)), step=0.01,
+                )
+                st.caption("Outputs: profile_family_* keys, tauE_profile_s, H98_profile, profile_f_bootstrap_profile")
+
             c1, c2, c3 = st.columns(3)
             with c1:
                 profile_alpha_T = _num(
@@ -3924,6 +4258,24 @@ with tab_point:
                 help="Select bootstrap fraction proxy used for reporting and (if enabled) steady-state current fractions.",
             )
 
+            include_bootstrap_pressure_selfconsistency = st.checkbox(
+                "Enable Bootstrap–Pressure Self-Consistency Authority (v349)",
+                value=bool(getattr(_base_pd, "include_bootstrap_pressure_selfconsistency", False)),
+                key=PD_KEYS["include_bootstrap_pressure_selfconsistency"],
+                help="Deterministic check: compares f_bs proxy from the profile bundle vs a pressure-derived expectation under the selected bootstrap proxy model. No iteration.",
+            )
+            f_bootstrap_consistency_abs_max = float("nan")
+            if include_bootstrap_pressure_selfconsistency:
+                f_bootstrap_consistency_abs_max = _num(
+                    "Max |Δf_bs| (–)",
+                    float(getattr(_base_pd, "f_bootstrap_consistency_abs_max", 0.08) or 0.08),
+                    0.01,
+                    min_value=0.0,
+                    max_value=0.5,
+                    key=PD_KEYS["f_bootstrap_consistency_abs_max"],
+                    help="Hard cap for |f_bs(reported)-f_bs(expected)|. Enforced as a constraint when enabled.",
+                )
+
 
 
         with st.expander("Power & composition", expanded=False):
@@ -3961,6 +4313,9 @@ with tab_point:
             T_sol_keV = 0.08
             f_V_sol_div = 0.12
             detachment_fz_max = float('nan')
+            include_edge_core_coupled_exhaust = False
+            edge_core_coupling_chi_core = 0.25
+            f_rad_core_edge_core_max = float('nan')
 
             if include_radiation:
                 Zeff = _num("Effective charge Z_eff (–)", 1.5, 0.1, min_value=1.0, help="Effective ion charge Z_eff; used for brems proxy (diagnostic) and radiation screens when enabled.")
@@ -4080,6 +4435,24 @@ with tab_point:
                         T_sol_keV = _num("T_SOL proxy (keV)", float(T_sol_keV), 0.01, min_value=0.03, max_value=1.0)
                     with c4:
                         f_V_sol_div = _num("Effective radiating volume fraction V_SOL+div / V", float(f_V_sol_div), 0.01, min_value=0.005, max_value=0.5)
+
+                    st.markdown('**Edge–core coupled exhaust (v348)**')
+                    include_edge_core_coupled_exhaust = st.checkbox(
+                        'Enable edge–core coupled exhaust re-evaluation',
+                        value=bool(include_edge_core_coupled_exhaust),
+                        help='One-pass: uses P_SOL,eff = P_SOL - chi_core·P_rad,req(SOL+div) to re-evaluate q_div. lambda_q is held fixed. Does not iterate.',
+                    )
+                    edge_core_coupling_chi_core = st.slider(
+                        'Coupling coefficient chi_core (–)',
+                        min_value=0.0, max_value=1.0, value=float(edge_core_coupling_chi_core), step=0.05,
+                        help='Fraction of SOL+div radiation requirement mapped to additional core radiation penalty for exhaust budgeting.',
+                    )
+                    f_rad_core_edge_core_max = _num(
+                        'Max allowed coupled core radiative fraction (optional)',
+                        float(f_rad_core_edge_core_max),
+                        0.05, min_value=0.0, max_value=2.0,
+                        help='If set, enforces f_rad_core_edge_core ≤ max when edge-core coupling is enabled.',
+                    )
 
                 st.markdown("**Power-channel bookkeeping (transparent; totals unchanged)**")
                 f_alpha_to_ion = st.slider("Alpha deposition to ions f_α→i", min_value=0.0, max_value=1.0, value=0.85, step=0.01)
@@ -4281,6 +4654,158 @@ with tab_point:
             with c2:
                 include_neutronics = st.checkbox("Neutronics (TBR, lifetime)", value=True)
                 include_net_power = st.checkbox("Net power / electrical balance", value=True)
+                include_fuelcycle = st.checkbox("Fuel-cycle (tritium throughput/inventory)", value=False)
+                include_economics = st.checkbox(
+                    "Economics overlay (CAPEX proxy cap)",
+                    value=False,
+                    help="Enable optional PROCESS-like component CAPEX proxy knobs and an optional hard cap. Diagnostic only; does not change plasma truth.",
+                )
+
+
+            # --- (v359.0) Availability & replacement ledger authority (optional) ---
+            with st.expander("🛠️ Availability & replacement ledger (v359.0)", expanded=False):
+                st.caption("Deterministic algebraic ledger: planned baseline + forced baseline (forced_outage_base) + replacement downtime + annualized replacement cost. Disabled by default.")
+                include_availability_replacement_v359 = st.checkbox(
+                    "Enable availability+replacement ledger authority (v359.0)",
+                    value=bool(getattr(defaults, "include_availability_replacement_v359", False)),
+                    help="Adds availability_v359, replacement cost rate, and an optional LCOE cap. Does not modify plasma truth or legacy economics outputs.",
+                )
+                cA, cB = st.columns(2)
+                with cA:
+                    planned_outage_base = st.number_input(
+                        "Planned outage baseline (fraction)",
+                        min_value=0.0,
+                        max_value=0.50,
+                        value=float(getattr(defaults, "planned_outage_base", 0.05) or 0.05),
+                        step=0.01,
+                    )
+                    availability_v359_min = st.number_input(
+                        "Min availability (v359) (NaN disables)",
+                        value=float(getattr(defaults, "availability_v359_min", float('nan'))),
+                    )
+                    LCOE_max_USD_per_MWh = st.number_input(
+                        "Max LCOE proxy (v359) (USD/MWh) (NaN disables)",
+                        value=float(getattr(defaults, "LCOE_max_USD_per_MWh", float('nan'))),
+                    )
+                with cB:
+                    heating_cd_replace_interval_y = st.number_input(
+                        "Heating/CD replacement interval (y)",
+                        min_value=0.5,
+                        max_value=50.0,
+                        value=float(getattr(defaults, "heating_cd_replace_interval_y", 8.0) or 8.0),
+                        step=0.5,
+                    )
+                    heating_cd_replace_duration_days = st.number_input(
+                        "Heating/CD replacement duration (days)",
+                        min_value=0.0,
+                        max_value=365.0,
+                        value=float(getattr(defaults, "heating_cd_replace_duration_days", 30.0) or 30.0),
+                        step=1.0,
+                    )
+                    tritium_plant_replace_interval_y = st.number_input(
+                        "Tritium plant replacement interval (y)",
+                        min_value=0.5,
+                        max_value=50.0,
+                        value=float(getattr(defaults, "tritium_plant_replace_interval_y", 10.0) or 10.0),
+                        step=0.5,
+                    )
+                    tritium_plant_replace_duration_days = st.number_input(
+                        "Tritium plant replacement duration (days)",
+                        min_value=0.0,
+                        max_value=365.0,
+                        value=float(getattr(defaults, "tritium_plant_replace_duration_days", 30.0) or 30.0),
+                        step=1.0,
+                    )
+
+            # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
+            with st.expander("🗓️ Maintenance scheduling authority (v368.0)", expanded=False):
+                st.caption(
+                    "Deterministic outage calendar proxy: planned+forced baselines plus a bundled replacement schedule derived from cadences and durations. "
+                    "No time simulation; no optimization; does not modify plasma truth."
+                )
+                include_maintenance_scheduling_v368 = st.checkbox(
+                    "Enable maintenance scheduling authority (v368.0)",
+                    value=bool(getattr(defaults, "include_maintenance_scheduling_v368", False)),
+                    help="Adds availability_v368, outage_total_frac_v368, replacement_cost_MUSD_per_year_v368 and an explicit maintenance_events_v368 table.",
+                )
+                cM1, cM2 = st.columns(2)
+                with cM1:
+                    _bp_opts = ["independent", "bundle_in_vessel", "bundle_all"]
+                    _bp_def = str(getattr(defaults, "maintenance_bundle_policy", "independent"))
+                    _bp_ix = _bp_opts.index(_bp_def) if _bp_def in _bp_opts else 0
+                    maintenance_bundle_policy = st.selectbox(
+                        "Bundling policy",
+                        _bp_opts,
+                        index=_bp_ix,
+                        help="Bundling is a deterministic proxy: interval=min(intervals), duration=max(durations)+overhead.",
+                    )
+                    maintenance_bundle_overhead_days = st.number_input(
+                        "Bundle overhead (days)",
+                        min_value=0.0,
+                        max_value=90.0,
+                        value=float(getattr(defaults, "maintenance_bundle_overhead_days", 7.0) or 7.0),
+                        step=1.0,
+                    )
+                    _fm_opts = ["max", "baseline", "trips"]
+                    _fm_def = str(getattr(defaults, "forced_outage_mode_v368", "max"))
+                    _fm_ix = _fm_opts.index(_fm_def) if _fm_def in _fm_opts else 0
+                    forced_outage_mode_v368 = st.selectbox(
+                        "Forced outage mode",
+                        _fm_opts,
+                        index=_fm_ix,
+                        help="max = max(forced_outage_base, trips_per_year*trip_duration_days/365).",
+                    )
+                with cM2:
+                    availability_v368_min = st.number_input(
+                        "Min availability (v368) (NaN disables)",
+                        value=float(getattr(defaults, "availability_v368_min", float('nan'))),
+                    )
+                    outage_fraction_v368_max = st.number_input(
+                        "Max total outage fraction (v368) (NaN disables)",
+                        value=float(getattr(defaults, "outage_fraction_v368_max", float('nan'))),
+                    )
+                    maintenance_planning_horizon_yr = st.number_input(
+                        "Planning horizon (yr) (NaN uses plant lifetime)",
+                        min_value=1.0,
+                        max_value=100.0,
+                        value=float(getattr(defaults, "maintenance_planning_horizon_yr", float('nan'))),
+                        step=1.0,
+                    )
+            # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
+            with st.expander("💰 Plant Economics Authority (v360.0)", expanded=False):
+                st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
+                include_economics_v360 = st.checkbox(
+                    "Enable plant economics authority (v360.0)",
+                    value=bool(getattr(defaults, "include_economics_v360", False)),
+                    help="Adds OPEX component breakdown and LCOE_proxy_v360_USD_per_MWh. Does not modify plasma truth or legacy economics unless enabled.",
+                )
+                cE1, cE2 = st.columns(2)
+                with cE1:
+                    opex_fixed_MUSD_per_y = st.number_input(
+                        "Fixed OPEX (MUSD/y)",
+                        min_value=0.0,
+                        value=float(getattr(defaults, "opex_fixed_MUSD_per_y", 0.0) or 0.0),
+                        step=1.0,
+                    )
+                    tritium_processing_cost_USD_per_g = st.number_input(
+                        "Tritium processing cost (USD/g)",
+                        min_value=0.0,
+                        value=float(getattr(defaults, "tritium_processing_cost_USD_per_g", 0.05) or 0.05),
+                        step=0.01,
+                    )
+                with cE2:
+                    cryo_wallplug_multiplier = st.number_input(
+                        "Cryo wall-plug multiplier (MW_e/MW@20K)",
+                        min_value=0.0,
+                        value=float(getattr(defaults, "cryo_wallplug_multiplier", 250.0) or 250.0),
+                        step=10.0,
+                    )
+                    OPEX_max_MUSD_per_y = st.number_input(
+                        "Max OPEX (v360) (MUSD/y) (NaN disables)",
+                        value=float(getattr(defaults, "OPEX_max_MUSD_per_y", float('nan'))),
+                    )
+
+
 
             preset = {
                 "Conservative": {
@@ -4349,6 +4874,51 @@ with tab_point:
                 "fw_dpa_max_per_year": _maybe(float(_num("Max first-wall dpa per year (optional)", float('nan'), 0.5, min_value=0.0, help="Order-of-magnitude proxy derived from wall load. Leave NaN to disable.")), include_neutronics),
                 "fw_lifetime_min_yr": _maybe(float(_num("Min first-wall replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
                 "blanket_lifetime_min_yr": _maybe(float(_num("Min blanket replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
+
+                # (v367.0) Materials lifetime closure: deterministic policy/cadence knobs
+                "plant_design_lifetime_yr": _maybe(float(_num(
+                    "Plant design lifetime (yr) (v367 materials policy)",
+                    float(getattr(defaults, "plant_design_lifetime_yr", 30.0) or 30.0),
+                    1.0,
+                    min_value=1.0,
+                    help="Used by v367 materials lifetime closure to compute replacement counts/costs. No time-domain simulation.",
+                )), include_neutronics),
+                "materials_life_cover_plant_enforce": bool(st.checkbox(
+                    "Enforce FW/blanket lifetime ≥ plant lifetime (v367) (HARD)",
+                    value=bool(getattr(defaults, "materials_life_cover_plant_enforce", False)),
+                    disabled=not include_neutronics,
+                    help="Policy constraint: requires fw_lifetime_yr and blanket_lifetime_yr to cover plant_design_lifetime_yr when enabled.",
+                )),
+                "fw_replace_interval_min_yr": _maybe(float(_num(
+                    "Min FW replacement cadence (yr) (v367) (optional)",
+                    float(getattr(defaults, "fw_replace_interval_min_yr", float('nan'))),
+                    0.5,
+                    min_value=0.0,
+                    help="Optional minimum on the FW replacement interval used by the replacement ledger. Leave NaN to disable.",
+                )), include_neutronics),
+                "blanket_replace_interval_min_yr": _maybe(float(_num(
+                    "Min blanket replacement cadence (yr) (v367) (optional)",
+                    float(getattr(defaults, "blanket_replace_interval_min_yr", float('nan'))),
+                    0.5,
+                    min_value=0.0,
+                    help="Optional minimum on the blanket replacement interval used by the replacement ledger. Leave NaN to disable.",
+                )), include_neutronics),
+                "fw_capex_fraction_of_blanket": _maybe(float(_num(
+                    "FW CAPEX fraction of blanket+shield (0..1) (v367)",
+                    float(getattr(defaults, "fw_capex_fraction_of_blanket", 0.20) or 0.20),
+                    0.01,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Used to estimate FW replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
+                )), include_neutronics),
+                "blanket_capex_fraction_of_blanket": _maybe(float(_num(
+                    "Blanket CAPEX fraction of blanket+shield (0..1) (v367)",
+                    float(getattr(defaults, "blanket_capex_fraction_of_blanket", 1.00) or 1.00),
+                    0.01,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Used to estimate blanket replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
+                )), include_neutronics),
                 "P_nuc_total_max_MW": _maybe(float(_num("Max total nuclear heating (MW) (optional)", float('nan'), 1.0, min_value=0.0, help="Stack-based nuclear heating bookkeeping. Leave NaN to disable.")), include_neutronics),
                 "P_nuc_tf_max_MW": _maybe(float(_num("Max TF nuclear heating (MW) (optional)", float('nan'), 0.5, min_value=0.0, help="Stack-based nuclear heating in TF regions. Leave NaN to disable.")), include_neutronics),
                 "P_nuc_pf_max_MW": _maybe(float(_num("Max PF nuclear heating (MW) (optional)", float('nan'), 0.5, min_value=0.0, help="Leakage partition proxy to PF. Leave NaN to disable.")), include_neutronics),
@@ -4366,8 +4936,225 @@ with tab_point:
                 "sigma_fw_oper_MPa": _maybe(float(_num("FW operating stress (MPa) (optional)", float('nan'), 10.0, min_value=0.0, help="Used with irradiation-adjusted allowable stress proxy. Leave NaN to disable.")), include_neutronics),
                 "sigma_blanket_oper_MPa": _maybe(float(_num("Blanket operating stress (MPa) (optional)", float('nan'), 10.0, min_value=0.0, help="Used with irradiation-adjusted allowable stress proxy. Leave NaN to disable.")), include_neutronics),
 
+
+
+                # Fuel-cycle / tritium ledger (v350.0) — optional tight closure
+                "T_reserve_days": _maybe(float(_num("Tritium reserve (days)", 3.0, 0.5, min_value=0.0,
+                    help="Reserve inventory proxy: T_inventory_reserve = T_burn * reserve_days.")), include_fuelcycle),
+                "T_processing_margin": _maybe(float(_num("Tritium processing margin factor (–)", 1.25, 0.05, min_value=0.1,
+                    help="Multiplies burn throughput to set required processing capacity.")), include_fuelcycle),
+                "T_processing_capacity_min_g_per_day": _maybe(float(_num("Min processing capacity (g/day) (optional)", float('nan'), 10.0, min_value=0.0,
+                    help="Optional minimum capacity contract. Leave NaN to disable.")), include_fuelcycle),
+                "T_inventory_min_kg": _maybe(float(_num("Min on-site inventory (kg) (optional)", float('nan'), 0.1, min_value=0.0,
+                    help="Optional minimum inventory contract. Leave NaN to disable.")), include_fuelcycle),
+
+                "include_tritium_tight_closure": bool(st.checkbox(
+                    "Enable tight tritium closure (inventory+loss+self-sufficiency)",
+                    value=False,
+                    disabled=not include_fuelcycle,
+                    help="When enabled, SHAMS computes in-vessel and total tritium inventory proxies, applies optional loss tightening to TBR_eff, and enforces optional self-sufficiency margins (all algebraic; no iteration).",
+                )),
+                "T_processing_delay_days": _maybe(float(_num("Processing delay (days) → in-vessel inventory proxy", 1.0, 0.2, min_value=0.0,
+                    help="In-vessel inventory proxy: T_in_vessel = T_burn * delay_days.")), include_fuelcycle),
+                "T_in_vessel_max_kg": _maybe(float(_num("Max in-vessel tritium (kg) (optional)", float('nan'), 0.1, min_value=0.0,
+                    help="Optional cap on in-vessel inventory proxy. Leave NaN to disable.")), include_fuelcycle),
+                "T_total_inventory_max_kg": _maybe(float(_num("Max total tritium inventory (kg) (optional)", float('nan'), 0.5, min_value=0.0,
+                    help="Optional cap on total inventory proxy (reserve+in-vessel+startup). Leave NaN to disable.")), include_fuelcycle),
+                "T_startup_inventory_kg": _maybe(float(_num("Startup tritium inventory (kg) (optional)", float('nan'), 0.5, min_value=0.0,
+                    help="Optional startup inventory proxy added to total inventory.")), include_fuelcycle),
+                "T_loss_fraction": _maybe(float(_num("Effective tritium loss fraction (0..0.2) (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.2,
+                    help="If set, effective TBR is reduced: TBR_eff = TBR*(1-loss).")), include_fuelcycle),
+                "TBR_self_sufficiency_margin": _maybe(float(_num("Self-sufficiency margin on TBR_eff (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.5,
+                    help="If set, requires TBR_eff ≥ 1 + margin (after declared losses).")), include_fuelcycle),
+
+                # Economics overlay (v356.0) — optional component CAPEX proxy cap (diagnostic)
+                "cost_k_heating_cd": _maybe(float(_num(
+                    "Heating/CD CAPEX factor (MUSD per MW launched)",
+                    25.0,
+                    1.0,
+                    min_value=0.0,
+                    help="Used only for the v356 component CAPEX proxy: capex_heating_cd = k * P_CD_launch_MW (fallback Paux).",
+                )), include_economics),
+                "cost_k_tritium_plant": _maybe(float(_num(
+                    "Tritium plant CAPEX factor (MUSD per kg/day burn)",
+                    40.0,
+                    1.0,
+                    min_value=0.0,
+                    help="Used only for the v356 component CAPEX proxy: capex_tritium_plant = k * T_burn_kg_per_day.",
+                )), include_economics),
+                "CAPEX_max_proxy_MUSD": _maybe(float(_num(
+                    "Max component CAPEX proxy (MUSD) (optional)",
+                    float('nan'),
+                    50.0,
+                    min_value=0.0,
+                    help="Optional hard feasibility cap on CAPEX_component_proxy_MUSD. Leave NaN to disable.",
+                )), include_economics),
+
+                # Current drive + NI closure + channel caps (v357.0)
+                "include_current_drive": bool(st.checkbox(
+                    "Current drive & NI closure (compute P_cd)",
+                    value=False,
+                    help="Enables deterministic non-inductive closure: choose actuator, CD efficiency model, and target f_NI; SHAMS computes required launched P_cd (capped by Pcd_max_MW).",
+                )),
+                "include_cd_library_v357": bool(st.checkbox(
+                    "CD channel library caps (v357.0)",
+                    value=False,
+                    disabled=False,
+                    help="Adds explicit channel feasibility diagnostics and optional hard caps for LH accessibility, ECCD launcher power density, and NBI shine-through.",
+                )),
+
+                "f_noninductive_target": float(_num(
+                    "Target non-inductive fraction f_NI,target (–)",
+                    1.0,
+                    0.02,
+                    min_value=0.0,
+                    max_value=1.2,
+                    help="Target f_NI = f_bs + I_cd/Ip. SHAMS computes I_cd and launched P_cd to reach this target (capped).",
+                )),
+                "Pcd_max_MW": float(_num(
+                    "Max launched CD power P_cd,max (MW)",
+                    200.0,
+                    10.0,
+                    min_value=0.0,
+                    help="Hard cap on launched current-drive power used in the NI closure.",
+                )),
+                "eta_cd_wallplug": float(_num(
+                    "CD wall-plug efficiency η_cd,wall (0..1)",
+                    0.35,
+                    0.02,
+                    min_value=0.05,
+                    max_value=0.9,
+                    help="Wall-plug efficiency used in plant electric ledger.",
+                )),
+                "gamma_cd_A_per_W": float(_num(
+                    "CD efficiency γ_cd (A/W) (legacy fixed model)",
+                    0.05,
+                    0.005,
+                    min_value=1e-4,
+                    max_value=0.2,
+                    help="Used only when cd_model=fixed_gamma.",
+                )),
+                "cd_actuator": str(st.selectbox(
+                    "CD actuator channel",
+                    options=["ECCD", "LHCD", "NBI", "ICRF"],
+                    index=0,
+                    help="Actuator used for CD efficiency trends and v357 channel diagnostics.",
+                )),
+                "cd_model": str(st.selectbox(
+                    "CD efficiency model",
+                    options=["fixed_gamma", "actuator_scaling", "channel_library_v357"],
+                    index=2,
+                    help="Deterministic CD efficiency proxy model.",
+                )),
+
+                # LHCD knobs + optional bounds (caps are disabled by default via NaN)
+                "lhcd_n_parallel": float(_num(
+                    "LHCD n∥ (–)",
+                    1.8,
+                    0.05,
+                    min_value=1.0,
+                    max_value=4.0,
+                    help="Used only when cd_actuator=LHCD and cd_model=channel_library_v357.",
+                )),
+                "lhcd_n_parallel_min": float(_num(
+                    "LHCD n∥ min (optional)",
+                    float('nan'),
+                    0.05,
+                    min_value=0.5,
+                    help="Optional hard constraint lower bound on n∥. Leave NaN to disable.",
+                )),
+                "lhcd_n_parallel_max": float(_num(
+                    "LHCD n∥ max (optional)",
+                    float('nan'),
+                    0.05,
+                    min_value=0.5,
+                    help="Optional hard constraint upper bound on n∥. Leave NaN to disable.",
+                )),
+
+                # ECCD knobs + optional launcher power-density cap
+                "eccd_launcher_area_m2": float(_num(
+                    "ECCD launcher area A (m²)",
+                    2.0,
+                    0.1,
+                    min_value=0.1,
+                    help="Used to compute launcher power density P_cd/A for v357 cap checks.",
+                )),
+                "eccd_launch_factor": float(_num(
+                    "ECCD launch factor (–)",
+                    1.0,
+                    0.05,
+                    min_value=0.2,
+                    max_value=2.0,
+                    help="Captures qualitative steering/optics effects as a declared multiplier on γ_cd for the v357 model.",
+                )),
+                "eccd_launcher_power_density_max_MW_m2": float(_num(
+                    "ECCD launcher power density max (MW/m²) (optional)",
+                    float('nan'),
+                    1.0,
+                    min_value=0.0,
+                    help="Optional hard constraint. Leave NaN to disable.",
+                )),
+
+                # NBI knobs + optional shine-through cap
+                "nbi_beam_energy_keV": float(_num(
+                    "NBI beam energy (keV)",
+                    500.0,
+                    25.0,
+                    min_value=50.0,
+                    max_value=5000.0,
+                    help="Used only when cd_actuator=NBI in the v357 model (trend scaling + shine-through proxy).",
+                )),
+                "nbi_shinethrough_frac_max": float(_num(
+                    "NBI shine-through max (fraction) (optional)",
+                    float('nan'),
+                    0.01,
+                    min_value=0.0,
+                    max_value=0.5,
+                    help="Optional hard constraint on shine-through fraction proxy. Leave NaN to disable.",
+                )),
+
                 # Net power / electrical balance
                 "P_net_min_MW": _maybe(float(_num("Minimum net electric power (MW)", preset["P_net_min_MW"], 10.0, min_value=-1e6)), include_net_power),
+
+                # ---------------------------------------------------------
+                # Plant power ledger caps (v361.0 actuator authority hook)
+                # ---------------------------------------------------------
+                "f_recirc_max": float(_num(
+                    "Max recirculating fraction f_recirc (optional)",
+                    float('nan'),
+                    0.02,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Optional cap on recirculating fraction Precirc/Pe_gross. Leave NaN to disable.",
+                )),
+                "P_pf_avg_max_MW": float(_num(
+                    "Max average PF electric draw (MW) (optional)",
+                    float('nan'),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on average PF electric draw proxy (pf_E_pulse_MJ/(t_burn+t_dwell)). Leave NaN to disable.",
+                )),
+                "P_aux_max_MW": float(_num(
+                    "Max aux+CD wallplug electric draw (MW) (optional)",
+                    float('nan'),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on auxiliary+CD wallplug electric draw proxy. Leave NaN to disable.",
+                )),
+                "P_supply_peak_max_MW": float(_num(
+                    "Max peak power-supply draw (MW) (optional)",
+                    float('nan'),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on P_supply_peak_MW = max(PF_peak, Aux/CD_wallplug, VS_control, RWM_control). Leave NaN to disable.",
+                )),
+                "P_cryo_max_MW": float(_num(
+                    "Max cryo wallplug electric draw (MW) (optional)",
+                    float('nan'),
+                    5.0,
+                    min_value=0.0,
+                    help="Optional cap on cryoplant wallplug electric draw proxy. Leave NaN to disable.",
+                )),
 
                 # ---------------------------------------------------------
                 # Control & stability authority (v298.0) — optional caps
@@ -4750,6 +5537,9 @@ with tab_point:
                 T_sol_keV=float(T_sol_keV),
                 f_V_sol_div=float(f_V_sol_div),
                 detachment_fz_max=float(detachment_fz_max),
+                include_edge_core_coupled_exhaust=bool(include_edge_core_coupled_exhaust and include_sol_radiation_control),
+                edge_core_coupling_chi_core=float(edge_core_coupling_chi_core),
+                f_rad_core_edge_core_max=float(f_rad_core_edge_core_max),
                 confinement_model=str(confinement_scaling).lower(),  # back-compat
                 profile_model=profile_model,
                 profile_peaking_ne=profile_peaking_ne,
@@ -4761,6 +5551,8 @@ with tab_point:
                 pedestal_enabled=bool(pedestal_enabled),
                 pedestal_width_a=float(pedestal_width_a),
                 bootstrap_model=bootstrap_model,
+                include_bootstrap_pressure_selfconsistency=bool(include_bootstrap_pressure_selfconsistency),
+                f_bootstrap_consistency_abs_max=float(f_bootstrap_consistency_abs_max),
                 fuel_mode=fuel_mode,
                 include_secondary_DT=include_secondary_DT,
                 tritium_retention=tritium_retention,
@@ -4782,7 +5574,29 @@ with tab_point:
                 cd_fraction_of_Paux=float(cd_fraction_of_Paux),
                 f_NI_min=float(f_NI_min),
                 disruption_risk_max=float(disruption_risk_max),
-                f_rad_core_max=float(f_rad_core_max),
+                                include_availability_replacement_v359=bool(locals().get('include_availability_replacement_v359', False)),
+                planned_outage_base=float(locals().get('planned_outage_base', 0.05)),
+                heating_cd_replace_interval_y=float(locals().get('heating_cd_replace_interval_y', 8.0)),
+                heating_cd_replace_duration_days=float(locals().get('heating_cd_replace_duration_days', 30.0)),
+                tritium_plant_replace_interval_y=float(locals().get('tritium_plant_replace_interval_y', 10.0)),
+                tritium_plant_replace_duration_days=float(locals().get('tritium_plant_replace_duration_days', 30.0)),
+                availability_v359_min=float(locals().get('availability_v359_min', float('nan'))),
+                LCOE_max_USD_per_MWh=float(locals().get('LCOE_max_USD_per_MWh', float('nan'))),
+
+                include_maintenance_scheduling_v368=bool(locals().get('include_maintenance_scheduling_v368', False)),
+                maintenance_planning_horizon_yr=float(locals().get('maintenance_planning_horizon_yr', float('nan'))),
+                maintenance_bundle_policy=str(locals().get('maintenance_bundle_policy', 'independent')),
+                maintenance_bundle_overhead_days=float(locals().get('maintenance_bundle_overhead_days', 7.0)),
+                forced_outage_mode_v368=str(locals().get('forced_outage_mode_v368', 'max')),
+                outage_fraction_v368_max=float(locals().get('outage_fraction_v368_max', float('nan'))),
+                availability_v368_min=float(locals().get('availability_v368_min', float('nan'))),
+
+                include_economics_v360=bool(locals().get('include_economics_v360', False)),
+                opex_fixed_MUSD_per_y=float(locals().get('opex_fixed_MUSD_per_y', 0.0)),
+                tritium_processing_cost_USD_per_g=float(locals().get('tritium_processing_cost_USD_per_g', 0.05)),
+                cryo_wallplug_multiplier=float(locals().get('cryo_wallplug_multiplier', 250.0)),
+                OPEX_max_MUSD_per_y=float(locals().get('OPEX_max_MUSD_per_y', float('nan'))),
+
                 **clean_knobs,
             )
 
@@ -5135,6 +5949,36 @@ with tab_point:
                             mime="application/json",
                             use_container_width=True,
                         )
+
+                        # Quick interop: send this run artifact to Compare session slots (A/B)
+                        st.caption("Quick interop: send the current run to Compare without downloading/uploading files.")
+                        _c1, _c2, _c3 = st.columns([1, 1, 1])
+                        with _c1:
+                            if st.button("🅰️ Send to Compare Slot A", use_container_width=True, key="pd_send_cmp_A"):
+                                st.session_state["cmp_slot_A"] = artifact
+                                st.session_state["cmp_slot_A_meta"] = {
+                                    "ts_unix": float(time.time()),
+                                    "inputs_hash": str(st.session_state.get("pd_last_inputs_hash") or st.session_state.get("pd_current_inputs_hash") or ""),
+                                    "label": "Point Designer (last run)",
+                                }
+                                st.success("Sent current run to Compare Slot A.")
+                        with _c2:
+                            if st.button("🅱️ Send to Compare Slot B", use_container_width=True, key="pd_send_cmp_B"):
+                                st.session_state["cmp_slot_B"] = artifact
+                                st.session_state["cmp_slot_B_meta"] = {
+                                    "ts_unix": float(time.time()),
+                                    "inputs_hash": str(st.session_state.get("pd_last_inputs_hash") or st.session_state.get("pd_current_inputs_hash") or ""),
+                                    "label": "Point Designer (last run)",
+                                }
+                                st.success("Sent current run to Compare Slot B.")
+                        with _c3:
+                            if st.button("🧹 Clear Compare Slots", use_container_width=True, key="pd_clear_cmp_slots"):
+                                st.session_state.pop("cmp_slot_A", None)
+                                st.session_state.pop("cmp_slot_B", None)
+                                st.session_state.pop("cmp_slot_A_meta", None)
+                                st.session_state.pop("cmp_slot_B_meta", None)
+                                st.info("Cleared Compare slots.")
+
     
                         # Radial build PNG
                         try:
@@ -5204,10 +6048,15 @@ with tab_point:
                                 "Select deck",
                                 options=[
                                     "Regime & Confinement",
+                                    "Current Profile & Current Drive",
+                                    "Bootstrap–Pressure Self-Consistency Authority",
+                                    "Current Drive Tech Authority",
+                                    "Non-Inductive Closure Authority",
                                     "Burn & Alpha Power",
                                     "Impurities & Core Radiation",
                                     "Edge/Divertor & Exhaust Control",
                                     "Neutronics & Nuclear Loads",
+                                    "Coupling Narratives",
                                 ],
                                 index=0,
                                 key="pd_deep_physics_view",
@@ -5226,7 +6075,132 @@ with tab_point:
                                 cC.metric("H_regime", f"{_safe_num('H_regime'):.2f}" if _safe_num('H_regime') == _safe_num('H_regime') else "n/a")
                                 cD.metric("P_LH (MW)", f"{_safe_num('P_LH_MW'):.1f}" if _safe_num('P_LH_MW') == _safe_num('P_LH_MW') else "n/a")
                                 st.caption("H_regime is reported only when couple_regime_to_confinement=True; it uses IPB98 for H-regime and ITER89P for L-regime.")
+                                # v336.0: plasma regime authority
+                                if str(out.get("plasma_regime", "")):
+                                    st.divider()
+                                    p1, p2, p3, p4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                    p1.metric("Plasma regime", str(out.get("plasma_regime", "unknown")))
+                                    p2.metric("Burn regime", str(out.get("burn_regime", "-")))
+                                    p2.caption("ignited / alpha_assisted / aux_dominated")
+                                    p3.metric("Fragility", str(out.get("plasma_fragility_class", "UNKNOWN")))
+                                    _pm = _safe_num("plasma_min_margin_frac")
+                                    p4.metric("Min margin (frac)", f"{_pm:.3f}" if _pm == _pm else "n/a")
+                                    st.caption("Plasma regime authority is a deterministic classifier with signed fractional margins for H-mode access, Greenwald fraction, q95, betaN, and burn (M_ign_total). No solvers, no iteration.")
 
+                                    # v337.0: impurity species & radiation partition authority
+                                    if str(out.get("impurity_regime", "")):
+                                        st.divider()
+                                        i1, i2, i3, i4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                        i1.metric("Impurity regime", str(out.get("impurity_regime", "unknown")))
+                                        i2.metric("Species", str(out.get("impurity_species", "unknown")))
+                                        i3.metric("Fragility", str(out.get("impurity_fragility_class", "UNKNOWN")))
+                                        _im = _safe_num("impurity_min_margin_frac")
+                                        i4.metric("Min margin (frac)", f"{_im:.3f}" if _im == _im else "n/a")
+                                        st.caption("Impurity & radiation authority partitions core/SOL radiation and checks conservative thresholds on Zeff and radiated power fractions. Deterministic post-processing only; no solvers, no iteration.")
+
+                            
+                            elif _deep_view == "Current Profile & Current Drive":
+                                cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
+                                cA.metric("Profile regime", str(out.get("current_profile_regime", "unknown")))
+                                cB.metric("Fragility", str(out.get("current_profile_fragility_class", "UNKNOWN")))
+                                mm = _safe_num("current_profile_min_margin_frac")
+                                cC.metric("Min margin (frac)", f"{mm:.3f}" if mm == mm else "n/a")
+                                cD.metric("Top limiter", str(out.get("current_profile_top_limiter", "UNKNOWN")))
+
+                                c1, c2, c3, c4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                c1.metric("q95 proxy", f"{_safe_num('q95_proxy'):.2f}" if _safe_num('q95_proxy') == _safe_num('q95_proxy') else "n/a")
+                                c2.metric("qmin proxy", f"{_safe_num('profile_qmin_proxy'):.2f}" if _safe_num('profile_qmin_proxy') == _safe_num('profile_qmin_proxy') else "n/a")
+                                c3.metric("f_bootstrap proxy", f"{_safe_num('profile_f_bootstrap_proxy'):.2f}" if _safe_num('profile_f_bootstrap_proxy') == _safe_num('profile_f_bootstrap_proxy') else (f"{_safe_num('f_bs_proxy'):.2f}" if _safe_num('f_bs_proxy') == _safe_num('f_bs_proxy') else "n/a"))
+                                c4.metric("f_NI", f"{_safe_num('f_NI'):.2f}" if _safe_num('f_NI') == _safe_num('f_NI') else "n/a")
+
+                                c5, c6, c7, c8 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                c5.metric("I_cd (MA)", f"{_safe_num('I_cd_MA'):.2f}" if _safe_num('I_cd_MA') == _safe_num('I_cd_MA') else "n/a")
+                                c6.metric("P_cd (MW)", f"{_safe_num('P_cd_MW'):.1f}" if _safe_num('P_cd_MW') == _safe_num('P_cd_MW') else "n/a")
+                                c7.metric("η_CD (A/W)", f"{_safe_num('cd_eta_A_per_W'):.3e}" if _safe_num('cd_eta_A_per_W') == _safe_num('cd_eta_A_per_W') else "n/a")
+                                c8.metric("Contract hash", str(out.get("current_profile_contract_sha256", ""))[:12] + ("…" if str(out.get("current_profile_contract_sha256", "")) else ""))
+
+                                # Signed fractional margins (expandable)
+                                with st.expander("Current-profile authority margins (fractional, signed)", expanded=False):
+                                    rows = []
+                                    for k, v in sorted(out.items(), key=lambda kv: str(kv[0])):
+                                        if str(k).startswith("current_profile_CP_"):
+                                            try:
+                                                rows.append({"check": str(k).replace("current_profile_", ""), "margin_frac": float(v)})
+                                            except Exception:
+                                                rows.append({"check": str(k).replace("current_profile_", ""), "margin_frac": float("nan")})
+                                    if rows:
+                                        st.dataframe(rows, use_container_width=True, hide_index=True)
+                                    else:
+                                        st.info("No current-profile margin fields found in this artifact.")
+                            elif _deep_view == "Bootstrap–Pressure Self-Consistency Authority":
+                                cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
+                                cA.metric("Regime", str(out.get("bsp_regime", "unknown")))
+                                cB.metric("Fragility", str(out.get("bsp_fragility_class", "UNKNOWN")))
+                                mm = _safe_num("bsp_min_margin_frac")
+                                cC.metric("Min margin (frac)", "—" if mm != mm else f"{mm:+.3f}")
+                                cD.metric("Top limiter", str(out.get("bsp_top_limiter", "UNKNOWN")))
+
+                                c1, c2, c3, c4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                c1.metric("|Δf_bs|", f"{_safe_num('bsp_abs_delta_f_bootstrap'):.3f}" if _safe_num('bsp_abs_delta_f_bootstrap') == _safe_num('bsp_abs_delta_f_bootstrap') else "n/a")
+                                c2.metric("Tol |Δf_bs|", f"{_safe_num('bsp_abs_delta_max'):.3f}" if _safe_num('bsp_abs_delta_max') == _safe_num('bsp_abs_delta_max') else "n/a")
+                                c3.metric("f_bs (reported)", f"{_safe_num('bsp_f_bootstrap_reported'):.2f}" if _safe_num('bsp_f_bootstrap_reported') == _safe_num('bsp_f_bootstrap_reported') else "n/a")
+                                c4.metric("f_bs (expected)", f"{_safe_num('bsp_f_bootstrap_expected'):.2f}" if _safe_num('bsp_f_bootstrap_expected') == _safe_num('bsp_f_bootstrap_expected') else "n/a")
+
+                                c5, c6, c7, c8 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                c5.metric("β_p proxy", f"{_safe_num('bsp_beta_p_proxy'):.2f}" if _safe_num('bsp_beta_p_proxy') == _safe_num('bsp_beta_p_proxy') else "n/a")
+                                c6.metric("Model", str(out.get("bsp_model", out.get("bootstrap_model", "-"))))
+                                c7.metric("q95 proxy", f"{_safe_num('q95_proxy'):.2f}" if _safe_num('q95_proxy') == _safe_num('q95_proxy') else "n/a")
+                                sha = str(out.get("bsp_contract_sha256", "") or "")
+                                c8.metric("Contract hash", sha[:12] + ("…" if sha else ""))
+
+                                with st.expander("Bootstrap–pressure authority details", expanded=False):
+                                    st.caption("Deterministic check: |f_bs(reported) − f_bs(expected)| under selected proxy model. No iteration; intended to flag pressure/bootstrap mirages.")
+                                    st.json({k: out.get(k) for k in ["bsp_regime","bsp_fragility_class","bsp_min_margin_frac","bsp_top_limiter",'bsp_abs_delta_f_bootstrap','bsp_abs_delta_max','bsp_f_bootstrap_reported','bsp_f_bootstrap_expected',"bsp_delta_f_bootstrap",'bsp_beta_p_proxy',"bsp_model"] if k in out}, expanded=False)
+                            elif _deep_view == "Current Drive Tech Authority":
+                                cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
+                                cA.metric("CD tech regime", str(out.get("cd_tech_regime", "unknown")))
+                                cB.metric("Fragility", str(out.get("cd_fragility_class", "UNKNOWN")))
+                                mm = _safe_num("cd_min_margin_frac")
+                                cC.metric("Min margin (frac)", f"{mm:.3f}" if mm == mm else "n/a")
+                                cD.metric("Top limiter", str(out.get("cd_top_limiter", "UNKNOWN")))
+
+                                with st.expander("CD tech margins", expanded=False):
+                                    rows = []
+                                    for k, v in out.items():
+                                        if isinstance(k, str) and k.startswith("cd_") and ("_margin_frac" in k):
+                                            try:
+                                                vv = float(v)
+                                            except Exception:
+                                                vv = float("nan")
+                                            rows.append({"metric": k, "value": vv})
+                                    rows = sorted(rows, key=lambda r: (0 if (r["value"]==r["value"]) else 1, r["value"]))
+                                    st.table(rows if rows else [{"metric": "(no margins available)", "value": float("nan")}])
+
+                                sha = str(out.get("cd_contract_sha256", "") or "")
+                                if sha:
+                                    st.caption(f"Contract hash (SHA-256): {sha[:16]}…")
+
+                            
+                            elif _deep_view == "Non-Inductive Closure Authority":
+                                cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
+                                cA.metric("NI regime", str(out.get("ni_closure_regime", "unknown")))
+                                cB.metric("Fragility", str(out.get("ni_fragility_class", "UNKNOWN")))
+                                mm = _safe_num("ni_min_margin_frac")
+                                cC.metric("Min margin (frac)", "—" if mm != mm else f"{mm:+.3f}")
+                                cD.metric("Top limiter", str(out.get("ni_top_limiter", "UNKNOWN")))
+                                # margins table
+                                rows = []
+                                for k, v in out.items():
+                                    if isinstance(k, str) and k.startswith("ni_") and k.endswith("_margin_frac"):
+                                        vv = float(v) if isinstance(v, (int, float)) else float('nan')
+                                        rows.append({"margin_id": k, "margin_frac": vv})
+                                if rows:
+                                    import pandas as pd
+                                    df = pd.DataFrame(rows).sort_values("margin_frac")
+                                    with st.expander("NI closure margins (signed fractional)", expanded=False):
+                                        st.dataframe(df, use_container_width=True, hide_index=True)
+                                else:
+                                    st.info("No NI closure margin fields found in this artifact.")
                             elif _deep_view == "Burn & Alpha Power":
                                 cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
                                 cA.metric("Pα (MW)", f"{_safe_num('Palpha_MW'):.1f}")
@@ -5275,6 +6249,7 @@ with tab_point:
                                 cB.metric("TBR", f"{_safe_num('TBR'):.2f}" if _safe_num('TBR') == _safe_num('TBR') else "n/a")
                                 cC.metric("HTS lifetime (yr)", f"{_safe_num('hts_lifetime_yr'):.1f}" if _safe_num('hts_lifetime_yr') == _safe_num('hts_lifetime_yr') else "n/a")
                                 cD.metric("FW dpa/y", f"{_safe_num('fw_dpa_per_year'):.2f}" if _safe_num('fw_dpa_per_year') == _safe_num('fw_dpa_per_year') else "n/a")
+                                st.caption(f"**Neutronics/Materials regime:** `{out.get('neutronics_materials_regime', 'unknown')}`  |  **Fragility:** `{out.get('neutronics_materials_fragility_class', 'UNKNOWN')}`  |  **Min margin:** {out.get('neutronics_materials_min_margin_frac', float('nan')):.3f}  |  **Contract:** `{str(out.get('neutronics_materials_contract_sha256', ''))[:10]}`")
                                 st.divider()
                                 d1, d2, d3, d4 = st.columns([1.0, 1.0, 1.0, 1.0])
                                 d1.metric("Stack attenuation", f"{_safe_num('neutron_attenuation_factor'):.3g}" if _safe_num('neutron_attenuation_factor') == _safe_num('neutron_attenuation_factor') else "n/a")
@@ -5300,6 +6275,57 @@ with tab_point:
                                 f4.metric("TBR validity", "OK" if float(out.get("TBR_validity", 0.0)) < 0.5 else "out-of-range")
 
                                 st.caption("Neutronics/materials: all quantities are deterministic proxies. Fast/gamma attenuation and nuclear heating partitioning are parametric; DPA/He + temperature/stress checks are screening models. Constraints are enforced only when corresponding caps/flags are set.")
+
+                                # (v367.0) Materials lifetime closure (replacement cadence + cost-rate)
+                                if ("materials_lifetime_schema_version" in out) or ("fw_replace_interval_y_v367" in out) or ("replacement_cost_MUSD_per_year_v367_total" in out):
+                                    st.divider()
+                                    m1, m2, m3, m4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                    m1.metric("Plant life (yr)", f"{_safe_num('plant_design_lifetime_yr'):.0f}" if _safe_num('plant_design_lifetime_yr') == _safe_num('plant_design_lifetime_yr') else "n/a")
+                                    m2.metric("FW repl (count)", f"{int(_safe_num('fw_replacements_over_plant_life'))}" if _safe_num('fw_replacements_over_plant_life') == _safe_num('fw_replacements_over_plant_life') else "n/a")
+                                    m3.metric("Blanket repl (count)", f"{int(_safe_num('blanket_replacements_over_plant_life'))}" if _safe_num('blanket_replacements_over_plant_life') == _safe_num('blanket_replacements_over_plant_life') else "n/a")
+                                    m4.metric("Repl cost rate (MUSD/y)", f"{_safe_num('replacement_cost_MUSD_per_year_v367_total'):.2f}" if _safe_num('replacement_cost_MUSD_per_year_v367_total') == _safe_num('replacement_cost_MUSD_per_year_v367_total') else "n/a")
+
+                                    n1, n2, n3, n4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                    n1.metric("FW cadence (yr)", f"{_safe_num('fw_replace_interval_y_v367'):.2f}" if _safe_num('fw_replace_interval_y_v367') == _safe_num('fw_replace_interval_y_v367') else "n/a")
+                                    n2.metric("Blanket cadence (yr)", f"{_safe_num('blanket_replace_interval_y_v367'):.2f}" if _safe_num('blanket_replace_interval_y_v367') == _safe_num('blanket_replace_interval_y_v367') else "n/a")
+                                    n3.metric("FW cost (MUSD/y)", f"{_safe_num('fw_replacement_cost_MUSD_per_year'):.2f}" if _safe_num('fw_replacement_cost_MUSD_per_year') == _safe_num('fw_replacement_cost_MUSD_per_year') else "n/a")
+                                    n4.metric("Blanket cost (MUSD/y)", f"{_safe_num('blanket_replacement_cost_MUSD_per_year'):.2f}" if _safe_num('blanket_replacement_cost_MUSD_per_year') == _safe_num('blanket_replacement_cost_MUSD_per_year') else "n/a")
+
+                                    sha = str(out.get("materials_lifetime_contract_sha256", "") or "")
+                                    if sha:
+                                        st.caption(f"Materials lifetime contract hash (SHA-256): {sha[:16]}…")
+
+                        
+
+                            elif _deep_view == "Coupling Narratives":
+                                st.caption("Deterministic coupling narratives derived from authority dominance + regime labels. No solvers, no iteration.")
+                                csum = str(out.get("coupling_summary", "") or "")
+                                if csum:
+                                    st.info(csum)
+                                sev = out.get("coupling_severity_max", 0)
+                                try:
+                                    sev_i = int(sev)
+                                except Exception:
+                                    sev_i = 0
+                                st.metric("Max severity", f"{sev_i}/5")
+
+                                cn = out.get("coupling_narratives", {})
+                                items = []
+                                if isinstance(cn, dict):
+                                    items = cn.get("coupling_narratives", []) or []
+                                if not items:
+                                    st.caption("No coupling flags triggered for this evaluation.")
+                                else:
+                                    for i, it in enumerate(items):
+                                        if not isinstance(it, dict):
+                                            continue
+                                        code = str(it.get("code", ""))
+                                        title = str(it.get("title", "Coupling narrative"))
+                                        sev = it.get("severity", "")
+                                        header = f"{title}  [{code}]  (sev={sev})"
+                                        with st.expander(header, expanded=False):
+                                            st.write(str(it.get("narrative", "")))
+
 
                         # --- Authority & validity contracts (verdict-first)
                         with st.expander("🧾 Authority & Validity - Contracts", expanded=False):
@@ -5349,6 +6375,20 @@ with tab_point:
                             c2.metric("Annual net (MWh/y)", _m("annual_net_MWh", "{:.3g}"))
                             c3.metric("FW interval (y)", _m("fw_replace_interval_y", "{:.2f}"))
                             c4.metric("DIV interval (y)", _m("div_replace_interval_y", "{:.2f}"))
+
+                            # (v359.0) Availability & replacement ledger overlay (optional)
+                            try:
+                                _av359 = float(out.get("availability_v359", float('nan')))
+                            except Exception:
+                                _av359 = float('nan')
+                            if _av359 == _av359:
+                                c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+                                c1.metric("Availability (v359)", _m("availability_v359", "{:.2f}"))
+                                c2.metric("Net MWh/y (v359)", _m("net_electric_MWh_per_year_v359", "{:.3g}"))
+                                c3.metric("LCOE (v359) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}"))
+                                c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v359", "{:.2f}"))
+                                st.caption("v359 ledger uses planned_outage_base + forced_outage_base + replacement downtime; it does not modify truth or legacy economics outputs.")
+
 
                             lims = []
                             for k in ["tritium_inventory_max_g", "fw_dpa_max_per_year", "availability_min", "annual_net_MWh_min"]:
@@ -6029,7 +7069,7 @@ with tab_point:
                                 "fG": (0.2, 1.2),
                                 "nGW": (0.1, 2.0),
                                 "betaN_proxy": (0.5, 4.0),
-                                "q95_proxy": (2.5, 6.0),
+                                'q95_proxy': (2.5, 6.0),
                                 "P_SOL_over_R_MW_m": (0.0, 50.0),
                                 "f_bs_proxy": (0.0, 1.0),
                                 "ne20": (0.0, 3.0),
@@ -6048,7 +7088,7 @@ with tab_point:
                                 ("fG", "fG", "–", "Authoritative"),
                                 ("nGW", "nGW", "×1e20 m⁻³", "Diagnostic"),
                                 ("βN", "betaN_proxy", "–", "Proxy"),
-                                ("q95", "q95_proxy", "–", "Authoritative"),
+                                ("q95", 'q95_proxy', "–", "Authoritative"),
                                 ("P_SOL/R", "P_SOL_over_R_MW_m", "MW/m", "Authoritative"),
                                 ("Bootstrap f_bs", "f_bs_proxy", "–", "Proxy"),
                                 ("n̄e", "ne20", "×1e20 m⁻³", "Authoritative"),
@@ -6287,7 +7327,7 @@ with tab_point:
                                 ("Q_DT_eqv", "Q_DT_eqv", "–"),
                                 ("H98", "H98", "–"),
                                 ("P_net_e", "P_net_e_MW", "MW(e)"),
-                                ("q95", "q95_proxy", "–"),
+                                ("q95", 'q95_proxy', "–"),
                                 ("betaN", "betaN_proxy", "–"),
                                 ("q_div", "q_div_MW_m2", "MW/m²"),
                                 ("P_SOL", "P_SOL_MW", "MW"),
@@ -6349,7 +7389,7 @@ with tab_point:
                         {"KPI":"tauE_eff","value": out.get("tauE_eff_s"), "unit":"s"},
                         {"KPI":"Pfus_DT_adj","value": out.get("Pfus_DT_adj_MW"), "unit":"MW"},
                         {"KPI":"P_net_e","value": out.get("P_net_e_MW"), "unit":"MW(e)"},
-                        {"KPI":"q95","value": out.get("q95_proxy"), "unit":"-"},
+                        {"KPI":"q95","value": out.get('q95_proxy'), "unit":"-"},
                         {"KPI":"betaN","value": out.get("betaN_proxy"), "unit":"-"},
                         {"KPI":"f_bs","value": out.get("f_bs_proxy"), "unit":"-"},
                         {"KPI":"q_div","value": out.get("q_div_MW_m2"), "unit":"MW/m²"},
@@ -6514,7 +7554,7 @@ with tab_point:
                     with ptab2:
                         st.caption("Screening metrics vs common operational ‘guardrails’ (Phase‑1 proxies).")
                         stab_vals = {
-                            "q95": out.get("q95_proxy"),
+                            "q95": out.get('q95_proxy'),
                             "βN": out.get("betaN_proxy"),
                             "f_bs": out.get("f_bs_proxy"),
                         }
@@ -6670,6 +7710,10 @@ with tab_systems:
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "systems_eval"
+
+    # Ensure core solver knobs exist in session state even before the user opens any controls.
+    # This prevents unbound-name failures on first entry/reruns when downstream blocks execute.
+    st.session_state.setdefault("systems_max_iter", 35)
 
     st.header("🧠 Systems Mode")
     st.caption("Feasibility-first system explanation around the frozen Point Designer truth. Deterministic, audit-safe, no hidden solvers.")
@@ -8789,6 +9833,8 @@ with tab_systems:
             Ti_over_Te=Ti_over_Te,
             confinement_model=str(confinement_scaling).lower(),  # back-compat
             bootstrap_model=bootstrap_model,
+            include_bootstrap_pressure_selfconsistency=False,
+            f_bootstrap_consistency_abs_max=float("nan"),
             profile_model=profile_model,
             profile_peaking_ne=profile_peaking_ne,
             profile_peaking_T=profile_peaking_T,
@@ -8895,7 +9941,18 @@ with tab_systems:
             damping = _num("Damping", _default_damping, 0.05, help="Newton step damping for robustness.", min_value=0.1, max_value=1.0)
 
     
-            max_iter = int(_num("Max iterations", _default_max_iter, 1.0, help="Maximum Newton iterations for Systems solve.", min_value=1.0, max_value=500.0))
+            # Persisted so downstream solve blocks never see an unbound name on reruns.
+            max_iter = int(
+                _num(
+                    "Max iterations",
+                    _default_max_iter,
+                    1.0,
+                    help="Maximum Newton iterations for Systems solve.",
+                    min_value=1.0,
+                    max_value=500.0,
+                    key="systems_max_iter",
+                )
+            )
             override_trust = st.checkbox(
                 "Override trust-region Δ (scaled)",
                 value=False,
@@ -13049,24 +14106,28 @@ with tab_pareto:
     _pareto_deck_keys = [
         "Internal Pareto Frontier",
         "Robust Pareto Frontier (Phase+UQ)",
+        "Regime-Conditioned Pareto Atlas 2.0",
         "Certified Optimization Orchestrator",
         "Feasible Optimizer (External)",
         "Concept Optimization Cockpit",
         "External Optimization Workbench",
         "External Optimization Interpretation",
         "Design Family Narratives",
+        "External Optimizer Co-Pilot",
         "External Optimizer Suite",
         "Optimization Evidence Packs",
     ]
     _pareto_deck_labels = {
         "Internal Pareto Frontier": "🧭 Internal Pareto Frontier",
         "Robust Pareto Frontier (Phase+UQ)": "🛡️ Robust Pareto Frontier (Phase+UQ)",
+        "Regime-Conditioned Pareto Atlas 2.0": "🧭 Regime-Conditioned Pareto Atlas 2.0",
         "Certified Optimization Orchestrator": "🧾 Certified Optimization Orchestrator",
         "Feasible Optimizer (External)": "🧲 Feasible Optimizer (External)",
         "Concept Optimization Cockpit": "🧬 Concept Optimization Cockpit",
         "External Optimization Workbench": "📈 External Optimization Workbench",
         "External Optimization Interpretation": "🧪 External Optimization Interpretation",
         "Design Family Narratives": "🧬 Design Family Narratives",
+        "External Optimizer Co-Pilot": "🧭 External Optimizer Co-Pilot",
         "External Optimizer Suite": "📦 External Optimizer Suite",
         "Optimization Evidence Packs": "🧾 Optimization Evidence Packs",
     }
@@ -13131,6 +14192,12 @@ with tab_pareto:
         render_design_families(Path(__file__).resolve().parent.parent)
         st.stop()
 
+    if _pareto_deck == "External Optimizer Co-Pilot":
+        from ui.extopt_copilot import render_extopt_copilot
+
+        render_extopt_copilot(Path(__file__).resolve().parent.parent)
+        st.stop()
+
     if _pareto_deck == "External Optimizer Suite":
         from ui.extopt_suite import render_extopt_suite
 
@@ -13145,6 +14212,12 @@ with tab_pareto:
         from ui.robust_pareto_lab import render_robust_pareto_lab
 
         render_robust_pareto_lab(Path(__file__).resolve().parent.parent)
+        st.stop()
+
+    if _pareto_deck == "Regime-Conditioned Pareto Atlas 2.0":
+        from ui.regime_conditioned_atlas import render_regime_conditioned_atlas
+
+        render_regime_conditioned_atlas(Path(__file__).resolve().parent.parent)
         st.stop()
 
 
@@ -17583,12 +18656,61 @@ with tab_compare:
     st.header("🆚 Compare")
     st.caption("Side-by-side artifact comparison to isolate mechanism and constraint-margin deltas.")
     render_mode_scope("compare")
-    st.write("Upload two `shams_run_artifact.json` files to compare key outputs and constraints.")
-    colA, colB = st.columns(2)
-    with colA:
-        upA = st.file_uploader("Artifact A (JSON)", type=["json"], key="cmpA")
-    with colB:
-        upB = st.file_uploader("Artifact B (JSON)", type=["json"], key="cmpB")
+    st.markdown("### Compare sources")
+    st.caption("Compare uses either **session slots** (recommended) or uploaded JSON artifacts.")
+
+    _slotA = st.session_state.get("cmp_slot_A")
+    _slotB = st.session_state.get("cmp_slot_B")
+    _metaA = st.session_state.get("cmp_slot_A_meta") or {}
+    _metaB = st.session_state.get("cmp_slot_B_meta") or {}
+    _have_slotA = isinstance(_slotA, dict)
+    _have_slotB = isinstance(_slotB, dict)
+
+    ca, cb, cc = st.columns([1.2, 1.2, 1.0])
+    with ca:
+        use_slotA = st.checkbox("Use session Slot A", value=bool(_have_slotA), key="cmp_use_slot_A")
+        if _have_slotA:
+            st.caption(f"Slot A: {str(_metaA.get('label',''))} | {str(_metaA.get('inputs_hash',''))[:8]}")
+        else:
+            st.caption("Slot A: (empty)")
+    with cb:
+        use_slotB = st.checkbox("Use session Slot B", value=bool(_have_slotB), key="cmp_use_slot_B")
+        if _have_slotB:
+            st.caption(f"Slot B: {str(_metaB.get('label',''))} | {str(_metaB.get('inputs_hash',''))[:8]}")
+        else:
+            st.caption("Slot B: (empty)")
+    with cc:
+        if st.button("🧹 Clear slots", use_container_width=True, key="cmp_clear_slots"):
+            st.session_state.pop("cmp_slot_A", None)
+            st.session_state.pop("cmp_slot_B", None)
+            st.session_state.pop("cmp_slot_A_meta", None)
+            st.session_state.pop("cmp_slot_B_meta", None)
+            st.success("Cleared Compare slots.")
+
+    with st.expander("Upload artifacts (optional)", expanded=False):
+        colA, colB = st.columns(2)
+        with colA:
+            upA = st.file_uploader("Artifact A (JSON)", type=["json"], key="cmpA")
+            if upA is not None:
+                if st.button("Store upload as Slot A", use_container_width=True, key="cmp_store_upload_A"):
+                    try:
+                        _a = json.loads(upA.getvalue().decode("utf-8"))
+                    except Exception:
+                        _a = json.loads(upA.getvalue())
+                    st.session_state["cmp_slot_A"] = _a
+                    st.session_state["cmp_slot_A_meta"] = {"ts_unix": float(time.time()), "inputs_hash": str((_a.get("inputs_hash") or "")), "label": "Uploaded"}
+                    st.success("Stored upload into Slot A.")
+        with colB:
+            upB = st.file_uploader("Artifact B (JSON)", type=["json"], key="cmpB")
+            if upB is not None:
+                if st.button("Store upload as Slot B", use_container_width=True, key="cmp_store_upload_B"):
+                    try:
+                        _b = json.loads(upB.getvalue().decode("utf-8"))
+                    except Exception:
+                        _b = json.loads(upB.getvalue())
+                    st.session_state["cmp_slot_B"] = _b
+                    st.session_state["cmp_slot_B_meta"] = {"ts_unix": float(time.time()), "inputs_hash": str((_b.get("inputs_hash") or "")), "label": "Uploaded"}
+                    st.success("Stored upload into Slot B.")
 
     def _load_art(uploaded):
         if uploaded is None:
@@ -17601,8 +18723,22 @@ with tab_compare:
             except Exception:
                 return None
 
-    artA = _load_art(upA)
-    artB = _load_art(upB)
+    # Resolve artifacts from preferred sources
+    artA = None
+    artB = None
+    if bool(use_slotA) and _have_slotA:
+        artA = _slotA
+    else:
+        artA = _load_art(st.session_state.get("cmpA"))
+    if bool(use_slotB) and _have_slotB:
+        artB = _slotB
+    else:
+        artB = _load_art(st.session_state.get("cmpB"))
+
+    if bool(use_slotA) and (not _have_slotA):
+        st.warning("Slot A is selected but empty. Send a run from Point Designer (Export Bay) or upload an artifact.")
+    if bool(use_slotB) and (not _have_slotB):
+        st.warning("Slot B is selected but empty. Send a run from Point Designer (Export Bay) or upload an artifact.")
 
     if artA and artB:
         outA = artA.get("outputs", {}) or {}
@@ -19969,6 +21105,65 @@ with tab_maturity:
             st.info("No model_registry entries found in artifact.")
 
 
+with tab_maintenance:
+    st.header("Maintenance & Availability Authority")
+    st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
+
+    out = st.session_state.get("last_point_out")
+    if not isinstance(out, dict):
+        st.info("Run a point in Point Designer first (sets last_point_out).")
+    else:
+        enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
+        if not enabled:
+            st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in 🧭 Point Designer → Engineering & plant feasibility → 🗓️ Maintenance scheduling authority (v368.0).")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
+        c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
+        c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+        c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.3g}"))
+
+        with st.expander("What this authority does", expanded=False):
+            st.markdown(
+                "- Converts replacement cadences (FW/blanket from v367, plus HCD and tritium plant) and replacement durations into a bundled outage fraction.\n"
+                "- Combines with planned/forced baselines (and optional trips proxy) to form total outage and availability.\n"
+                "- Emits an explicit event table (maintenance_events_v368) for audit and reviewer use."
+            )
+        with st.expander("What this authority does not do", expanded=False):
+            st.markdown(
+                "- Does not run a time-domain availability/RAMI simulation.\n"
+                "- Does not optimize schedules or negotiate constraints.\n"
+                "- Does not modify plasma truth or materials lifetime truth; it only post-processes into a schedule proxy."
+            )
+
+        st.subheader("Outage decomposition")
+        rows = [
+            {"term": "planned", "outage_frac": out.get("planned_outage_frac_v368")},
+            {"term": "forced", "outage_frac": out.get("forced_outage_frac_v368")},
+            {"term": "replacement", "outage_frac": out.get("replacement_outage_frac_v368")},
+            {"term": "total", "outage_frac": out.get("outage_total_frac_v368")},
+        ]
+        try:
+            import pandas as _pd
+            df = _pd.DataFrame(rows)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        except Exception:
+            st.write(rows)
+
+        ev = out.get("maintenance_events_v368")
+        with st.expander("Maintenance event table (v368)", expanded=False):
+            if isinstance(ev, list) and ev:
+                try:
+                    import pandas as _pd
+                    st.dataframe(_pd.DataFrame(ev), use_container_width=True, hide_index=True)
+                except Exception:
+                    st.json(ev)
+            else:
+                st.info("No maintenance_events_v368 found (enable v368 and re-run).")
+
+        with st.expander("Contract fingerprint", expanded=False):
+            st.code(str(out.get("maintenance_contract_sha256", "")))
+
+
 with tab_profile_auth:
     st.header("Profile Authority")
     st.caption("1.5D algebraic profile diagnostics (non-iterative, conservative).")
@@ -20076,7 +21271,8 @@ with tab_cert_search:
     st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
 
     from dataclasses import replace
-    from solvers.budgeted_search import SearchVar, SearchSpec, run_budgeted_search
+    from solvers.budgeted_search import SearchVar
+    from solvers.certified_search_orchestrator import OrchestratorSpec, SearchStage, run_orchestrated_certified_search
 
     base = st.session_state.get("last_point_inp")
     if base is None:
@@ -20111,13 +21307,40 @@ with tab_cert_search:
                     hi_v = lo_v + 1e-6
                 vars_.append(SearchVar(name=name, lo=float(lo_v), hi=float(hi_v)))
 
-        c1,c2,c3=st.columns(3)
+        c1,c2,c3,c4=st.columns(4)
         with c1:
-            budget = int(st.number_input("Budget", value=64, min_value=8, max_value=1024, step=8))
+            budget = int(st.number_input("Budget", value=96, min_value=8, max_value=2048, step=8, key="cs_budget"))
         with c2:
-            seed = int(st.number_input("Seed", value=0, min_value=0, max_value=10_000, step=1))
+            seed = int(st.number_input("Seed", value=0, min_value=0, max_value=10_000, step=1, key="cs_seed"))
         with c3:
-            method = st.selectbox("Method", ["lhs","grid"], index=0)
+            method = st.selectbox("Method", ["halton","lhs","grid"], index=0, key="cs_method")
+        with c4:
+            two_stage = bool(st.checkbox("Two-stage refine", value=True, key="cs_two_stage"))
+
+        stage2_budget_frac = float(st.slider("Stage-2 budget fraction", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_frac")) if two_stage else 0.0
+        stage2_shrink = float(st.slider("Stage-2 local shrink", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_shrink")) if two_stage else 0.0
+        stage2_method = st.selectbox("Stage-2 method", ["grid","halton","lhs"], index=0, key="cs_stage2_method") if two_stage else "grid"
+
+        st.markdown("---")
+        insert_surr = bool(st.checkbox("Insert surrogate stage (feasible-first, non-authoritative)", value=False, key="cs_insert_surr"))
+        surr_frac = float(
+            st.slider(
+                "Surrogate budget fraction",
+                min_value=0.05,
+                max_value=0.60,
+                value=0.20,
+                step=0.05,
+                key="cs_surr_frac",
+                disabled=(not insert_surr),
+            )
+        )
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            surr_pool_mult = int(st.number_input("Surrogate pool multiplier", value=50, min_value=4, max_value=200, step=1, key="cs_surr_pool", disabled=(not insert_surr)))
+        with s2:
+            surr_kappa = float(st.slider("Surrogate kappa", min_value=0.0, max_value=2.0, value=0.5, step=0.1, key="cs_surr_kappa", disabled=(not insert_surr)))
+        with s3:
+            surr_ridge = float(st.number_input("Surrogate ridge alpha", value=1e-3, min_value=1e-6, max_value=1.0, format="%.6f", key="cs_surr_ridge", disabled=(not insert_surr)))
 
         def _builder(b, overrides):
             return replace(b, **{k: float(v) for k,v in overrides.items()})
@@ -20125,11 +21348,23 @@ with tab_cert_search:
         def _verifier(inp_obj):
             out = hot_ion_point(inp_obj)
             cons = evaluate_constraints(out, point_inputs=inp_obj)
+            try:
+                from constraints.bookkeeping import summarize as _summarize_constraints
+                _cs = _summarize_constraints(cons)
+                _min_margin_frac = float(_cs.worst_hard_margin_frac) if _cs.worst_hard_margin_frac is not None else float("nan")
+                _worst_hard = str(_cs.worst_hard or "")
+            except Exception:
+                _min_margin_frac = float("nan")
+                _worst_hard = ""
             ok = all((not bool(c.get("failed"))) for c in cons)
             score = float(out.get(objective, 0.0)) if ok else float("-inf")
+
             evidence={
                 "objective": objective,
                 "objective_value": float(out.get(objective, float("nan"))),
+                "min_margin_frac": _min_margin_frac,
+                "worst_hard": _worst_hard,
+                "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
                 "n_failed": int(sum(1 for c in cons if c.get("failed"))),
                 "top_blocker": (next((c.get("name") for c in cons if c.get("failed")), None)),
             }
@@ -20139,56 +21374,86 @@ with tab_cert_search:
             if not vars_:
                 st.warning("Select at least one knob.")
             else:
-                res = run_budgeted_search(base, SearchSpec(variables=tuple(vars_), budget=budget, seed=seed, method=method), verifier=_verifier, builder=_builder)
-                st.session_state["v296_cert_search_last"] = res
-                # v297: evidence-integrated certified search artifact
+                b1 = int(max(1, round(float(budget) * (1.0 - float(stage2_budget_frac)))))
+                b2 = int(max(0, round(float(budget) * float(stage2_budget_frac))))
+                bs = int(max(0, round(float(budget) * float(surr_frac)))) if insert_surr else 0
+                # cap budgets deterministically
+                b2 = int(min(int(b2), int(max(0, budget - 1))))
+                bs = int(min(int(bs), int(max(0, budget - 1 - b2))))
+                b1 = int(max(1, int(budget) - int(b2) - int(bs)))
+
+                stages = [SearchStage(name="stage1", method=str(method), budget=int(b1), seed=int(seed), local_refine=False)]
+                if insert_surr and bs > 0:
+                    stages.append(
+                        SearchStage(
+                            name="surrogate",
+                            method="surrogate",
+                            budget=int(bs),
+                            seed=int(seed + 1),
+                            local_refine=False,
+                            surrogate_pool_mult=int(surr_pool_mult),
+                            surrogate_kappa=float(surr_kappa),
+                            surrogate_ridge_alpha=float(surr_ridge),
+                            surrogate_feas_margin_key="min_margin_frac",
+                        )
+                    )
+                if two_stage and b2 > 0:
+                    stages.append(
+                        SearchStage(
+                            name="stage2",
+                            method=str(stage2_method),
+                            budget=int(b2),
+                            seed=int(seed + (2 if (insert_surr and bs > 0) else 1)),
+                            local_refine=True,
+                            local_shrink=float(stage2_shrink),
+                        )
+                    )
+                art = run_orchestrated_certified_search(
+                    base,
+                    OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
+                    verifier=_verifier,
+                    builder=_builder,
+                )
+                st.session_state["last_certified_search_artifact"] = art
+                st.session_state["v340_cert_search_last"] = art
                 try:
-                    from dataclasses import asdict
-                    art = {
-                        "schema_version": "certified_search_evidence.v1",
-                        "digest": res.digest,
-                        "spec": {
-                            "variables": [asdict(v) for v in res.spec.variables],
-                            "budget": int(res.spec.budget),
-                            "seed": int(res.spec.seed),
-                            "method": str(res.spec.method),
-                        },
-                        "objective": str(objective),
-                        "base_inputs": asdict(base),
-                        "records": [
-                            {
-                                "i": int(r.i),
-                                "x": dict(r.x),
-                                "verdict": str(r.verdict),
-                                "score": float(r.score),
-                                "evidence": dict(r.evidence or {}),
-                            }
-                            for r in res.records
-                        ],
-                        "best_index": (int(res.best_index) if res.best_index is not None else None),
-                    }
-                    st.session_state["last_certified_search_artifact"] = art
-                    _v98_record_run("certified_search", art, mode="SystemSuite/Chronicle")
+                    _v98_record_run("certified_search_orchestrated", art, mode="SystemSuite/Chronicle")
                 except Exception:
                     pass
-                st.success(f"Done. Digest: {res.digest[:12]} | PASS found: {sum(1 for r in res.records if r.verdict=='PASS')}/{len(res.records)}")
 
-        res = st.session_state.get("v296_cert_search_last")
-        if res is not None:
+                n_pass = 0
+                n_tot = 0
+                try:
+                    for stg in art.get("stages", []):
+                        recs = stg.get("records", [])
+                        n_tot += len(recs)
+                        n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
+                except Exception:
+                    pass
+                st.success(f"Done. Digest: {str(art.get('digest',''))[:12]} | PASS found: {n_pass}/{n_tot}")
+
+        art = st.session_state.get("v340_cert_search_last")
+        if isinstance(art, dict) and art.get("schema_version"):
             st.subheader("Results")
-            df = pd.DataFrame([{"i": r.i, "verdict": r.verdict, "score": r.score, **r.x, **{f"e_{k}": v for k,v in (r.evidence or {}).items()}} for r in res.records])
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            if res.best_record is not None:
+            # Flatten across stages for display
+            rows = []
+            for stg in art.get("stages", []):
+                for r in stg.get("records", []):
+                    rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
+            df = pd.DataFrame(rows)
+            with st.expander("Results table", expanded=False):
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
                 with st.expander("Best PASS candidate", expanded=False):
-                    st.json({"x": res.best_record.x, "score": res.best_record.score, "evidence": res.best_record.evidence})
+                    st.json(art.get("best"))
 
             # v297: export deterministic evidence pack
             try:
                 from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
-                art = st.session_state.get("last_certified_search_artifact")
-                if isinstance(art, dict):
+                art2 = st.session_state.get("last_certified_search_artifact")
+                if isinstance(art2, dict):
                     if st.button("Build Certified Search evidence pack", use_container_width=True, key="cs_build_ev"):
-                        b = build_simple_evidence_zip_bytes(art, basename=f"certified_search_{art.get('digest','')[:12]}")
+                        b = build_simple_evidence_zip_bytes(art2, basename=f"certified_search_{art2.get('digest','')[:12]}")
                         st.session_state["certified_search_evidence_zip"] = b
                         st.success("Evidence pack built.")
                     b = st.session_state.get("certified_search_evidence_zip")
@@ -20452,6 +21717,17 @@ with tab_refine:
                     )
             except Exception:
                 pass
+
+with tab_narrowing:
+    st.header("Interval Narrowing")
+    st.caption(
+        "Advisory dead-region flags + interval narrowing proposals + repair contract export (no truth mutation)."
+    )
+    try:
+        from ui.interval_narrowing import render_interval_narrowing_panel
+        render_interval_narrowing_panel(st, pd, BASE_DIR, st.session_state)
+    except Exception as _e:
+        st.info("Panel unavailable in this build.")
 
 with tab_surrogate:
     st.header("Surrogate Overlay")

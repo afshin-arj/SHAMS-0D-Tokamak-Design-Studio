@@ -17,6 +17,7 @@ Key entrypoint: ``hot_ion_point(inputs, Paux_for_Q_MW=None) -> dict``.
 """
 import math
 import json
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 try:
@@ -37,6 +38,7 @@ try:
         evaluate_profile_bundle,
         profile_assumption_tag,
     )  # type: ignore
+    from ..profiles.family_v358 import compute_profile_family_factors_v358  # type: ignore
 except Exception:
     # Back-compat when `<repo>/src` is on sys.path (so `profiles` is top-level)
     from profiles.profiles import ParabolicProfile, PedestalProfile, PlasmaProfiles  # type: ignore
@@ -45,6 +47,7 @@ except Exception:
         evaluate_profile_bundle,
         profile_assumption_tag,
     )  # type: ignore
+    from profiles.family_v358 import compute_profile_family_factors_v358  # type: ignore
 from .radiation import (
     ImpurityMix,
     bremsstrahlung_W,
@@ -61,7 +64,16 @@ try:
     from ..diagnostics.disruption_risk import evaluate_disruption_risk  # type: ignore
     from ..diagnostics.stability_risk import evaluate_stability_risk  # type: ignore
     from ..analysis.control_contracts import compute_control_contracts  # type: ignore
+    from ..contracts.control_stability_authority_contract import load_control_stability_contract, contract_defaults  # type: ignore
+    from ..contracts.plasma_regime_authority_contract import load_plasma_regime_contract
+    from ..contracts.impurity_radiation_authority_contract import load_impurity_radiation_contract  # type: ignore
+    from ..analysis.impurity_radiation import evaluate_impurity_radiation  # type: ignore  # type: ignore
+    from ..analysis.plasma_regime import evaluate_plasma_regime  # type: ignore
     from ..analysis.availability import compute_availability  # type: ignore
+    from ..availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
+    from ..maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
+    # v367.0 module is under repo-root `analysis/` namespace for test/runtime wiring
+    from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
     from ..analysis.tritium import compute_tritium_cycle  # type: ignore
     from ..engineering.pf_system import pf_system_proxy  # type: ignore
 except Exception:
@@ -70,7 +82,13 @@ except Exception:
     from diagnostics.disruption_risk import evaluate_disruption_risk  # type: ignore
     from diagnostics.stability_risk import evaluate_stability_risk  # type: ignore
     from analysis.control_contracts import compute_control_contracts  # type: ignore
+    from contracts.control_stability_authority_contract import load_control_stability_contract, contract_defaults  # type: ignore
+    from contracts.plasma_regime_authority_contract import load_plasma_regime_contract  # type: ignore
+    from analysis.plasma_regime import evaluate_plasma_regime  # type: ignore
     from analysis.availability import compute_availability  # type: ignore
+    from availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
+    from maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
+    from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
     from analysis.tritium import compute_tritium_cycle  # type: ignore
     from engineering.pf_system import pf_system_proxy  # type: ignore
 from .profiles import build_profiles_from_volume_avgs, gradient_proxy_at_pedestal
@@ -231,6 +249,9 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # write provenance/diagnostics before the final return assembly).
     # Keep this explicit and deterministic.
     out: Dict[str, Any] = {}
+    # Repository root (used only for governance contracts / artifact stamping).
+    # Must not influence physics beyond explicit contract defaults.
+    repo_root = Path(__file__).resolve().parents[2]
     # ---------------------------
     # Geometry (tokamak proxies)
     # ---------------------------
@@ -609,7 +630,59 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     W_J = 3.0 * ne_m3 * ((Te + Ti) * KEV_TO_J) * V
     W_MJ = W_J / 1e6
 
-    tauE_s = (W_MJ / max(Ploss_MW, 1e-9)) * max(getattr(inp, 'confinement_mult', 1.0), 0.0)
+    # ---------------------------------------------------------------------
+    # v358.0: Profile Family Library Authority (transport proxy, deterministic)
+    # ---------------------------------------------------------------------
+    pf_confinement_mult_eff = 1.0
+    pf_bootstrap_mult_eff = 1.0
+    pf_tag = "CORE_FLAT"
+    try:
+        if bool(getattr(inp, "include_profile_family_v358", False)):
+            pf = compute_profile_family_factors_v358(
+                family_raw=str(getattr(inp, "profile_family_v358", "CORE_FLAT")),
+                p_peaking=float(getattr(inp, "profile_family_peaking_p", 1.0)),
+                j_peaking=float(getattr(inp, "profile_family_peaking_j", 1.0)),
+                shear_shape=float(getattr(inp, "profile_family_shear_shape", 0.5)),
+                pedestal_frac=float(getattr(inp, "profile_family_pedestal_frac", 0.0)),
+                confinement_mult_user=float(getattr(inp, "profile_family_confinement_mult", 1.0)),
+                bootstrap_mult_user=float(getattr(inp, "profile_family_bootstrap_mult", 1.0)),
+            )
+            pf_confinement_mult_eff = float(pf.confinement_mult_eff)
+            pf_bootstrap_mult_eff = float(pf.bootstrap_mult_eff)
+            pf_tag = str(pf.tag)
+            out["profile_family_tag"] = pf_tag
+            out["profile_family_confinement_mult_eff"] = pf_confinement_mult_eff
+            out["profile_family_bootstrap_mult_eff"] = pf_bootstrap_mult_eff
+            out["profile_family_validity"] = pf.validity
+            out["profile_family_p_peaking"] = float(pf.p_peaking)
+            out["profile_family_j_peaking"] = float(pf.j_peaking)
+            out["profile_family_shear_shape"] = float(pf.shear_shape)
+            out["profile_family_pedestal_frac"] = float(pf.pedestal_frac)
+        else:
+            out["profile_family_tag"] = "DISABLED"
+            out["profile_family_confinement_mult_eff"] = 1.0
+            out["profile_family_bootstrap_mult_eff"] = 1.0
+            out["profile_family_validity"] = {"v358_profile_family": False}
+            out["profile_family_p_peaking"] = float("nan")
+            out["profile_family_j_peaking"] = float("nan")
+            out["profile_family_shear_shape"] = float("nan")
+            out["profile_family_pedestal_frac"] = float("nan")
+    except Exception:
+        out["profile_family_tag"] = "ERROR"
+        out["profile_family_confinement_mult_eff"] = float("nan")
+        out["profile_family_bootstrap_mult_eff"] = float("nan")
+        out["profile_family_validity"] = {"v358_profile_family": False, "error": True}
+        out["profile_family_p_peaking"] = float("nan")
+        out["profile_family_j_peaking"] = float("nan")
+        out["profile_family_shear_shape"] = float("nan")
+        out["profile_family_pedestal_frac"] = float("nan")
+        pf_confinement_mult_eff = 1.0
+        pf_bootstrap_mult_eff = 1.0
+        pf_tag = "CORE_FLAT"
+    # Contract fingerprint
+    out["profile_family_contract_sha256"] = "fb01217507eaca85e571822be593426f693aba406885eb5a0ed07839835637ef"
+
+    tauE_s = (W_MJ / max(Ploss_MW, 1e-9)) * max(getattr(inp, 'confinement_mult', 1.0), 0.0) * max(pf_confinement_mult_eff, 0.0)
 
     tauIPB_s = tauE_ipb98y2(
         Ip_MA=inp.Ip_MA, Bt_T=inp.Bt_T, ne20=ne20,
@@ -980,7 +1053,10 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
 
     # Bootstrap/current fraction model selection (policy-tagged)
     bs_mode = (inp.bootstrap_model or "proxy").strip().lower()
+    out["bootstrap_model"] = bs_mode
     eps = inp.a_m / max(inp.R0_m, 1e-9)
+    out["eps"] = eps
+    out["C_bs"] = float(getattr(inp, "C_bs", 0.15) or 0.15)
     beta_p = beta / max(eps, 1e-9)
     # default grad proxy =0; updated later if analytic profiles are enabled
     grad_proxy = 0.0
@@ -1039,6 +1115,16 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         ppk = 1.0 + 0.15 * max(0.0, float(getattr(inp, "profile_peaking_T", 0.0)))
         jpk = 1.0 + 0.10 * max(0.0, float(getattr(inp, "profile_peaking_ne", 0.0)))
         shear = float(getattr(inp, "profile_shear_shape", 0.5))
+        # v358 profile family override: when enabled, use certified family shape factors
+        try:
+            if bool(getattr(inp, "include_profile_family_v358", False)) and (out.get("profile_family_p_peaking") == out.get("profile_family_p_peaking")):
+                # Map p_peaking -> legacy ppk knob, and j_peaking -> legacy jpk knob
+                ppk = float(out.get("profile_family_p_peaking", ppk))
+                jpk = float(out.get("profile_family_j_peaking", jpk))
+                shear = float(out.get("profile_family_shear_shape", shear))
+        except Exception:
+            pass
+
         pb = evaluate_profile_bundle(ProfileSpec(p_peaking=ppk, j_peaking=jpk, shear_shape=shear), beta_n=betaN, q95=q95, r_major_m=inp.R0_m, a_minor_m=inp.a_m)
         out["profile_p_peaking"] = pb.p_peaking
         out["profile_j_peaking"] = pb.j_peaking
@@ -1061,14 +1147,25 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Added: (2b) Current drive closure (very lightweight, SPARC-style bookkeeping)
     # =========================================================================
     Ip_A = inp.Ip_MA * 1e6
-    I_bs_A = float(fbs) * Ip_A
+    # Use the profile-bundle bootstrap proxy when available to maintain self-consistency
+    _fbs_used = out.get("profile_f_bootstrap_proxy", float("nan"))
+    try:
+        _fbs_used = float(_fbs_used)
+    except Exception:
+        _fbs_used = float("nan")
+    if not ( _fbs_used == _fbs_used and abs(_fbs_used) < 1e300 ):
+        try:
+            _fbs_used = float(fbs)
+        except Exception:
+            _fbs_used = float("nan")
+    I_bs_A = (_fbs_used * Ip_A) if (_fbs_used == _fbs_used and abs(_fbs_used) < 1e300) else float("nan")
     P_CD_MW = float(getattr(inp, "P_CD_MW", 0.0))
     eta_CD_A_W = float(getattr(inp, "eta_CD_A_W", 0.04e-6))
     I_cd_A = max(0.0, eta_CD_A_W * (P_CD_MW * 1e6))
-    f_NI = (I_bs_A + I_cd_A) / max(Ip_A, 1e-9)
+    f_NI = (I_bs_A + I_cd_A) / max(Ip_A, 1e-9) if (I_bs_A == I_bs_A) else float("nan")
     out["P_CD_MW"] = P_CD_MW
     out["eta_CD_A_W"] = eta_CD_A_W
-    out["I_bs_MA"] = I_bs_A / 1e6
+    out["I_bs_MA"] = I_bs_A / 1e6 if (I_bs_A == I_bs_A) else float("nan")
     out["I_cd_MA"] = I_cd_A / 1e6
     out["f_NI"] = f_NI
 
@@ -1370,6 +1467,16 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         # Detachment authority: invert q_div target -> required SOL+div radiation and implied f_z.
         q_target = float(getattr(inp, "q_div_target_MW_m2", float("nan")))
         out["detachment_fz_max"] = float(getattr(inp, "detachment_fz_max", float("nan")))
+
+        # (v348.0) Edge–Core Coupled Exhaust Authority (defaults; always present)
+        out["edge_core_coupling_active"] = 0.0
+        out["edge_core_coupling_chi_core"] = float(getattr(inp, "edge_core_coupling_chi_core", 0.25) or 0.25)
+        out["edge_core_coupling_contract_sha256"] = ""
+        out["edge_core_coupling_delta_Prad_core_MW"] = float("nan")
+        out["P_SOL_edge_core_MW"] = float("nan")
+        out["f_rad_core_edge_core"] = float("nan")
+        out["edge_core_coupling_validity"] = {}
+
         if bool(getattr(inp, "include_sol_radiation_control", False)) and math.isfinite(q_target) and q_target > 0.0:
             q_no = float(out.get("q_div_MW_m2", float("nan")))
             dr = detachment_requirement_from_target(
@@ -1383,6 +1490,79 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["detachment_f_z_required"] = float(dr.f_z_required)
             out["detachment_Lz_sol_Wm3"] = float(dr.lz_sol_Wm3)
             out["detachment_validity"] = dict(dr.validity)
+
+
+            # (v348.0) Edge–Core Coupled Exhaust Authority
+            # One-pass power-flow closure: increased core radiation reduces P_SOL, which relaxes divertor metrics.
+            if bool(getattr(inp, "include_edge_core_coupled_exhaust", False)):
+                try:
+                    from src.contracts.edge_core_coupled_exhaust_contract import (
+                        apply_edge_core_coupling,
+                        CONTRACT_SHA256 as _EC_CONTRACT_SHA,
+                    )
+
+                    chi_core = float(getattr(inp, "edge_core_coupling_chi_core", 0.25) or 0.25)
+                    chi_core = min(max(chi_core, 0.0), 1.0)
+
+                    res = apply_edge_core_coupling(
+                        Pin_MW=float(Pin_MW),
+                        Prad_core_MW=float(Prad_core_MW),
+                        Ploss_MW=float(Ploss_MW),
+                        P_SOL_MW=float(P_SOL_MW),
+                        Prad_sol_div_required_MW=float(dr.prad_sol_div_required_MW),
+                        chi_core=float(chi_core),
+                        f_rad_core_edge_core_max=float(getattr(inp, "f_rad_core_edge_core_max", float("nan"))),
+                    )
+
+                    out["edge_core_coupling_active"] = 1.0
+                    out["edge_core_coupling_chi_core"] = float(chi_core)
+                    out["edge_core_coupling_contract_sha256"] = str(_EC_CONTRACT_SHA)
+                    out["edge_core_coupling_delta_Prad_core_MW"] = float(res.delta_Prad_core_MW)
+                    out["P_SOL_edge_core_MW"] = float(res.P_SOL_eff_MW)
+                    out["f_rad_core_edge_core"] = float(res.f_rad_core_edge_core)
+                    out["edge_core_coupling_validity"] = dict(res.validity)
+
+                    # backup base divertor/exhaust proxies then overwrite with coupled evaluation (no iteration)
+                    out["q_div_MW_m2_base"] = float(out.get("q_div_MW_m2", float("nan")))
+                    out["P_div_MW_base"] = float(out.get("P_div_MW", float("nan")))
+                    out["div_regime_base"] = str(out.get("div_regime", ""))
+                    out["f_rad_div_eff_base"] = float(out.get("f_rad_div_eff", float("nan")))
+
+                    lam_mm = float(out.get("lambda_q_mm", float("nan")))
+                    if math.isfinite(lam_mm):
+                        ex_ec = evaluate_exhaust_with_known_lambda_q(
+                            P_SOL_MW=float(res.P_SOL_eff_MW),
+                            R0_m=float(inp.R0_m),
+                            q95=float(q95),
+                            A_fw_m2=float(A_fw),
+                            Bpol_out_mid_T=float(out.get("Bpol_out_mid_T", float("nan"))),
+                            lambda_q_mm=float(lam_mm),
+                            flux_expansion=float(inp.flux_expansion),
+                            n_strike_points=int(getattr(inp, "n_strike_points", 2)),
+                            f_rad_div=float(min(max(float(getattr(inp, "f_rad_div", 0.0)), 0.0), 0.99)),
+                            P_SOL_over_R_max_MW_m=float(inp.P_SOL_over_R_max_MW_m),
+                            f_Lpar=float(getattr(inp, "f_Lpar", 1.0)),
+                            advanced_divertor_factor=float(getattr(inp, "advanced_divertor_factor", 1.0) or 1.0),
+                        )
+                        q_mid_ec = q_midplane_from_lambda_q(
+                            P_SOL_MW=float(res.P_SOL_eff_MW),
+                            R0_m=float(inp.R0_m),
+                            lambda_q_mm=float(lam_mm),
+                        )
+                        out.update({
+                            "q_div_MW_m2": float(ex_ec.q_div_MW_m2),
+                            "div_regime": str(ex_ec.div_regime),
+                            "f_rad_div_eff": float(ex_ec.f_rad_div_eff),
+                            "P_div_MW": float(ex_ec.P_div_MW),
+                            "q_midplane_MW_m2": float(ex_ec.q_midplane_MW_m2),
+                            "q_midplane_W_m2": float(ex_ec.q_midplane_MW_m2) * 1e6,
+                            "q_div_W_m2": float(ex_ec.q_div_MW_m2) * 1e6,
+                            "P_SOL_over_R_edge_core_MW_m": float(res.P_SOL_eff_MW) / max(float(inp.R0_m), 1e-9),
+                            "q_midplane_edge_core_MW_m2": float(q_mid_ec),
+                        })
+                except Exception:
+                    out["edge_core_coupling_active"] = 0.0
+                    out["edge_core_coupling_validity"] = {"status": "exception"}
         else:
             out["detachment_f_sol_div_required"] = float("nan")
             out["detachment_prad_sol_div_required_MW"] = float("nan")
@@ -1390,6 +1570,15 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["detachment_Lz_sol_Wm3"] = float("nan")
             out["detachment_fz_max"] = float(getattr(inp, "detachment_fz_max", float("nan")))
             out["detachment_validity"] = {}
+
+        # (v348.0) Edge–Core Coupled Exhaust Authority fallbacks
+        out["edge_core_coupling_active"] = 0.0
+        out["edge_core_coupling_chi_core"] = float(getattr(inp, "edge_core_coupling_chi_core", 0.25) or 0.25)
+        out["edge_core_coupling_contract_sha256"] = ""
+        out["edge_core_coupling_delta_Prad_core_MW"] = float("nan")
+        out["P_SOL_edge_core_MW"] = float("nan")
+        out["f_rad_core_edge_core"] = float("nan")
+        out["edge_core_coupling_validity"] = {}
     except Exception:
         out["impurity_contract_species"] = ""
         out["impurity_contract_f_z"] = float("nan")
@@ -1561,16 +1750,85 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["gamma_cd_A_per_W_used"] = float(cd.gamma_A_per_W)
             out["eta_cd_wallplug_used"] = float(cd.eta_wallplug)
             Pcd_max = float(getattr(inp, "Pcd_max_MW", 200.0))
+            out["Pcd_max_MW"] = float(Pcd_max)
             Ip_A = max(float(inp.Ip_MA) * 1e6, 1e-6)
             Icd_req_A = max((f_target - f_bs) * Ip_A, 0.0)
             Pcd_req_MW = (Icd_req_A / max(gamma, 1e-12)) / 1e6
+            out["P_cd_required_MW"] = float(Pcd_req_MW)
             Pcd_launch = min(max(Pcd_req_MW, 0.0), max(Pcd_max, 0.0))
+            out["cd_power_saturated"] = 1.0 if (Pcd_req_MW > Pcd_max + 1e-9) else 0.0
             Icd_A = Pcd_launch * 1e6 * max(gamma, 0.0)
             f_NI = f_bs + Icd_A / Ip_A
             out["P_cd_launch_MW"] = float(Pcd_launch)
+
+            # Derived channel feasibility proxies (deterministic)
+            try:
+                tech = str(out.get("cd_actuator_used", "ECCD")).strip().upper()
+            except Exception:
+                tech = "ECCD"
+
+            # ECCD launcher power density proxy
+            if tech == "ECCD":
+                area = float(out.get("eccd_launcher_area_m2", float('nan')))
+                if area == area and area > 0.0:
+                    out["eccd_launcher_power_density_MW_m2"] = float(Pcd_launch) / area
+                else:
+                    out["eccd_launcher_power_density_MW_m2"] = float('nan')
+            else:
+                out["eccd_launcher_power_density_MW_m2"] = float('nan')
+
+            # NBI shine-through proxy (screening): decreases with density and path length; increases with beam energy.
+            if tech == "NBI":
+                try:
+                    ne20 = float(out.get("ne_bar_1e20_m3", out.get("nbar20", out.get("ne20", float('nan')))))
+                    R0 = float(out.get("R0_m", getattr(inp, "R0_m", 6.2)))
+                    E = float(out.get("nbi_beam_energy_keV", float(getattr(inp, "nbi_beam_energy_keV", 500.0))))
+                    ne20 = max(0.05, min(5.0, ne20))
+                    R0 = max(0.5, min(20.0, R0))
+                    E = max(50.0, min(5000.0, E))
+                    # optical depth proxy
+                    tau = 0.8 * ne20 * (R0 / 6.0)
+                    st_frac = (E / 500.0) ** 0.25 * (2.718281828459045 ** (-tau))
+                    out["nbi_shinethrough_frac"] = float(max(0.0, min(0.5, st_frac)))
+                except Exception:
+                    out["nbi_shinethrough_frac"] = float('nan')
+            else:
+                out["nbi_shinethrough_frac"] = float('nan')
             out["I_cd_MA"] = float(Icd_A / 1e6)
             out["f_noninductive"] = float(f_NI)
             out["f_noninductive_target"] = float(f_target)
+
+            # v357.0 CD library diagnostics (pure algebraic bookkeeping)
+            out["include_cd_library_v357"] = bool(getattr(inp, "include_cd_library_v357", False))
+            try:
+                tech = str(cd.actuator).strip().upper()
+            except Exception:
+                tech = "ECCD"
+
+            # User-declared channel knobs (echoed for audit)
+            if tech == "LHCD":
+                out["lhcd_n_parallel"] = float(getattr(inp, "lhcd_n_parallel", float('nan')))
+            else:
+                out["lhcd_n_parallel"] = float('nan')
+
+            if tech == "ECCD":
+                area = float(getattr(inp, "eccd_launcher_area_m2", float('nan')))
+                out["eccd_launcher_area_m2"] = area
+                out["eccd_launch_factor"] = float(getattr(inp, "eccd_launch_factor", float('nan')))
+            else:
+                out["eccd_launcher_area_m2"] = float('nan')
+                out["eccd_launch_factor"] = float('nan')
+
+            if tech == "NBI":
+                out["nbi_beam_energy_keV"] = float(getattr(inp, "nbi_beam_energy_keV", float('nan')))
+            else:
+                out["nbi_beam_energy_keV"] = float('nan')
+
+            # Optional hard caps (NaN disables) surfaced to the constraints ledger
+            out["lhcd_n_parallel_min"] = float(getattr(inp, "lhcd_n_parallel_min", float('nan')))
+            out["lhcd_n_parallel_max"] = float(getattr(inp, "lhcd_n_parallel_max", float('nan')))
+            out["eccd_launcher_power_density_max_MW_m2"] = float(getattr(inp, "eccd_launcher_power_density_max_MW_m2", float('nan')))
+            out["nbi_shinethrough_frac_max"] = float(getattr(inp, "nbi_shinethrough_frac_max", float('nan')))
         except Exception:
             out["P_cd_launch_MW"] = float(out.get("P_cd_launch_MW", 0.0))
     else:
@@ -1647,6 +1905,28 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["coil_cooling_capacity_MW"] = coil_th.cooling_capacity_MW
         out["coil_thermal_margin"] = coil_th.margin
         out["coil_heat_max_MW"] = float(getattr(inp, "coil_heat_max_MW", float("nan")))
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # (v367.0) Materials lifetime closure (post-processing-only)
+    # -----------------------------------------------------------------
+    try:
+        ml = compute_materials_lifetime_closure_v367(out, inp)
+        if isinstance(ml, dict):
+            out.update(ml)
+            # Prefer the closure-derived replacement intervals when available.
+            # This is deterministic post-processing and does not alter neutronics/materials physics.
+            if "fw_replace_interval_y_v367" in ml:
+                try:
+                    out["fw_replace_interval_y"] = float(ml["fw_replace_interval_y_v367"])
+                except Exception:
+                    pass
+            if "blanket_replace_interval_y_v367" in ml:
+                try:
+                    out["blanket_replace_interval_y"] = float(ml["blanket_replace_interval_y_v367"])
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -1815,7 +2095,22 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
 
     # Envelope-based control contracts (v226.0) — deterministic, no physics mutation
     try:
-        cc = compute_control_contracts(out, inp)
+        # v335.0: control authority contract provides deterministic defaults for optional caps
+        _ctl_contract = None
+        _ctl_caps = {}
+        try:
+            _ctl_contract = load_control_stability_contract(repo_root)
+            _ctl_caps = {}
+            dflt = contract_defaults(_ctl_contract)
+            for sub in ("vs","pf","cs","rwm"):
+                v = dflt.get(sub) if isinstance(dflt, dict) else None
+                if isinstance(v, dict):
+                    _ctl_caps.update({k: float(vv) for k, vv in v.items() if isinstance(k, str)})
+        except Exception:
+            _ctl_contract = None
+            _ctl_caps = {}
+        cc = compute_control_contracts(out, inp, caps_override=_ctl_caps)
+
         out["gamma_VS_s_inv"] = cc.gamma_VS_s_inv
         out["tau_VS_s"] = cc.tau_VS_s
         out["vs_bandwidth_req_Hz"] = cc.vs_bandwidth_req_Hz
@@ -1841,6 +2136,7 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["f_rad_SOL_max"] = float(getattr(inp, "f_rad_SOL_max", float("nan")))
         out["sol_control_ok"] = cc.sol_control_ok
         out["control_contracts_authority"] = cc.control_contracts_authority
+        out["control_contract_sha256"] = (_ctl_contract.sha256 if _ctl_contract is not None else "")
         out["control_budget_ledger"] = cc.control_budget_ledger
         out["control_contract_caps"] = cc.contract_caps
         out["control_contract_margins"] = cc.contract_margins
@@ -1939,6 +2235,22 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     except Exception:
         pass
 
+    # -----------------------------------------------------------------
+    # (v367.0) Materials lifetime closure: replacement cadence + cost-rate
+    # -----------------------------------------------------------------
+    try:
+        ml = compute_materials_lifetime_closure_v367(out, inp)
+        # Merge derived metadata (strictly post-processing; does not alter plasma truth)
+        out.update(ml)
+        # Override replacement intervals with the materials-authoritative cadence if available.
+        # This ensures v359 ledger and constraints see the same cadence.
+        if "fw_replace_interval_y_v367" in ml and ml["fw_replace_interval_y_v367"] == ml["fw_replace_interval_y_v367"]:
+            out["fw_replace_interval_y"] = float(ml["fw_replace_interval_y_v367"])
+        if "blanket_replace_interval_y_v367" in ml and ml["blanket_replace_interval_y_v367"] == ml["blanket_replace_interval_y_v367"]:
+            out["blanket_replace_interval_y"] = float(ml["blanket_replace_interval_y_v367"])
+    except Exception:
+        pass
+
     # Availability-aware annual net generation (MWh/year)
     try:
         Pnet = float(out.get("P_e_net_MW", float('nan')))
@@ -1948,6 +2260,59 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         if Pnet == Pnet and A == A:
             out["annual_net_MWh"] = max(Pnet, 0.0) * 8760.0 * max(0.0, min(1.0, A))
         out["annual_net_MWh_min"] = float(getattr(inp, "annual_net_MWh_min", float('nan')))
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # (v359.0) Availability & replacement ledger authority (optional)
+    # -----------------------------------------------------------------
+    try:
+        if bool(getattr(inp, "include_availability_replacement_v359", False)):
+            av3 = compute_availability_replacement_v359(out, inp)
+            out["availability_v359"] = av3.availability
+            out["availability_planned_outage_frac_v359"] = av3.planned_outage_frac
+            out["availability_forced_outage_frac_v359"] = av3.forced_outage_frac
+            out["availability_replacement_downtime_frac_v359"] = av3.replacement_downtime_frac
+            out["replacement_cost_MUSD_per_year_v359"] = av3.replacement_cost_MUSD_per_year
+            out["major_rebuild_interval_years_v359"] = av3.major_rebuild_interval_years
+            out["net_electric_MWh_per_year_v359"] = av3.net_electric_MWh_per_year
+            out["LCOE_proxy_v359_USD_per_MWh"] = av3.LCOE_proxy_USD_per_MWh
+            out["availability_replacement_contract_sha256"] = av3.contract_sha256
+        else:
+            # pass through caps for constraint visibility without activating anything
+            out["availability_v359_min"] = float(getattr(inp, "availability_v359_min", float('nan')))
+            out["LCOE_max_USD_per_MWh"] = float(getattr(inp, "LCOE_max_USD_per_MWh", float('nan')))
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # (v368.0) Maintenance Scheduling Authority 1.0 (optional)
+    # -----------------------------------------------------------------
+    try:
+        if bool(getattr(inp, "include_maintenance_scheduling_v368", False)):
+            ms = compute_maintenance_schedule_v368(out, inp)
+            out["maintenance_schedule_schema_version"] = ms.schema_version
+            out["maintenance_contract_sha256"] = ms.contract_sha256
+            out["maintenance_planning_horizon_yr_v368"] = ms.planning_horizon_yr
+            out["maintenance_bundle_policy_v368"] = ms.bundle_policy
+            out["maintenance_bundle_overhead_days_v368"] = ms.bundle_overhead_days
+
+            out["planned_outage_frac_v368"] = ms.planned_outage_frac
+            out["forced_outage_frac_v368"] = ms.forced_outage_frac
+            out["replacement_outage_frac_v368"] = ms.replacement_outage_frac
+            out["outage_total_frac_v368"] = ms.outage_total_frac
+            out["availability_v368"] = ms.availability
+            out["net_electric_MWh_per_year_v368"] = ms.net_electric_MWh_per_year
+            out["replacement_cost_MUSD_per_year_v368"] = ms.replacement_cost_MUSD_per_year
+            out["maintenance_events_v368"] = list(ms.events)
+
+            # Pass-through optional caps for constraints
+            out["outage_fraction_v368_max"] = float(getattr(inp, "outage_fraction_v368_max", float("nan")))
+            out["availability_v368_min"] = float(getattr(inp, "availability_v368_min", float("nan")))
+        else:
+            # Pass-through caps for visibility
+            out["outage_fraction_v368_max"] = float(getattr(inp, "outage_fraction_v368_max", float("nan")))
+            out["availability_v368_min"] = float(getattr(inp, "availability_v368_min", float("nan")))
     except Exception:
         pass
 
@@ -2276,6 +2641,23 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["P_pf_avg_max_MW"] = float(getattr(inp, "P_pf_avg_max_MW", float('nan')))
         out["P_aux_max_MW"] = float(getattr(inp, "P_aux_max_MW", float('nan')))
         out["P_cryo_max_MW"] = float(getattr(inp, "P_cryo_max_MW", float('nan')))
+        # v361.0 Engineering Actuator Limits Authority: peak power supply draw proxy (optional cap)
+        try:
+            def _f(v):
+                try:
+                    x=float(v)
+                    return x if x==x else float('nan')
+                except Exception:
+                    return float('nan')
+            Paux_el=_f(out.get('P_aux_total_el_MW', float('nan')))
+            Ppf_peak=_f(out.get('pf_P_peak_MW', float('nan')))
+            Pvs=_f(out.get('vs_control_power_req_MW', float('nan')))
+            Prwm=_f(out.get('rwm_control_power_req_MW', float('nan')))
+            vals=[v for v in [Paux_el,Ppf_peak,Pvs,Prwm] if (v==v)]
+            out['P_supply_peak_MW']=float(max(vals) if vals else float('nan'))
+        except Exception:
+            out.setdefault('P_supply_peak_MW', float('nan'))
+        out['P_supply_peak_max_MW']=float(getattr(inp,'P_supply_peak_max_MW', float('nan')))
     except Exception:
         pass
 
@@ -2284,6 +2666,232 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out.update(compute_tritium_authority(out, dict(getattr(inp, "__dict__", {}))))
     except Exception:
         pass
+
+    # ---------------------------------------------------------------------
+    # v336.0 Plasma Regime Authority (deterministic classifier + margins)
+    # ---------------------------------------------------------------------
+    try:
+        _pl_contract = load_plasma_regime_contract(repo_root)
+        pr = evaluate_plasma_regime(out, _pl_contract)
+        out["plasma_regime"] = str(pr.plasma_regime)
+        out["burn_regime"] = str(pr.burn_regime)
+        out["plasma_fragility_class"] = str(pr.fragility_class)
+        out["plasma_min_margin_frac"] = float(pr.min_margin_frac)
+        out["plasma_contract_sha256"] = str(_pl_contract.sha256)
+        # Individual margins (fractional, signed)
+        for k, v in (pr.margins or {}).items():
+            out[f"plasma_{k}"] = float(v)
+    except Exception:
+        # Never gate physics on governance tooling.
+        out.setdefault("plasma_regime", "unknown")
+        out.setdefault("burn_regime", str(out.get("burn_regime", "aux_dominated")))
+        out.setdefault("plasma_fragility_class", "UNKNOWN")
+        out.setdefault("plasma_min_margin_frac", float('nan'))
+        out.setdefault("plasma_contract_sha256", "")
+
+
+    # ---------------------------------------------------------------------
+    # v337.0 Impurity Species & Radiation Partition Authority
+    # ---------------------------------------------------------------------
+    try:
+        _imp_contract = load_impurity_radiation_contract(repo_root)
+        ir = evaluate_impurity_radiation(out, _imp_contract)
+        out["impurity_regime"] = str(ir.impurity_regime)
+        out["impurity_species"] = str(ir.impurity_species)
+        out["impurity_fragility_class"] = str(ir.fragility_class)
+        out["impurity_min_margin_frac"] = float(ir.min_margin_frac)
+        out["impurity_contract_sha256"] = str(_imp_contract.sha256)
+        for k, v in (ir.margins or {}).items():
+            out[f"impurity_{k}"] = float(v)
+        for k, v in (ir.derived or {}).items():
+            out[f"impurity_{k}"] = float(v)
+    except Exception:
+        out.setdefault("impurity_regime", "unknown")
+        out.setdefault("impurity_species", str(out.get("impurity_species", "unknown")))
+        out.setdefault("impurity_fragility_class", "UNKNOWN")
+        out.setdefault("impurity_min_margin_frac", float("nan"))
+        out.setdefault("impurity_contract_sha256", "")
+
+
+    # -----------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
+    # v345.0 Current Profile Proxy Authority (bootstrap / q-profile / CD)
+    # ---------------------------------------------------------------------
+    try:
+        try:
+            from ..contracts.current_profile_proxy_authority_contract import load_current_profile_proxy_contract  # type: ignore
+            from ..analysis.current_profile_proxy import evaluate_current_profile_proxy  # type: ignore
+        except Exception:
+            from contracts.current_profile_proxy_authority_contract import load_current_profile_proxy_contract  # type: ignore
+            from analysis.current_profile_proxy import evaluate_current_profile_proxy  # type: ignore
+
+        _cp_contract, _cp_sha = load_current_profile_proxy_contract(repo_root)
+        cp = evaluate_current_profile_proxy(out, _cp_contract)
+        out["current_profile_regime"] = str(cp.regime)
+        out["current_profile_fragility_class"] = str(cp.fragility_class)
+        out["current_profile_min_margin_frac"] = float(cp.min_margin_frac)
+        out["current_profile_top_limiter"] = str(cp.top_limiter)
+        out["current_profile_contract_sha256"] = str(_cp_sha)
+        for k, v in (cp.margins or {}).items():
+            try:
+                out[f"current_profile_{k}"] = float(v)
+            except Exception:
+                out[f"current_profile_{k}"] = float('nan')
+        # Context snapshot (best-effort, for UI / reviewer packs)
+        for k, v in (cp.context or {}).items():
+            out[f"current_profile_ctx_{k}"] = v
+    except Exception:
+        out.setdefault("current_profile_regime", "unknown")
+        out.setdefault("current_profile_fragility_class", "UNKNOWN")
+        out.setdefault("current_profile_min_margin_frac", float('nan'))
+        out.setdefault("current_profile_top_limiter", "UNKNOWN")
+        out.setdefault("current_profile_contract_sha256", "")
+
+
+
+    # ---------------------------------------------------------------------
+
+    # ---------------------------------------------------------------------
+    # v349.0 Bootstrap & Pressure Self-Consistency Authority
+    # ---------------------------------------------------------------------
+    try:
+        if bool(getattr(inp, "include_bootstrap_pressure_selfconsistency", False)):
+            from src.contracts.bootstrap_pressure_selfconsistency_authority_contract import (
+                load_bootstrap_pressure_selfconsistency_contract,
+            )
+            from src.analysis.bootstrap_pressure_selfconsistency_authority import (
+                evaluate_bootstrap_pressure_selfconsistency_authority,
+            )
+            out["bsp_abs_delta_max"] = float(getattr(inp, "f_bootstrap_consistency_abs_max", float("nan")))
+            _c_bsp, _sha_bsp = load_bootstrap_pressure_selfconsistency_contract(repo_root)
+            out["bsp_contract_sha256"] = str(_sha_bsp)
+            _bsp = evaluate_bootstrap_pressure_selfconsistency_authority(out, _c_bsp)
+            for k, v in _bsp.items():
+                out[k] = v
+        else:
+            out.setdefault("bsp_regime", "disabled")
+            out.setdefault("bsp_fragility_class", "UNKNOWN")
+            out.setdefault("bsp_min_margin_frac", float("nan"))
+            out.setdefault("bsp_top_limiter", "DISABLED")
+            out.setdefault("bsp_contract_sha256", "")
+    except Exception:
+        out.setdefault("bsp_regime", "unknown")
+        out.setdefault("bsp_fragility_class", "UNKNOWN")
+        out.setdefault("bsp_min_margin_frac", float("nan"))
+        out.setdefault("bsp_top_limiter", "UNKNOWN")
+        out.setdefault("bsp_contract_sha256", "")
+
+    # v346.0 Current Drive Technology Authority (CD tech regimes)
+    # ---------------------------------------------------------------------
+    try:
+        try:
+            from ..contracts.cd_tech_authority_contract import load_cd_tech_authority_contract  # type: ignore
+            from ..analysis.cd_tech_authority import evaluate_cd_tech_authority  # type: ignore
+        except Exception:
+            from contracts.cd_tech_authority_contract import load_cd_tech_authority_contract  # type: ignore
+            from analysis.cd_tech_authority import evaluate_cd_tech_authority  # type: ignore
+
+        _cd_contract, _cd_sha = load_cd_tech_authority_contract(repo_root)
+        cd = evaluate_cd_tech_authority(out, _cd_contract)
+
+        out["cd_tech_regime"] = cd.cd_tech_regime
+        out["cd_fragility_class"] = cd.cd_fragility_class
+        out["cd_min_margin_frac"] = float(cd.cd_min_margin_frac) if cd.cd_min_margin_frac is not None else float('nan')
+        out["cd_top_limiter"] = str(cd.cd_top_limiter)
+        out["cd_contract_sha256"] = str(_cd_sha)
+
+        for k, v in (cd.margins or {}).items():
+            out[f"cd_{k}"] = float(v) if isinstance(v, (int, float)) else float('nan')
+        for k, v in (cd.ctx or {}).items():
+            out[f"cd_ctx_{k}"] = v
+    except Exception:
+        out.setdefault("cd_tech_regime", "unknown")
+        out.setdefault("cd_fragility_class", "UNKNOWN")
+        out.setdefault("cd_min_margin_frac", float('nan'))
+        out.setdefault("cd_top_limiter", "UNKNOWN")
+        out.setdefault("cd_contract_sha256", "")
+
+
+    
+    # ---------------------------------------------------------------------
+    # v357.0 Current Drive Library Expansion Authority (channel caps)
+    # ---------------------------------------------------------------------
+    try:
+        if bool(getattr(inp, "include_current_drive", False)) and bool(getattr(inp, "include_cd_library_v357", False)):
+            try:
+                from ..contracts.cd_library_v357_contract import load_cd_library_v357_contract  # type: ignore
+                from ..analysis.cd_library_v357_authority import evaluate_cd_library_v357_authority  # type: ignore
+            except Exception:
+                from contracts.cd_library_v357_contract import load_cd_library_v357_contract  # type: ignore
+                from analysis.cd_library_v357_authority import evaluate_cd_library_v357_authority  # type: ignore
+
+            _c_cdl, _sha_cdl = load_cd_library_v357_contract(repo_root)
+            cdl = evaluate_cd_library_v357_authority(out, _c_cdl)
+
+            out["cdlib_channel"] = str(cdl.cd_channel)
+            out["cdlib_fragility_class"] = str(cdl.fragility_class)
+            out["cdlib_min_margin_frac"] = float(cdl.min_margin_frac) if cdl.min_margin_frac is not None else float('nan')
+            out["cdlib_top_limiter"] = str(cdl.top_limiter)
+            out["cdlib_contract_sha256"] = str(_sha_cdl)
+
+            for k, v in (cdl.margins or {}).items():
+                out[f"cdlib_{k}"] = float(v) if isinstance(v, (int, float)) else float('nan')
+            for k, v in (cdl.ctx or {}).items():
+                out[f"cdlib_ctx_{k}"] = v
+        else:
+            out.setdefault("cdlib_channel", "disabled")
+            out.setdefault("cdlib_fragility_class", "UNKNOWN")
+            out.setdefault("cdlib_min_margin_frac", float('nan'))
+            out.setdefault("cdlib_top_limiter", "DISABLED")
+            out.setdefault("cdlib_contract_sha256", "")
+    except Exception:
+        out.setdefault("cdlib_channel", "unknown")
+        out.setdefault("cdlib_fragility_class", "UNKNOWN")
+        out.setdefault("cdlib_min_margin_frac", float('nan'))
+        out.setdefault("cdlib_top_limiter", "UNKNOWN")
+        out.setdefault("cdlib_contract_sha256", "")
+
+# Non-Inductive Closure Authority (v347)
+    # -----------------------------------------------------------------------------
+    try:
+        from src.contracts.ni_closure_authority_contract import load_ni_closure_authority_contract
+        from src.analysis.ni_closure_authority import evaluate_ni_closure_authority
+
+        _c_ni, _sha_ni = load_ni_closure_authority_contract(repo_root)
+        out["ni_closure_contract_sha256"] = _sha_ni
+        _ni = evaluate_ni_closure_authority(out, _c_ni)
+        for k, v in _ni.items():
+            out[k] = v
+    except Exception:
+        out.setdefault("ni_closure_regime", "unknown")
+        out.setdefault("ni_fragility_class", "UNKNOWN")
+        out.setdefault("ni_min_margin_frac", float('nan'))
+        out.setdefault("ni_top_limiter", "UNKNOWN")
+        out.setdefault("ni_closure_contract_sha256", "")
+
+    # Neutronics & Materials Authority (v338)
+    # -----------------------------------------------------------------------------
+    try:
+        from src.contracts.neutronics_materials_authority_contract import load_neutronics_materials_contract
+        from src.analysis.neutronics_materials import classify_neutronics_materials
+
+        c = load_neutronics_materials_contract(repo_root)
+        nm = classify_neutronics_materials(out, limits=c.limits, fragile_margin_frac=c.fragile_margin_frac)
+
+        out["neutronics_materials_regime"] = str(nm.regime)
+        out["neutronics_materials_fragility_class"] = str(nm.fragility_class)
+        out["neutronics_materials_min_margin_frac"] = float(nm.min_margin_frac)
+        out["neutronics_materials_contract_sha256"] = str(c.sha256)
+
+        for k, v in (nm.margins or {}).items():
+            out[f"neutronics_materials_{k}"] = float(v)
+        for k, v in (nm.derived or {}).items():
+            out[f"neutronics_materials_{k}"] = float(v)
+    except Exception:
+        out.setdefault("neutronics_materials_regime", "unknown")
+        out.setdefault("neutronics_materials_fragility_class", "UNKNOWN")
+        out.setdefault("neutronics_materials_min_margin_frac", float("nan"))
+        out.setdefault("neutronics_materials_contract_sha256", "")
 
     return out
 

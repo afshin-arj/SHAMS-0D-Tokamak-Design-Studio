@@ -1,0 +1,26 @@
+{
+  "kind": "industrial_intent_template",
+  "name": "Grid baseload (v354)",
+  "point_inputs_overrides": {
+    "Bt_T": 5.5,
+    "Ip_MA": 15.0,
+    "P_balance_of_plant_MW": 50.0,
+    "Paux_MW": 60.0,
+    "R0_m": 6.2,
+    "TBR_self_sufficiency_margin": 0.05,
+    "T_loss_fraction": 0.02,
+    "T_processing_delay_days": 2.0,
+    "Ti_keV": 14.0,
+    "a_m": 2.0,
+    "blanket_coverage": 0.85,
+    "blanket_type": "LiPb",
+    "eta_elec": 0.42,
+    "fG": 0.9,
+    "include_tritium_tight_closure": true,
+    "kappa": 1.85,
+    "li6_enrichment": 0.5,
+    "port_fraction": 0.06,
+    "tech_tier": "TRL9"
+  },
+  "version": "v354.0"
+}

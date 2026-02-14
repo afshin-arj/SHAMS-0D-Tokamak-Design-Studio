@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from typing import Any, List
 
-import streamlit as st
+try:
+    import streamlit as st
+    _HAVE_STREAMLIT = True
+except Exception:
+    st = None  # type: ignore
+    _HAVE_STREAMLIT = False
 
 
 def _short(s: str, n: int = 12) -> str:
@@ -66,6 +71,11 @@ def _add_edges_best_effort(*, g: Any, src: str, dsts: List[str], kind: str, note
 
 
 def render_dsg_sidebar(g: Any) -> None:
+    if not _HAVE_STREAMLIT:
+        return
+
+    if not _HAVE_STREAMLIT or st is None:
+        return
     if g is None or getattr(g, "nodes", None) is None:
         return
 

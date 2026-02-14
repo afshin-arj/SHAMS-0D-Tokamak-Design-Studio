@@ -335,6 +335,60 @@ def evaluate_constraints(
         if lim == lim:
             ge("blanket_lifetime", outputs["blanket_lifetime_yr"], lim, units="yr", note="Blanket replacement lifetime ≥ minimum", group="materials")
 
+    # (v367.0) Replacement cadence and plant-life coverage (materials lifetime closure)
+    # These constraints are *feasibility-authoritative* when enabled/finite; they never negotiate.
+    if "fw_replace_interval_y" in outputs:
+        lim = outputs.get("fw_replace_interval_min_yr", float("nan"))
+        if lim == lim:
+            ge(
+                "fw_replace_interval",
+                outputs["fw_replace_interval_y"],
+                lim,
+                units="yr",
+                note="FW replacement cadence ≥ minimum interval",
+                group="materials_lifetime",
+            )
+    if "blanket_replace_interval_y" in outputs:
+        lim = outputs.get("blanket_replace_interval_min_yr", float("nan"))
+        if lim == lim:
+            ge(
+                "blanket_replace_interval",
+                outputs["blanket_replace_interval_y"],
+                lim,
+                units="yr",
+                note="Blanket replacement cadence ≥ minimum interval",
+                group="materials_lifetime",
+            )
+
+    try:
+        enforce = bool(outputs.get("materials_life_cover_plant_enforce", 0.0))
+    except Exception:
+        enforce = False
+    if enforce:
+        # When enforced, require the material lifetime proxy to cover declared plant design lifetime.
+        # This is a policy constraint, not a physics closure.
+        plant_life = outputs.get("plant_design_lifetime_yr", float("nan"))
+        if "fw_lifetime_yr" in outputs and plant_life == plant_life:
+            ge(
+                "fw_life_covers_plant",
+                outputs["fw_lifetime_yr"],
+                plant_life,
+                units="yr",
+                note="FW lifetime proxy ≥ plant design lifetime (policy enforcement)",
+                severity="hard",
+                group="materials_lifetime",
+            )
+        if "blanket_lifetime_yr" in outputs and plant_life == plant_life:
+            ge(
+                "blanket_life_covers_plant",
+                outputs["blanket_lifetime_yr"],
+                plant_life,
+                units="yr",
+                note="Blanket lifetime proxy ≥ plant design lifetime (policy enforcement)",
+                severity="hard",
+                group="materials_lifetime",
+            )
+
     # Temperature window checks (proxy); enforcement can be hardened by policy/inputs.
     if "fw_T_margin_C" in outputs:
         _enf = bool(outputs.get("materials_domain_enforce", 0.0))
@@ -432,6 +486,115 @@ def evaluate_constraints(
                 note="Inboard radial build closure margin ≥ 0 (explicit stack closure)",
                 severity="hard",
                 group="engineering",
+            )
+
+
+    # -------- Engineering Actuator Limits Authority (v361.0) --------
+    # These are *capacity* constraints: they gate feasibility only when explicit *_max caps are finite.
+    # They do not change frozen truth; they compare precomputed requirement proxies to declared limits.
+
+    # Auxiliary + CD wallplug draw
+    if "P_aux_total_el_MW" in outputs:
+        cap = outputs.get("P_aux_max_MW", float("nan"))
+        if cap == cap and outputs["P_aux_total_el_MW"] == outputs["P_aux_total_el_MW"]:
+            le(
+                "P_aux_total_el",
+                outputs["P_aux_total_el_MW"],
+                cap,
+                units="MW",
+                note="Aux+CD wallplug electric draw proxy must be ≤ declared cap",
+                group="actuators",
+            )
+
+    # Current-drive actuator capacity: required launched CD power to meet NI target
+    if "P_cd_required_MW" in outputs:
+        cap = outputs.get("Pcd_max_MW", float("nan"))
+        if cap == cap and outputs["P_cd_required_MW"] == outputs["P_cd_required_MW"]:
+            le(
+                "P_cd_required",
+                outputs["P_cd_required_MW"],
+                cap,
+                units="MW",
+                note="Launched CD power required to meet NI target must be ≤ installed CD capacity",
+                group="actuators",
+            )
+
+    # Channel-specific screens (opt-in via finite caps)
+    if "eccd_launcher_power_density_MW_m2" in outputs:
+        cap = outputs.get("eccd_launcher_power_density_max_MW_m2", float("nan"))
+        if cap == cap and outputs["eccd_launcher_power_density_MW_m2"] == outputs["eccd_launcher_power_density_MW_m2"]:
+            le(
+                "eccd_power_density",
+                outputs["eccd_launcher_power_density_MW_m2"],
+                cap,
+                units="MW/m^2",
+                note="ECCD launcher power density proxy must be ≤ cap",
+                severity="soft",
+                group="actuators",
+            )
+    if "nbi_shinethrough_frac" in outputs:
+        cap = outputs.get("nbi_shinethrough_frac_max", float("nan"))
+        if cap == cap and outputs["nbi_shinethrough_frac"] == outputs["nbi_shinethrough_frac"]:
+            le(
+                "nbi_shinethrough",
+                outputs["nbi_shinethrough_frac"],
+                cap,
+                units="-",
+                note="NBI shine-through fraction proxy must be ≤ cap",
+                severity="soft",
+                group="actuators",
+            )
+
+    # PF envelope capacity caps (from control contracts)
+    for key, lim_key, units, name, note in [
+        ("pf_I_peak_MA", "pf_I_peak_max_MA", "MA", "pf_I_peak", "PF peak current requirement must be ≤ cap"),
+        ("pf_dIdt_peak_MA_s", "pf_dIdt_max_MA_s", "MA/s", "pf_dIdt_peak", "PF peak dI/dt requirement must be ≤ cap"),
+        ("pf_V_peak_V", "pf_V_peak_max_V", "V", "pf_V_peak", "PF peak voltage requirement must be ≤ cap"),
+        ("pf_P_peak_MW", "pf_P_peak_max_MW", "MW", "pf_P_peak", "PF peak power requirement must be ≤ cap"),
+        ("pf_E_pulse_MJ", "pf_E_pulse_max_MJ", "MJ", "pf_E_pulse", "PF pulse energy requirement must be ≤ cap"),
+    ]:
+        if key in outputs:
+            lim = outputs.get(lim_key, float("nan"))
+            if lim == lim and outputs[key] == outputs[key]:
+                le(name, outputs[key], lim, units=units, note=note, group="actuators")
+
+    # CS loop-voltage ramp proxy cap (from PF/CS authority)
+    if "cs_V_loop_ramp_V" in outputs:
+        cap = outputs.get("cs_V_loop_max_V", float("nan"))
+        if cap == cap and outputs["cs_V_loop_ramp_V"] == outputs["cs_V_loop_ramp_V"]:
+            le(
+                "cs_V_loop_ramp",
+                outputs["cs_V_loop_ramp_V"],
+                cap,
+                units="V",
+                note="CS loop-voltage ramp proxy must be ≤ cap",
+                group="actuators",
+            )
+
+    # Average PF draw cap (ledger)
+    if "P_pf_avg_MW" in outputs:
+        cap = outputs.get("P_pf_avg_max_MW", float("nan"))
+        if cap == cap and outputs["P_pf_avg_MW"] == outputs["P_pf_avg_MW"]:
+            le(
+                "P_pf_avg",
+                outputs["P_pf_avg_MW"],
+                cap,
+                units="MW",
+                note="Average PF electric draw proxy must be ≤ cap",
+                group="actuators",
+            )
+
+    # Peak power supply draw cap (optional): max(PF peak, aux/CD wallplug, VS control, RWM control)
+    if "P_supply_peak_MW" in outputs:
+        cap = outputs.get("P_supply_peak_max_MW", float("nan"))
+        if cap == cap and outputs["P_supply_peak_MW"] == outputs["P_supply_peak_MW"]:
+            le(
+                "P_supply_peak",
+                outputs["P_supply_peak_MW"],
+                cap,
+                units="MW",
+                note="Peak power-supply draw proxy must be ≤ cap",
+                group="actuators",
             )
 
     # -------- Pulsed operation --------

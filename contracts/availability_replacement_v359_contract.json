@@ -1,0 +1,34 @@
+{
+  "inputs": [
+    "include_availability_replacement_v359",
+    "planned_outage_base",
+    "forced_outage_base",
+    "heating_cd_replace_interval_y",
+    "heating_cd_replace_duration_days",
+    "tritium_plant_replace_interval_y",
+    "tritium_plant_replace_duration_days",
+    "LCOE_max_USD_per_MWh",
+    "availability_v359_min"
+  ],
+  "name": "Availability & Replacement Ledger Authority",
+  "outputs": [
+    "availability_v359",
+    "availability_planned_outage_frac_v359",
+    "availability_forced_outage_frac_v359",
+    "availability_replacement_downtime_frac_v359",
+    "replacement_cost_MUSD_per_year_v359",
+    "major_rebuild_interval_years_v359",
+    "net_electric_MWh_per_year_v359",
+    "LCOE_proxy_v359_USD_per_MWh",
+    "availability_replacement_contract_sha256"
+  ],
+  "purpose": "Deterministic algebraic availability and replacement-ledger overlay for industrial-style studies. No time-domain simulation; no solvers; no iteration.",
+  "truth_laws": {
+    "deterministic": true,
+    "frozen_truth": true,
+    "no_iteration": true,
+    "no_solver": true
+  },
+  "validity_domain": "Conceptual systems studies only; diagnostic overlay; not a plant RAMI simulator.",
+  "version": "v359.0"
+}

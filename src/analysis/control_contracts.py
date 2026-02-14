@@ -63,7 +63,7 @@ class ControlContracts:
     contract_caps: Dict[str, float]
 
 
-def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts:
+def compute_control_contracts(out: Dict[str, Any], inp: Any, caps_override: Dict[str, float] | None = None) -> ControlContracts:
     """Compute envelope-based control contracts.
 
     This is a *read-only* post-processing layer. It does not modify the evaluated
@@ -106,13 +106,33 @@ def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts
             contract_caps={},
         )
 
+    caps_override = caps_override or {}
+
+    def _cap(key: str, default: float = float('nan')) -> float:
+        """Return cap value from inputs when finite, else from caps_override, else default."""
+        v = _get(inp, key, float('nan'))
+        try:
+            v = float(v)
+        except Exception:
+            v = float('nan')
+        if math.isfinite(v):
+            return float(v)
+        v2 = caps_override.get(key, float('nan'))
+        try:
+            v2 = float(v2)
+        except Exception:
+            v2 = float('nan')
+        if math.isfinite(v2):
+            return float(v2)
+        return float(default)
+
     # -----------------------------
     # Vertical stability: growth-rate + bandwidth requirement
     # -----------------------------
     vs_margin = float(_f(out, "vs_margin", float("nan")))
     vs_margin = vs_margin if math.isfinite(vs_margin) else float("nan")
 
-    tau_nom = float(_get(inp, "vs_tau_nominal_s", 0.30))
+    tau_nom = float(_cap("vs_tau_nominal_s", 0.30))
     tau_nom = max(tau_nom, 0.02)
 
     # Map margin -> timescale (bounded). Small margin => fast growth.
@@ -125,7 +145,7 @@ def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts
         tau_vs = float("nan")
 
     gamma_vs = (1.0 / tau_vs) if math.isfinite(tau_vs) else float("nan")
-    bw_factor = float(_get(inp, "vs_bw_factor", 3.0))
+    bw_factor = float(_cap("vs_bw_factor", 3.0))
     bw_factor = max(bw_factor, 1.0)
     bw_req = (bw_factor * gamma_vs / (2.0 * math.pi)) if math.isfinite(gamma_vs) else float("nan")
 
@@ -135,7 +155,7 @@ def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts
     I_pf_MA = float(_f(out, "pf_I_pf_MA", float("nan")))
     I_pf_A = I_pf_MA * 1e6 if math.isfinite(I_pf_MA) else float("nan")
     psi_req = float(_f(out, "cs_flux_required_Wb", float("nan")))
-    L_eff = float(_get(inp, "pf_L_eff_H", float("nan")))
+    L_eff = float(_cap("pf_L_eff_H"))
     if not math.isfinite(L_eff):
         if math.isfinite(psi_req) and math.isfinite(I_pf_A) and I_pf_A > 0:
             L_eff = max(psi_req / I_pf_A, 1e-7)
@@ -150,13 +170,13 @@ def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts
     else:
         W_pf_MJ = float("nan")
 
-    margin_factor = float(_get(inp, "vs_control_margin_factor", 1.3))
+    margin_factor = float(_cap("vs_control_margin_factor", 1.3))
     margin_factor = max(margin_factor, 1.0)
     P_vs_req = (margin_factor * W_pf_MJ / tau_vs) if (math.isfinite(W_pf_MJ) and math.isfinite(tau_vs)) else float("nan")
     P_vs_req = float(P_vs_req) if math.isfinite(P_vs_req) else float("nan")
 
-    vs_bw_max = float(_get(inp, "vs_bandwidth_max_Hz", float("nan")))
-    vs_Pmax = float(_get(inp, "vs_control_power_max_MW", float("nan")))
+    vs_bw_max = float(_cap("vs_bandwidth_max_Hz"))
+    vs_Pmax = float(_cap("vs_control_power_max_MW"))
     vs_ok = float("nan")
     if math.isfinite(bw_req) or math.isfinite(P_vs_req):
         ok = True
@@ -169,11 +189,11 @@ def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts
     # -----------------------------
     # PF waveform envelope: ramp–flat–ramp
     # -----------------------------
-    ramp_s = float(_get(inp, "pf_ramp_s", float(_get(inp, "pulse_ramp_s", 300.0))))
+    ramp_s = float(_cap("pf_ramp_s", float(_get(inp, "pulse_ramp_s", 300.0))))
     ramp_s = max(ramp_s, 1.0)
     flat_s = float(_get(inp, "pf_flat_s", float(_f(out, "t_flat_s", float(_get(inp, "t_burn_s", 7200.0))))))
     flat_s = max(flat_s, 0.0)
-    R_eff = float(_get(inp, "pf_R_eff_Ohm", 1e-4))
+    R_eff = float(_cap("pf_R_eff_Ohm", 1e-4))
     R_eff = max(R_eff, 0.0)
 
     if math.isfinite(I_pf_MA):
@@ -212,11 +232,11 @@ def compute_control_contracts(out: Dict[str, Any], inp: Any) -> ControlContracts
             wf.append({"t_s": float(t_start + t), "I_MA": float(I)})
 
     # PF envelope feasibility (optional caps)
-    I_max = float(_get(inp, "pf_I_peak_max_MA", float("nan")))
-    V_max = float(_get(inp, "pf_V_peak_max_V", float("nan")))
-    P_max = float(_get(inp, "pf_P_peak_max_MW", float("nan")))
-    dIdt_max = float(_get(inp, "pf_dIdt_max_MA_s", float("nan")))
-    E_max = float(_get(inp, "pf_E_pulse_max_MJ", float("nan")))
+    I_max = float(_cap("pf_I_peak_max_MA"))
+    V_max = float(_cap("pf_V_peak_max_V"))
+    P_max = float(_cap("pf_P_peak_max_MW"))
+    dIdt_max = float(_cap("pf_dIdt_max_MA_s"))
+    E_max = float(_cap("pf_E_pulse_max_MJ"))
 
     env_ok = float("nan")
     if math.isfinite(I_pf_MA) or math.isfinite(V_peak) or math.isfinite(P_peak_MW):

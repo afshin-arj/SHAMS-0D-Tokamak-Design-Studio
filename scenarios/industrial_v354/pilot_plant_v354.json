@@ -1,0 +1,28 @@
+{
+  "kind": "industrial_intent_template",
+  "name": "Pilot plant (v354)",
+  "point_inputs_overrides": {
+    "Bt_T": 9.0,
+    "Ip_MA": 12.0,
+    "Paux_MW": 70.0,
+    "R0_m": 3.5,
+    "TBR_self_sufficiency_margin": 0.02,
+    "T_in_vessel_max_kg": NaN,
+    "T_loss_fraction": 0.03,
+    "T_processing_delay_days": 1.0,
+    "T_startup_inventory_kg": NaN,
+    "T_total_inventory_max_kg": NaN,
+    "Ti_keV": 12.0,
+    "a_m": 1.2,
+    "blanket_coverage": 0.78,
+    "blanket_type": "LiPb",
+    "eta_elec": 0.38,
+    "fG": 0.85,
+    "include_tritium_tight_closure": true,
+    "kappa": 1.9,
+    "li6_enrichment": 0.35,
+    "port_fraction": 0.1,
+    "tech_tier": "TRL7"
+  },
+  "version": "v354.0"
+}

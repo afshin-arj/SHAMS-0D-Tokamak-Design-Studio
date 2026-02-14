@@ -1,0 +1,19 @@
+{
+  "intent": "Deterministic algebraic tritium throughput + inventory ledger with optional self-sufficiency tightening. No time-domain simulation, no iteration.",
+  "name": "Tritium & Fuel Cycle Tight Closure Authority",
+  "params": {
+    "T_KG_PER_DAY_PER_MW_FUS": 0.000154,
+    "eps": 1e-12,
+    "loss_fraction_max": 0.2,
+    "loss_fraction_min": 0.0,
+    "processing_delay_days_max": 30.0,
+    "processing_delay_days_min": 0.0,
+    "reserve_days_max": 365.0,
+    "reserve_days_min": 0.0
+  },
+  "schema_version": "contract.tritium_fuelcycle_tight_closure.v1",
+  "validity_domain": {
+    "notes": "Applies to D-T dominated machines where Pfus_total_MW approximates total D-T fusion power. Ledger is an algebraic proxy (no dynamic inventory evolution)."
+  },
+  "version": "v350.0"
+}

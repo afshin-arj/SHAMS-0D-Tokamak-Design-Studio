@@ -1,0 +1,33 @@
+{
+  "inputs": [
+    "include_profile_family_v358",
+    "profile_family_v358",
+    "profile_family_pedestal_frac",
+    "profile_family_peaking_p",
+    "profile_family_peaking_j",
+    "profile_family_shear_shape",
+    "profile_family_confinement_mult",
+    "profile_family_bootstrap_mult"
+  ],
+  "law": {
+    "frozen_truth": "No solvers. No iteration. Pure algebraic mapping from declared profile family + knobs to shape factors.",
+    "separation": "This authority only annotates and applies deterministic multipliers; it does not optimize or negotiate constraints."
+  },
+  "name": "Profile Family Library Authority",
+  "notes": [
+    "This is a transport proxy library: it provides certified profile family tags and multiplicative shape factors.",
+    "Defaults preserve legacy behavior (multipliers = 1).",
+    "Multipliers are clamped to conservative bounds for audit safety."
+  ],
+  "outputs": [
+    "profile_family_tag",
+    "profile_family_confinement_mult_eff",
+    "profile_family_bootstrap_mult_eff",
+    "profile_family_contract_sha256",
+    "tauE_profile_s",
+    "H98_profile",
+    "profile_f_bootstrap_profile"
+  ],
+  "status": "authoritative-deterministic",
+  "version": "v358.0"
+}

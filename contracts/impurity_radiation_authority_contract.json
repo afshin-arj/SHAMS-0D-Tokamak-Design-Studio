@@ -1,0 +1,36 @@
+{
+  "authority": "RADIATION",
+  "contract_id": "impurity_radiation_authority_contract",
+  "fragility": {
+    "fragile_margin_frac": 0.05
+  },
+  "notes": "Deterministic impurity species and radiation partition authority. Conservative thresholds; algebraic only.",
+  "schema_version": "1.0",
+  "species_library": {
+    "allowed": [
+      "none",
+      "He",
+      "N",
+      "Ne",
+      "Ar",
+      "Kr",
+      "Xe",
+      "W",
+      "C",
+      "O"
+    ],
+    "highZ": [
+      "Ar",
+      "Kr",
+      "Xe",
+      "W"
+    ]
+  },
+  "thresholds": {
+    "Zeff_max": 2.5,
+    "core_line_frac_max": 0.6,
+    "f_SOL_rad_max": 0.95,
+    "f_core_rad_max": 0.75,
+    "f_total_rad_max": 0.85
+  }
+}

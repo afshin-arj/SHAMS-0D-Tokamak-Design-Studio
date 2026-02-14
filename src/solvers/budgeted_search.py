@@ -1,4 +1,4 @@
-"""Budgeted multi-knob certified search (v296.0).
+"""Budgeted multi-knob certified search (v296.0) + deterministic sampler extensions (v340.0).
 
 This is a deterministic exploration utility that runs *outside* the frozen evaluator
 and returns a proof-carrying trace. It is not an internal optimizer.
@@ -22,6 +22,17 @@ import math
 import numpy as np
 
 
+def _vdc(n: int, base: int) -> float:
+    """Van der Corput radical inverse in (0,1)."""
+    v = 0.0
+    denom = 1.0
+    while n > 0:
+        n, rem = divmod(n, base)
+        denom *= float(base)
+        v += float(rem) / denom
+    return v
+
+
 @dataclass(frozen=True)
 class SearchVar:
     name: str
@@ -34,7 +45,7 @@ class SearchSpec:
     variables: Tuple[SearchVar, ...]
     budget: int = 128
     seed: int = 0
-    method: str = "lhs"  # lhs | grid
+    method: str = "lhs"  # lhs | grid | halton
 
 
 @dataclass(frozen=True)
@@ -70,6 +81,26 @@ def _lhs(n: int, d: int, rng: np.random.Generator) -> np.ndarray:
     return H
 
 
+def _halton(n: int, d: int, seed: int = 0) -> np.ndarray:
+    """Deterministic Halton sequence in [0,1).
+
+    We avoid external deps (scipy) and keep the sequence deterministic.
+    The `seed` acts as an index offset, not randomness.
+    """
+
+    # First primes for bases
+    bases = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]
+    if d > len(bases):
+        raise ValueError(f"Halton supports up to {len(bases)} dims, got {d}")
+    start = int(max(0, seed))
+    U = np.zeros((int(n), int(d)), dtype=float)
+    for i in range(int(n)):
+        idx = start + i + 1  # 1-based for better coverage
+        for j in range(int(d)):
+            U[i, j] = _vdc(idx, bases[j])
+    return U
+
+
 def run_budgeted_search(
     base_inputs: Any,
     spec: SearchSpec,
@@ -98,6 +129,8 @@ def run_budgeted_search(
         lin = np.linspace(0.0, 1.0, k)
         mesh = np.stack(np.meshgrid(*([lin] * d), indexing="ij"), axis=-1).reshape(-1, d)
         U = mesh[:n]
+    elif spec.method == "halton":
+        U = _halton(n, d, seed=int(spec.seed))
     else:
         U = _lhs(n, d, rng)
 
