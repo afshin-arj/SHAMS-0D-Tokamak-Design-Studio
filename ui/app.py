@@ -840,6 +840,11 @@ PD_KEYS = {
     "pedestal_width_a": "pd_pedestal_width_a",
     "include_bootstrap_pressure_selfconsistency": "pd_include_bootstrap_pressure_selfconsistency",
     "f_bootstrap_consistency_abs_max": "pd_f_bootstrap_consistency_abs_max",
+
+    # v371.0 transport contract library keys
+    "include_transport_contracts_v371": "pd_include_transport_contracts_v371",
+    "H_required_max_optimistic": "pd_H_required_max_optimistic",
+    "H_required_max_robust": "pd_H_required_max_robust",
 }
 
 
@@ -886,6 +891,14 @@ def _push_point_inputs_to_pd_widget_keys(base: Any) -> None:
         pass
     try:
         st.session_state[PD_KEYS["Ti_over_Te"]] = float(getattr(base, "Ti_over_Te", 1.0))
+    except Exception:
+        pass
+
+    # v371.0 transport contracts
+    try:
+        st.session_state[PD_KEYS["include_transport_contracts_v371"]] = bool(getattr(base, "include_transport_contracts_v371", False))
+        st.session_state[PD_KEYS["H_required_max_optimistic"]] = float(getattr(base, "H_required_max_optimistic", float("nan")))
+        st.session_state[PD_KEYS["H_required_max_robust"]] = float(getattr(base, "H_required_max_robust", float("nan")))
     except Exception:
         pass
 
@@ -4139,6 +4152,46 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
             }
             confinement_scaling = confinement_scaling_map.get(confinement_scaling_label, "IPB98y2")
 
+            # -----------------------------------------------------------------
+            # v371.0: Transport contract library (governance-only)
+            # -----------------------------------------------------------------
+            with st.expander("🚦 Transport contract library (v371)", expanded=False):
+                include_transport_contracts_v371 = st.checkbox(
+                    "Enable transport contract diagnostics",
+                    value=bool(getattr(_base_pd, "include_transport_contracts_v371", False)),
+                    key=PD_KEYS["include_transport_contracts_v371"],
+                    help=(
+                        "Regime-conditioned confinement-scaling envelope + explicit optimistic/robust caps on required confinement (H_required). "
+                        "Governance-only: does not change frozen truth unless you set caps as constraints."
+                    ),
+                )
+                _hopt_base = getattr(_base_pd, "H_required_max_optimistic", float("nan"))
+                _hrob_base = getattr(_base_pd, "H_required_max_robust", float("nan"))
+                cH1, cH2 = st.columns(2)
+                with cH1:
+                    H_required_max_optimistic = st.number_input(
+                        "H_required max (optimistic)",
+                        min_value=0.5,
+                        max_value=5.0,
+                        value=float(_hopt_base) if (float(_hopt_base)==float(_hopt_base) and float(_hopt_base)>0) else 2.0,
+                        step=0.05,
+                        key=PD_KEYS["H_required_max_optimistic"],
+                        disabled=not include_transport_contracts_v371,
+                        help="If enabled, enforces H_required ≤ this cap (optimistic).",
+                    )
+                with cH2:
+                    H_required_max_robust = st.number_input(
+                        "H_required max (robust)",
+                        min_value=0.5,
+                        max_value=5.0,
+                        value=float(_hrob_base) if (float(_hrob_base)==float(_hrob_base) and float(_hrob_base)>0) else 1.5,
+                        step=0.05,
+                        key=PD_KEYS["H_required_max_robust"],
+                        disabled=not include_transport_contracts_v371,
+                        help="If enabled, enforces H_required ≤ this tighter cap (robust).",
+                    )
+                st.caption("These caps are explicit constraints (no smoothing): if set, infeasible points are reported as transport-limited.")
+
             st.caption("Tip: Use this for sensitivity studies (external systems codes-style). It does not change the solved operating point unless you also constrain power balance residuals.")
             profile_model = st.selectbox(
                 "Analytic profiles (½-D scaffold)",
@@ -5541,6 +5594,9 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
                 edge_core_coupling_chi_core=float(edge_core_coupling_chi_core),
                 f_rad_core_edge_core_max=float(f_rad_core_edge_core_max),
                 confinement_model=str(confinement_scaling).lower(),  # back-compat
+                include_transport_contracts_v371=bool(include_transport_contracts_v371),
+                H_required_max_optimistic=float(H_required_max_optimistic) if bool(include_transport_contracts_v371) else float('nan'),
+                H_required_max_robust=float(H_required_max_robust) if bool(include_transport_contracts_v371) else float('nan'),
                 profile_model=profile_model,
                 profile_peaking_ne=profile_peaking_ne,
                 profile_peaking_T=profile_peaking_T,
@@ -7598,6 +7654,10 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
                             "H98": out.get("H98"),
                             "H_scaling": out.get("H_scaling"),
                             "H_required": out.get("H_required"),
+                            "tauE_env_min [s]": out.get("tauE_envelope_min_s"),
+                            "tauE_env_max [s]": out.get("tauE_envelope_max_s"),
+                            "transport_pass_opt": out.get("transport_pass_optimistic"),
+                            "transport_pass_rob": out.get("transport_pass_robust"),
                             "power_balance_residual [MW]": out.get("power_balance_residual_MW"),
                         }
                         plot_bars(conf_vals, "Confinement / H metrics")

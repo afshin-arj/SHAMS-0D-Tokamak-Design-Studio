@@ -227,6 +227,9 @@ except Exception:
         net_electric_MW,
     )  # type: ignore
 
+    # v371.0: transport contract library (governance only; post-processing)
+    from analysis.transport_contracts_v371 import evaluate_transport_contracts_v371  # type: ignore
+
 _B_peak_T_tf = B_peak_T_tf  # keep a stable alias for the coil-geometry helper
 
 def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = None) -> Dict[str, float]:
@@ -774,6 +777,31 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Q definition (DT-equivalent) as in prior scripts
     Q_denom = inp.Paux_MW if Paux_for_Q_MW is None else Paux_for_Q_MW
     Q_DT_eqv = Pfus_DT_adj_MW / max(Q_denom, 1e-9)
+
+    # -----------------------------------------------------------------
+    # v371.0: Transport Contract Library (governance-only; no truth edits)
+    # -----------------------------------------------------------------
+    transport_contract_v371: Dict[str, Any] = {}
+    try:
+        transport_contract_v371 = evaluate_transport_contracts_v371(
+            inp=inp,
+            out_partial={
+                "ne20": ne20,
+                "P_SOL_MW": Ploss_MW,
+                "S_m2": S,
+                "Paux_MW": float(getattr(inp, "Paux_MW", 0.0) or 0.0),
+                "Palpha_dep_MW": Palpha_dep_MW,
+                "Pin_MW": Pin_MW,
+                "tauIPB_s": tauIPB_s,
+                "tauE_required_s": tauE_required_s,
+                "H_required": H_required,
+            },
+        )
+    except Exception:
+        transport_contract_v371 = {
+            "transport_contracts_v371_enabled": False,
+            "transport_contracts_v371_error": "transport contract evaluation failed",
+        }
 
     # ---------------------------
     # Particle sustainability (optional diagnostic closure)
@@ -2892,6 +2920,23 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out.setdefault("neutronics_materials_fragility_class", "UNKNOWN")
         out.setdefault("neutronics_materials_min_margin_frac", float("nan"))
         out.setdefault("neutronics_materials_contract_sha256", "")
+
+    # v371.0 transport contracts (governance-only diagnostics)
+    try:
+        if isinstance(transport_contract_v371, dict):
+            for k, v in transport_contract_v371.items():
+                # Do not overwrite canonical scalars except when identical-key duplication is benign.
+                if k not in out:
+                    out[k] = v
+                else:
+                    # Keep existing but allow filling NaNs
+                    try:
+                        if (out.get(k) != out.get(k)) and (v == v):
+                            out[k] = v
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
     return out
 

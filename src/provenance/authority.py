@@ -36,6 +36,21 @@ AUTHORITY_CONTRACTS: Dict[str, AuthorityContract] = {
         equations=["tau_E = H98 * tau_IPB98", "(optional) tau_E_L = H_L * tau_ITER89P"],
         notes="No transport or time evolution; intended for feasibility screening and trade-space mapping.",
     ),
+    "plasma.transport_contracts": AuthorityContract(
+        subsystem="plasma.transport_contracts",
+        tier="semi-authoritative",
+        validity_domain=(
+            "Regime-conditioned transport contract library (v371): deterministic L/H labeling via Martin-2008 P_LH and "
+            "explicit envelope membership over confinement scalings. Used to express optimistic vs robust caps on required "
+            "confinement (H_required) as reviewer-visible constraints. Does not modify truth."
+        ),
+        equations=[
+            "regime := (Pin >= f_access * P_LH) ? H : L",
+            "tauE_envelope := {tauE_scaling_i} over contract set",
+            "feasible_if (optional): H_required <= H_required_max_(optimistic|robust)",
+        ],
+        notes="Governance-only contract; no transport solve, no iteration.",
+    ),
     "plasma.profiles": AuthorityContract(
         subsystem="plasma.profiles",
         tier="proxy",

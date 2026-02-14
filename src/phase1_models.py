@@ -100,41 +100,15 @@ def bosch_hale_sigmav(Ti_keV: float, reaction: Reaction) -> float:
     return max(sigmav, 0.0)
 
 
-# -----------------------------
-# IPB98(y,2) confinement scaling
-# -----------------------------
+"""Phase-1 algebraic models.
 
-def tauE_iter89p(
-    Ip_MA: float,
-    Bt_T: float,
-    ne20: float,
-    Ploss_MW: float,
-    R_m: float,
-    a_m: float,
-    kappa: float,
-    M_amu: float = 2.5,
-) -> float:
-    """ITER89-P L-mode global confinement time τE [s] (engineering scaling).
-
-    This is provided as an *alternative* to IPB98(y2) for sensitivity studies.
-    Formula (common form):
-      τE = 0.048 * Ip^0.85 * Bt^0.2 * ne^0.1 * Ploss^-0.5 * R^1.2 * a^0.3 * κ^0.5 * M^0.5
-
-    Units: Ip [MA], Bt [T], ne20 [1e20 m^-3], Ploss [MW], R/a [m].
-    """
-    if Ploss_MW <= 0.0:
-        return float("inf")
-    return (
-        0.048
-        * (Ip_MA ** 0.85)
-        * (Bt_T ** 0.20)
-        * (max(ne20, 1e-12) ** 0.10)
-        * (Ploss_MW ** -0.50)
-        * (R_m ** 1.20)
-        * (a_m ** 0.30)
-        * (kappa ** 0.50)
-        * (M_amu ** 0.50)
-    )
+v371.0 note
+----------
+This module previously contained a duplicated definition of ``tauE_iter89p`` with
+two different numerical prefactors. That duplication was accidental and could
+create import-order ambiguity. v371.0 removes the duplicate and keeps a single,
+documented implementation.
+"""
 
 def tauE_ipb98y2(
     Ip_MA: float,
@@ -170,8 +144,6 @@ def tauE_ipb98y2(
         * (M_amu ** 0.19)
     )
 
-
-
 def tauE_iter89p(
     Ip_MA: float,
     Bt_T: float,
@@ -187,7 +159,9 @@ def tauE_iter89p(
     A lightweight implementation used for comparative studies / uncertainty envelopes.
     This is not intended to reproduce PROCESS numerically; it provides the correct *scaling structure*.
     """
-    eps = a_m / R_m
+    if Ploss_MW <= 0.0:
+        return float("inf")
+    eps = a_m / max(R_m, 1e-9)
     return (
         0.038
         * (Ip_MA ** 0.85)

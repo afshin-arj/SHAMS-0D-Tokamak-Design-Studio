@@ -96,6 +96,16 @@ class PointInputs:
     # Optional cap on required confinement performance
     H98_allow: float = 9.99e9       # set to e.g. 1.5 to enforce H98 <= 1.5
 
+    # ------------------------------------------------------------------
+    # v371.0: Transport Contract Library Authority (governance only)
+    # ------------------------------------------------------------------
+    include_transport_contracts_v371: bool = False
+    transport_contract_profile: str = "default"
+    # Optional caps on required confinement relative to IPB98(y,2).
+    # NaN disables (default). If set, these become explicit feasibility constraints.
+    H_required_max_optimistic: float = float("nan")
+    H_required_max_robust: float = float("nan")
+
 
     # Profile shape knobs (used when profile_model is 'pedestal' or 'eped')
     pedestal_rho_ped: float = 0.9

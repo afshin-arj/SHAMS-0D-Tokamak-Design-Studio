@@ -1,5 +1,22 @@
 # Release Notes
 
+## v371.0 — Transport Contract Library Authority 2.0
+
+- New governance authority: **Transport Contract Library (v371)**
+  - Deterministic regime-conditioned (L/H) confinement envelope membership via existing Martin-2008 P_LH proxy
+  - Frozen-truth post-processing only (does **not** modify operating point)
+  - Explicit optimistic/robust caps on required confinement (*H_required*) as reviewer-visible, feasibility-first constraints
+- Bugfix: removed duplicate `tauE_iter89p` definition in `src/phase1_models.py`
+- UI (Point Designer)
+  - New expander: “🚦 Transport contract library (v371)”
+  - Telemetry deck now displays τE envelope min/max and pass flags for the optional caps
+- New contract artifact: `contracts/transport_contracts_v371_contract.json`
+- New test: `tests/test_transport_contracts_v371.py`
+
+Truth outputs unchanged (unless the user explicitly enables the new caps as constraints).
+
+---
+
 ## v368.0 — Maintenance Scheduling Authority 1.0
 
 **New authority:** deterministic maintenance scheduling closure that converts replacement cadences + durations

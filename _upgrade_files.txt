@@ -1,3 +1,19 @@
+v371.0
+- contracts/transport_contracts_v371_contract.json
+- src/contracts/transport_contracts_v371_contract.py
+- src/analysis/transport_contracts_v371.py
+- analysis/transport_contracts_v371.py
+- src/phase1_models.py
+- src/models/inputs.py
+- src/physics/hot_ion.py
+- src/constraints/constraints.py
+- src/provenance/authority.py
+- ui/app.py
+- tests/test_transport_contracts_v371.py
+- README.md
+- VERSION.txt
+- RELEASE_NOTES.md
+
 v368.0
 - contracts/maintenance_scheduling_v368_contract.json
 - src/maintenance/scheduling_v368.py

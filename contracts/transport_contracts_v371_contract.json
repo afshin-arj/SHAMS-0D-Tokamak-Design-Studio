@@ -1,0 +1,14 @@
+{
+  "schema_version": "transport_contracts.v371",
+  "tier": "semi-authoritative",
+  "validity_domain": "0-D global confinement scalings envelope, regime-conditioned by a deterministic Martin-2008 P_LH proxy. H-mode envelope uses IPB98(y,2) as the primary reference; L-mode envelope uses ITER89-P / Kaye-Goldston / Neo-Alcator comparators. Governance/screening aid only; not a transport solve.",
+  "scalings_H": [
+    "IPB98Y2"
+  ],
+  "scalings_L": [
+    "ITER89P",
+    "KG",
+    "NEOALC"
+  ],
+  "notes": "Defines which confinement scalings participate in the v371 envelope by regime. Numerical uncertainty is represented explicitly by user caps on H_required (optimistic/robust)."
+}

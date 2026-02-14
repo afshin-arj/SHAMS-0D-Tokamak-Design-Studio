@@ -217,6 +217,21 @@ def evaluate_constraints(
     if "fG" in outputs:
         le("fG", outputs["fG"], 1.0, units="-", note="Greenwald fraction should be ≤ 1", group="plasma")
 
+    # --- Confinement requirement (v371: transport contracts / H_required caps) ---
+    Hreq = outputs.get("H_required", float("nan"))
+    if Hreq == Hreq:
+        # Legacy cap retained: H98_allow
+        H98_allow = outputs.get("H98_allow", float("nan"))
+        if H98_allow == H98_allow and float(H98_allow) > 0.0:
+            le("H_required", Hreq, float(H98_allow), units="-", note="Required confinement cap via H98_allow", group="plasma")
+        # v371 caps (explicit optimistic/robust)
+        Hopt = outputs.get("H_required_max_optimistic", float("nan"))
+        if Hopt == Hopt and float(Hopt) > 0.0:
+            le("H_required_opt", Hreq, float(Hopt), units="-", note="Transport contract cap (optimistic)", group="plasma")
+        Hrob = outputs.get("H_required_max_robust", float("nan"))
+        if Hrob == Hrob and float(Hrob) > 0.0:
+            le("H_required_rob", Hreq, float(Hrob), units="-", note="Transport contract cap (robust)", group="plasma")
+
     # -------- Heat exhaust --------
     if "q_div_MW_m2" in outputs:
         qmax = outputs.get("q_div_max_MW_m2", 10.0)
