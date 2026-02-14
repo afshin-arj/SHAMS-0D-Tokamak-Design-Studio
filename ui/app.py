@@ -4070,6 +4070,12 @@ if _deck == "🧭 Point Designer":
 
     with tab_cfg:
         st.subheader("Control Deck")
+        # Prominent "Run point design" action (Truth Console) — deterministic trigger for the existing Evaluate Point path.
+        _pd_run_from_control_deck = st.button("▶️ Run point design (Evaluate Point)", type="primary", use_container_width=True, key="pd_run_primary_control_deck")
+        if _pd_run_from_control_deck:
+            st.session_state["_pd_force_run_once"] = True
+            st.experimental_rerun()
+
         if st.button("🧹 New machine (clear Point Designer)", use_container_width=True, help="Clear Point Designer outputs/tables/plots so you can start a new machine."):
             for k in [
                 "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
@@ -5424,6 +5430,11 @@ if _deck == "🧭 Point Designer":
             # Evaluate button is intentionally *outside* the optional engineering section so
             # users don't have to expand engineering knobs just to run Point Designer.
             run_btn = st.button("Evaluate Point", type="primary", use_container_width=True)
+            # If user clicked the prominent Control Deck trigger, run once and clear the flag.
+            if st.session_state.get("_pd_force_run_once", False):
+                run_btn = True
+                st.session_state["_pd_force_run_once"] = False
+
             # Quick bridge: trigger Systems Mode precheck using the current Point inputs.
             if st.button("Run Systems Precheck (in Systems Mode)", use_container_width=True, key="pd_to_systems_precheck"):
                 # Schedule the action for Systems Mode and suggest the user switch tabs.
@@ -18976,65 +18987,6 @@ if _deck == "🆚 Compare":
         if len(consB):
             diff_md.append(consB.sort_values("residual", ascending=False).head(20).to_markdown(index=False))
         st.download_button("Download comparison (markdown)", data="\n".join(diff_md), file_name="artifact_comparison.md", mime="text/markdown", use_container_width=True)
-
-with tab_studies:
-    st.header("Studies manager")
-    st.write("Save, load, and organize study configurations (scan/pareto) as JSON. This keeps studies reproducible across sessions.")
-    if "studies" not in st.session_state:
-        st.session_state.studies = []
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("Save current PointInputs as study", use_container_width=True):
-            if st.session_state.get("last_point_inp") is not None:
-                try:
-                    inp_obj = st.session_state.last_point_inp
-                    # dataclass -> dict
-                    d = {k: getattr(inp_obj, k) for k in inp_obj.__dataclass_fields__.keys()}  # type: ignore
-                    st.session_state.studies.append({"type": "point", "created": datetime.datetime.now().isoformat(), "inputs": d})
-                    st.success("Saved.")
-                except Exception as e:
-                    st.error(f"Could not save: {e}")
-            else:
-                st.warning("Run a point first so `last_point_inp` exists.")
-
-    with c2:
-        up = st.file_uploader("Import studies JSON", type=["json"], key="studies_import")
-        if up is not None:
-            try:
-                imported = json.loads(up.getvalue().decode("utf-8"))
-                if isinstance(imported, list):
-                    st.session_state.studies.extend(imported)
-                elif isinstance(imported, dict):
-                    st.session_state.studies.append(imported)
-                st.success("Imported.")
-            except Exception as e:
-                st.error(f"Import failed: {e}")
-
-    with c3:
-        if st.session_state.studies:
-            st.download_button(
-                "Download studies JSON",
-                data=json.dumps(st.session_state.studies, indent=2, sort_keys=True),
-                file_name="shams_studies.json",
-                mime="application/json",
-                use_container_width=True,
-            )
-
-    st.markdown("### Saved studies")
-    if st.session_state.studies:
-        df = pd.DataFrame([{"i": i, "type": s.get("type","?"), "created": s.get("created",""), "notes": s.get("notes","")} for i,s in enumerate(st.session_state.studies)])
-        st.dataframe(df, use_container_width=True)
-        idx = st.number_input("Select index to view", min_value=0, max_value=max(0, len(st.session_state.studies)-1), value=0, step=1)
-        st.json(st.session_state.studies[int(idx)])
-        if st.button("Delete selected", use_container_width=True):
-            try:
-                st.session_state.studies.pop(int(idx))
-                st.experimental_rerun()
-            except Exception:
-                pass
-    else:
-        st.info("No studies saved yet.")
 
 
 if _deck == "⚒️ Reactor Design Forge":

@@ -1,3 +1,9 @@
+
+## v372.6.1 — Re-implementation hotfix (tab_studies leak removal + Control Deck run button)
+- Remove module-scope leaked `with tab_studies:` block that could trigger NameError when provenance deck not initialized.
+- Add prominent **Run point design** button in Point Designer Control Deck, wired deterministically to existing Evaluate Point path.
+- Regenerate manifests; hygiene sweep.
+
 # Release Notes
 ## v372.5 — UI Hotfix: Point Designer block scoping & tab variable safety (tab_tel)
 
