@@ -1,0 +1,6 @@
+{
+  "csv": "benchmarks/publication/out_test/point_designer_benchmark_table.csv",
+  "n_rows": 5,
+  "notes": "Replace inspired presets with cited parameter tables for publication.",
+  "outdir": "benchmarks/publication/out_test"
+}

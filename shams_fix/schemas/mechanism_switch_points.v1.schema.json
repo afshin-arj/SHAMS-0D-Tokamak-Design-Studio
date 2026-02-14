@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "n_switches": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "switches": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "i": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "i",
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "n_switches",
+    "switches"
+  ],
+  "title": "mechanism_switch_points.v1",
+  "type": "object"
+}

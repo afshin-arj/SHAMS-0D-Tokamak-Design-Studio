@@ -1,0 +1,13 @@
+id: physics.divertor_proxy
+name: Divertor heat-load proxy
+version: 1.0.0
+module: physics.divertor
+entrypoint: divertor_proxy
+assumptions:
+- Proxy scaling law; margin policy should be explicit
+validity:
+  note: Proxy only; calibrate to reference studies
+maturity:
+  trl: 4
+  envelope: baseline
+  notes: Default maturity tag added in v35; update per proxy.

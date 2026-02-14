@@ -1,0 +1,15 @@
+id: hybrid_tokamak_study_2025
+title: Design space and architecture study of Tokamak-based Hybrid
+authors:
+- M. Ha
+- et al.
+year: 2025
+source_pdf: Design space and architecture study of Tokamak-based Hybrid.pdf
+sha256: 65da9a9581039c99f6226b20392787c0023948a3e780777e0decffde57524170
+extracted:
+  type: trends
+  items:
+  - Low-Q hybrid regime output trends
+  pages: []
+usage: validation_only
+notes: Used for trend-level benchmarks only (not physics closure).

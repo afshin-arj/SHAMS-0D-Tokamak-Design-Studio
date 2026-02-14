@@ -1,0 +1,51 @@
+{
+  "name": "Transport Contract Library Authority",
+  "version": "v371.0",
+  "purpose": "Deterministic governance-only confinement envelope library. No truth edits, no iteration.",
+  "classifier": {
+    "type": "P_LH proxy",
+    "rule": "H-mode if P_SOL_MW >= f_LH * P_LH_MW else L-mode",
+    "default_f_LH": 1.0,
+    "notes": "Uses existing Martin-2008 proxy in phase1_models."
+  },
+  "envelope_membership": {
+    "H-mode": [
+      "IPB98Y2"
+    ],
+    "L-mode": [
+      "ITER89P",
+      "KG",
+      "NEOALC"
+    ],
+    "always_include": [
+      "IPB98Y2",
+      "ITER89P",
+      "KG",
+      "NEOALC"
+    ]
+  },
+  "caps": {
+    "H_required_max_optimistic": "optional cap; if finite, constraint H_required_opt must pass",
+    "H_required_max_robust": "optional cap; if finite, constraint H_required_rob must pass"
+  },
+  "outputs": [
+    "transport_confinement_regime_v371",
+    "tauE_envelope_min_s",
+    "tauE_envelope_max_s",
+    "transport_pass_optimistic",
+    "transport_pass_robust"
+  ],
+  "assumptions": [
+    "All \u03c4E scalings are used as envelope members only; evaluator truth remains unchanged.",
+    "Regime classifier is a deterministic proxy; no hysteresis modeling."
+  ],
+  "author": "\u00a9 2026 Afshin Arjhangmehr",
+  "scalings_H": [
+    "IPB98Y2"
+  ],
+  "scalings_L": [
+    "ITER89P",
+    "KG",
+    "NEOALC"
+  ]
+}

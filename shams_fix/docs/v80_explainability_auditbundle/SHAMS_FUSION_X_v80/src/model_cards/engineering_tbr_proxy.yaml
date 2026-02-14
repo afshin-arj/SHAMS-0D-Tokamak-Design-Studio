@@ -1,0 +1,21 @@
+id: engineering_tbr_proxy
+name: Tritium breeding ratio monotonic proxy
+version: '0.1'
+type: physics_proxy
+assumptions:
+- Monotonic with blanket thickness, coverage, Li6 enrichment
+- Penalizes excessive shielding volume
+validity:
+  t_blanket_m:
+  - 0.3
+  - 1.5
+  blanket_coverage:
+  - 0.5
+  - 0.95
+outputs:
+- TBR
+- TBR_margin
+maturity:
+  trl: 4
+  envelope: baseline
+  notes: Default maturity tag added in v35; update per proxy.

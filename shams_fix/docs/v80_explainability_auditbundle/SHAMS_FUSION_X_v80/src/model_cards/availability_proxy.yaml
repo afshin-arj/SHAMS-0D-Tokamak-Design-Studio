@@ -1,0 +1,13 @@
+id: availability_proxy
+name: Availability proxy (planned + forced outages)
+version: '0.1'
+type: systems_proxy
+assumptions:
+- Planned outages dominated by blanket replacement schedule
+- Forced outages scale with power density (proxy)
+outputs:
+- availability
+maturity:
+  trl: 4
+  envelope: baseline
+  notes: Default maturity tag added in v35; update per proxy.

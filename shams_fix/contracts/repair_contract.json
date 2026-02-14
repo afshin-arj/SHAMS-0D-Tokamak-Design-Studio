@@ -1,0 +1,17 @@
+{
+  "schema_version": "repair_contract.v1",
+  "forbid_constraint_relaxation": true,
+  "max_delta_frac": 0.10,
+  "allowed_knobs": [
+    "Bt_T",
+    "Ip_MA",
+    "Paux_MW",
+    "Ti_keV",
+    "fG",
+    "kappa",
+    "a_m",
+    "R0_m"
+  ],
+  "base_intervals": {},
+  "notes": "Default repair contract. Advisory only. All proposals must be re-verified with frozen truth."
+}

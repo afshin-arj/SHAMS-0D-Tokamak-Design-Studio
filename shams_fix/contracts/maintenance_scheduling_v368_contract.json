@@ -1,0 +1,32 @@
+{
+  "name": "maintenance_scheduling_v368",
+  "schema_version": "v368.0",
+  "purpose": "Deterministic outage calendar proxy from replacement cadences + durations (no time simulation; no optimization).",
+  "inputs": {
+    "maintenance_planning_horizon_yr": {"type": "float", "units": "yr", "default": 30.0, "notes": "Used only for reporting/annualization sanity; outage fractions are computed in closed form."},
+    "planned_outage_base": {"type": "float", "units": "-", "default": 0.05, "range": [0.0, 0.5]},
+    "forced_outage_base": {"type": "float", "units": "-", "default": 0.10, "range": [0.0, 0.5]},
+    "trips_per_year": {"type": "float", "units": "1/yr", "default": 5.0},
+    "trip_duration_days": {"type": "float", "units": "days", "default": 2.0},
+    "forced_outage_mode_v368": {"type": "str", "default": "max", "enum": ["max", "baseline", "trips"]},
+    "maintenance_bundle_policy": {"type": "str", "default": "independent", "enum": ["independent", "bundle_in_vessel", "bundle_all"]},
+    "maintenance_bundle_overhead_days": {"type": "float", "units": "days", "default": 7.0, "range": [0.0, 90.0]},
+    "fw_replace_time_days": {"type": "float", "units": "days", "default": 30.0},
+    "div_replace_time_days": {"type": "float", "units": "days", "default": 30.0},
+    "blanket_replace_time_days": {"type": "float", "units": "days", "default": 90.0},
+    "heating_cd_replace_interval_y": {"type": "float", "units": "yr", "default": 8.0},
+    "heating_cd_replace_duration_days": {"type": "float", "units": "days", "default": 30.0},
+    "tritium_plant_replace_interval_y": {"type": "float", "units": "yr", "default": 10.0},
+    "tritium_plant_replace_duration_days": {"type": "float", "units": "days", "default": 30.0}
+  },
+  "outputs": {
+    "planned_outage_frac_v368": {"type": "float", "units": "-"},
+    "forced_outage_frac_v368": {"type": "float", "units": "-"},
+    "replacement_outage_frac_v368": {"type": "float", "units": "-"},
+    "outage_total_frac_v368": {"type": "float", "units": "-"},
+    "availability_v368": {"type": "float", "units": "-"},
+    "net_electric_MWh_per_year_v368": {"type": "float", "units": "MWh/yr"},
+    "replacement_cost_MUSD_per_year_v368": {"type": "float", "units": "MUSD/yr"},
+    "maintenance_events_v368": {"type": "list", "units": "-", "notes": "List of event proxies with interval_y, duration_days, annual_events, outage_frac."}
+  }
+}

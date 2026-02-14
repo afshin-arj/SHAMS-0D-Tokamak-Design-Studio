@@ -1,0 +1,32 @@
+id: bootstrap_sauter_proxy_v1
+name: Bootstrap fraction (Sauter-inspired proxy)
+version: v1
+module: src/phase1_models.py
+entrypoint: phase1_models.bootstrap_fraction_sauter_proxy
+maturity:
+  level: exploratory
+  trl: 2
+  notes:
+    - Deterministic, monotone, bounded proxy.
+    - Not a full Sauter collisionality/geometry fit implementation.
+validity:
+  inputs:
+    # Uses outputs-derived proxies; ranges here are soft reviewer guidance.
+    # (Checked via model_cards_validity when present in inputs/outputs.)
+    R0_m: [0.5, 15.0]
+  outputs:
+    betaN_proxy: [0.0, 8.0]
+    q95_proxy: [1.5, 10.0]
+card:
+  what_it_does: |
+    Provides an audit-visible bootstrap fraction closure that follows key Sauter trends
+    (beta_p, q, inverse aspect ratio), with optional analytic-profile sensitivity via a
+    declared edge-gradient proxy.
+  proxy_vs_authority:
+    authoritative:
+      - Deterministic bounded mapping from (beta_p,q,eps,grad_proxy) -> f_bs.
+    proxy:
+      - Coefficients are simplified; collisionality and detailed equilibrium geometry are not modeled.
+  failure_modes:
+    - Nonphysical inputs (q<=0, beta_p<=0) -> f_bs=0.
+    - Intended for screening and trade-space, not final current-drive engineering.

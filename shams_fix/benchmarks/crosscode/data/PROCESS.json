@@ -1,0 +1,20 @@
+{
+  "schema": "crosscode_constitution.v1",
+  "code_name": "PROCESS",
+  "code_version": "unspecified",
+  "source_notes": "Placeholder entry. Populate clause semantics based on PROCESS documentation and configured constraint handling in your study. Use citations in this record. Until populated, clauses are marked unknown.",
+  "citations": [],
+  "clauses": {
+    "q95": "unknown",
+    "greenwald": "unknown",
+    "beta_n": "unknown",
+    "net_electric": "unknown",
+    "tritium_self_sufficiency": "unknown",
+    "detachment": "unknown",
+    "lifetime_margin": "unknown",
+    "availability": "unknown"
+  },
+  "authority_behavior": {
+    "notes": "unknown"
+  }
+}

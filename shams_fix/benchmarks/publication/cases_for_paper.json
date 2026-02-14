@@ -1,0 +1,21 @@
+{
+  "notes": "Replace preset_key list with your cited machines. These defaults use REFERENCE_MACHINES (inspired presets).",
+  "cases": [
+    {"name": "ITER-inspired", "preset_key": "REF|REACTOR|ITER"},
+    {"name": "STEP baseline (UKAEA)", "preset_key": "REF|REACTOR|STEP"},
+    {"name": "EU DEMO (A=2.6 size point)", "preset_key": "REF|REACTOR|EUDEMO_A26"},
+    {"name": "EU DEMO (A=3.1 size point)", "preset_key": "REF|REACTOR|EUDEMO_A31"},
+    {"name": "EU DEMO (A=3.3 size point)", "preset_key": "REF|REACTOR|EUDEMO_A33"},
+    {"name": "SPARC-class", "preset_key": "REF|REACTOR|SPARC"},
+    {"name": "ARC-class", "preset_key": "REF|REACTOR|ARC"},
+    {"name": "JET-inspired", "preset_key": "REF|RESEARCH|JET"},
+    {"name": "DIII-D-inspired", "preset_key": "REF|RESEARCH|DIII-D"},
+    {"name": "EAST-inspired", "preset_key": "REF|RESEARCH|EAST"},
+    {"name": "KSTAR-inspired", "preset_key": "REF|RESEARCH|KSTAR"},
+    {"name": "JT-60SA-inspired", "preset_key": "REF|RESEARCH|JT-60SA"},
+    {"name": "MAST-U-inspired", "preset_key": "REF|RESEARCH|MAST-U"},
+    {"name": "NSTX-U-inspired", "preset_key": "REF|RESEARCH|NSTX-U"},
+    {"name": "ASDEX Upgrade-inspired", "preset_key": "REF|RESEARCH|ASDEX-U"},
+    {"name": "C-Mod-inspired", "preset_key": "REF|RESEARCH|C-MOD"}
+  ]
+}

@@ -1,0 +1,21 @@
+id: sauter1999_bootstrap
+title: Neoclassical conductivity and bootstrap current formulas for general axisymmetric
+  equilibria and arbitrary collisionality regime
+authors:
+- O. Sauter
+- C. Angioni
+- Y. R. Lin-Liu
+year: 1999
+source_pdf: 2.pdf
+sha256: 191c481700726f72ca2e069d330da49d09de643e7304cffea8ffa8a73cf4c78b
+extracted:
+  type: equations
+  items:
+  - Eqs. (13)-(18) fitted formulas for sigma_neo and L31,L32,L34,a coefficients
+  pages:
+  - 4
+  - 5
+  - 6
+usage: validation_only
+notes: Use as benchmark for bootstrap current coefficient formulas and neoclassical
+  conductivity; no runtime dependency.

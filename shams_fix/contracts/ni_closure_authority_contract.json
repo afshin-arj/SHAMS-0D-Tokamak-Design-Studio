@@ -1,0 +1,29 @@
+{
+  "authority": "NI_CLOSURE",
+  "contract_id": "ni_closure_authority_contract",
+  "delta_I_frac_max": 0.05,
+  "fragile_margin_frac": 0.05,
+  "notes": "Deterministic non-inductive closure authority: current balance + aux electric power cap. No solvers/iteration.",
+  "regimes": {
+    "hybrid": {
+      "f_NI_max": 0.95,
+      "f_NI_min": 0.5
+    },
+    "inductive": {
+      "f_NI_max": 0.5,
+      "f_NI_min": 0.0
+    },
+    "steady_state": {
+      "f_NI_max": 1.05,
+      "f_NI_min": 0.95
+    }
+  },
+  "required_terms": [
+    "Ip_MA",
+    "I_cd_MA",
+    "profile_f_bootstrap_proxy",
+    "P_aux_total_el_MW",
+    "P_aux_max_MW"
+  ],
+  "schema_version": "1.0"
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "industrial_intent_template",
+  "name": "Neutron source (v354)",
+  "point_inputs_overrides": {
+    "Bt_T": 8.0,
+    "Ip_MA": 10.0,
+    "Paux_MW": 50.0,
+    "R0_m": 2.8,
+    "TBR_min": 0.0,
+    "Ti_keV": 8.0,
+    "a_m": 0.9,
+    "blanket_coverage": 0.45,
+    "blanket_type": "None",
+    "fG": 0.6,
+    "include_tritium_tight_closure": false,
+    "kappa": 1.7,
+    "li6_enrichment": 0.2,
+    "port_fraction": 0.25,
+    "tech_tier": "TRL5"
+  },
+  "version": "v354.0"
+}

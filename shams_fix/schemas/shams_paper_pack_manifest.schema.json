@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "created_utc": {
+      "type": "string"
+    },
+    "files": {
+      "type": "object"
+    },
+    "kind": {
+      "const": "shams_paper_pack_manifest"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "created_utc",
+    "files"
+  ],
+  "title": "shams_paper_pack_manifest",
+  "type": "object"
+}

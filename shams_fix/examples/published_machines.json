@@ -1,0 +1,5 @@
+{
+  "schema": "shams_published_machines_v1",
+  "notes": "Optional. Add published/reference machines here to overlay in Optimization Sandbox and Scan Lab. This file is read-only unless you edit it manually.",
+  "machines": []
+}

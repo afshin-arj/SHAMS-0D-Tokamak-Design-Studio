@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "design_intent": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "ordering": {
+      "items": {
+        "enum": [
+          "objective",
+          "worst_hard_margin"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "primary": {
+      "properties": {
+        "direction": {
+          "enum": [
+            "min",
+            "max"
+          ],
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "direction"
+      ],
+      "type": "object"
+    },
+    "scenario_robustness_required": {
+      "type": "boolean"
+    },
+    "schema": {
+      "const": "objective_contract.v2"
+    }
+  },
+  "required": [
+    "schema",
+    "primary",
+    "ordering",
+    "scenario_robustness_required",
+    "design_intent"
+  ],
+  "title": "SHAMS Objective Contract v2",
+  "type": "object"
+}

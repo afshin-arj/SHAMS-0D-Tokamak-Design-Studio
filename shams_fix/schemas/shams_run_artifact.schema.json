@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "constraints": {
+      "type": "array"
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "kind": {
+      "const": "shams_run_artifact"
+    },
+    "meta": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "outputs": {
+      "type": "object"
+    },
+    "solver": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "telemetry": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "authority_confidence": {
+      "$ref": "authority_confidence.v1.schema.json"
+    },
+    "authority_contracts": {
+      "type": "object"
+    },
+    "decision_consequences": {
+      "$ref": "decision_consequences.v1.schema.json"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "timestamp",
+    "inputs",
+    "outputs",
+    "constraints"
+  ],
+  "title": "SHAMS Run Artifact",
+  "type": "object"
+}

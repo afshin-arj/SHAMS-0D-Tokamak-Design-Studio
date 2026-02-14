@@ -1,0 +1,1 @@
+"""Maintenance authority namespace."""

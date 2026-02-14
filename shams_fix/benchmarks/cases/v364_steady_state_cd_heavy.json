@@ -1,0 +1,23 @@
+{
+  "case_id": "steady_state_cd_heavy",
+  "inputs": {
+    "Bt_T": 8.0,
+    "Ip_MA": 8.0,
+    "Paux_MW": 50.0,
+    "R0_m": 3.5,
+    "Ti_keV": 16.0,
+    "a_m": 1.2,
+    "delta": 0.32,
+    "fG": 0.5089380098815465,
+    "include_profile_family_v358": true,
+    "kappa": 1.9
+  },
+  "label": "Steady-state CD-heavy (synthetic)",
+  "notes": "Synthetic high-q steady-state leaning case to exercise current-drive authority and actuator limits. | Canonicalized to PointInputs keys for v364 runner.",
+  "process_intent_map": {
+    "notes": "Placeholder mapping fields for PROCESS parity; populate with PROCESS input deck values when available.",
+    "primary": {}
+  },
+  "schema": "shams_benchmark_case.v1",
+  "suite": "v364"
+}

@@ -1,0 +1,7 @@
+objective,worst_hard_margin,dominant_mechanism,dominant_constraint
+1,0.01,PLASMA,c1
+2,0.02,PLASMA,c1
+3,0.03,EXHAUST,c2
+4,0.025,EXHAUST,c2
+5,0.015,MAGNETS,c3
+6,0.02,MAGNETS,c3

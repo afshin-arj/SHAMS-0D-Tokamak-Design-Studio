@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "candidate_space": {
+      "type": "object"
+    },
+    "constraints_frozen": {
+      "type": "boolean"
+    },
+    "created_utc": {
+      "type": "string"
+    },
+    "feasible_region_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kind": {
+      "const": "shams_optimizer_request"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "objective_hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "created_utc",
+    "constraints_frozen",
+    "candidate_space"
+  ],
+  "title": "shams_optimizer_request",
+  "type": "object"
+}

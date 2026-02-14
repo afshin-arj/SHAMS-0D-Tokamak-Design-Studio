@@ -1,0 +1,22 @@
+id: engineering_magnet_pack_proxy
+name: TF magnet pack proxy
+version: '0.1'
+type: engineering_proxy
+assumptions:
+- Hoop stress/current density approximations (not FEM)
+- Cryo power scales with J^2 and size
+validity:
+  Bt_T:
+  - 3.0
+  - 10.0
+  R0_m:
+  - 2.0
+  - 15.0
+outputs:
+- tf_Jop_MA_per_mm2
+- tf_stress_MPa
+- cryo_power_MW
+maturity:
+  trl: 4
+  envelope: baseline
+  notes: Default maturity tag added in v35; update per proxy.

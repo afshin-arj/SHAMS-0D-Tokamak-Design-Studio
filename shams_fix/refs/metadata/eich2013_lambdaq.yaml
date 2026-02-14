@@ -1,0 +1,19 @@
+id: eich2013_lambdaq
+title: Scaling of the tokamak near the scrape-off layer H-mode power width and implications
+  for ITER
+authors:
+- T. Eich
+- et al.
+year: 2013
+source_pdf: Scaling of the tokamak near the scrape-off layer H-mode power width and
+  implications for ITER.pdf
+sha256: 9ec5e799772794519b93ccbcbfe0de569f1ad8e762e8a689859cd5877c132129
+extracted:
+  type: scaling_exponents
+  items:
+  - lambda_q proportionality exponents
+  pages:
+  - 1
+usage: validation_only
+notes: Extracted proportionality exponents from abstract text block; coefficient not
+  extracted in this pass.

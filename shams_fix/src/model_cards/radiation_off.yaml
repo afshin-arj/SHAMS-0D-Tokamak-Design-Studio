@@ -1,0 +1,21 @@
+id: radiation_off_v1
+name: Radiation bookkeeping (off)
+version: v1
+module: src/physics/hot_ion.py
+entrypoint: hot_ion_point(include_radiation=False)
+maturity:
+  level: stable
+  trl: 5
+  notes:
+    - Reviewer-safe scoping default.
+validity:
+  inputs: {}
+  outputs: {}
+card:
+  what_it_does: |
+    Disables core radiation bookkeeping (Prad_core=0) so that early feasibility
+    mapping is not dominated by uncertain impurity assumptions.
+  proxy_vs_authority:
+    authoritative:
+      - Explicitly off; no hidden radiation terms.
+    proxy: []

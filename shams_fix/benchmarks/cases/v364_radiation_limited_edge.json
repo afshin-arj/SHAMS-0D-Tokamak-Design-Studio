@@ -1,0 +1,23 @@
+{
+  "case_id": "radiation_limited_edge",
+  "inputs": {
+    "Bt_T": 9.0,
+    "Ip_MA": 11.0,
+    "Paux_MW": 50.0,
+    "R0_m": 3.2,
+    "Ti_keV": 10.0,
+    "a_m": 1.05,
+    "delta": 0.3,
+    "fG": 0.4093352427961428,
+    "include_profile_family_v358": true,
+    "kappa": 1.85
+  },
+  "label": "Radiation-limited edge stress (synthetic)",
+  "notes": "Synthetic higher density / lower temperature case to stress exhaust+radiation partitions. | Canonicalized to PointInputs keys for v364 runner.",
+  "process_intent_map": {
+    "notes": "Placeholder mapping fields for PROCESS parity; populate with PROCESS input deck values when available.",
+    "primary": {}
+  },
+  "schema": "shams_benchmark_case.v1",
+  "suite": "v364"
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "constraint_causality": {
+      "type": "array"
+    },
+    "created_utc": {
+      "type": "string"
+    },
+    "kind": {
+      "const": "shams_explainability_report"
+    },
+    "narrative": {
+      "type": "string"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "recommendations": {
+      "type": "array"
+    },
+    "source_artifact_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "type": "object"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "version",
+    "created_utc",
+    "source_artifact_id",
+    "summary",
+    "narrative"
+  ],
+  "title": "shams_explainability_report",
+  "type": "object"
+}

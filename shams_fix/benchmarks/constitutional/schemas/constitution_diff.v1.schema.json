@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "constitution_diff.v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "baseline",
+    "other",
+    "diff"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "constitution_diff.v1"
+    },
+    "baseline": {
+      "type": "string"
+    },
+    "other": {
+      "type": "string"
+    },
+    "diff": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

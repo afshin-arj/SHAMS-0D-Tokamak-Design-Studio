@@ -1,0 +1,48 @@
+{
+  "contract_id": "cost_overlay_v356",
+  "title": "Cost Overlay Authority (v356) — PROCESS-organized component CAPEX proxy",
+  "authority_tier": "proxy",
+  "status": "diagnostic",
+  "design_laws": {
+    "frozen_truth": true,
+    "no_solvers": true,
+    "no_iteration": true,
+    "no_penalties": true,
+    "external_optimization_only": true
+  },
+  "purpose": "Expose a richer, PROCESS-like component CAPEX breakdown as a transparent algebraic overlay. This is not a bankable cost model; it is for relative comparisons and feasibility screening with explicit caps.",
+  "inputs_used": [
+    "cost_k_tf",
+    "cost_k_pf",
+    "cost_k_blanket",
+    "cost_k_cryo",
+    "cost_k_bop",
+    "cost_k_buildings",
+    "cost_k_heating_cd",
+    "cost_k_tritium_plant",
+    "CAPEX_max_proxy_MUSD"
+  ],
+  "outputs_produced": [
+    "capex_tf_coils_MUSD",
+    "capex_pf_cs_MUSD",
+    "capex_blanket_shield_MUSD",
+    "capex_cryoplant_MUSD",
+    "capex_bop_MUSD",
+    "capex_buildings_MUSD",
+    "capex_heating_cd_MUSD",
+    "capex_tritium_plant_MUSD",
+    "CAPEX_component_proxy_MUSD",
+    "cost_overlay_contract_sha256"
+  ],
+  "units": {
+    "capex_*": "MUSD",
+    "CAPEX_component_proxy_MUSD": "MUSD",
+    "CAPEX_max_proxy_MUSD": "MUSD"
+  },
+  "validity_domain": "Relative proxy economics only; intended for design-space exploration and feasibility governance. Not suitable for investment decisions or licensing financial claims.",
+  "notes": [
+    "TF vs PF/CS split is governed by cost_k_tf and cost_k_pf as a deterministic share. Magnitude follows the legacy magnet proxy.",
+    "Heating/CD CAPEX proxy scales with launched auxiliary/CD power (P_CD_launch_MW or fallback Paux_MW).",
+    "Tritium plant CAPEX proxy scales with tritium throughput (T_burn_kg_per_day) when available; otherwise returns 0 for that component."
+  ]
+}

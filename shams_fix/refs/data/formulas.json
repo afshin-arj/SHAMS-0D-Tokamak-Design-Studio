@@ -1,0 +1,21 @@
+{
+  "greenwald": {
+    "name": "Greenwald density limit",
+    "equation": "n_G [1e20 m^-3] = I_p [MA] / (pi * a^2 [m^2])",
+    "variables": {
+      "I_p": "plasma current",
+      "a": "minor radius"
+    },
+    "notes": "Canonical Greenwald limit definition widely used; see Greenwald et al. 1988."
+  },
+  "troyon": {
+    "name": "Troyon beta limit scaling",
+    "equation": "beta_N = beta[%] * a[m] * B[T] / I_p[MA]; beta_N,max ≈ g (order 2-4) depending on shaping",
+    "notes": "Semi-empirical scaling; coefficient g to be confirmed from paper formatting."
+  },
+  "eich": {
+    "name": "Eich 2013 H-mode lambda_q scaling (proportionality)",
+    "equation": "lambda_q ∝ B_tor^{-0.8} * q95^{1.1} * P_SOL^{0.1} * R_geo^{1.0}",
+    "notes": "Extracted from abstract/regression statement; coefficient not included in this pass."
+  }
+}
