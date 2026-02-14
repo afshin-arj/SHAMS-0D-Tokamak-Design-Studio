@@ -819,3 +819,11 @@ Truth outputs unchanged.
 - UI plotting helpers now degrade gracefully when `matplotlib` is not installed (no crash; Streamlit fallbacks).
 
 Truth outputs unchanged.
+
+
+## v372.4 — UI Hotfix: Point Designer Telemetry lazy-tab safety (run_btn)
+
+- Fix NameError `run_btn` in Point Designer Telemetry caused by Streamlit lazy tab execution.
+- Telemetry tab is now strictly cached/read-only: guides user to run Evaluate Point in Configure when no cached results exist.
+- Replace Configure-tab-only log formatting with artifact-derived logging to prevent cross-tab NameErrors.
+- Gatechecks: `py_compile ui/app.py`, full pytest suite.

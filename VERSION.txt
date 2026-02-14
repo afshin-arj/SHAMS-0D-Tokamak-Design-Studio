@@ -1,1 +1,1 @@
-v372.3 — UI Hotfix: Control Room tab scoping (tab_pam)
+v372.4 — UI Hotfix: Point Designer Telemetry lazy-tab safety (run_btn)

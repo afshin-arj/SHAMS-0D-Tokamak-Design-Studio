@@ -4057,6 +4057,11 @@ if _deck == "🧭 Point Designer":
 
     tab_cfg, tab_tel, tab_con = st.tabs(["🧭 Configure", "📡 Telemetry", "🧾 Constraints"])
 
+    # IMPORTANT: Streamlit tabs are lazily executed; variables defined inside one tab
+    # are NOT guaranteed to exist when another tab is selected. Keep shared flags
+    # defined here at the parent scope.
+    run_btn = False  # (global PD run button state)
+
     # Use the latest loaded preset / last point as the UI default for Point Designer.
     # This makes preset loads robust even if widget state keys change or are newly created.
     _base_pd = st.session_state.get("last_point_inp")
@@ -5459,6 +5464,10 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
 
     with tab_tel:
         st.subheader("Telemetry")
+        # Telemetry is read-only: if no cached Point Designer results exist, guide the user.
+        if "pd_last_outputs" not in st.session_state:
+            st.info("No Point Designer results yet. Open **🧭 Configure** and click **Evaluate Point**, then return here.")
+            st.stop()
         # Verdict-first executive header (PASS/FAIL) before any tables.
         # IMPORTANT: derive from the cached *outputs* (pd_last_outputs) so that
         # Mission Snapshot / Plot Deck / Ledgers cannot disagree.
@@ -5587,11 +5596,11 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
         )
 
         # Render live if button pressed, otherwise render cached results.
-        if run_btn or ("pd_last_outputs" in st.session_state):
+        if ("pd_last_outputs" in st.session_state):
 
             # If we're just re-rendering after a Streamlit rerun (e.g., a download button),
             # do NOT re-run the solver. Use cached outputs.
-            _use_cached = bool((not run_btn) and ("pd_last_outputs" in st.session_state))
+            _use_cached = True  # Telemetry tab never re-runs the solver; always render cached outputs
 
             # Activity log: user explicitly clicked Evaluate Point
             if bool(run_btn) and (not _use_cached):
@@ -5650,12 +5659,20 @@ with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
             else:
                 _log("Point Designer solver log")
 
-            _log(
-                f"Targets: H98={H98_target:.6g}, Q={Q_target:.6g}; bounds: Ip=[{Ip_min:.6g},{Ip_max:.6g}] MA, fG=[{fG_min:.6g},{fG_max:.6g}]; tol={tol:.3e}"
-            )
-            _log(
-                f"Machine: R0={R0:.6g} m, a={a:.6g} m, kappa={kappa:.6g}, B0={B0:.6g} T; Paux={Paux:.6g} MW (Q denom={Paux_for_Q:.6g} MW); Ti={Ti:.6g} keV; Ti/Te={Ti_over_Te:.6g}; fuel_mode={fuel_mode}"
-            )
+            # NOTE: In Telemetry, the Configure tab may not have executed (Streamlit tabs are lazy).
+            # Only log what we can derive from cached artifacts.
+            try:
+                _R0 = float(getattr(base, 'R0_m')) if base is not None and hasattr(base,'R0_m') else float('nan')
+                _a  = float(getattr(base, 'a_m'))  if base is not None and hasattr(base,'a_m')  else float('nan')
+                _k  = float(getattr(base, 'kappa')) if base is not None and hasattr(base,'kappa') else float('nan')
+                _B  = float(getattr(base, 'Bt_T')) if base is not None and hasattr(base,'Bt_T') else float('nan')
+                _Ip = float(getattr(base, 'Ip_MA')) if base is not None and hasattr(base,'Ip_MA') else float('nan')
+                _Ti = float(getattr(base, 'Ti_keV')) if base is not None and hasattr(base,'Ti_keV') else float('nan')
+                _fG = float(getattr(base, 'fG')) if base is not None and hasattr(base,'fG') else float('nan')
+                _Paux = float(getattr(base, 'Paux_MW')) if base is not None and hasattr(base,'Paux_MW') else float('nan')
+                _log(f"Cached machine: R0={_R0:.6g} m, a={_a:.6g} m, kappa={_k:.6g}, Bt={_B:.6g} T; Ip={_Ip:.6g} MA; Ti={_Ti:.6g} keV; fG={_fG:.6g}; Paux={_Paux:.6g} MW")
+            except Exception:
+                pass
 
             # Defensive de-dup: some UI knobs are passed explicitly below and may also live
             # in clean_knobs depending on preset + sync pathways. Passing duplicates causes
