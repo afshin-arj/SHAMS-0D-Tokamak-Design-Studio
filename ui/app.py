@@ -8189,6 +8189,20 @@ if _deck == "🧠 Systems Mode":
     st.caption("Feasibility-first system explanation around the frozen Point Designer truth. Deterministic, audit-safe, no hidden solvers.")
     render_mode_scope("systems")
 
+    # --- Systems Mode solver parameter discipline (UI stabilization Phase 1) ---
+    # Never define solver knobs conditionally inside tabs/expanders; always read from session_state safely.
+    tol: float = float(st.session_state.get("systems_tol", 1e-3))
+    damping: float = float(st.session_state.get("systems_damping", 0.6))
+    max_iter: int = int(st.session_state.get("systems_max_iter", 35))
+    # Optional trust-region cap (scaled space); None means disabled.
+    trust_delta = st.session_state.get("systems_trust_delta", None)
+    if trust_delta is not None:
+        try:
+            trust_delta = float(trust_delta)
+        except Exception:
+            trust_delta = None
+
+
     st.info(
         "This is an **explanation layer** around the frozen evaluator: it may propose explicit, user-controlled *what would need to change* narratives, "
         "but it **never modifies** physics truth, constraints, or evaluator behavior.",
