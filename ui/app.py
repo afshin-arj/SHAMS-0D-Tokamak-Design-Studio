@@ -4148,43 +4148,43 @@ if _deck == "🧭 Point Designer":
                 st.session_state.pop(k, None)
             st.rerun()
 
-    with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
-        st.caption("Deterministic intent templates that set *PointInputs defaults* (no optimization, no solvers).")
-        try:
-            from tools.industrial_scenario_templates_v354 import template_names, get_template_payload, get_template
-            _tmpl_names = template_names()
-            _sel_tmpl = st.selectbox("Industrial scenario template", ["(select)"] + _tmpl_names, index=0, key="pd_industrial_template_v354")
-            if _sel_tmpl != "(select)":
-                _payload = get_template_payload(_sel_tmpl)
-                st.code(json.dumps(_payload, indent=2, sort_keys=True), language="json")
-                if st.button("📥 Load template into Point Designer", use_container_width=True, key="pd_load_industrial_template_btn_v354"):
-                    # Clear prior outputs and set a new base point for widget defaults.
-                    for k in [
-                        "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
-                        "last_point_out","last_point_inp","last_solver_log",
-                    ]:
-                        st.session_state.pop(k, None)
-                    _ov = get_template(_sel_tmpl)
-                    try:
-                        _base = asdict(_base_pd) if _base_pd is not None else {}
-                        _base.update({k: v for k, v in _ov.items() if k in _base})
-                        st.session_state["last_point_inp"] = PointInputs(**_base)
-                    except Exception:
-                        # Fallback: apply only required keys
-                        st.session_state["last_point_inp"] = PointInputs(**{**{
-                            "R0_m": float(_ov.get("R0_m", 1.81)),
-                            "a_m": float(_ov.get("a_m", 0.62)),
-                            "kappa": float(_ov.get("kappa", 1.8)),
-                            "Bt_T": float(_ov.get("Bt_T", 10.0)),
-                            "Ip_MA": float(_ov.get("Ip_MA", 8.0)),
-                            "Ti_keV": float(_ov.get("Ti_keV", 10.0)),
-                            "fG": float(_ov.get("fG", 0.8)),
-                            "Paux_MW": float(_ov.get("Paux_MW", 50.0)),
-                        }, **{k:v for k,v in _ov.items() if k not in ("R0_m","a_m","kappa","Bt_T","Ip_MA","Ti_keV","fG","Paux_MW")}})
-                    st.session_state["pd_loaded_template_name"] = str(_sel_tmpl)
-                    st.rerun()
-        except Exception as _e:
-            st.warning(f"Scenario template library unavailable: {_e}")
+        with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
+            st.caption("Deterministic intent templates that set *PointInputs defaults* (no optimization, no solvers).")
+            try:
+                from tools.industrial_scenario_templates_v354 import template_names, get_template_payload, get_template
+                _tmpl_names = template_names()
+                _sel_tmpl = st.selectbox("Industrial scenario template", ["(select)"] + _tmpl_names, index=0, key="pd_industrial_template_v354")
+                if _sel_tmpl != "(select)":
+                    _payload = get_template_payload(_sel_tmpl)
+                    st.code(json.dumps(_payload, indent=2, sort_keys=True), language="json")
+                    if st.button("📥 Load template into Point Designer", use_container_width=True, key="pd_load_industrial_template_btn_v354"):
+                        # Clear prior outputs and set a new base point for widget defaults.
+                        for k in [
+                            "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
+                            "last_point_out","last_point_inp","last_solver_log",
+                        ]:
+                            st.session_state.pop(k, None)
+                        _ov = get_template(_sel_tmpl)
+                        try:
+                            _base = asdict(_base_pd) if _base_pd is not None else {}
+                            _base.update({k: v for k, v in _ov.items() if k in _base})
+                            st.session_state["last_point_inp"] = PointInputs(**_base)
+                        except Exception:
+                            # Fallback: apply only required keys
+                            st.session_state["last_point_inp"] = PointInputs(**{**{
+                                "R0_m": float(_ov.get("R0_m", 1.81)),
+                                "a_m": float(_ov.get("a_m", 0.62)),
+                                "kappa": float(_ov.get("kappa", 1.8)),
+                                "Bt_T": float(_ov.get("Bt_T", 10.0)),
+                                "Ip_MA": float(_ov.get("Ip_MA", 8.0)),
+                                "Ti_keV": float(_ov.get("Ti_keV", 10.0)),
+                                "fG": float(_ov.get("fG", 0.8)),
+                                "Paux_MW": float(_ov.get("Paux_MW", 50.0)),
+                            }, **{k:v for k,v in _ov.items() if k not in ("R0_m","a_m","kappa","Bt_T","Ip_MA","Ti_keV","fG","Paux_MW")}})
+                        st.session_state["pd_loaded_template_name"] = str(_sel_tmpl)
+                        st.rerun()
+            except Exception as _e:
+                st.warning(f"Scenario template library unavailable: {_e}")
             with st.expander("Plasma & geometry", expanded=False):
                 R0 = _num("Major radius R₀ (m)", float(_base_pd.R0_m), 0.01, help="Distance from tokamak centerline to plasma magnetic axis (major radius).", key=PD_KEYS["R0_m"])
                 a = _num("Minor radius a (m)", float(_base_pd.a_m), 0.01, min_value=0.1, help="Plasma minor radius (a). Together with R₀ sets aspect ratio.", key=PD_KEYS["a_m"])

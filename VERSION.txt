@@ -1,1 +1,1 @@
-v372.8 — UI Stabilization Phase 1: early-safe state helpers, duplicate deck block removal, canonical cache aliasing
+v372.8.1 — UI Stabilization Phase 1 Hotfix: restore Point Designer Configure execution/layout contract (Scenario Templates isolation + tabs scope fix)
