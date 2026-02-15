@@ -821,6 +821,29 @@ def _init_session_state() -> None:
             st.session_state[k] = v
 
 _init_session_state()
+# ---------------------------------------------------------------------------
+# Point Designer UI defaults (do NOT confuse with session_state defaults)
+# ---------------------------------------------------------------------------
+def _pd_ui_defaults(base_pd=None) -> dict:
+    """Deterministic UI defaults for optional authority toggles/knobs.
+
+    Streamlit tabs/expanders are lazily executed. Variables must never be defined
+    conditionally and then referenced elsewhere.
+    """
+    d = {
+        # Availability/Replacement ledger (v359)
+        "include_availability_replacement_v359": False,
+        "planned_outage_base": 0.05,
+        "forced_outage_base": 0.03,
+        "replacement_outage_days": 30.0,
+        "replacement_cost_MUSD": 50.0,
+        "lcoe_cap_cents_per_kWh": 20.0,
+
+        # Maintenance scheduling (v368) optional knobs (kept off by default)
+        "include_maintenance_scheduling_v368": False,
+    }
+    return d
+
 # _sync_point_designer_from_last_point_inp()
 
 
@@ -4082,6 +4105,7 @@ if _deck == "🧭 Point Designer":
 
     with tab_cfg:
         st.subheader("Control Deck")
+        defaults = _pd_ui_defaults(_base_pd)
         if st.button("🧹 New machine (clear Point Designer)", use_container_width=True, help="Clear Point Designer outputs/tables/plots so you can start a new machine."):
             for k in [
                 "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
@@ -5483,8 +5507,13 @@ if _deck == "🧭 Point Designer":
         st.subheader("Telemetry")
         # Telemetry is read-only: if no cached Point Designer results exist, guide the user.
         if "pd_last_outputs" not in st.session_state:
-            st.info("No Point Designer results yet. Open **🧭 Configure** and click **Evaluate Point**, then return here.")
-            st.stop()
+            # Fallback: older panels may have produced last_point_out but not the unified cache key.
+            _fb = st.session_state.get("last_point_out")
+            if isinstance(_fb, dict) and _fb:
+                st.session_state["pd_last_outputs"] = _fb
+            else:
+                st.info("No Point Designer results yet. Open **🧭 Configure** and click **Evaluate Point**, then return here.")
+                st.stop()
         # Verdict-first executive header (PASS/FAIL) before any tables.
         # IMPORTANT: derive from the cached *outputs* (pd_last_outputs) so that
         # Mission Snapshot / Plot Deck / Ledgers cannot disagree.
@@ -5969,6 +5998,28 @@ if _deck == "🧭 Point Designer":
                         use_container_width=True,
                     )
                     st.code(solver_log_text)
+            # -----------------------------------------------------------------
+            # SHAMS governance: cache attempted evaluation for downstream panels
+            # (Telemetry/Constraints/Compare) even if the solver fails.
+            # NO-SOLUTION is a valid outcome; we still export the best-effort diagnostics.
+            # -----------------------------------------------------------------
+            try:
+                if isinstance(out, dict):
+                    out["_pd_eval_ok"] = bool(ok)
+                    out["_pd_eval_reason"] = "ok" if bool(ok) else "solver_failed"
+                    st.session_state["last_point_out"] = out
+                    st.session_state["pd_last_outputs"] = out
+                    try:
+                        import time as _time
+                        st.session_state["pd_last_run_ts"] = float(_time.time())
+                        st.session_state["pd_last_inputs_hash"] = st.session_state.get("pd_current_inputs_hash")
+                    except Exception:
+                        pass
+                else:
+                    st.session_state["last_point_out"] = {"_pd_eval_ok": bool(ok), "_pd_eval_reason": "non_dict_out"}
+            except Exception:
+                pass
+
             if not ok:
                 # Provide best-effort diagnostics if available (e.g., H98 at bounds)
                 msg = "Solver failed to converge for (Ip, fG) at the requested (H98, Q) targets."

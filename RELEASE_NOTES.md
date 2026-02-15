@@ -1,3 +1,16 @@
+## v372.6.6 — Point Designer result caching + Telemetry persistence hotfix
+
+- Point Designer now caches **best-effort** outputs to `pd_last_outputs` even when the operating-target solver fails (NO-SOLUTION is still a reportable outcome).
+- Telemetry now falls back to `last_point_out` if `pd_last_outputs` is missing, preventing “no results yet” false negatives.
+- Added explicit `_pd_eval_ok` / `_pd_eval_reason` markers into cached outputs for auditability.
+
+
+
+## v372.6.5 — UI Hotfix: Point Designer defaults scope + Configure completion
+
+- Fix `NameError: defaults is not defined` in Point Designer Configure by introducing deterministic `_pd_ui_defaults()` and defining `defaults` at the start of the Configure tab.
+- Restored Configure execution flow so optional authority expanders and **Evaluate Point** render fully without scope fractures.
+- No changes to frozen physics truth; UI-only wiring fix.
 
 
 ## v372.6.3 — UI Hotfix: Point Designer layout restore + Streamlit rerun compatibility
