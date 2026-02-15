@@ -1,4 +1,11 @@
 
+
+## v372.6.3 — UI Hotfix: Point Designer layout restore + Streamlit rerun compatibility
+
+- Removed unsupported `st.experimental_rerun()` usage; added `_st_rerun()` compatibility shim (uses `st.rerun()` when available).
+- Restored Point Designer Configure layout (no intrusive primary run banner); evaluation remains via the standard **Evaluate Point** control.
+- Fixed tab scoping so Configure-only widgets do not leak across tab execution.
+
 ## v372.6.1 — Re-implementation hotfix (tab_studies leak removal + Control Deck run button)
 - Remove module-scope leaked `with tab_studies:` block that could trigger NameError when provenance deck not initialized.
 - Add prominent **Run point design** button in Point Designer Control Deck, wired deterministically to existing Evaluate Point path.
