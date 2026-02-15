@@ -1,1 +1,1 @@
-v372.8.1 — UI Stabilization Phase 1 Hotfix: restore Point Designer Configure execution/layout contract (Scenario Templates isolation + tabs scope fix)
+372.8.8

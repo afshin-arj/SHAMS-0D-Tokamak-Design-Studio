@@ -3889,6 +3889,67 @@ This panel also performs a lightweight hygiene scan of the working tree.
             _render_with_contract("_v170_process_export_panel", _v170_process_export_panel)
         except Exception:
             st.info('Panel unavailable in this build.')
+    st.divider()
+    with st.expander("🗃️ Studies manager", expanded=False):
+        st.header("Studies manager")
+        st.write("Save, load, and organize study configurations (scan/pareto) as JSON. This keeps studies reproducible across sessions.")
+        if "studies" not in st.session_state:
+            st.session_state.studies = []
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("Save current PointInputs as study", use_container_width=True):
+                if st.session_state.get("last_point_inp") is not None:
+                    try:
+                        inp_obj = st.session_state.last_point_inp
+                        # dataclass -> dict
+                        d = {k: getattr(inp_obj, k) for k in inp_obj.__dataclass_fields__.keys()}  # type: ignore
+                        st.session_state.studies.append({"type": "point", "created": datetime.datetime.now().isoformat(), "inputs": d})
+                        st.success("Saved.")
+                    except Exception as e:
+                        st.error(f"Could not save: {e}")
+                else:
+                    st.warning("Run a point first so `last_point_inp` exists.")
+
+        with c2:
+            up = st.file_uploader("Import studies JSON", type=["json"], key="studies_import")
+            if up is not None:
+                try:
+                    imported = json.loads(up.getvalue().decode("utf-8"))
+                    if isinstance(imported, list):
+                        st.session_state.studies.extend(imported)
+                    elif isinstance(imported, dict):
+                        st.session_state.studies.append(imported)
+                    st.success("Imported.")
+                except Exception as e:
+                    st.error(f"Import failed: {e}")
+
+        with c3:
+            if st.session_state.studies:
+                st.download_button(
+                    "Download studies JSON",
+                    data=json.dumps(st.session_state.studies, indent=2, sort_keys=True),
+                    file_name="shams_studies.json",
+                    mime="application/json",
+                    use_container_width=True,
+                )
+
+        st.markdown("### Saved studies")
+        if st.session_state.studies:
+            df = pd.DataFrame([{"i": i, "type": s.get("type","?"), "created": s.get("created",""), "notes": s.get("notes","")} for i,s in enumerate(st.session_state.studies)])
+            st.dataframe(df, use_container_width=True)
+            idx = st.number_input("Select index to view", min_value=0, max_value=max(0, len(st.session_state.studies)-1), value=0, step=1)
+            st.json(st.session_state.studies[int(idx)])
+            if st.button("Delete selected", use_container_width=True):
+                try:
+                    st.session_state.studies.pop(int(idx))
+                    st.experimental_rerun()
+                except Exception:
+                    pass
+        else:
+            st.info("No studies saved yet.")
+
+
     
     with tab_model:
         # Render with proper scientific notation (MathJax) to avoid “ASCII-looking” formulas.
@@ -4135,8 +4196,18 @@ if _deck == "🧭 Point Designer":
     # Use the latest loaded preset / last point as the UI default for Point Designer.
     # This makes preset loads robust even if widget state keys change or are newly created.
     _base_pd = st.session_state.get("last_point_inp")
+    # UI stability hardening: session state may contain a raw dict (e.g., legacy
+    # cache formats or template imports). Normalize to PointInputs deterministically.
+    if isinstance(_base_pd, dict):
+        try:
+            _pi_fields = {f.name for f in fields(PointInputs)}
+            _base_pd = PointInputs(**{k: v for k, v in _base_pd.items() if k in _pi_fields})
+            st.session_state["last_point_inp"] = _base_pd
+        except Exception:
+            _base_pd = None
     if _base_pd is None:
         _base_pd = PointInputs(R0_m=1.81, a_m=0.62, kappa=1.8, Bt_T=10.0, Ip_MA=8.0, Ti_keV=10.0, fG=0.8, Paux_MW=50.0)
+        st.session_state["last_point_inp"] = _base_pd
 
     with tab_cfg:
         st.subheader("Control Deck")
@@ -4185,16 +4256,17 @@ if _deck == "🧭 Point Designer":
                         st.rerun()
             except Exception as _e:
                 st.warning(f"Scenario template library unavailable: {_e}")
-            with st.expander("Plasma & geometry", expanded=False):
-                R0 = _num("Major radius R₀ (m)", float(_base_pd.R0_m), 0.01, help="Distance from tokamak centerline to plasma magnetic axis (major radius).", key=PD_KEYS["R0_m"])
-                a = _num("Minor radius a (m)", float(_base_pd.a_m), 0.01, min_value=0.1, help="Plasma minor radius (a). Together with R₀ sets aspect ratio.", key=PD_KEYS["a_m"])
-                kappa = _num("Elongation κ (–)", float(_base_pd.kappa), 0.05, min_value=1.0, max_value=3.2, help="Plasma elongation κ. Used in volume/area and stability proxies.", key=PD_KEYS["kappa"])
-                delta = _num("Triangularity δ (–)", float(getattr(_base_pd, "delta", 0.0) or 0.0), 0.02, min_value=0.0, max_value=0.8, help="Triangularity δ. Used only in the transparent inboard radial-build clearance proxy (stack closure). Default 0.0 preserves legacy behavior.", key=PD_KEYS["delta"])
-                B0 = _num("Toroidal field on axis B₀ (T)", float(_base_pd.Bt_T), 0.1, min_value=0.5, max_value=25.0, help="Toroidal field at plasma axis (B₀). Drives confinement and magnet sizing.", key=PD_KEYS["Bt_T"])
-                Ti = _num("Ion temperature Tᵢ (keV)", float(_base_pd.Ti_keV), 0.25, min_value=1.0, max_value=40.0, help="Core ion temperature proxy. Drives fusion reactivity and stored energy.", key=PD_KEYS["Ti_keV"])
-                Ti_over_Te = _num("Ion-to-electron temperature ratio Tᵢ/Tₑ (–)", float(getattr(_base_pd, "Ti_over_Te", 1.0)), 0.1, min_value=0.5, help="Assumed ratio Tᵢ/Tₑ; sets electron temperature for radiation estimate.", key=PD_KEYS["Ti_over_Te"])
 
-            with st.expander("TF magnets & technology", expanded=False):
+        with st.expander("Plasma & geometry", expanded=False):
+            R0 = _num("Major radius R₀ (m)", float(_base_pd.R0_m), 0.01, help="Distance from tokamak centerline to plasma magnetic axis (major radius).", key=PD_KEYS["R0_m"])
+            a = _num("Minor radius a (m)", float(_base_pd.a_m), 0.01, min_value=0.1, help="Plasma minor radius (a). Together with R₀ sets aspect ratio.", key=PD_KEYS["a_m"])
+            kappa = _num("Elongation κ (–)", float(_base_pd.kappa), 0.05, min_value=1.0, max_value=3.2, help="Plasma elongation κ. Used in volume/area and stability proxies.", key=PD_KEYS["kappa"])
+            delta = _num("Triangularity δ (–)", float(getattr(_base_pd, "delta", 0.0) or 0.0), 0.02, min_value=0.0, max_value=0.8, help="Triangularity δ. Used only in the transparent inboard radial-build clearance proxy (stack closure). Default 0.0 preserves legacy behavior.", key=PD_KEYS["delta"])
+            B0 = _num("Toroidal field on axis B₀ (T)", float(_base_pd.Bt_T), 0.1, min_value=0.5, max_value=25.0, help="Toroidal field at plasma axis (B₀). Drives confinement and magnet sizing.", key=PD_KEYS["Bt_T"])
+            Ti = _num("Ion temperature Tᵢ (keV)", float(_base_pd.Ti_keV), 0.25, min_value=1.0, max_value=40.0, help="Core ion temperature proxy. Drives fusion reactivity and stored energy.", key=PD_KEYS["Ti_keV"])
+            Ti_over_Te = _num("Ion-to-electron temperature ratio Tᵢ/Tₑ (–)", float(getattr(_base_pd, "Ti_over_Te", 1.0)), 0.1, min_value=0.5, help="Assumed ratio Tᵢ/Tₑ; sets electron temperature for radiation estimate.", key=PD_KEYS["Ti_over_Te"])
+
+        with st.expander("TF magnets & technology", expanded=False):
                 tech_opts = [
                     "HTS_REBCO",
                     "LTS_NB3SN",
@@ -4226,7 +4298,7 @@ if _deck == "🧭 Point Designer":
                     ),
                     key=PD_KEYS["Tcoil_K"],
                 )
-            with st.expander("Model options (transparent (systems-code-inspired))", expanded=False):
+        with st.expander("Model options (transparent (systems-code-inspired))", expanded=False):
                 confinement_scaling_label = st.selectbox(
                     "H-factor reference scaling (for H_scaling)",
                     options=[
@@ -4515,7 +4587,7 @@ if _deck == "🧭 Point Designer":
 
 
 
-            with st.expander("Power & composition", expanded=False):
+        with st.expander("Power & composition", expanded=False):
                 Paux = _num("Auxiliary heating power P_aux (MW)", float(_base_pd.Paux_MW), 1.0, min_value=0.0, max_value=500.0, help="Auxiliary heating power delivered to the plasma (MW).", key=PD_KEYS["Paux_MW"])
                 Paux_for_Q = _num("Aux power used in Q definition (MW)", float(getattr(_base_pd, "Paux_MW", 0.0)), 1.0, min_value=0.0, help="Denominator power for Q = P_fus,DT(adj)/P_aux_for_Q (MW).", key=PD_KEYS["Paux_for_Q"])
 
@@ -4800,7 +4872,7 @@ if _deck == "🧭 Point Designer":
                 else:
                     require_Hmode = False
                     PLH_margin = 0.0
-            with st.expander("Operating targets (solver)", expanded=False):
+        with st.expander("Operating targets (solver)", expanded=False):
                 fuel_mode_label = st.radio(
                     "Fuel / design mode",
                     ["DT performance (targets Q & net electric)", "DD feasibility (includes secondary DT from DD-produced T)"],
@@ -4861,7 +4933,7 @@ if _deck == "🧭 Point Designer":
                         "with an inner solve on fG to match the target Q at each Ip evaluation."
                     ),
                 )
-            with st.expander("Engineering & plant feasibility (optional)", expanded=False):
+        with st.expander("Engineering & plant feasibility (optional)", expanded=False):
                 # These names are passed through via PointInputs **kwargs, so they must exist in your src version.
                 # We keep them optional. If missing, they are simply ignored by PointInputs.
                 tshield = _num("Neutron shield thickness (m)", 0.8, 0.01, min_value=0.0, help="Effective neutron shield thickness used for neutronics/HTS lifetime proxies.")
@@ -4898,6 +4970,8 @@ if _deck == "🧭 Point Designer":
                         help="Enable optional PROCESS-like component CAPEX proxy knobs and an optional hard cap. Diagnostic only; does not change plasma truth.",
                     )
 
+
+                defaults = _base_pd  # safe local defaults source for optional authority overlays
 
                 # --- (v359.0) Availability & replacement ledger authority (optional) ---
                 with st.expander("🛠️ Availability & replacement ledger (v359.0)", expanded=False):
@@ -5491,46 +5565,180 @@ if _deck == "🧭 Point Designer":
 
                 # (Button moved outside this expander.)
 
-            # Evaluate button is intentionally *outside* the optional engineering section so
-            # users don't have to expand engineering knobs just to run Point Designer.
-            run_btn = st.button("Evaluate Point", type="primary", use_container_width=True)
-            # Quick bridge: trigger Systems Mode precheck using the current Point inputs.
-            if st.button("Run Systems Precheck (in Systems Mode)", use_container_width=True, key="pd_to_systems_precheck"):
-                # Schedule the action for Systems Mode and suggest the user switch tabs.
-                st.session_state["_sys_action"] = "precheck"
-                st.session_state["_pending_workflow_step"] = "Diagnose"
-                st.success("Scheduled Systems Precheck. Switch to the **Systems Mode** tab to view the report.")
-
-            # Point Designer usability: show cache status + last-eval timestamp + stale-input warning.
-            try:
-                import hashlib, json as _json
-                from datetime import datetime
-                import time as _time
-
-                _pd_inputs_fingerprint = {
-                    "R0_m": float(R0), "a_m": float(a), "kappa": float(kappa), "delta": float(delta), "Bt_T": float(B0),
-                    "Paux_MW": float(Paux), "Ti_keV": float(Ti), "Ti_over_Te": float(Ti_over_Te),
-                    "fuel_mode": str(fuel_mode), "Q_target": float(Q_target), "H98_target": float(H98_target),
-                    "Ip_min": float(Ip_min), "Ip_max": float(Ip_max), "fG_min": float(fG_min), "fG_max": float(fG_max),
-                    "tshield": float(tshield),
-                    "magnet_technology": str(tech),
-                    "Tcoil_K": float(Tcoil),
-                    "confidence": str(confidence),
-                    "subsystem_enabled": dict(clean_knobs.get("_subsystem_enabled", {})),
-                }
-                _pd_inputs_hash = hashlib.sha1(_json.dumps(_pd_inputs_fingerprint, sort_keys=True).encode("utf-8")).hexdigest()
-                _last_hash = st.session_state.get("pd_last_inputs_hash")
-                _last_ts = st.session_state.get("pd_last_run_ts")
-
-                if _last_ts:
-                    st.caption(f"Last evaluation: {datetime.fromtimestamp(float(_last_ts)).strftime('%Y-%m-%d %H:%M:%S')}")
-                if (not run_btn) and ("pd_last_outputs" in st.session_state) and (_last_hash is not None) and (_pd_inputs_hash != _last_hash):
-                    st.warning("Inputs changed since last evaluation. Click **Evaluate Point** to refresh results.")
-                # Keep current hash available to the run path below.
-                st.session_state["pd_current_inputs_hash"] = _pd_inputs_hash
-            except Exception:
-                pass
-
+            
+        # Evaluate button is intentionally *outside* the optional engineering section so
+        # users don't have to expand engineering knobs just to run Point Designer.
+        run_btn = st.button("Evaluate Point", type="primary", use_container_width=True)
+        # Quick bridge: trigger Systems Mode precheck using the current Point inputs.
+        if st.button("Run Systems Precheck (in Systems Mode)", use_container_width=True, key="pd_to_systems_precheck"):
+            # Schedule the action for Systems Mode and suggest the user switch tabs.
+            st.session_state["_sys_action"] = "precheck"
+            st.session_state["_pending_workflow_step"] = "Diagnose"
+            st.success("Scheduled Systems Precheck. Switch to the **Systems Mode** tab to view the report.")
+        
+        
+        # --- Execute: Point Designer evaluation (frozen truth) ---
+        if run_btn:
+            import time as _time
+            # Acquire global run lock (UX/gov only; does not affect truth).
+            _owner_tok = str(st.session_state.get("_shams_owner_token") or "PointDesigner")
+            _task_label = "Point Designer: Evaluate Point"
+            _ok_lock = bool(_shams_runlock.acquire(_task_label, _owner_tok, app_start_ts=st.session_state.get("_shams_app_start_ts")))
+            if not _ok_lock:
+                _locked, _task, _started, _is_owner = _shams_runlock.status(_owner_tok, app_start_ts=st.session_state.get("_shams_app_start_ts"))
+                if _locked:
+                    st.warning(f"Run lock busy: {_task or 'unknown task'} (another run is in progress).")
+                else:
+                    st.warning("Run lock busy (another run is in progress).")
+            else:
+                try:
+                    with st.spinner("Evaluating frozen 0-D point…"):
+                        # Defensive de-dup of fields that are passed explicitly below.
+                        _ck = dict(clean_knobs) if isinstance(clean_knobs, dict) else {}
+                        for _k in ("Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta", "Ip_MA", "fG", "Paux_MW", "Ti_keV"):
+                            _ck.pop(_k, None)
+        
+                        base = make_point_inputs(
+                            R0_m=float(R0), a_m=float(a), kappa=float(kappa), delta=float(delta), Bt_T=float(B0),
+                            magnet_technology=str(tech),
+                            Tcoil_K=float(Tcoil),
+                            Ip_MA=float(0.5*(Ip_min+Ip_max)),
+                            Ti_keV=float(Ti),
+                            fG=float(0.5*(fG_min+fG_max)),
+                            t_shield_m=float(tshield),
+                            Paux_MW=float(Paux),
+                            Ti_over_Te=float(Ti_over_Te),
+                            q95_enforcement=str(st.session_state.get("q95_enforcement","hard")),
+                            greenwald_enforcement=str(st.session_state.get("greenwald_enforcement","hard")),
+                            tech_tier=str(st.session_state.get("tech_tier","TRL7")),
+                            confinement_scaling=confinement_scaling,
+                            zeff=float(Zeff),
+                            dilution_fuel=float(dilution_fuel),
+                            f_rad_core=float(f_rad_core),
+                            include_radiation=bool(include_radiation),
+                            radiation_model=radiation_model,
+                            radiation_db=radiation_db,
+                            impurity_species=impurity_species,
+                            impurity_frac=float(impurity_frac),
+                            include_synchrotron=bool(include_synchrotron),
+                            impurity_contract_species=impurity_contract_species,
+                            impurity_contract_f_z=float(impurity_contract_f_z),
+                            impurity_partition_core=float(impurity_partition_core),
+                            impurity_partition_edge=float(impurity_partition_edge),
+                            impurity_partition_sol=float(impurity_partition_sol),
+                            impurity_partition_div=float(impurity_partition_div),
+                            include_sol_radiation_control=bool(include_sol_radiation_control),
+                            q_div_target_MW_m2=float(q_div_target_MW_m2),
+                            T_sol_keV=float(T_sol_keV),
+                            f_V_sol_div=float(f_V_sol_div),
+                            detachment_fz_max=float(detachment_fz_max),
+                            include_edge_core_coupled_exhaust=bool(include_edge_core_coupled_exhaust and include_sol_radiation_control),
+                            edge_core_coupling_chi_core=float(edge_core_coupling_chi_core),
+                            f_rad_core_edge_core_max=float(f_rad_core_edge_core_max),
+                            confinement_model=str(confinement_scaling).lower(),  # back-compat
+                            include_transport_contracts_v371=bool(include_transport_contracts_v371),
+                            H_required_max_optimistic=float(H_required_max_optimistic) if bool(include_transport_contracts_v371) else float("nan"),
+                            H_required_max_robust=float(H_required_max_robust) if bool(include_transport_contracts_v371) else float("nan"),
+                            include_neutronics_materials_coupling_v372=bool(include_neutronics_materials_coupling_v372),
+                            nm_material_class_v372=str(nm_material_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, "nm_material_class_v372", "RAFM")),
+                            nm_spectrum_class_v372=str(nm_spectrum_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, "nm_spectrum_class_v372", "nominal")),
+                            nm_T_oper_C_v372=float(nm_T_oper_C_v372) if bool(include_neutronics_materials_coupling_v372) else float("nan"),
+                            dpa_rate_eff_max_v372=float(dpa_rate_eff_max_v372) if bool(include_neutronics_materials_coupling_v372) else float("nan"),
+                            damage_margin_min_v372=float(damage_margin_min_v372) if bool(include_neutronics_materials_coupling_v372) else float("nan"),
+                            profile_model=profile_model,
+                            profile_peaking_ne=float(profile_peaking_ne),
+                            profile_peaking_T=float(profile_peaking_T),
+                            profile_mode=bool(profile_mode),
+                            profile_alpha_T=float(profile_alpha_T),
+                            profile_alpha_n=float(profile_alpha_n),
+                            profile_shear_shape=float(profile_shear_shape),
+                            pedestal_enabled=bool(pedestal_enabled),
+                            pedestal_width_a=float(pedestal_width_a),
+                            bootstrap_model=bootstrap_model,
+                            include_bootstrap_pressure_selfconsistency=bool(include_bootstrap_pressure_selfconsistency),
+                            f_bootstrap_consistency_abs_max=float(f_bootstrap_consistency_abs_max),
+                            fuel_mode=fuel_mode,
+                            include_secondary_DT=bool(include_secondary_DT),
+                            tritium_retention=tritium_retention,
+                            tau_T_loss_s=float(tau_T_loss_s),
+                            alpha_loss_frac=float(alpha_loss_frac),
+                            alpha_loss_model=alpha_loss_model,
+                            alpha_prompt_loss_k=float(alpha_prompt_loss_k),
+                            alpha_partition_model=alpha_partition_model,
+                            alpha_partition_k=float(alpha_partition_k),
+                            ash_dilution_mode=ash_dilution_mode,
+                            f_He_ash=float(f_He_ash),
+                            include_alpha_loss=bool(include_alpha_loss),
+                            include_hmode_physics=bool(include_hmode_physics),
+                            require_Hmode=bool(require_Hmode),
+                            PLH_margin=float(PLH_margin),
+                            use_lambda_q=bool(use_lambda_q),
+                            cd_enable=bool(cd_enable),
+                            cd_method=str(cd_method),
+                            cd_fraction_of_Paux=float(cd_fraction_of_Paux),
+                            f_NI_min=float(f_NI_min),
+                            disruption_risk_max=float(disruption_risk_max),
+                            include_availability_replacement_v359=bool(locals().get("include_availability_replacement_v359", False)),
+                            planned_outage_base=float(locals().get("planned_outage_base", 0.05)),
+                            unplanned_outage_base=float(locals().get("unplanned_outage_base", 0.05)),
+                            replacement_rate_per_year=float(locals().get("replacement_rate_per_year", 0.0)),
+                            include_maintenance_scheduling_v368=bool(locals().get("include_maintenance_scheduling_v368", False)),
+                            maint_capacity_factor=float(locals().get("maint_capacity_factor", 1.0)),
+                            include_plant_economics_v360=bool(locals().get("include_plant_economics_v360", False)),
+                            discount_rate=float(locals().get("discount_rate", 0.07)),
+                            wallplug_eff=float(locals().get("wallplug_eff", 0.3)),
+                            **_ck,
+                        )
+        
+                        _ev = _dsg_evaluator(origin="Point Designer", cache_enabled=True, cache_max=4096)
+                        _res = _ev.evaluate(base)
+                        out = _res.out if (_res is not None and getattr(_res, "ok", True) and isinstance(getattr(_res, "out", None), dict)) else {}
+        
+                        # Cache under canonical keys (Telemetry/Constraints are read-only views).
+                        st.session_state["pd_last_outputs"] = dict(out)
+                        st.session_state["last_point_out"] = dict(out)
+                        st.session_state["last_point_inp"] = base.to_dict() if hasattr(base, "to_dict") else {}
+                        st.session_state["pd_last_run_ts"] = float(_time.time())
+                        st.session_state["pd_last_inputs_hash"] = st.session_state.get("pd_current_inputs_hash")
+                        st.session_state["pd_last_artifact"] = {"inputs": st.session_state["last_point_inp"], "outputs": dict(out), "constraints": []}
+                        st.session_state["last_point_artifact"] = st.session_state["pd_last_artifact"]
+        
+                        st.success("Point evaluation complete. Open **🧪 Telemetry** for results and ledgers.")
+                except Exception as e:
+                    st.error(f"Point evaluation failed: {e}")
+                finally:
+                    _shams_runlock.release(_owner_tok)
+        
+        # Point Designer usability: show cache status + last-eval timestamp + stale-input warning.
+        try:
+            import hashlib, json as _json
+            from datetime import datetime
+            import time as _time
+        
+            _pd_inputs_fingerprint = {
+                "R0_m": float(R0), "a_m": float(a), "kappa": float(kappa), "delta": float(delta), "Bt_T": float(B0),
+                "Paux_MW": float(Paux), "Ti_keV": float(Ti), "Ti_over_Te": float(Ti_over_Te),
+                "fuel_mode": str(fuel_mode), "Q_target": float(Q_target), "H98_target": float(H98_target),
+                "Ip_min": float(Ip_min), "Ip_max": float(Ip_max), "fG_min": float(fG_min), "fG_max": float(fG_max),
+                "tshield": float(tshield),
+                "magnet_technology": str(tech),
+                "Tcoil_K": float(Tcoil),
+                "confidence": str(confidence),
+                "subsystem_enabled": dict(clean_knobs.get("_subsystem_enabled", {})),
+            }
+            _pd_inputs_hash = hashlib.sha1(_json.dumps(_pd_inputs_fingerprint, sort_keys=True).encode("utf-8")).hexdigest()
+            _last_hash = st.session_state.get("pd_last_inputs_hash")
+            _last_ts = st.session_state.get("pd_last_run_ts")
+        
+            if _last_ts:
+                st.caption(f"Last evaluation: {datetime.fromtimestamp(float(_last_ts)).strftime('%Y-%m-%d %H:%M:%S')}")
+            if (not run_btn) and ("pd_last_outputs" in st.session_state) and (_last_hash is not None) and (_pd_inputs_hash != _last_hash):
+                st.warning("Inputs changed since last evaluation. Click **Evaluate Point** to refresh results.")
+            # Keep current hash available to the run path below.
+            st.session_state["pd_current_inputs_hash"] = _pd_inputs_hash
+        except Exception:
+            pass
+        
 
         with tab_tel:
             st.subheader("Telemetry")
@@ -19047,65 +19255,8 @@ if _deck == "🆚 Compare":
             diff_md.append(consB.sort_values("residual", ascending=False).head(20).to_markdown(index=False))
         st.download_button("Download comparison (markdown)", data="\n".join(diff_md), file_name="artifact_comparison.md", mime="text/markdown", use_container_width=True)
 
-with tab_studies:
-    st.header("Studies manager")
-    st.write("Save, load, and organize study configurations (scan/pareto) as JSON. This keeps studies reproducible across sessions.")
-    if "studies" not in st.session_state:
-        st.session_state.studies = []
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("Save current PointInputs as study", use_container_width=True):
-            if st.session_state.get("last_point_inp") is not None:
-                try:
-                    inp_obj = st.session_state.last_point_inp
-                    # dataclass -> dict
-                    d = {k: getattr(inp_obj, k) for k in inp_obj.__dataclass_fields__.keys()}  # type: ignore
-                    st.session_state.studies.append({"type": "point", "created": datetime.datetime.now().isoformat(), "inputs": d})
-                    st.success("Saved.")
-                except Exception as e:
-                    st.error(f"Could not save: {e}")
-            else:
-                st.warning("Run a point first so `last_point_inp` exists.")
-
-    with c2:
-        up = st.file_uploader("Import studies JSON", type=["json"], key="studies_import")
-        if up is not None:
-            try:
-                imported = json.loads(up.getvalue().decode("utf-8"))
-                if isinstance(imported, list):
-                    st.session_state.studies.extend(imported)
-                elif isinstance(imported, dict):
-                    st.session_state.studies.append(imported)
-                st.success("Imported.")
-            except Exception as e:
-                st.error(f"Import failed: {e}")
-
-    with c3:
-        if st.session_state.studies:
-            st.download_button(
-                "Download studies JSON",
-                data=json.dumps(st.session_state.studies, indent=2, sort_keys=True),
-                file_name="shams_studies.json",
-                mime="application/json",
-                use_container_width=True,
-            )
-
-    st.markdown("### Saved studies")
-    if st.session_state.studies:
-        df = pd.DataFrame([{"i": i, "type": s.get("type","?"), "created": s.get("created",""), "notes": s.get("notes","")} for i,s in enumerate(st.session_state.studies)])
-        st.dataframe(df, use_container_width=True)
-        idx = st.number_input("Select index to view", min_value=0, max_value=max(0, len(st.session_state.studies)-1), value=0, step=1)
-        st.json(st.session_state.studies[int(idx)])
-        if st.button("Delete selected", use_container_width=True):
-            try:
-                st.session_state.studies.pop(int(idx))
-                st.experimental_rerun()
-            except Exception:
-                pass
-    else:
-        st.info("No studies saved yet.")
-
+# (v372.8.7) Studies manager is rendered inside Control Room → Studies tab (no tab-handle leakage).
+# The previous module-scope `with tab_studies:` block was removed to satisfy UI law.
 
 if _deck == "⚒️ Reactor Design Forge":
     st.subheader("🧪 Operating envelope check (multi-point)")
@@ -19148,656 +19299,662 @@ if _deck == "⚒️ Reactor Design Forge":
             st.error(f"Envelope check failed: {e}")
 
 
-with tab_model:
-    st.header("0-D Tokamak Physics Model (Phase‑1)")
+if _deck == "🎛️ Control Room":
+    with tab_model:
+        st.header("0-D Tokamak Physics Model (Phase‑1)")
 
-    with st.expander("0‑D Physical Models - explanations", expanded=False):
-        _pm = os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md")
-        try:
-            with open(_pm, "r", encoding="utf-8") as _f:
-                st.markdown(_f.read())
-        except Exception as _e:
-            st.error(f"Failed to load physical model doc: {_e}")
+        with st.expander("0‑D Physical Models - explanations", expanded=False):
+            _pm = os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md")
+            try:
+                with open(_pm, "r", encoding="utf-8") as _f:
+                    st.markdown(_f.read())
+            except Exception as _e:
+                st.error(f"Failed to load physical model doc: {_e}")
 
 
-    st.markdown(r"""
-    This tab is written to be **actionable**: each section maps to code in `src/physics/`, `src/phase1_models.py`,
-    `src/phase1_systems.py`, and `src/solvers/`.
-
-    SHAMS remains a **0‑D / volume‑averaged / steady‑state** point-design model at its core, intended for *fast feasibility scanning*.
-    Over time we have added several **external systems codes‑inspired** upgrades that remain lightweight and Windows‑friendly:
-
-    - **Optional analytic profiles ("½‑D")** for $n_e(\rho)$, $T_i(\rho)$, $T_e(\rho)$ with **normalization to the chosen volume averages**,
-      plus derived averages like peaking factors and $\langle n_e^2 \rangle/\langle n_e \rangle^2$.
-    - **Radiation options:** legacy fractional radiation (stable for scans) and a physics‑based path (brem + synchrotron + simple impurity line radiation).
-    - **Constraint system:** engineering and plasma constraints are represented as reusable objects (external systems codes‑like), usable by scans and vector solvers.
-    - **Solvers:** classic nested 1‑D solves are still available, plus a more general bounded "targets → variables" solve primitive.
-
-    It is **not** a full transport / equilibrium / neutronics code, but it is designed to grow in that direction while staying usable.
-    """)
-
-    st.caption("Tip: expand only the models you care about - each block is independent.")
-
-    # --- Geometry ---
-    with st.expander("Geometry: volume and surface area (implemented)", expanded=False):
         st.markdown(r"""
-        Implemented helpers:
+        This tab is written to be **actionable**: each section maps to code in `src/physics/`, `src/phase1_models.py`,
+        `src/phase1_systems.py`, and `src/solvers/`.
 
-        **Plasma volume** (`tokamak_volume`)
-        $$
-        V \approx 2\pi^2\,R\,a^2\,\kappa
-        $$
+        SHAMS remains a **0‑D / volume‑averaged / steady‑state** point-design model at its core, intended for *fast feasibility scanning*.
+        Over time we have added several **external systems codes‑inspired** upgrades that remain lightweight and Windows‑friendly:
 
-        **Plasma surface area** (`tokamak_surface_area`)
-        $$
-        S \approx 4\pi^2\,R\,a\,\kappa
-        $$
+        - **Optional analytic profiles ("½‑D")** for $n_e(\rho)$, $T_i(\rho)$, $T_e(\rho)$ with **normalization to the chosen volume averages**,
+          plus derived averages like peaking factors and $\langle n_e^2 \rangle/\langle n_e \rangle^2$.
+        - **Radiation options:** legacy fractional radiation (stable for scans) and a physics‑based path (brem + synchrotron + simple impurity line radiation).
+        - **Constraint system:** engineering and plasma constraints are represented as reusable objects (external systems codes‑like), usable by scans and vector solvers.
+        - **Solvers:** classic nested 1‑D solves are still available, plus a more general bounded "targets → variables" solve primitive.
 
-        Notes:
-        - These are **engineering approximations** intended to preserve correct monotonic trends.
-        - Units: $R,a$ in m, $V$ in m$^3$, $S$ in m$^2$.
+        It is **not** a full transport / equilibrium / neutronics code, but it is designed to grow in that direction while staying usable.
         """)
 
-    # --- Confinement ---
-    with st.expander("Energy confinement: IPB98(y,2) (implemented)"):
-        st.markdown(r"""
-        Implemented model: `tauE_ipb98y2`.
+        st.caption("Tip: expand only the models you care about - each block is independent.")
 
-        $$
-        \tau_E = 0.0562\, I_p^{0.93} B_t^{0.15} \bar{n}^{0.41} P_{loss}^{-0.69} R^{1.97} \epsilon^{0.58} \kappa^{0.78} M^{0.19}
-        $$
-        where $\epsilon=a/R$.
+        # --- Geometry ---
+        with st.expander("Geometry: volume and surface area (implemented)", expanded=False):
+            st.markdown(r"""
+            Implemented helpers:
 
-        **Units (must match the implementation):**
-        - $I_p$ in MA
-        - $B_t$ in T
-        - $\bar{n}$ in units of $10^{20}\,\mathrm{m^{-3}}$ (i.e. `ne20`)
-        - $P_{loss}$ in MW
-        - $R,a$ in m
-        - $M$ in amu (default 2.5)
+            **Plasma volume** (`tokamak_volume`)
+            $$
+            V \approx 2\pi^2\,R\,a^2\,\kappa
+            $$
 
-        Output: $\tau_E$ in seconds.
-        """)
+            **Plasma surface area** (`tokamak_surface_area`)
+            $$
+            S \approx 4\pi^2\,R\,a\,\kappa
+            $$
 
-    # --- L-H threshold ---
-    with st.expander("H-mode access: Martin-2008 L–H threshold (implemented)"):
-        st.markdown(r"""
-        Implemented model: `p_LH_martin08`.
+            Notes:
+            - These are **engineering approximations** intended to preserve correct monotonic trends.
+            - Units: $R,a$ in m, $V$ in m$^3$, $S$ in m$^2$.
+            """)
 
-        $$
-        P_{LH} = 0.0488\, \bar{n}^{0.717} B_t^{0.803} S^{0.941}\,\left(\frac{2}{A_{eff}}\right)
-        $$
+        # --- Confinement ---
+        with st.expander("Energy confinement: IPB98(y,2) (implemented)"):
+            st.markdown(r"""
+            Implemented model: `tauE_ipb98y2`.
 
-        **Units:**
-        - $\bar{n}$ in $10^{20}\,\mathrm{m^{-3}}$ (line-averaged)
-        - $B_t$ in T
-        - $S$ in m$^2$ (uses the same proxy as the geometry block)
-        - $A_{eff}$ dimensionless (defaults to 2.0)
+            $$
+            \tau_E = 0.0562\, I_p^{0.93} B_t^{0.15} \bar{n}^{0.41} P_{loss}^{-0.69} R^{1.97} \epsilon^{0.58} \kappa^{0.78} M^{0.19}
+            $$
+            where $\epsilon=a/R$.
 
-        Output: $P_{LH}$ in MW.
-        """)
+            **Units (must match the implementation):**
+            - $I_p$ in MA
+            - $B_t$ in T
+            - $\bar{n}$ in units of $10^{20}\,\mathrm{m^{-3}}$ (i.e. `ne20`)
+            - $P_{loss}$ in MW
+            - $R,a$ in m
+            - $M$ in amu (default 2.5)
 
-    # --- Greenwald ---
-    with st.expander("Density limit: Greenwald (implemented)"):
-        st.markdown(r"""
-        Implemented helper: `greenwald_density_20`.
+            Output: $\tau_E$ in seconds.
+            """)
 
-        $$
-        n_{GW}\,[10^{20}\,\mathrm{m^{-3}}] = \frac{I_p\,[\mathrm{MA}]}{\pi a^2\,[\mathrm{m^2}]}
-        $$
+        # --- L-H threshold ---
+        with st.expander("H-mode access: Martin-2008 L–H threshold (implemented)"):
+            st.markdown(r"""
+            Implemented model: `p_LH_martin08`.
 
-        In scans, an operating fraction is typically applied:
-        $$
-        \bar{n} = f_{nG}\,n_{GW},\qquad 0 < f_{nG} \le 1.
-        $$
-        """)
+            $$
+            P_{LH} = 0.0488\, \bar{n}^{0.717} B_t^{0.803} S^{0.941}\,\left(\frac{2}{A_{eff}}\right)
+            $$
 
-    # --- Screening proxies ---
-    with st.expander("Screening proxies: q95, βN, bootstrap fraction (implemented proxies)"):
-        st.markdown(r"""
-        These are explicitly labeled **proxies** (trend-correct, not equilibrium/transport solutions).
+            **Units:**
+            - $\bar{n}$ in $10^{20}\,\mathrm{m^{-3}}$ (line-averaged)
+            - $B_t$ in T
+            - $S$ in m$^2$ (uses the same proxy as the geometry block)
+            - $A_{eff}$ dimensionless (defaults to 2.0)
 
-        **q95 proxy** (`q95_proxy_cyl`)
-        $$
-        q_{95} \approx \left(\frac{2\pi R B_t}{\mu_0 I_p}\right)\left(\frac{a}{R}\right)\frac{1}{\kappa}
-        $$
-        with $I_p$ converted to amperes internally.
+            Output: $P_{LH}$ in MW.
+            """)
 
-        **Normalized beta** (`betaN_from_beta`)
-        $$
-        \beta_N = \beta(\%)\,\frac{a\,B_t}{I_p}
-        \qquad\text{with}\qquad \beta(\%)=100\,\beta
-        $$
-        where $\beta$ is the *fractional* beta.
+        # --- Greenwald ---
+        with st.expander("Density limit: Greenwald (implemented)"):
+            st.markdown(r"""
+            Implemented helper: `greenwald_density_20`.
 
-        **Bootstrap fraction proxy** (`bootstrap_fraction_proxy`)
-        $$
-        f_{bs} \approx C_{bs}\,\frac{\beta_N}{q_{95}}
-        $$
-        then clamped to a configured range (default 0 to 0.95).
-        """)
+            $$
+            n_{GW}\,[10^{20}\,\mathrm{m^{-3}}] = \frac{I_p\,[\mathrm{MA}]}{\pi a^2\,[\mathrm{m^2}]}
+            $$
 
-    # --- Fusion reactivity ---
-    with st.expander("Fusion reactivity: Bosch–Hale ⟨σv⟩ (implemented)"):
-        st.markdown(r"""
-        Implemented function: `bosch_hale_sigmav(T_i, reaction)`.
+            In scans, an operating fraction is typically applied:
+            $$
+            \bar{n} = f_{nG}\,n_{GW},\qquad 0 < f_{nG} \le 1.
+            $$
+            """)
 
-        This uses the Bosch–Hale parameterization for Maxwellian-averaged reactivity:
-        $$
-        \langle\sigma v\rangle(T_i)\;[\mathrm{m^3/s}]
-        $$
+        # --- Screening proxies ---
+        with st.expander("Screening proxies: q95, βN, bootstrap fraction (implemented proxies)"):
+            st.markdown(r"""
+            These are explicitly labeled **proxies** (trend-correct, not equilibrium/transport solutions).
 
-        Internally, the implementation computes intermediate variables ($\theta$, $\xi$) from a
-        reaction-specific coefficient set and returns a strictly non-negative value.
+            **q95 proxy** (`q95_proxy_cyl`)
+            $$
+            q_{95} \approx \left(\frac{2\pi R B_t}{\mu_0 I_p}\right)\left(\frac{a}{R}\right)\frac{1}{\kappa}
+            $$
+            with $I_p$ converted to amperes internally.
 
-        **Important for UI users:**
-        - Input $T_i$ is in **keV**.
-        - Output is in **m$^3$/s**.
-        """)
+            **Normalized beta** (`betaN_from_beta`)
+            $$
+            \beta_N = \beta(\%)\,\frac{a\,B_t}{I_p}
+            \qquad\text{with}\qquad \beta(\%)=100\,\beta
+            $$
+            where $\beta$ is the *fractional* beta.
 
-        # Bosch–Hale coefficient values used by the implementation (from `BH_COEFFS`)
-        _bh_rows = []
-        for _rxn in ["DT", "DD_Tp", "DD_He3n"]:
-            _c = BH_COEFFS[_rxn]
-            _bh_rows.append({"Reaction": _rxn, **asdict(_c)})
-        _bh_df = pd.DataFrame(_bh_rows).set_index("Reaction")
-        st.caption("Bosch–Hale coefficients used for DT and DD channels (exact values as implemented).")
-        st.dataframe(_bh_df, use_container_width=True)
+            **Bootstrap fraction proxy** (`bootstrap_fraction_proxy`)
+            $$
+            f_{bs} \approx C_{bs}\,\frac{\beta_N}{q_{95}}
+            $$
+            then clamped to a configured range (default 0 to 0.95).
+            """)
 
-    # --- Fusion power / gain symbols (fixing the screenshot issue) ---
-    with st.expander("Fusion power & gain definitions: P_f, P_α, Q (notation)"):
-        st.markdown(r"""
-        **What these symbols mean (and how they relate):**
+        # --- Fusion reactivity ---
+        with st.expander("Fusion reactivity: Bosch–Hale ⟨σv⟩ (implemented)"):
+            st.markdown(r"""
+            Implemented function: `bosch_hale_sigmav(T_i, reaction)`.
 
-        **Fusion power, $P_f$**  
-        Total thermal power released by fusion reactions occurring in the plasma:
-        $$
-        P_f \;=\; \dot{N}_{\text{fus}}\,E_{\text{fus}}
-        $$
-        where $\dot{N}_{\text{fus}}$ is the fusion reaction rate [1/s] and $E_{\text{fus}}$ is the energy released per reaction.
-        For D‑T, $E_{\text{fus}} = 17.6\,\mathrm{MeV}$.
+            This uses the Bosch–Hale parameterization for Maxwellian-averaged reactivity:
+            $$
+            \langle\sigma v\rangle(T_i)\;[\mathrm{m^3/s}]
+            $$
 
-        **Alpha heating power, $P_{\alpha}$**  
-        Part of $P_f$ carried by *charged* alpha particles and deposited back into the plasma (self‑heating):
-        $$
-        P_{\alpha} \;=\; f_\alpha\,P_f
-        $$
-        For D‑T, $f_\alpha = \frac{3.5}{17.6} \approx 0.199$, so $P_{\alpha} \approx 0.20\,P_f$.
-        (The rest is mainly neutron power: $P_n \approx 0.80\,P_f$.)
+            Internally, the implementation computes intermediate variables ($\theta$, $\xi$) from a
+            reaction-specific coefficient set and returns a strictly non-negative value.
 
-        **Fusion gain, $Q$**  
-        In this UI, $Q$ is the standard *plasma gain*:
-        $$
-        Q \;=\; \frac{P_f}{P_{\mathrm{aux}}}
-        $$
-        where $P_{\mathrm{aux}}$ is the **externally applied** auxiliary heating power (e.g., NBI/RF) required to sustain the operating point.
-        This is distinct from “wall‑plug” gain, which would include plant efficiencies and non‑plasma power draws.
+            **Important for UI users:**
+            - Input $T_i$ is in **keV**.
+            - Output is in **m$^3$/s**.
+            """)
 
-        **How to interpret in scans**
-        - Increasing $P_f$ increases $P_{\alpha}$ proportionally (more self‑heating).  
-        - $Q$ improves only when $P_f$ grows faster than the required $P_{\mathrm{aux}}$.
-        """)
+            # Bosch–Hale coefficient values used by the implementation (from `BH_COEFFS`)
+            _bh_rows = []
+            for _rxn in ["DT", "DD_Tp", "DD_He3n"]:
+                _c = BH_COEFFS[_rxn]
+                _bh_rows.append({"Reaction": _rxn, **asdict(_c)})
+            _bh_df = pd.DataFrame(_bh_rows).set_index("Reaction")
+            st.caption("Bosch–Hale coefficients used for DT and DD channels (exact values as implemented).")
+            st.dataframe(_bh_df, use_container_width=True)
 
-    # --- SOL width metric ---
-    with st.expander("Optional divertor/SOL risk metric: Eich λq (implemented)"):
-        st.markdown(r"""
-        Implemented metric: `lambda_q_eich14_mm`.
+        # --- Fusion power / gain symbols (fixing the screenshot issue) ---
+        with st.expander("Fusion power & gain definitions: P_f, P_α, Q (notation)"):
+            st.markdown(r"""
+            **What these symbols mean (and how they relate):**
 
-        $$
-        \lambda_q\,[\mathrm{mm}] \approx \text{factor}\times 0.63\,B_{pol}^{-1.19}
-        $$
+            **Fusion power, $P_f$**  
+            Total thermal power released by fusion reactions occurring in the plasma:
+            $$
+            P_f \;=\; \dot{N}_{\text{fus}}\,E_{\text{fus}}
+            $$
+            where $\dot{N}_{\text{fus}}$ is the fusion reaction rate [1/s] and $E_{\text{fus}}$ is the energy released per reaction.
+            For D‑T, $E_{\text{fus}} = 17.6\,\mathrm{MeV}$.
 
-        with $B_{pol}$ approximated by:
-        $$
-        B_{pol} \approx \frac{\mu_0 I_p}{2\pi a}
-        $$
+            **Alpha heating power, $P_{\alpha}$**  
+            Part of $P_f$ carried by *charged* alpha particles and deposited back into the plasma (self‑heating):
+            $$
+            P_{\alpha} \;=\; f_\alpha\,P_f
+            $$
+            For D‑T, $f_\alpha = \frac{3.5}{17.6} \approx 0.199$, so $P_{\alpha} \approx 0.20\,P_f$.
+            (The rest is mainly neutron power: $P_n \approx 0.80\,P_f$.)
 
-        This is **not** a self‑consistent divertor / edge power‑exhaust model - it’s a compact, order‑of‑magnitude **screening proxy** for quickly comparing design points.
-        """)
+            **Fusion gain, $Q$**  
+            In this UI, $Q$ is the standard *plasma gain*:
+            $$
+            Q \;=\; \frac{P_f}{P_{\mathrm{aux}}}
+            $$
+            where $P_{\mathrm{aux}}$ is the **externally applied** auxiliary heating power (e.g., NBI/RF) required to sustain the operating point.
+            This is distinct from “wall‑plug” gain, which would include plant efficiencies and non‑plasma power draws.
 
-    st.info(
-        "If you want the *full* step-by-step closure shown here (power balance → temperatures → Pf/Q), "
-        "tell me which exact function in `src/phase1_core.py` you want treated as the single source of truth, "
-        "and I’ll mirror it line-for-line in this tab."
-    )
+            **How to interpret in scans**
+            - Increasing $P_f$ increases $P_{\alpha}$ proportionally (more self‑heating).  
+            - $Q$ improves only when $P_f$ grows faster than the required $P_{\mathrm{aux}}$.
+            """)
+
+        # --- SOL width metric ---
+        with st.expander("Optional divertor/SOL risk metric: Eich λq (implemented)"):
+            st.markdown(r"""
+            Implemented metric: `lambda_q_eich14_mm`.
+
+            $$
+            \lambda_q\,[\mathrm{mm}] \approx \text{factor}\times 0.63\,B_{pol}^{-1.19}
+            $$
+
+            with $B_{pol}$ approximated by:
+            $$
+            B_{pol} \approx \frac{\mu_0 I_p}{2\pi a}
+            $$
+
+            This is **not** a self‑consistent divertor / edge power‑exhaust model - it’s a compact, order‑of‑magnitude **screening proxy** for quickly comparing design points.
+            """)
+
+        st.info(
+            "If you want the *full* step-by-step closure shown here (power balance → temperatures → Pf/Q), "
+            "tell me which exact function in `src/phase1_core.py` you want treated as the single source of truth, "
+            "and I’ll mirror it line-for-line in this tab."
+        )
 
 # -----------------------------
 # Benchmarks
 # -----------------------------
-with tab_bench:
-    st.subheader("Regression Benchmarks")
-    st.write("Run a small suite of SPARC-like cases to ensure recent physics/solver changes haven't broken behavior.")
+if _deck == "🎛️ Control Room":
+    with tab_bench:
+        st.subheader("Regression Benchmarks")
+        st.write("Run a small suite of SPARC-like cases to ensure recent physics/solver changes haven't broken behavior.")
 
-    import json
-    from pathlib import Path
-
-    bench_dir = Path(__file__).resolve().parent.parent / "benchmarks"
-    cases_path = bench_dir / "cases.json"
-    golden_path = bench_dir / "golden.json"
-
-    diff_path = bench_dir / "last_diff_report.json"
-    with st.expander("Latest diff report (from last run)", expanded=False):
-        if diff_path.exists():
-            try:
-                rep = json.loads(diff_path.read_text(encoding="utf-8"))
-                st.caption(f"Generated at unix={rep.get('created_unix'):.0f} | failures={rep.get('n_failed',0)}")
-                rows = rep.get("rows", [])
-                if rows:
-                    import pandas as pd
-
-                    df_rep = pd.DataFrame(rows)
-                    # show worst first
-                    if "ok" in df_rep.columns and "rel_err" in df_rep.columns:
-                        df_rep = df_rep.sort_values(by=["ok","rel_err"], ascending=[True, False])
-                    st.dataframe(df_rep, use_container_width=True, height=260)
-                # Structural diffs (constraints/model cards) vs golden artifacts, if present
-                ss = rep.get("structural_summary")
-                if ss:
-                    st.markdown("**Structural diffs vs golden artifacts**")
-                    st.write({k: ss.get(k) for k in ["n_cases","n_with_changes","total_added_constraints","total_removed_constraints","total_changed_constraints","total_modelcard_changes"]})
-                structural = rep.get("structural") or {}
-                if structural:
-                    with st.expander("Show structural diffs by case", expanded=False):
-                        for cname, d in structural.items():
-                            cadd = d.get("constraints", {}).get("added", [])
-                            crem = d.get("constraints", {}).get("removed", [])
-                            cchg = d.get("constraints", {}).get("changed_meta", [])
-                            mc = d.get("model_cards", {})
-                            mcchg = (mc.get("added", []) or []) + (mc.get("removed", []) or []) + (mc.get("changed", []) or [])
-                            if not (cadd or crem or cchg or mcchg or (d.get("schema_version", {}).get("new") != d.get("schema_version", {}).get("old"))):
-                                continue
-                            with st.expander(f"{cname}", expanded=False):
-                                if cadd: st.write({"constraints_added": cadd})
-                                if crem: st.write({"constraints_removed": crem})
-                                if cchg: st.write({"constraint_meta_changes": cchg})
-                                if mc.get("added"): st.write({"model_cards_added": mc.get("added")})
-                                if mc.get("removed"): st.write({"model_cards_removed": mc.get("removed")})
-                                if mc.get("changed"): st.write({"model_cards_changed": mc.get("changed")})
-
-                st.download_button("Download diff report JSON", data=diff_path.read_bytes(), file_name="last_diff_report.json")
-            except Exception as e:
-                st.warning(f"Could not read diff report: {e}")
-        else:
-            st.info("No diff report yet. Run benchmarks to generate one.")
-
-
-    # Release notes (auto-generated)
-    with st.expander("Release notes (auto)", expanded=False):
-        import subprocess, sys
+        import json
         from pathlib import Path
 
-        repo_root = Path(__file__).resolve().parent.parent
-        out_md = repo_root / "RELEASE_NOTES.md"
-        old_default = str((repo_root.parent / "SHAMS_old").resolve()) if (repo_root.parent / "SHAMS_old").exists() else r"..\SHAMS_old"
-        old_path = st.text_input("Old SHAMS repo path", value=st.session_state.get("release_notes_old", old_default))
-        st.session_state["release_notes_old"] = old_path
+        bench_dir = Path(__file__).resolve().parent.parent / "benchmarks"
+        cases_path = bench_dir / "cases.json"
+        golden_path = bench_dir / "golden.json"
 
-        auto = st.checkbox("Auto-generate if missing/out-of-date", value=True, key="release_notes_auto")
-        run_now_rn = st.button("Generate release notes now", key="btn_release_notes_now")
+        diff_path = bench_dir / "last_diff_report.json"
+        with st.expander("Latest diff report (from last run)", expanded=False):
+            if diff_path.exists():
+                try:
+                    rep = json.loads(diff_path.read_text(encoding="utf-8"))
+                    st.caption(f"Generated at unix={rep.get('created_unix'):.0f} | failures={rep.get('n_failed',0)}")
+                    rows = rep.get("rows", [])
+                    if rows:
+                        import pandas as pd
 
-        def _needs_rn() -> bool:
-            if not out_md.exists():
-                return True
-            try:
-                m_out = out_md.stat().st_mtime
-                # regenerate if diff report is newer, or tool changed
-                tool_p = repo_root / "tools" / "release_notes.py"
-                diff_p = repo_root / "benchmarks" / "last_diff_report.json"
-                newest = max([p.stat().st_mtime for p in [tool_p, diff_p] if p.exists()] + [0])
-                return newest > m_out
-            except Exception:
-                return False
+                        df_rep = pd.DataFrame(rows)
+                        # show worst first
+                        if "ok" in df_rep.columns and "rel_err" in df_rep.columns:
+                            df_rep = df_rep.sort_values(by=["ok","rel_err"], ascending=[True, False])
+                        st.dataframe(df_rep, use_container_width=True, height=260)
+                    # Structural diffs (constraints/model cards) vs golden artifacts, if present
+                    ss = rep.get("structural_summary")
+                    if ss:
+                        st.markdown("**Structural diffs vs golden artifacts**")
+                        st.write({k: ss.get(k) for k in ["n_cases","n_with_changes","total_added_constraints","total_removed_constraints","total_changed_constraints","total_modelcard_changes"]})
+                    structural = rep.get("structural") or {}
+                    if structural:
+                        with st.expander("Show structural diffs by case", expanded=False):
+                            for cname, d in structural.items():
+                                cadd = d.get("constraints", {}).get("added", [])
+                                crem = d.get("constraints", {}).get("removed", [])
+                                cchg = d.get("constraints", {}).get("changed_meta", [])
+                                mc = d.get("model_cards", {})
+                                mcchg = (mc.get("added", []) or []) + (mc.get("removed", []) or []) + (mc.get("changed", []) or [])
+                                if not (cadd or crem or cchg or mcchg or (d.get("schema_version", {}).get("new") != d.get("schema_version", {}).get("old"))):
+                                    continue
+                                with st.expander(f"{cname}", expanded=False):
+                                    if cadd: st.write({"constraints_added": cadd})
+                                    if crem: st.write({"constraints_removed": crem})
+                                    if cchg: st.write({"constraint_meta_changes": cchg})
+                                    if mc.get("added"): st.write({"model_cards_added": mc.get("added")})
+                                    if mc.get("removed"): st.write({"model_cards_removed": mc.get("removed")})
+                                    if mc.get("changed"): st.write({"model_cards_changed": mc.get("changed")})
 
-        if (auto and _needs_rn() and not st.session_state.get("_rn_ran_this_session", False)) or run_now_rn:
-            cmd = [sys.executable, str(repo_root / "tools" / "release_notes.py"), "--old", old_path, "--new", str(repo_root), "--out", str(out_md)]
-            st.caption("Running: " + " ".join(cmd))
-            try:
-                p = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
-                st.session_state["_rn_last_stdout"] = p.stdout
-                st.session_state["_rn_last_stderr"] = p.stderr
-                st.session_state["_rn_last_rc"] = p.returncode
-                st.session_state["_rn_ran_this_session"] = True
-            except Exception as e:
-                st.session_state["_rn_last_stderr"] = str(e)
-                st.session_state["_rn_last_rc"] = 1
-
-        rc = st.session_state.get("_rn_last_rc")
-        if rc is not None:
-            if rc == 0:
-                st.success("Release notes generated.")
+                    st.download_button("Download diff report JSON", data=diff_path.read_bytes(), file_name="last_diff_report.json")
+                except Exception as e:
+                    st.warning(f"Could not read diff report: {e}")
             else:
-                st.warning("Release notes generation had issues (see logs).")
-            with st.expander("Logs", expanded=False):
-                st.code((st.session_state.get("_rn_last_stdout") or "") + "\n" + (st.session_state.get("_rn_last_stderr") or ""))
+                st.info("No diff report yet. Run benchmarks to generate one.")
 
-        if out_md.exists():
-            st.markdown(out_md.read_text(encoding="utf-8", errors="ignore"))
-            st.download_button("Download RELEASE_NOTES.md", data=out_md.read_bytes(), file_name="RELEASE_NOTES.md", mime="text/markdown")
-        else:
-            st.info("RELEASE_NOTES.md not found yet.")
 
-    with st.expander("Regression comparisons", expanded=False):
-        colA, colB = st.columns([1,1])
-        with colA:
-            run_now = st.button("Run benchmarks")
-        with colB:
-            regen = st.button("Regenerate golden (intentional changes)")
+        # Release notes (auto-generated)
+        with st.expander("Release notes (auto)", expanded=False):
+            import subprocess, sys
+            from pathlib import Path
+
+            repo_root = Path(__file__).resolve().parent.parent
+            out_md = repo_root / "RELEASE_NOTES.md"
+            old_default = str((repo_root.parent / "SHAMS_old").resolve()) if (repo_root.parent / "SHAMS_old").exists() else r"..\SHAMS_old"
+            old_path = st.text_input("Old SHAMS repo path", value=st.session_state.get("release_notes_old", old_default))
+            st.session_state["release_notes_old"] = old_path
+
+            auto = st.checkbox("Auto-generate if missing/out-of-date", value=True, key="release_notes_auto")
+            run_now_rn = st.button("Generate release notes now", key="btn_release_notes_now")
+
+            def _needs_rn() -> bool:
+                if not out_md.exists():
+                    return True
+                try:
+                    m_out = out_md.stat().st_mtime
+                    # regenerate if diff report is newer, or tool changed
+                    tool_p = repo_root / "tools" / "release_notes.py"
+                    diff_p = repo_root / "benchmarks" / "last_diff_report.json"
+                    newest = max([p.stat().st_mtime for p in [tool_p, diff_p] if p.exists()] + [0])
+                    return newest > m_out
+                except Exception:
+                    return False
+
+            if (auto and _needs_rn() and not st.session_state.get("_rn_ran_this_session", False)) or run_now_rn:
+                cmd = [sys.executable, str(repo_root / "tools" / "release_notes.py"), "--old", old_path, "--new", str(repo_root), "--out", str(out_md)]
+                st.caption("Running: " + " ".join(cmd))
+                try:
+                    p = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
+                    st.session_state["_rn_last_stdout"] = p.stdout
+                    st.session_state["_rn_last_stderr"] = p.stderr
+                    st.session_state["_rn_last_rc"] = p.returncode
+                    st.session_state["_rn_ran_this_session"] = True
+                except Exception as e:
+                    st.session_state["_rn_last_stderr"] = str(e)
+                    st.session_state["_rn_last_rc"] = 1
+
+            rc = st.session_state.get("_rn_last_rc")
+            if rc is not None:
+                if rc == 0:
+                    st.success("Release notes generated.")
+                else:
+                    st.warning("Release notes generation had issues (see logs).")
+                with st.expander("Logs", expanded=False):
+                    st.code((st.session_state.get("_rn_last_stdout") or "") + "\n" + (st.session_state.get("_rn_last_stderr") or ""))
+
+            if out_md.exists():
+                st.markdown(out_md.read_text(encoding="utf-8", errors="ignore"))
+                st.download_button("Download RELEASE_NOTES.md", data=out_md.read_bytes(), file_name="RELEASE_NOTES.md", mime="text/markdown")
+            else:
+                st.info("RELEASE_NOTES.md not found yet.")
+
+        with st.expander("Regression comparisons", expanded=False):
+            colA, colB = st.columns([1,1])
+            with colA:
+                run_now = st.button("Run benchmarks")
+            with colB:
+                regen = st.button("Regenerate golden (intentional changes)")
     
-        def _safe(v):
-            try:
-                return float(v)
-            except Exception:
-                return float("nan")
+            def _safe(v):
+                try:
+                    return float(v)
+                except Exception:
+                    return float("nan")
     
-        if cases_path.exists():
-            _cases_raw = json.loads(cases_path.read_text())
-        else:
-            _cases_raw = {}
+            if cases_path.exists():
+                _cases_raw = json.loads(cases_path.read_text())
+            else:
+                _cases_raw = {}
     
-        # Normalize benchmark cases into a list[dict] with keys: name, inputs
-        # Supports dict-form (name -> inputs), list-form (dicts), or list-form (names).
-        cases = []
-        if isinstance(_cases_raw, dict):
-            for _name, _inp in _cases_raw.items():
-                if isinstance(_inp, dict):
-                    cases.append({"name": str(_name), "inputs": _inp})
-        elif isinstance(_cases_raw, list):
-            for i, _c in enumerate(_cases_raw):
-                if isinstance(_c, dict):
-                    _name = _c.get("name", f"case_{i}")
-                    _inp = _c.get("inputs", _c.get("inp", _c.get("input", {})))
+            # Normalize benchmark cases into a list[dict] with keys: name, inputs
+            # Supports dict-form (name -> inputs), list-form (dicts), or list-form (names).
+            cases = []
+            if isinstance(_cases_raw, dict):
+                for _name, _inp in _cases_raw.items():
                     if isinstance(_inp, dict):
                         cases.append({"name": str(_name), "inputs": _inp})
-                else:
-                    cases.append({"name": str(_c), "inputs": {}})
-    
-        if not cases:
-            # Always provide at least one default case so the UI doesn't crash
-            cases = [{"name": "default", "inputs": {"R0_m": 1.85, "a_m": 0.6, "kappa": 1.75, "Bt_T": 12.0, "Ip_MA": 8.0, "Ti_keV": 10.0, "fG": 0.85, "t_shield_m": 0.25, "Paux_MW": 25.0}}]
-    
-        base = PointInputs(R0_m=1.85, a_m=0.6, kappa=1.75, Bt_T=12.0, Ip_MA=8.0, Ti_keV=10.0, fG=0.85, t_shield_m=0.25, Paux_MW=25.0)
-        if run_now or regen:
-            results = {}
-            for _case in cases:
-                name = _case.get("name","case")
-                overrides = _case.get("inputs", {})
-                # Defensive: apply only existing fields
-                d = base.__dict__.copy()
-                for k, v in overrides.items():
-                    if k in d:
-                        d[k] = v
-                inp_case = PointInputs(**d)
-                results[name] = hot_ion_point(inp_case)
-    
-            if regen:
-                golden_path.write_text(json.dumps(results, indent=2))
-                st.success(f"Wrote golden: {golden_path}")
-            else:
-                if not golden_path.exists():
-                    st.error("golden.json not found. Click 'Regenerate golden' once to create it.")
-                else:
-                    golden = json.loads(golden_path.read_text())
-                    CURATED = ["Q_DT_eqv","H98","P_fus_MW","P_SOL_MW","q_div_MW_m2","B_peak_T","sigma_hoop_MPa","hts_margin_cs","J_eng_A_mm2","t_flat_s","P_net_MW"]
-                    rows = []
-                    failed = 0
-                    for name, cur in results.items():
-                        ref = golden.get(name, {})
-                        for k in CURATED:
-                            a = _safe(cur.get(k))
-                            b = _safe(ref.get(k))
-                            if not (math.isfinite(a) and math.isfinite(b)):
-                                continue
-                            atol = 1e-6
-                            rtol = 5e-3
-                            ok = abs(a-b) <= max(atol, rtol*max(abs(b),1e-9))
-                            if not ok:
-                                failed += 1
-                            rows.append({"case":name,"key":k,"got":a,"golden":b,"rel_err":(abs(a-b)/max(abs(b),1e-9)),"ok":ok})
-                    import pandas as pd
-
-                    df = pd.DataFrame(rows)
-                    st.dataframe(df, use_container_width=True)
-
-                    # Write a machine-readable diff report (used by CI and the UI)
-                    try:
-                        import time as _time
-                        report = {
-                            "created_unix": _time.time(),
-                            "rtol": 5e-3,
-                            "atol": 1e-6,
-                            "n_rows": int(len(rows)),
-                            "n_failed": int(failed),
-                            "rows": rows,
-                        }
-                        (bench_dir / "last_diff_report.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-                    except Exception:
-                        pass
-
-                    if failed==0:
-                        st.success("All benchmark comparisons passed (within tolerances).")
+            elif isinstance(_cases_raw, list):
+                for i, _c in enumerate(_cases_raw):
+                    if isinstance(_c, dict):
+                        _name = _c.get("name", f"case_{i}")
+                        _inp = _c.get("inputs", _c.get("inp", _c.get("input", {})))
+                        if isinstance(_inp, dict):
+                            cases.append({"name": str(_name), "inputs": _inp})
                     else:
-                        st.warning(f"{failed} comparisons exceeded tolerance. See table.")
+                        cases.append({"name": str(_c), "inputs": {}})
+    
+            if not cases:
+                # Always provide at least one default case so the UI doesn't crash
+                cases = [{"name": "default", "inputs": {"R0_m": 1.85, "a_m": 0.6, "kappa": 1.75, "Bt_T": 12.0, "Ip_MA": 8.0, "Ti_keV": 10.0, "fG": 0.85, "t_shield_m": 0.25, "Paux_MW": 25.0}}]
+    
+            base = PointInputs(R0_m=1.85, a_m=0.6, kappa=1.75, Bt_T=12.0, Ip_MA=8.0, Ti_keV=10.0, fG=0.85, t_shield_m=0.25, Paux_MW=25.0)
+            if run_now or regen:
+                results = {}
+                for _case in cases:
+                    name = _case.get("name","case")
+                    overrides = _case.get("inputs", {})
+                    # Defensive: apply only existing fields
+                    d = base.__dict__.copy()
+                    for k, v in overrides.items():
+                        if k in d:
+                            d[k] = v
+                    inp_case = PointInputs(**d)
+                    results[name] = hot_ion_point(inp_case)
+    
+                if regen:
+                    golden_path.write_text(json.dumps(results, indent=2))
+                    st.success(f"Wrote golden: {golden_path}")
+                else:
+                    if not golden_path.exists():
+                        st.error("golden.json not found. Click 'Regenerate golden' once to create it.")
+                    else:
+                        golden = json.loads(golden_path.read_text())
+                        CURATED = ["Q_DT_eqv","H98","P_fus_MW","P_SOL_MW","q_div_MW_m2","B_peak_T","sigma_hoop_MPa","hts_margin_cs","J_eng_A_mm2","t_flat_s","P_net_MW"]
+                        rows = []
+                        failed = 0
+                        for name, cur in results.items():
+                            ref = golden.get(name, {})
+                            for k in CURATED:
+                                a = _safe(cur.get(k))
+                                b = _safe(ref.get(k))
+                                if not (math.isfinite(a) and math.isfinite(b)):
+                                    continue
+                                atol = 1e-6
+                                rtol = 5e-3
+                                ok = abs(a-b) <= max(atol, rtol*max(abs(b),1e-9))
+                                if not ok:
+                                    failed += 1
+                                rows.append({"case":name,"key":k,"got":a,"golden":b,"rel_err":(abs(a-b)/max(abs(b),1e-9)),"ok":ok})
+                        import pandas as pd
+
+                        df = pd.DataFrame(rows)
+                        st.dataframe(df, use_container_width=True)
+
+                        # Write a machine-readable diff report (used by CI and the UI)
+                        try:
+                            import time as _time
+                            report = {
+                                "created_unix": _time.time(),
+                                "rtol": 5e-3,
+                                "atol": 1e-6,
+                                "n_rows": int(len(rows)),
+                                "n_failed": int(failed),
+                                "rows": rows,
+                            }
+                            (bench_dir / "last_diff_report.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+                        except Exception:
+                            pass
+
+                        if failed==0:
+                            st.success("All benchmark comparisons passed (within tolerances).")
+                        else:
+                            st.warning(f"{failed} comparisons exceeded tolerance. See table.")
     
     
-    st.divider()
-    with st.expander("Sensitivity and uncertainty (Monte Carlo)", expanded=False):
-        st.subheader("Sensitivity (Monte Carlo)")
-        st.write("Runs a lightweight uncertainty scan around a selected benchmark case (Windows-native).")
+        st.divider()
+        with st.expander("Sensitivity and uncertainty (Monte Carlo)", expanded=False):
+            st.subheader("Sensitivity (Monte Carlo)")
+            st.write("Runs a lightweight uncertainty scan around a selected benchmark case (Windows-native).")
     
-        from analysis.sensitivity import monte_carlo_feasibility
-        from models.inputs import PointInputs
+            from analysis.sensitivity import monte_carlo_feasibility
+            from models.inputs import PointInputs
     
-        case_names = [c.get("name", f"case_{i}") for i,c in enumerate(cases)]
-        case_sel = st.selectbox("Benchmark case for sensitivity", case_names, index=0, key="sens_case_sel")
-        n_mc = st.number_input("Samples", min_value=50, max_value=2000, value=50, step=50, key="sens_n")
-        if st.button("Run Monte Carlo", key="run_mc_bench"):
-            c = cases[case_names.index(case_sel)]
-            base_inp = PointInputs(**c["inputs"])
-            res = monte_carlo_feasibility(base_inp, n=int(n_mc), seed=42)
-            st.metric("Feasible probability", f"{res['p_feasible']*100:.1f}%")
-            st.write("Most frequently violated constraints:")
-            st.dataframe(res["worst_constraints"], use_container_width=True)
+            case_names = [c.get("name", f"case_{i}") for i,c in enumerate(cases)]
+            case_sel = st.selectbox("Benchmark case for sensitivity", case_names, index=0, key="sens_case_sel")
+            n_mc = st.number_input("Samples", min_value=50, max_value=2000, value=50, step=50, key="sens_n")
+            if st.button("Run Monte Carlo", key="run_mc_bench"):
+                c = cases[case_names.index(case_sel)]
+                base_inp = PointInputs(**c["inputs"])
+                res = monte_carlo_feasibility(base_inp, n=int(n_mc), seed=42)
+                st.metric("Feasible probability", f"{res['p_feasible']*100:.1f}%")
+                st.write("Most frequently violated constraints:")
+                st.dataframe(res["worst_constraints"], use_container_width=True)
     
-    st.divider()
-    with st.expander("Pareto search (design studies)", expanded=False):
-        st.subheader("Pareto Search (LHS)")
-        st.write("Finds a feasible Pareto set for a small set of design knobs around a benchmark case.")
-        from solvers.optimize import pareto_optimize
+        st.divider()
+        with st.expander("Pareto search (design studies)", expanded=False):
+            st.subheader("Pareto Search (LHS)")
+            st.write("Finds a feasible Pareto set for a small set of design knobs around a benchmark case.")
+            from solvers.optimize import pareto_optimize
     
-        case_sel2 = st.selectbox("Benchmark case for Pareto", case_names, index=0, key="pareto_case_sel")
-        n_lhs = st.number_input("LHS samples", min_value=50, max_value=5000, value=100, step=50, key="pareto_n")
-        # simple bounds
-        colp1, colp2 = st.columns(2)
-        with colp1:
-            R0_lo = st.number_input("R0 min [m]", value=1.5, step=0.1, key="R0_lo")
-            Ip_lo = st.number_input("Ip min [MA]", value=5.0, step=0.5, key="Ip_lo")
-        with colp2:
-            R0_hi = st.number_input("R0 max [m]", value=2.5, step=0.1, key="R0_hi")
-            Ip_hi = st.number_input("Ip max [MA]", value=12.0, step=0.5, key="Ip_hi")
-        fG_lo = st.number_input("fG min", value=0.4, step=0.05, key="fG_lo")
-        fG_hi = st.number_input("fG max", value=1.2, step=0.05, key="fG_hi")
+            case_sel2 = st.selectbox("Benchmark case for Pareto", case_names, index=0, key="pareto_case_sel")
+            n_lhs = st.number_input("LHS samples", min_value=50, max_value=5000, value=100, step=50, key="pareto_n")
+            # simple bounds
+            colp1, colp2 = st.columns(2)
+            with colp1:
+                R0_lo = st.number_input("R0 min [m]", value=1.5, step=0.1, key="R0_lo")
+                Ip_lo = st.number_input("Ip min [MA]", value=5.0, step=0.5, key="Ip_lo")
+            with colp2:
+                R0_hi = st.number_input("R0 max [m]", value=2.5, step=0.1, key="R0_hi")
+                Ip_hi = st.number_input("Ip max [MA]", value=12.0, step=0.5, key="Ip_hi")
+            fG_lo = st.number_input("fG min", value=0.4, step=0.05, key="fG_lo")
+            fG_hi = st.number_input("fG max", value=1.2, step=0.05, key="fG_hi")
     
-        if st.button("Run Pareto search", key="run_pareto"):
-            c = cases[case_names.index(case_sel2)]
-            base_inp = PointInputs(**c["inputs"])
-            bounds = {"R0_m": (float(R0_lo), float(R0_hi)), "Ip_MA": (float(Ip_lo), float(Ip_hi)), "fG": (float(fG_lo), float(fG_hi))}
-            objectives = {"R0_m": "min", "B_peak_T": "min", "P_e_net_MW": "max"}
-            res = pareto_optimize(base_inp, bounds=bounds, objectives=objectives, n_samples=int(n_lhs), seed=1)
-            st.write(f"Feasible points: {len(res['feasible'])}  |  Pareto points: {len(res['pareto'])}")
-            st.dataframe(res["pareto"], use_container_width=True)
+            if st.button("Run Pareto search", key="run_pareto"):
+                c = cases[case_names.index(case_sel2)]
+                base_inp = PointInputs(**c["inputs"])
+                bounds = {"R0_m": (float(R0_lo), float(R0_hi)), "Ip_MA": (float(Ip_lo), float(Ip_hi)), "fG": (float(fG_lo), float(fG_hi))}
+                objectives = {"R0_m": "min", "B_peak_T": "min", "P_e_net_MW": "max"}
+                res = pareto_optimize(base_inp, bounds=bounds, objectives=objectives, n_samples=int(n_lhs), seed=1)
+                st.write(f"Feasible points: {len(res['feasible'])}  |  Pareto points: {len(res['pareto'])}")
+                st.dataframe(res["pareto"], use_container_width=True)
     
-    # -----------------------------
-    # Variable Registry (auditable meanings/units/sources)
-    # -----------------------------
-with tab_registry:
-    st.subheader("Variable Registry")
-    st.markdown(
-        "A external systems codes-style registry of key SHAMS variables with units, meaning, and model provenance. "
-        "Use this to keep the code **auditable** as physics/engineering fidelity increases."
-    )
-    q = st.text_input("Search variables", value="", placeholder="e.g., H98, q_div, HTS, TBR")
-    try:
-        df = registry_dataframe(q)
-        st.dataframe(df, use_container_width=True, height=520)
-        st.download_button(
-            "Download registry (CSV)",
-            data=df.to_csv(index=False),
-            file_name="shams_variable_registry.csv",
-            mime="text/csv",
-            use_container_width=True,
+        # -----------------------------
+        # Variable Registry (auditable meanings/units/sources)
+        # -----------------------------
+if _deck == "🎛️ Control Room":
+    with tab_registry:
+        st.subheader("Variable Registry")
+        st.markdown(
+            "A external systems codes-style registry of key SHAMS variables with units, meaning, and model provenance. "
+            "Use this to keep the code **auditable** as physics/engineering fidelity increases."
         )
-    except Exception as e:
-        st.error(f"Registry unavailable: {e}")
+        q = st.text_input("Search variables", value="", placeholder="e.g., H98, q_div, HTS, TBR")
+        try:
+            df = registry_dataframe(q)
+            st.dataframe(df, use_container_width=True, height=520)
+            st.download_button(
+                "Download registry (CSV)",
+                data=df.to_csv(index=False),
+                file_name="shams_variable_registry.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        except Exception as e:
+            st.error(f"Registry unavailable: {e}")
 
 # -----------------------------
 # Validation (envelopes)
 # -----------------------------
-with tab_validation:
-    st.subheader("Validation envelopes")
-    st.markdown(
-        "Decision-grade validation in SHAMS is **envelope-based**: we check whether a solution lies within "
-        "a broad reference band for key metrics, rather than trying to match a single reference point. "
-        "This is robust to proxy changes and is aligned with external systems codes-style workflows."
-    )
-    try:
-        from validation.envelopes import default_envelopes
-        envs = default_envelopes()
-        env_name = st.selectbox("Select envelope", list(envs.keys()), index=0, key="validation_env_sel")
-        env = envs[env_name]
-        st.caption(env.notes)
+if _deck == "🎛️ Control Room":
+    with tab_validation:
+        st.subheader("Validation envelopes")
+        st.markdown(
+            "Decision-grade validation in SHAMS is **envelope-based**: we check whether a solution lies within "
+            "a broad reference band for key metrics, rather than trying to match a single reference point. "
+            "This is robust to proxy changes and is aligned with external systems codes-style workflows."
+        )
+        try:
+            from validation.envelopes import default_envelopes
+            envs = default_envelopes()
+            env_name = st.selectbox("Select envelope", list(envs.keys()), index=0, key="validation_env_sel")
+            env = envs[env_name]
+            st.caption(env.notes)
 
-        out = st.session_state.get("last_point_out")
-        if not out:
-            st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
-        else:
-            report = env.check(out)
-            import pandas as pd
-
-            rows = []
-            n_fail = 0
-            for k, r in report.items():
-                if not r.get("ok"):
-                    n_fail += 1
-                rows.append({
-                    "metric": k,
-                    "value": r.get("value"),
-                    "lo": r.get("lo"),
-                    "hi": r.get("hi"),
-                    "ok": bool(r.get("ok")),
-                })
-            df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, height=360)
-            if n_fail == 0:
-                st.success("All selected envelope checks passed.")
+            out = st.session_state.get("last_point_out")
+            if not out:
+                st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
             else:
-                st.warning(f"{n_fail} envelope checks failed. This indicates the *targets/bounds* are outside the reference band (not a code error).")
-    except Exception as e:
-        st.error(f"Validation module unavailable: {e}")
+                report = env.check(out)
+                import pandas as pd
 
-    st.divider()
-    st.subheader("Invariant guardrails")
-    st.caption("Deterministic sign/bookkeeping checks (not experimental validation).")
-    try:
-        from validation.invariants import check_invariants
-        out = st.session_state.get("last_point_out")
-        if not out:
-            st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
-        else:
-            rep = check_invariants(out)
-            if bool(rep.get("ok")):
-                st.success("All invariant guardrails passed.")
+                rows = []
+                n_fail = 0
+                for k, r in report.items():
+                    if not r.get("ok"):
+                        n_fail += 1
+                    rows.append({
+                        "metric": k,
+                        "value": r.get("value"),
+                        "lo": r.get("lo"),
+                        "hi": r.get("hi"),
+                        "ok": bool(r.get("ok")),
+                    })
+                df = pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True, height=360)
+                if n_fail == 0:
+                    st.success("All selected envelope checks passed.")
+                else:
+                    st.warning(f"{n_fail} envelope checks failed. This indicates the *targets/bounds* are outside the reference band (not a code error).")
+        except Exception as e:
+            st.error(f"Validation module unavailable: {e}")
+
+        st.divider()
+        st.subheader("Invariant guardrails")
+        st.caption("Deterministic sign/bookkeeping checks (not experimental validation).")
+        try:
+            from validation.invariants import check_invariants
+            out = st.session_state.get("last_point_out")
+            if not out:
+                st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
             else:
-                st.error("Invariant guardrail failures detected (likely bookkeeping/sign issue or invalid inputs).")
-                st.json(rep.get("failures", {}))
-    except Exception as e:
-        st.caption(f"Invariant checks unavailable: {e}")
+                rep = check_invariants(out)
+                if bool(rep.get("ok")):
+                    st.success("All invariant guardrails passed.")
+                else:
+                    st.error("Invariant guardrail failures detected (likely bookkeeping/sign issue or invalid inputs).")
+                    st.json(rep.get("failures", {}))
+        except Exception as e:
+            st.caption(f"Invariant checks unavailable: {e}")
 
 
 # -----------------------------
 # Compliance (requirements + model cards)
 # -----------------------------
-with tab_compliance:
-    st.subheader("Verification & Compliance")
-    st.caption("Shows the latest verification/compliance matrix from verification/report.json (if present).")
+if _deck == "🎛️ Control Room":
+    with tab_compliance:
+        st.subheader("Verification & Compliance")
+        st.caption("Shows the latest verification/compliance matrix from verification/report.json (if present).")
 
-    def _load_verification_report_ui():
-        try:
-            here = Path(__file__).resolve()
-            root = here.parent.parent  # ui/ -> repo root
-            rp = root / "verification" / "report.json"
-            if rp.exists():
-                return json.loads(rp.read_text(encoding="utf-8"))
-        except Exception:
+        def _load_verification_report_ui():
+            try:
+                here = Path(__file__).resolve()
+                root = here.parent.parent  # ui/ -> repo root
+                rp = root / "verification" / "report.json"
+                if rp.exists():
+                    return json.loads(rp.read_text(encoding="utf-8"))
+            except Exception:
+                return None
             return None
-        return None
 
-    report = _load_verification_report_ui()
-    if not report:
-        st.info("No verification/report.json found. Run: `python verification/run_verification.py` to generate it.")
-    else:
-        meta = report.get("meta", {})
-        st.write({
-            "generated_unix": meta.get("generated_unix"),
-            "python": meta.get("python"),
-            "platform": meta.get("platform"),
-            "git_commit": meta.get("git_commit"),
-        })
+        report = _load_verification_report_ui()
+        if not report:
+            st.info("No verification/report.json found. Run: `python verification/run_verification.py` to generate it.")
+        else:
+            meta = report.get("meta", {})
+            st.write({
+                "generated_unix": meta.get("generated_unix"),
+                "python": meta.get("python"),
+                "platform": meta.get("platform"),
+                "git_commit": meta.get("git_commit"),
+            })
 
-        # Summary
-        summary = report.get("summary", {})
-        cols = st.columns(4)
-        cols[0].metric("Requirements", int(summary.get("n_requirements", 0)))
-        cols[1].metric("Passed", int(summary.get("n_pass", 0)))
-        cols[2].metric("Failed", int(summary.get("n_fail", 0)))
-        cols[3].metric("Overall", "PASS" if summary.get("all_pass") else "FAIL")
+            # Summary
+            summary = report.get("summary", {})
+            cols = st.columns(4)
+            cols[0].metric("Requirements", int(summary.get("n_requirements", 0)))
+            cols[1].metric("Passed", int(summary.get("n_pass", 0)))
+            cols[2].metric("Failed", int(summary.get("n_fail", 0)))
+            cols[3].metric("Overall", "PASS" if summary.get("all_pass") else "FAIL")
 
-        # Detailed table
-        rows = report.get("results", [])
-        if rows:
-            df = pd.DataFrame(rows)
-            # Friendly columns ordering
-            keep = [c for c in ["req_id","title","status","details","linked_model_cards"] if c in df.columns]
-            df = df[keep] if keep else df
-            st.dataframe(df, use_container_width=True, height=520)
+            # Detailed table
+            rows = report.get("results", [])
+            if rows:
+                df = pd.DataFrame(rows)
+                # Friendly columns ordering
+                keep = [c for c in ["req_id","title","status","details","linked_model_cards"] if c in df.columns]
+                df = df[keep] if keep else df
+                st.dataframe(df, use_container_width=True, height=520)
 
-        # Download JSON
-        st.download_button(
-            "Download verification report.json",
-            data=json.dumps(report, indent=2, sort_keys=True),
-            file_name="verification_report.json",
-            mime="application/json",
-        )
+            # Download JSON
+            st.download_button(
+                "Download verification report.json",
+                data=json.dumps(report, indent=2, sort_keys=True),
+                file_name="verification_report.json",
+                mime="application/json",
+            )
 
 
-with tab_docs:
-    st.header("Docs")
-    st.caption("Built-in documentation bundled with this repository (no internet required).")
+if _deck == "🎛️ Control Room":
+    with tab_docs:
+        st.header("Docs")
+        st.caption("Built-in documentation bundled with this repository (no internet required).")
 
-    doc_options = {
-        "Upgrade plan (transparent)": os.path.join(ROOT, "docs", "SHAMS_upgrade_plan_from_PROCESS.md"),
-        "Lessons learned (systems codes)": os.path.join(ROOT, "docs", "PROCESS_lessons.md"),
-        "0‑D Physical Models (Phase‑1)": os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md"),
-        "Engineering closures": os.path.join(ROOT, "docs", "ENGINEERING_CLOSURES.md"),
-        "Operating envelope (multi-point)": os.path.join(ROOT, "docs", "ENVELOPE.md"),
-        "Studies workflows": os.path.join(ROOT, "docs", "STUDIES.md"),
-        "Model cards (auditability)": os.path.join(ROOT, "docs", "MODEL_CARDS.md"),
-        "Compliance & verification": os.path.join(ROOT, "docs", "COMPLIANCE.md"),
-        "Regression & golden benchmarks": os.path.join(ROOT, "docs", "REGRESSION.md"),
-        "Release notes generation": os.path.join(ROOT, "docs", "RELEASE_NOTES.md"),
-        "UI quickstart": os.path.join(ROOT, "README_UI.md"),
-    }
+        doc_options = {
+            "Upgrade plan (transparent)": os.path.join(ROOT, "docs", "SHAMS_upgrade_plan_from_PROCESS.md"),
+            "Lessons learned (systems codes)": os.path.join(ROOT, "docs", "PROCESS_lessons.md"),
+            "0‑D Physical Models (Phase‑1)": os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md"),
+            "Engineering closures": os.path.join(ROOT, "docs", "ENGINEERING_CLOSURES.md"),
+            "Operating envelope (multi-point)": os.path.join(ROOT, "docs", "ENVELOPE.md"),
+            "Studies workflows": os.path.join(ROOT, "docs", "STUDIES.md"),
+            "Model cards (auditability)": os.path.join(ROOT, "docs", "MODEL_CARDS.md"),
+            "Compliance & verification": os.path.join(ROOT, "docs", "COMPLIANCE.md"),
+            "Regression & golden benchmarks": os.path.join(ROOT, "docs", "REGRESSION.md"),
+            "Release notes generation": os.path.join(ROOT, "docs", "RELEASE_NOTES.md"),
+            "UI quickstart": os.path.join(ROOT, "README_UI.md"),
+        }
 
-    doc_sel = st.selectbox("Select a document", list(doc_options.keys()), index=0, key="doc_select")
-    doc_path = doc_options.get(doc_sel)
+        doc_sel = st.selectbox("Select a document", list(doc_options.keys()), index=0, key="doc_select")
+        doc_path = doc_options.get(doc_sel)
 
-    if doc_path and os.path.exists(doc_path):
-        try:
-            with open(doc_path, "r", encoding="utf-8") as f:
-                st.markdown(f.read())
-        except Exception as _e:
-            st.error(f"Failed to read doc: {_e}")
-    else:
-        st.warning("Document file not found in this checkout.")
+        if doc_path and os.path.exists(doc_path):
+            try:
+                with open(doc_path, "r", encoding="utf-8") as f:
+                    st.markdown(f.read())
+            except Exception as _e:
+                st.error(f"Failed to read doc: {_e}")
+        else:
+            st.warning("Document file not found in this checkout.")
 
 
 # -----------------------------
@@ -19853,951 +20010,963 @@ def _numeric_delta_table(base_out: Dict[str, Any], scen_out: Dict[str, Any], lim
     return df.head(limit)
 
 
-with tab_artifacts:
-    st.header("Artifacts Explorer")
-    st.caption("Load a SHAMS run artifact and inspect new v50+ artifact sections (constraint ledger, model set, standardized tables).")
+if _deck == "🎛️ Control Room":
+    with tab_artifacts:
+        st.header("Artifacts Explorer")
+        st.caption("Load a SHAMS run artifact and inspect new v50+ artifact sections (constraint ledger, model set, standardized tables).")
 
-    up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="ae_upload")
-    art = _load_json_from_upload(up)
+        up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="ae_upload")
+        art = _load_json_from_upload(up)
 
-    col_a, col_b = st.columns([1.2, 1.0])
-    with col_a:
-        alt_path = st.text_input("...or load from local path", value="", key="ae_path")
-    with col_b:
-        load_btn = st.button("Load from path", key="ae_load_path")
+        col_a, col_b = st.columns([1.2, 1.0])
+        with col_a:
+            alt_path = st.text_input("...or load from local path", value="", key="ae_path")
+        with col_b:
+            load_btn = st.button("Load from path", key="ae_load_path")
 
-    if load_btn and alt_path:
-        try:
-            with open(alt_path, "r", encoding="utf-8") as f:
-                art = json.load(f)
-        except Exception as e:
-            st.error(f"Failed to load JSON: {type(e).__name__}: {e}")
-            art = None
+        if load_btn and alt_path:
+            try:
+                with open(alt_path, "r", encoding="utf-8") as f:
+                    art = json.load(f)
+            except Exception as e:
+                st.error(f"Failed to load JSON: {type(e).__name__}: {e}")
+                art = None
 
-    if not art:
-        st.info("Upload an artifact JSON (or provide a path) to explore.")
-    else:
-        meta = art.get("meta", {}) or {}
-        prov = art.get("provenance", {}) or {}
-        st.subheader("Metadata")
-        st.write({
-            "schema_version": art.get("schema_version"),
-            "label": meta.get("label"),
-            "mode": meta.get("mode"),
-            "git_commit": prov.get("git_commit"),
-            "python": prov.get("python"),
-            "platform": prov.get("platform"),
-            "repo_version": prov.get("repo_version"),
-        })
-
-        # --- Constraint ledger ---
-        st.subheader("Constraint Margin Ledger")
-        ledger = art.get("constraint_ledger") or {}
-        if isinstance(ledger, dict) and ledger.get("entries"):
-            st.caption(f"schema={ledger.get('schema_version','(missing)')}  fingerprint={ledger.get('ledger_fingerprint_sha256','(missing)')}")
-            top = ledger.get("top_blockers") or []
-            if top:
-                st.markdown("**Top blockers**")
-                st.dataframe(_safe_df(top), use_container_width=True)
-            with st.expander("All ledger entries"):
-                st.dataframe(_safe_df(ledger.get("entries") or []), use_container_width=True)
+        if not art:
+            st.info("Upload an artifact JSON (or provide a path) to explore.")
         else:
-            st.info("No constraint_ledger found in this artifact.")
+            meta = art.get("meta", {}) or {}
+            prov = art.get("provenance", {}) or {}
+            st.subheader("Metadata")
+            st.write({
+                "schema_version": art.get("schema_version"),
+                "label": meta.get("label"),
+                "mode": meta.get("mode"),
+                "git_commit": prov.get("git_commit"),
+                "python": prov.get("python"),
+                "platform": prov.get("platform"),
+                "repo_version": prov.get("repo_version"),
+            })
 
-        # --- Model set / registry ---
-        st.subheader("Model Set")
-        model_set = art.get("model_set") or {}
-        model_registry = art.get("model_registry") or {}
-        if model_set:
-            st.caption(f"schema={model_set.get('schema_version','(missing)')}")
-            st.json(model_set)
-        else:
-            st.info("No model_set embedded in this artifact.")
-        with st.expander("Model Registry"):
-            if model_registry:
-                st.caption(f"schema={model_registry.get('schema_version','(missing)')}")
-                st.json(model_registry)
+            # --- Constraint ledger ---
+            st.subheader("Constraint Margin Ledger")
+            ledger = art.get("constraint_ledger") or {}
+            if isinstance(ledger, dict) and ledger.get("entries"):
+                st.caption(f"schema={ledger.get('schema_version','(missing)')}  fingerprint={ledger.get('ledger_fingerprint_sha256','(missing)')}")
+                top = ledger.get("top_blockers") or []
+                if top:
+                    st.markdown("**Top blockers**")
+                    st.dataframe(_safe_df(top), use_container_width=True)
+                with st.expander("All ledger entries"):
+                    st.dataframe(_safe_df(ledger.get("entries") or []), use_container_width=True)
             else:
-                st.info("No model_registry embedded in this artifact.")
+                st.info("No constraint_ledger found in this artifact.")
 
-        # --- Standard tables ---
-        st.subheader("Standard Tables")
-        tables = art.get("tables") or {}
-        if isinstance(tables, dict) and tables:
-            for k in ["plasma", "power_balance", "tritium"]:
-                if k in tables:
-                    st.markdown(f"**{k}**")
-                    t = tables.get(k)
-                    if isinstance(t, dict):
-                        st.dataframe(pd.DataFrame([t]), use_container_width=True)
-                    elif isinstance(t, list):
-                        st.dataframe(pd.DataFrame(t), use_container_width=True)
-                    else:
-                        st.json(t)
-        else:
-            st.info("No tables.v1 section found in this artifact.")
+            # --- Model set / registry ---
+            st.subheader("Model Set")
+            model_set = art.get("model_set") or {}
+            model_registry = art.get("model_registry") or {}
+            if model_set:
+                st.caption(f"schema={model_set.get('schema_version','(missing)')}")
+                st.json(model_set)
+            else:
+                st.info("No model_set embedded in this artifact.")
+            with st.expander("Model Registry"):
+                if model_registry:
+                    st.caption(f"schema={model_registry.get('schema_version','(missing)')}")
+                    st.json(model_registry)
+                else:
+                    st.info("No model_registry embedded in this artifact.")
 
-        with st.expander("Full artifact JSON"):
-            st.json(art)
+            # --- Standard tables ---
+            st.subheader("Standard Tables")
+            tables = art.get("tables") or {}
+            if isinstance(tables, dict) and tables:
+                for k in ["plasma", "power_balance", "tritium"]:
+                    if k in tables:
+                        st.markdown(f"**{k}**")
+                        t = tables.get(k)
+                        if isinstance(t, dict):
+                            st.dataframe(pd.DataFrame([t]), use_container_width=True)
+                        elif isinstance(t, list):
+                            st.dataframe(pd.DataFrame(t), use_container_width=True)
+                        else:
+                            st.json(t)
+            else:
+                st.info("No tables.v1 section found in this artifact.")
+
+            with st.expander("Full artifact JSON"):
+                st.json(art)
 
 
 # -----------------------------
 # Case Deck Runner (new)
 # -----------------------------
-with tab_deck:
-    st.header("Case Deck Runner")
-    st.caption("Run a case_deck.v1 YAML/JSON deck and view the resolved config + artifact outputs.")
+if _deck == "🎛️ Control Room":
+    with tab_deck:
+        st.header("Case Deck Runner")
+        st.caption("Run a case_deck.v1 YAML/JSON deck and view the resolved config + artifact outputs.")
 
-    up_deck = st.file_uploader("Upload case_deck.yaml / .json", type=["yaml", "yml", "json"], key="deck_upload")
-    out_root = os.path.join(ROOT, "ui_runs")
-    os.makedirs(out_root, exist_ok=True)
-    out_name = st.text_input("Output folder name (under ui_runs/)", value=f"deck_{int(time.time())}", key="deck_out_name")
-    run_btn = st.button("Run Case Deck", key="deck_run")
+        up_deck = st.file_uploader("Upload case_deck.yaml / .json", type=["yaml", "yml", "json"], key="deck_upload")
+        out_root = os.path.join(ROOT, "ui_runs")
+        os.makedirs(out_root, exist_ok=True)
+        out_name = st.text_input("Output folder name (under ui_runs/)", value=f"deck_{int(time.time())}", key="deck_out_name")
+        run_btn = st.button("Run Case Deck", key="deck_run")
 
-    if run_btn:
-        if up_deck is None:
-            st.error("Please upload a case deck file first.")
-        else:
-            try:
-                deck_path = os.path.join(out_root, f"_uploaded_{up_deck.name}")
-                with open(deck_path, "wb") as f:
-                    f.write(up_deck.getvalue())
-                out_dir = os.path.join(out_root, out_name)
-                os.makedirs(out_dir, exist_ok=True)
-                runner = os.path.join(ROOT, "tools", "run_case_deck.py")
-                proc = subprocess.run(
-                    [sys.executable, runner, deck_path, "--out", out_dir],
-                    cwd=ROOT,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                st.code(proc.stdout or "", language="text")
-                if proc.returncode != 0:
-                    st.error("Case deck run failed.")
-                    st.code(proc.stderr or "", language="text")
-                else:
-                    art_path = os.path.join(out_dir, "shams_run_artifact.json")
-                    cfg_path = os.path.join(out_dir, "run_config_resolved.json")
-                    st.success(f"Wrote outputs to: {out_dir}")
-                    if os.path.exists(cfg_path):
-                        st.subheader("Resolved config")
-                        with open(cfg_path, "r", encoding="utf-8") as f:
-                            st.json(json.load(f))
-                    if os.path.exists(art_path):
-                        st.subheader("Run artifact (preview)")
-                        with open(art_path, "r", encoding="utf-8") as f:
-                            st.json(json.load(f))
-            except Exception as e:
-                st.error(f"{type(e).__name__}: {e}")
+        if run_btn:
+            if up_deck is None:
+                st.error("Please upload a case deck file first.")
+            else:
+                try:
+                    deck_path = os.path.join(out_root, f"_uploaded_{up_deck.name}")
+                    with open(deck_path, "wb") as f:
+                        f.write(up_deck.getvalue())
+                    out_dir = os.path.join(out_root, out_name)
+                    os.makedirs(out_dir, exist_ok=True)
+                    runner = os.path.join(ROOT, "tools", "run_case_deck.py")
+                    proc = subprocess.run(
+                        [sys.executable, runner, deck_path, "--out", out_dir],
+                        cwd=ROOT,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    st.code(proc.stdout or "", language="text")
+                    if proc.returncode != 0:
+                        st.error("Case deck run failed.")
+                        st.code(proc.stderr or "", language="text")
+                    else:
+                        art_path = os.path.join(out_dir, "shams_run_artifact.json")
+                        cfg_path = os.path.join(out_dir, "run_config_resolved.json")
+                        st.success(f"Wrote outputs to: {out_dir}")
+                        if os.path.exists(cfg_path):
+                            st.subheader("Resolved config")
+                            with open(cfg_path, "r", encoding="utf-8") as f:
+                                st.json(json.load(f))
+                        if os.path.exists(art_path):
+                            st.subheader("Run artifact (preview)")
+                            with open(art_path, "r", encoding="utf-8") as f:
+                                st.json(json.load(f))
+                except Exception as e:
+                    st.error(f"{type(e).__name__}: {e}")
 
 
 # -----------------------------
 # Authority & Confidence (v256.0)
 # -----------------------------
-with tab_authority_conf:
-    st.header("Authority & Confidence")
-    st.caption("Trust ledger: authority tiers, maturity tags, and a design-level confidence class. Post-processing only; truth unchanged.")
+if _deck == "🎛️ Control Room":
+    with tab_authority_conf:
+        st.header("Authority & Confidence")
+        st.caption("Trust ledger: authority tiers, maturity tags, and a design-level confidence class. Post-processing only; truth unchanged.")
 
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authconf_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            # Fall back to the most recent artifact in session if present.
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authconf_upload")
+            art = _load_json_from_upload(up_art)
             if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+                # Fall back to the most recent artifact in session if present.
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
 
-        if not art:
-            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
-        else:
-            ac = art.get("authority_confidence") if isinstance(art, dict) else None
-            if not isinstance(ac, dict):
-                st.warning("No authority_confidence found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+            if not art:
+                st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
             else:
-                dc = str((ac.get("design") or {}).get("design_confidence_class", "UNKNOWN"))
-                st.markdown(f"**Design confidence class:** `{dc}`")
-                st.caption("Class is a conservative aggregation over implicated subsystems and near-binding hard constraints.")
+                ac = art.get("authority_confidence") if isinstance(art, dict) else None
+                if not isinstance(ac, dict):
+                    st.warning("No authority_confidence found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+                else:
+                    dc = str((ac.get("design") or {}).get("design_confidence_class", "UNKNOWN"))
+                    st.markdown(f"**Design confidence class:** `{dc}`")
+                    st.caption("Class is a conservative aggregation over implicated subsystems and near-binding hard constraints.")
 
-    with colB:
-        st.markdown("### Quick legend")
-        st.markdown("- **A**: anchored by authoritative/external contracts (best)")
-        st.markdown("- **B**: parametric / semi-authoritative closure")
-        st.markdown("- **C**: proxy models or extrapolation-heavy")
-        st.markdown("- **D**: speculative / unknown authority")
-        st.markdown("- **UNKNOWN**: missing metadata")
+        with colB:
+            st.markdown("### Quick legend")
+            st.markdown("- **A**: anchored by authoritative/external contracts (best)")
+            st.markdown("- **B**: parametric / semi-authoritative closure")
+            st.markdown("- **C**: proxy models or extrapolation-heavy")
+            st.markdown("- **D**: speculative / unknown authority")
+            st.markdown("- **UNKNOWN**: missing metadata")
 
-    if isinstance(art, dict) and isinstance(art.get("authority_confidence"), dict):
-        ac = art["authority_confidence"]
-        subs = ac.get("subsystems") or {}
-        rows = []
-        for k in sorted(list(subs.keys())):
-            v = subs.get(k) or {}
-            if not isinstance(v, dict):
-                continue
-            rows.append({
-                "subsystem": k,
-                "confidence": v.get("confidence_class"),
-                "authority_tier": v.get("authority_tier"),
-                "maturity": v.get("maturity"),
-                "involved": v.get("involved"),
-                "rationale": v.get("rationale"),
-            })
-        if rows:
-            st.subheader("Subsystem trust ledger")
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        else:
-            st.info("No subsystem entries available.")
+        if isinstance(art, dict) and isinstance(art.get("authority_confidence"), dict):
+            ac = art["authority_confidence"]
+            subs = ac.get("subsystems") or {}
+            rows = []
+            for k in sorted(list(subs.keys())):
+                v = subs.get(k) or {}
+                if not isinstance(v, dict):
+                    continue
+                rows.append({
+                    "subsystem": k,
+                    "confidence": v.get("confidence_class"),
+                    "authority_tier": v.get("authority_tier"),
+                    "maturity": v.get("maturity"),
+                    "involved": v.get("involved"),
+                    "rationale": v.get("rationale"),
+                })
+            if rows:
+                st.subheader("Subsystem trust ledger")
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("No subsystem entries available.")
 
 
 # -----------------------------
 # Decision Consequences (v257.0)
 # -----------------------------
-with tab_decision_conseq:
-    st.header("Decision Consequences")
-    st.caption(
-        "Advisory governance layer: converts margins + authority into a deterministic 'posture' and risk framing. "
-        "Post-processing only; truth unchanged."
-    )
+if _deck == "🎛️ Control Room":
+    with tab_decision_conseq:
+        st.header("Decision Consequences")
+        st.caption(
+            "Advisory governance layer: converts margins + authority into a deterministic 'posture' and risk framing. "
+            "Post-processing only; truth unchanged."
+        )
 
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="deccon_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="deccon_upload")
+            art = _load_json_from_upload(up_art)
             if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
 
-        if not art:
-            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
-        else:
-            dc = art.get("decision_consequences") if isinstance(art, dict) else None
-            if not isinstance(dc, dict):
-                st.warning("No decision_consequences found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+            if not art:
+                st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
             else:
-                st.markdown(f"**Decision posture:** `{str(dc.get('decision_posture','UNKNOWN'))}`")
-                pr = str(dc.get("primary_risk_driver", "") or "")
-                if pr:
-                    st.markdown(f"**Primary risk driver:** `{pr}`")
-                wh = dc.get("worst_hard_margin_frac", None)
-                try:
-                    wh_s = f"{float(wh):.3f}" if wh is not None else "-"
-                except Exception:
-                    wh_s = "-"
-                st.markdown(f"**Worst hard margin (frac):** {wh_s}")
-                st.caption(str(dc.get("narrative", "") or ""))
+                dc = art.get("decision_consequences") if isinstance(art, dict) else None
+                if not isinstance(dc, dict):
+                    st.warning("No decision_consequences found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+                else:
+                    st.markdown(f"**Decision posture:** `{str(dc.get('decision_posture','UNKNOWN'))}`")
+                    pr = str(dc.get("primary_risk_driver", "") or "")
+                    if pr:
+                        st.markdown(f"**Primary risk driver:** `{pr}`")
+                    wh = dc.get("worst_hard_margin_frac", None)
+                    try:
+                        wh_s = f"{float(wh):.3f}" if wh is not None else "-"
+                    except Exception:
+                        wh_s = "-"
+                    st.markdown(f"**Worst hard margin (frac):** {wh_s}")
+                    st.caption(str(dc.get("narrative", "") or ""))
 
-    with colB:
-        st.markdown("### Posture legend")
-        st.markdown("- **PROCEED**: feasible with adequate authority")
-        st.markdown("- **PROCEED_TARGETED_RD**: feasible but near-binding and/or authority-limited")
-        st.markdown("- **HOLD_FOUNDATIONAL**: hard-infeasible; address dominant limiter")
-        st.markdown("- **UNKNOWN**: missing/legacy artifact")
+        with colB:
+            st.markdown("### Posture legend")
+            st.markdown("- **PROCEED**: feasible with adequate authority")
+            st.markdown("- **PROCEED_TARGETED_RD**: feasible but near-binding and/or authority-limited")
+            st.markdown("- **HOLD_FOUNDATIONAL**: hard-infeasible; address dominant limiter")
+            st.markdown("- **UNKNOWN**: missing/legacy artifact")
 
-    if isinstance(art, dict) and isinstance(art.get("decision_consequences"), dict):
-        dc = art["decision_consequences"]
-        rows = [
-            {"field": "decision_posture", "value": dc.get("decision_posture")},
-            {"field": "primary_risk_driver", "value": dc.get("primary_risk_driver")},
-            {"field": "dominant_mechanism", "value": dc.get("dominant_mechanism")},
-            {"field": "dominant_constraint", "value": dc.get("dominant_constraint")},
-            {"field": "worst_hard_margin_frac", "value": dc.get("worst_hard_margin_frac")},
-            {"field": "uncertainty_reduction_axis", "value": dc.get("uncertainty_reduction_axis")},
-            {"field": "leverage_knobs", "value": dc.get("leverage_knobs")},
-            {"field": "stamp_sha256", "value": dc.get("stamp_sha256")},
-        ]
-        st.subheader("Snapshot")
-        st.table(rows)
+        if isinstance(art, dict) and isinstance(art.get("decision_consequences"), dict):
+            dc = art["decision_consequences"]
+            rows = [
+                {"field": "decision_posture", "value": dc.get("decision_posture")},
+                {"field": "primary_risk_driver", "value": dc.get("primary_risk_driver")},
+                {"field": "dominant_mechanism", "value": dc.get("dominant_mechanism")},
+                {"field": "dominant_constraint", "value": dc.get("dominant_constraint")},
+                {"field": "worst_hard_margin_frac", "value": dc.get("worst_hard_margin_frac")},
+                {"field": "uncertainty_reduction_axis", "value": dc.get("uncertainty_reduction_axis")},
+                {"field": "leverage_knobs", "value": dc.get("leverage_knobs")},
+                {"field": "stamp_sha256", "value": dc.get("stamp_sha256")},
+            ]
+            st.subheader("Snapshot")
+            st.table(rows)
 
 
 # ----------------------------------
 # Authority Dominance Engine (v330.0)
 # ----------------------------------
-with tab_authority_dominance:
-    st.header("Authority Dominance")
-    st.caption(
-        "Deterministic dominance engine: identifies the dominant feasibility killer authority "
-        "(PLASMA/EXHAUST/MAGNET/CONTROL/NEUTRONICS/FUEL/PLANT) and ranks the top limiting constraints. "
-        "Post-processing only; truth unchanged."
-    )
+if _deck == "🎛️ Control Room":
+    with tab_authority_dominance:
+        st.header("Authority Dominance")
+        st.caption(
+            "Deterministic dominance engine: identifies the dominant feasibility killer authority "
+            "(PLASMA/EXHAUST/MAGNET/CONTROL/NEUTRONICS/FUEL/PLANT) and ranks the top limiting constraints. "
+            "Post-processing only; truth unchanged."
+        )
 
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authdom_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authdom_upload")
+            art = _load_json_from_upload(up_art)
             if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
 
-        if not art:
-            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
-        else:
-            ad = art.get("authority_dominance") if isinstance(art, dict) else None
-            if not isinstance(ad, dict):
-                st.warning("No authority_dominance found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:60]}, expanded=False)
+            if not art:
+                st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
             else:
-                st.markdown(f"**Dominance verdict:** `{str(ad.get('dominance_verdict','UNKNOWN'))}`")
-                st.markdown(f"**Dominant authority:** `{str(ad.get('dominant_authority',''))}`")
-                st.markdown(f"**Dominant constraint:** `{str(ad.get('dominant_constraint',''))}`")
-                mm = ad.get("dominant_margin_frac", None)
-                try:
-                    mm_s = f"{float(mm):.4f}" if mm is not None else "-"
-                except Exception:
-                    mm_s = "-"
-                st.markdown(f"**Dominant margin (frac):** {mm_s}")
-                st.caption(f"stamp_sha256: {str(ad.get('stamp_sha256',''))[:16]}…")
+                ad = art.get("authority_dominance") if isinstance(art, dict) else None
+                if not isinstance(ad, dict):
+                    st.warning("No authority_dominance found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:60]}, expanded=False)
+                else:
+                    st.markdown(f"**Dominance verdict:** `{str(ad.get('dominance_verdict','UNKNOWN'))}`")
+                    st.markdown(f"**Dominant authority:** `{str(ad.get('dominant_authority',''))}`")
+                    st.markdown(f"**Dominant constraint:** `{str(ad.get('dominant_constraint',''))}`")
+                    mm = ad.get("dominant_margin_frac", None)
+                    try:
+                        mm_s = f"{float(mm):.4f}" if mm is not None else "-"
+                    except Exception:
+                        mm_s = "-"
+                    st.markdown(f"**Dominant margin (frac):** {mm_s}")
+                    st.caption(f"stamp_sha256: {str(ad.get('stamp_sha256',''))[:16]}…")
 
-    with colB:
-        st.markdown("### Interpretation")
-        st.markdown("- **INFEASIBLE**: at least one hard constraint violated; dominance points to the worst hard margin.")
-        st.markdown("- **FRAGILE**: hard-feasible but the tightest hard margin is near-binding (default < 0.05).")
-        st.markdown("- **FEASIBLE**: hard-feasible with comfortable margins.")
+        with colB:
+            st.markdown("### Interpretation")
+            st.markdown("- **INFEASIBLE**: at least one hard constraint violated; dominance points to the worst hard margin.")
+            st.markdown("- **FRAGILE**: hard-feasible but the tightest hard margin is near-binding (default < 0.05).")
+            st.markdown("- **FEASIBLE**: hard-feasible with comfortable margins.")
 
-    if isinstance(art, dict) and isinstance(art.get("authority_dominance"), dict):
-        ad = art["authority_dominance"]
-        with st.expander("Top limiting constraints (hard)", expanded=False):
-            rows = ad.get("dominance_topk") or []
-            if isinstance(rows, list) and rows:
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            else:
-                st.info("No top-k rows available.")
+        if isinstance(art, dict) and isinstance(art.get("authority_dominance"), dict):
+            ad = art["authority_dominance"]
+            with st.expander("Top limiting constraints (hard)", expanded=False):
+                rows = ad.get("dominance_topk") or []
+                if isinstance(rows, list) and rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No top-k rows available.")
 
-        with st.expander("Authority ranking", expanded=False):
-            rows = ad.get("authority_ranked") or []
-            if isinstance(rows, list) and rows:
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            else:
-                st.info("No authority ranking available.")
+            with st.expander("Authority ranking", expanded=False):
+                rows = ad.get("authority_ranked") or []
+                if isinstance(rows, list) and rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No authority ranking available.")
 
 
 # -----------------------------
 # Scenario Delta Viewer (new)
 # -----------------------------
 
-with tab_epoch_feas:
-    st.header("Epoch Feasibility")
-    st.caption(
-        "Lifecycle-epoch feasibility (Startup / Nominal / End-of-Life). "
-        "Constitutional reclassification only; no re-solving and no truth modification."
-    )
+if _deck == "🎛️ Control Room":
+    with tab_epoch_feas:
+        st.header("Epoch Feasibility")
+        st.caption(
+            "Lifecycle-epoch feasibility (Startup / Nominal / End-of-Life). "
+            "Constitutional reclassification only; no re-solving and no truth modification."
+        )
 
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="epochfeas_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="epochfeas_upload")
+            art = _load_json_from_upload(up_art)
             if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
 
-        if not art:
-            st.info("Upload an artifact, or run Systems Mode to populate a last artifact.")
-        else:
-            ef = art.get("epoch_feasibility") if isinstance(art, dict) else None
-            if not isinstance(ef, dict):
-                st.warning("No epoch_feasibility found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+            if not art:
+                st.info("Upload an artifact, or run Systems Mode to populate a last artifact.")
             else:
-                st.markdown(f"**Overall:** `{str(ef.get('overall','UNKNOWN'))}`")
-                epochs = ef.get("epochs") or []
-                rows = []
-                for e in epochs:
-                    if not isinstance(e, dict):
-                        continue
-                    wh = e.get("worst_hard_margin_frac", None)
-                    try:
-                        wh_s = f"{float(wh):.3f}" if wh is not None else "-"
-                    except Exception:
-                        wh_s = "-"
-                    rows.append({
-                        "epoch": str(e.get("epoch","")),
-                        "verdict": str(e.get("verdict","")),
-                        "dominant_mechanism": str(e.get("dominant_mechanism","")),
-                        "dominant_constraint": str(e.get("dominant_constraint","")),
-                        "worst_hard_margin": wh_s,
-                        "n_blocking": len(list(e.get("blocking") or [])),
-                        "n_diag": len(list(e.get("diagnostic") or [])),
-                    })
-                if rows:
-                    st.dataframe(rows, use_container_width=True, hide_index=True)
+                ef = art.get("epoch_feasibility") if isinstance(art, dict) else None
+                if not isinstance(ef, dict):
+                    st.warning("No epoch_feasibility found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
                 else:
-                    st.warning("Epoch list empty.")
-    with colB:
-        st.markdown("### Constitution (selected epoch)")
-        if not art or not isinstance(art, dict) or not isinstance(art.get("epoch_feasibility"), dict):
-            st.caption("Load an artifact to view epoch constitutions.")
-        else:
-            ef = art.get("epoch_feasibility") or {}
-            epochs = ef.get("epochs") or []
-            labels = [str(e.get("epoch","")) for e in epochs if isinstance(e, dict)]
-            sel = st.selectbox("Epoch", labels, index=0 if labels else None, key="epochfeas_pick")
-            chosen = None
-            for e in epochs:
-                if isinstance(e, dict) and str(e.get("epoch","")) == sel:
-                    chosen = e
-                    break
-            if chosen is None:
-                st.info("No epoch selected.")
+                    st.markdown(f"**Overall:** `{str(ef.get('overall','UNKNOWN'))}`")
+                    epochs = ef.get("epochs") or []
+                    rows = []
+                    for e in epochs:
+                        if not isinstance(e, dict):
+                            continue
+                        wh = e.get("worst_hard_margin_frac", None)
+                        try:
+                            wh_s = f"{float(wh):.3f}" if wh is not None else "-"
+                        except Exception:
+                            wh_s = "-"
+                        rows.append({
+                            "epoch": str(e.get("epoch","")),
+                            "verdict": str(e.get("verdict","")),
+                            "dominant_mechanism": str(e.get("dominant_mechanism","")),
+                            "dominant_constraint": str(e.get("dominant_constraint","")),
+                            "worst_hard_margin": wh_s,
+                            "n_blocking": len(list(e.get("blocking") or [])),
+                            "n_diag": len(list(e.get("diagnostic") or [])),
+                        })
+                    if rows:
+                        st.dataframe(rows, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("Epoch list empty.")
+        with colB:
+            st.markdown("### Constitution (selected epoch)")
+            if not art or not isinstance(art, dict) or not isinstance(art.get("epoch_feasibility"), dict):
+                st.caption("Load an artifact to view epoch constitutions.")
             else:
-                st.markdown(f"**Epoch:** `{sel}`")
-                st.json(chosen.get("constitution") or {}, expanded=False)
-                st.caption("These clauses reclassify constraint enforcement deterministically across epochs.")
+                ef = art.get("epoch_feasibility") or {}
+                epochs = ef.get("epochs") or []
+                labels = [str(e.get("epoch","")) for e in epochs if isinstance(e, dict)]
+                sel = st.selectbox("Epoch", labels, index=0 if labels else None, key="epochfeas_pick")
+                chosen = None
+                for e in epochs:
+                    if isinstance(e, dict) and str(e.get("epoch","")) == sel:
+                        chosen = e
+                        break
+                if chosen is None:
+                    st.info("No epoch selected.")
+                else:
+                    st.markdown(f"**Epoch:** `{sel}`")
+                    st.json(chosen.get("constitution") or {}, expanded=False)
+                    st.caption("These clauses reclassify constraint enforcement deterministically across epochs.")
 
-with tab_delta:
-    st.header("Scenario Delta Viewer")
-    st.caption("Compare two run artifacts (baseline vs scenario). Uses embedded scenario_delta when available; otherwise computes a transparent diff.")
+if _deck == "🎛️ Control Room":
+    with tab_delta:
+        st.header("Scenario Delta Viewer")
+        st.caption("Compare two run artifacts (baseline vs scenario). Uses embedded scenario_delta when available; otherwise computes a transparent diff.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        up_base = st.file_uploader("Baseline shams_run_artifact.json", type=["json"], key="delta_base")
-    with col2:
-        up_scen = st.file_uploader("Scenario shams_run_artifact.json", type=["json"], key="delta_scen")
+        col1, col2 = st.columns(2)
+        with col1:
+            up_base = st.file_uploader("Baseline shams_run_artifact.json", type=["json"], key="delta_base")
+        with col2:
+            up_scen = st.file_uploader("Scenario shams_run_artifact.json", type=["json"], key="delta_scen")
 
-    base = _load_json_from_upload(up_base)
-    scen = _load_json_from_upload(up_scen)
+        base = _load_json_from_upload(up_base)
+        scen = _load_json_from_upload(up_scen)
 
-    if not base or not scen:
-        st.info("Upload both baseline and scenario artifacts to view deltas.")
-    else:
-        st.subheader("Embedded scenario_delta")
-        sd = scen.get("scenario_delta")
-        if sd:
-            st.json(sd)
+        if not base or not scen:
+            st.info("Upload both baseline and scenario artifacts to view deltas.")
         else:
-            st.info("No embedded scenario_delta found; computing diffs from inputs/outputs.")
+            st.subheader("Embedded scenario_delta")
+            sd = scen.get("scenario_delta")
+            if sd:
+                st.json(sd)
+            else:
+                st.info("No embedded scenario_delta found; computing diffs from inputs/outputs.")
 
-        st.subheader("Changed inputs")
-        bi = base.get("inputs") or {}
-        si = scen.get("inputs") or {}
-        changed = []
-        for k in sorted(set(bi.keys()) | set(si.keys())):
-            if bi.get(k) != si.get(k):
-                changed.append({"field": k, "baseline": bi.get(k), "scenario": si.get(k)})
-        if changed:
-            st.dataframe(pd.DataFrame(changed), use_container_width=True)
-        else:
-            st.info("No input differences detected.")
-
-        st.subheader("Numeric output deltas")
-        bo = base.get("outputs") or {}
-        so = scen.get("outputs") or {}
-        df = _numeric_delta_table(bo, so)
-        if not df.empty:
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.info("No numeric output differences detected.")
-
-
-
-        st.subheader("Structural / schema diff (read-only)")
-        st.caption("Reports *structure* changes (constraints added/removed/meta changes, model cards) without numeric tolerances.")
-
-        try:
-            from shams_io.structural_diff import structural_diff as _structural_diff
-            sd = _structural_diff(new_artifact=scen, old_artifact=base)
-        except Exception as e:
-            sd = None
-            st.error(f"Structural diff failed: {e}")
-
-        if isinstance(sd, dict):
-            # Constraints changes
-            cchg = (sd.get("constraints") or {})
-            added = cchg.get("added") or []
-            removed = cchg.get("removed") or []
-            changed = cchg.get("changed_meta") or []
-            cols = st.columns(3)
-            cols[0].metric("constraints added", str(len(added)))
-            cols[1].metric("constraints removed", str(len(removed)))
-            cols[2].metric("constraints meta changed", str(len(changed)))
-
-            if added:
-                with st.expander("Added constraints", expanded=False):
-                    st.write(added)
-            if removed:
-                with st.expander("Removed constraints", expanded=False):
-                    st.write(removed)
+            st.subheader("Changed inputs")
+            bi = base.get("inputs") or {}
+            si = scen.get("inputs") or {}
+            changed = []
+            for k in sorted(set(bi.keys()) | set(si.keys())):
+                if bi.get(k) != si.get(k):
+                    changed.append({"field": k, "baseline": bi.get(k), "scenario": si.get(k)})
             if changed:
-                with st.expander("Changed constraint metadata", expanded=False):
-                    st.dataframe(pd.DataFrame(changed), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(changed), use_container_width=True)
+            else:
+                st.info("No input differences detected.")
 
-            # Model cards changes
-            mc = (sd.get("model_cards") or {})
-            mc_added = mc.get("added") or []
-            mc_removed = mc.get("removed") or []
-            mc_changed = mc.get("changed") or []
-            cols2 = st.columns(3)
-            cols2[0].metric("model cards added", str(len(mc_added)))
-            cols2[1].metric("model cards removed", str(len(mc_removed)))
-            cols2[2].metric("model cards changed", str(len(mc_changed)))
-            if mc_added or mc_removed or mc_changed:
-                with st.expander("Model card diffs", expanded=False):
-                    st.json({"added": mc_added, "removed": mc_removed, "changed": mc_changed}, expanded=False)
+            st.subheader("Numeric output deltas")
+            bo = base.get("outputs") or {}
+            so = scen.get("outputs") or {}
+            df = _numeric_delta_table(bo, so)
+            if not df.empty:
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("No numeric output differences detected.")
 
-            with st.expander("Raw structural diff JSON (audit)", expanded=False):
-                st.json(sd, expanded=False)
+
+
+            st.subheader("Structural / schema diff (read-only)")
+            st.caption("Reports *structure* changes (constraints added/removed/meta changes, model cards) without numeric tolerances.")
+
+            try:
+                from shams_io.structural_diff import structural_diff as _structural_diff
+                sd = _structural_diff(new_artifact=scen, old_artifact=base)
+            except Exception as e:
+                sd = None
+                st.error(f"Structural diff failed: {e}")
+
+            if isinstance(sd, dict):
+                # Constraints changes
+                cchg = (sd.get("constraints") or {})
+                added = cchg.get("added") or []
+                removed = cchg.get("removed") or []
+                changed = cchg.get("changed_meta") or []
+                cols = st.columns(3)
+                cols[0].metric("constraints added", str(len(added)))
+                cols[1].metric("constraints removed", str(len(removed)))
+                cols[2].metric("constraints meta changed", str(len(changed)))
+
+                if added:
+                    with st.expander("Added constraints", expanded=False):
+                        st.write(added)
+                if removed:
+                    with st.expander("Removed constraints", expanded=False):
+                        st.write(removed)
+                if changed:
+                    with st.expander("Changed constraint metadata", expanded=False):
+                        st.dataframe(pd.DataFrame(changed), use_container_width=True, hide_index=True)
+
+                # Model cards changes
+                mc = (sd.get("model_cards") or {})
+                mc_added = mc.get("added") or []
+                mc_removed = mc.get("removed") or []
+                mc_changed = mc.get("changed") or []
+                cols2 = st.columns(3)
+                cols2[0].metric("model cards added", str(len(mc_added)))
+                cols2[1].metric("model cards removed", str(len(mc_removed)))
+                cols2[2].metric("model cards changed", str(len(mc_changed)))
+                if mc_added or mc_removed or mc_changed:
+                    with st.expander("Model card diffs", expanded=False):
+                        st.json({"added": mc_added, "removed": mc_removed, "changed": mc_changed}, expanded=False)
+
+                with st.expander("Raw structural diff JSON (audit)", expanded=False):
+                    st.json(sd, expanded=False)
 
 
 # -----------------------------
 # Run Library (Workspace)
 # -----------------------------
-with tab_library:
-    st.header("Run Library")
-    st.caption("Browse a workspace directory of SHAMS run/study artifacts (no physics changes; read-only).")
+if _deck == "🎛️ Control Room":
+    with tab_library:
+        st.header("Run Library")
+        st.caption("Browse a workspace directory of SHAMS run/study artifacts (no physics changes; read-only).")
 
-    def _scan_workspace(root: Path):
-        runs = []
-        studies = []
-        if not root.exists():
-            return runs, studies
+        def _scan_workspace(root: Path):
+            runs = []
+            studies = []
+            if not root.exists():
+                return runs, studies
 
-        # Run artifacts
-        for p in root.rglob("*.json"):
-            if p.name.lower() in {"shams_run_artifact.json"} or p.name.lower().startswith("case_") or p.name.lower().endswith("_artifact.json"):
+            # Run artifacts
+            for p in root.rglob("*.json"):
+                if p.name.lower() in {"shams_run_artifact.json"} or p.name.lower().startswith("case_") or p.name.lower().endswith("_artifact.json"):
+                    try:
+                        art = read_run_artifact(p)
+                        k = art.get("kpis", {}) if isinstance(art, dict) else {}
+                        prov = art.get("provenance", {}) if isinstance(art, dict) else {}
+                        runs.append({
+                            "type": "run",
+                            "path": str(p),
+                            "created_unix": float(art.get("created_unix", prov.get("created_unix", float("nan")))) if isinstance(art, dict) else float("nan"),
+                            "hard_ok": bool(k.get("hard_ok", False)),
+                            "hard_worst_margin": k.get("hard_worst_margin", None),
+                            "Q": k.get("Q_DT_eqv", k.get("Q", None)),
+                            "H98": k.get("H98", None),
+                            "message": ((art.get("solver") or {}).get("message") if isinstance(art.get("solver"), dict) else ""),
+                        })
+                    except Exception:
+                        continue
+
+            # Study indexes
+            for p in root.rglob("index.json"):
                 try:
-                    art = read_run_artifact(p)
-                    k = art.get("kpis", {}) if isinstance(art, dict) else {}
-                    prov = art.get("provenance", {}) if isinstance(art, dict) else {}
-                    runs.append({
-                        "type": "run",
-                        "path": str(p),
-                        "created_unix": float(art.get("created_unix", prov.get("created_unix", float("nan")))) if isinstance(art, dict) else float("nan"),
-                        "hard_ok": bool(k.get("hard_ok", False)),
-                        "hard_worst_margin": k.get("hard_worst_margin", None),
-                        "Q": k.get("Q_DT_eqv", k.get("Q", None)),
-                        "H98": k.get("H98", None),
-                        "message": ((art.get("solver") or {}).get("message") if isinstance(art.get("solver"), dict) else ""),
-                    })
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                    if isinstance(data, dict) and data.get("schema_version") == "study_index.v1":
+                        prov = data.get("provenance", {}) if isinstance(data.get("provenance"), dict) else {}
+                        studies.append({
+                            "type": "study",
+                            "path": str(p),
+                            "created_unix": float(data.get("created_unix", prov.get("created_unix", float('nan')))),
+                            "n_cases": int(data.get("n_cases", 0)),
+                            "elapsed_s": float(data.get("elapsed_s", float('nan'))),
+                        })
                 except Exception:
                     continue
+            return runs, studies
 
-        # Study indexes
-        for p in root.rglob("index.json"):
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                if isinstance(data, dict) and data.get("schema_version") == "study_index.v1":
-                    prov = data.get("provenance", {}) if isinstance(data.get("provenance"), dict) else {}
-                    studies.append({
-                        "type": "study",
-                        "path": str(p),
-                        "created_unix": float(data.get("created_unix", prov.get("created_unix", float('nan')))),
-                        "n_cases": int(data.get("n_cases", 0)),
-                        "elapsed_s": float(data.get("elapsed_s", float('nan'))),
-                    })
-            except Exception:
-                continue
-        return runs, studies
+        default_ws = str((Path.cwd()/ "ui_runs").resolve())
+        ws = st.text_input("Workspace folder", value=st.session_state.get("ui_workspace", default_ws))
+        st.session_state.ui_workspace = ws
+        root = Path(ws)
 
-    default_ws = str((Path.cwd()/ "ui_runs").resolve())
-    ws = st.text_input("Workspace folder", value=st.session_state.get("ui_workspace", default_ws))
-    st.session_state.ui_workspace = ws
-    root = Path(ws)
+        colA, colB = st.columns([1, 1])
+        with colA:
+            do_scan = st.button("Scan workspace", use_container_width=True)
+        with colB:
+            st.write("")
+            st.write("")
 
-    colA, colB = st.columns([1, 1])
-    with colA:
-        do_scan = st.button("Scan workspace", use_container_width=True)
-    with colB:
-        st.write("")
-        st.write("")
+        if do_scan:
+            runs, studies = _scan_workspace(root)
+            st.session_state._ws_runs = runs
+            st.session_state._ws_studies = studies
 
-    if do_scan:
-        runs, studies = _scan_workspace(root)
-        st.session_state._ws_runs = runs
-        st.session_state._ws_studies = studies
+        runs = st.session_state.get("_ws_runs", [])
+        studies = st.session_state.get("_ws_studies", [])
 
-    runs = st.session_state.get("_ws_runs", [])
-    studies = st.session_state.get("_ws_studies", [])
+        st.subheader("Runs")
+        if not runs:
+            st.info("No run artifacts found yet. Tip: point runs write artifacts under your chosen output directory; studies write case_XXXX.json under the study out folder.")
+        else:
+            df = pd.DataFrame(runs)
+            # Sort: newest first when available
+            if "created_unix" in df.columns:
+                df = df.sort_values("created_unix", ascending=False, na_position="last")
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
-    st.subheader("Runs")
-    if not runs:
-        st.info("No run artifacts found yet. Tip: point runs write artifacts under your chosen output directory; studies write case_XXXX.json under the study out folder.")
-    else:
-        df = pd.DataFrame(runs)
-        # Sort: newest first when available
-        if "created_unix" in df.columns:
-            df = df.sort_values("created_unix", ascending=False, na_position="last")
-        st.dataframe(df, use_container_width=True, hide_index=True)
+            sel = st.text_input("Select a run artifact path to open", value=st.session_state.get("selected_artifact_path", ""))
+            if st.button("Open selected run", use_container_width=True):
+                p = Path(sel)
+                if p.exists():
+                    try:
+                        art = read_run_artifact(p)
+                        st.session_state.selected_artifact = art
+                        st.session_state.selected_artifact_path = str(p)
+                        st.success("Loaded run artifact into session.")
+                    except Exception as e:
+                        st.error(f"Failed to read artifact: {e}")
+                else:
+                    st.error("Path does not exist.")
 
-        sel = st.text_input("Select a run artifact path to open", value=st.session_state.get("selected_artifact_path", ""))
-        if st.button("Open selected run", use_container_width=True):
-            p = Path(sel)
-            if p.exists():
-                try:
-                    art = read_run_artifact(p)
-                    st.session_state.selected_artifact = art
-                    st.session_state.selected_artifact_path = str(p)
-                    st.success("Loaded run artifact into session.")
-                except Exception as e:
-                    st.error(f"Failed to read artifact: {e}")
-            else:
-                st.error("Path does not exist.")
-
-    st.subheader("Studies")
-    if studies:
-        st.dataframe(pd.DataFrame(studies).sort_values("created_unix", ascending=False, na_position="last"), use_container_width=True, hide_index=True)
-        ssel = st.text_input("Select a study index.json path to open", value=st.session_state.get("selected_study_index_path", ""))
-        if st.button("Open selected study", use_container_width=True):
-            p = Path(ssel)
-            if p.exists():
-                try:
-                    st.session_state.selected_study_index_path = str(p)
-                    st.session_state.selected_study_index = json.loads(p.read_text(encoding="utf-8"))
-                    st.success("Loaded study index into session.")
-                except Exception as e:
-                    st.error(f"Failed to read study index: {e}")
-            else:
-                st.error("Path does not exist.")
-    else:
-        st.caption("No study indexes found in this workspace.")
+        st.subheader("Studies")
+        if studies:
+            st.dataframe(pd.DataFrame(studies).sort_values("created_unix", ascending=False, na_position="last"), use_container_width=True, hide_index=True)
+            ssel = st.text_input("Select a study index.json path to open", value=st.session_state.get("selected_study_index_path", ""))
+            if st.button("Open selected study", use_container_width=True):
+                p = Path(ssel)
+                if p.exists():
+                    try:
+                        st.session_state.selected_study_index_path = str(p)
+                        st.session_state.selected_study_index = json.loads(p.read_text(encoding="utf-8"))
+                        st.success("Loaded study index into session.")
+                    except Exception as e:
+                        st.error(f"Failed to read study index: {e}")
+                else:
+                    st.error("Path does not exist.")
+        else:
+            st.caption("No study indexes found in this workspace.")
 
 # -----------------------------
 # Constraint Cockpit
 # -----------------------------
-with tab_constraints:
-    st.header("Constraint Cockpit")
-    st.caption("Interactively triage constraints using the embedded constraint ledger (read-only).")
+if _deck == "🎛️ Control Room":
+    with tab_constraints:
+        st.header("Constraint Cockpit")
+        st.caption("Interactively triage constraints using the embedded constraint ledger (read-only).")
 
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict):
-        st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
-    else:
-        ledger = art.get("constraint_ledger", {})
-        entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
-        if not entries:
-            st.warning("This artifact has no constraint ledger. (It should be present in v39+ artifacts.)")
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict):
+            st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
         else:
-            df = pd.DataFrame(entries)
-            # Basic filters
-            c1, c2, c3 = st.columns([1,1,1])
-            with c1:
-                sev = st.multiselect("Severity", sorted(df.get("severity", pd.Series(["hard"])).dropna().unique().tolist()), default=["hard","soft"] if "soft" in df.get("severity", pd.Series([])).unique() else ["hard"])
-            with c2:
-                grp = st.multiselect("Group", sorted(df.get("group", pd.Series(["general"])).dropna().unique().tolist()), default=[])
-            with c3:
-                show_only_failed = st.checkbox("Only failed constraints", value=True)
+            ledger = art.get("constraint_ledger", {})
+            entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
+            if not entries:
+                st.warning("This artifact has no constraint ledger. (It should be present in v39+ artifacts.)")
+            else:
+                df = pd.DataFrame(entries)
+                # Basic filters
+                c1, c2, c3 = st.columns([1,1,1])
+                with c1:
+                    sev = st.multiselect("Severity", sorted(df.get("severity", pd.Series(["hard"])).dropna().unique().tolist()), default=["hard","soft"] if "soft" in df.get("severity", pd.Series([])).unique() else ["hard"])
+                with c2:
+                    grp = st.multiselect("Group", sorted(df.get("group", pd.Series(["general"])).dropna().unique().tolist()), default=[])
+                with c3:
+                    show_only_failed = st.checkbox("Only failed constraints", value=True)
 
-            view = df.copy()
-            if sev:
-                view = view[view["severity"].isin(sev)]
-            if grp:
-                view = view[view["group"].isin(grp)]
-            if show_only_failed and "passed" in view.columns:
-                view = view[view["passed"] == False]
+                view = df.copy()
+                if sev:
+                    view = view[view["severity"].isin(sev)]
+                if grp:
+                    view = view[view["group"].isin(grp)]
+                if show_only_failed and "passed" in view.columns:
+                    view = view[view["passed"] == False]
 
-            # Sort: worst first by margin_frac or margin
-            if "margin_frac" in view.columns:
-                view = view.sort_values("margin_frac", ascending=True, na_position="last")
-            elif "margin" in view.columns:
-                view = view.sort_values("margin", ascending=True, na_position="last")
+                # Sort: worst first by margin_frac or margin
+                if "margin_frac" in view.columns:
+                    view = view.sort_values("margin_frac", ascending=True, na_position="last")
+                elif "margin" in view.columns:
+                    view = view.sort_values("margin", ascending=True, na_position="last")
 
-            st.subheader("Ledger")
-            st.dataframe(view, use_container_width=True, hide_index=True)
+                st.subheader("Ledger")
+                st.dataframe(view, use_container_width=True, hide_index=True)
 
-            st.subheader("Top blockers")
-            top = ledger.get("top_blockers", []) if isinstance(ledger, dict) else []
-            if top:
-                st.dataframe(pd.DataFrame(top), use_container_width=True, hide_index=True)
-            fp = ledger.get("ledger_fingerprint_sha256")
-            if fp:
-                st.caption(f"Ledger fingerprint: `{fp}`")
+                st.subheader("Top blockers")
+                top = ledger.get("top_blockers", []) if isinstance(ledger, dict) else []
+                if top:
+                    st.dataframe(pd.DataFrame(top), use_container_width=True, hide_index=True)
+                fp = ledger.get("ledger_fingerprint_sha256")
+                if fp:
+                    st.caption(f"Ledger fingerprint: `{fp}`")
 
 
 # -----------------------------
 # Constraint Inspector (read-only)
 # -----------------------------
-with tab_constraint_inspector:
-    st.header("Constraint Inspector")
-    st.caption("Read-only, equation-first inspection of a single constraint: raw inequality, margin, meaning, knobs, and provenance (when available).")
+if _deck == "🎛️ Control Room":
+    with tab_constraint_inspector:
+        st.header("Constraint Inspector")
+        st.caption("Read-only, equation-first inspection of a single constraint: raw inequality, margin, meaning, knobs, and provenance (when available).")
 
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict):
-        st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
-    else:
-        constraints_list = art.get("constraints") or []
-        # Build a name -> constraint dict map (best-effort)
-        name_to_c = {}
-        for c in constraints_list:
-            if isinstance(c, dict) and c.get("name"):
-                name_to_c[str(c.get("name"))] = c
-
-        ledger = art.get("constraint_ledger", {})
-        entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
-        names = []
-        # Prefer ledger order if present (it should reflect evaluation order)
-        if entries:
-            for e in entries:
-                n = str(e.get("name"))
-                if n and n not in names:
-                    names.append(n)
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict):
+            st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
         else:
-            names = sorted(list(name_to_c.keys()))
+            constraints_list = art.get("constraints") or []
+            # Build a name -> constraint dict map (best-effort)
+            name_to_c = {}
+            for c in constraints_list:
+                if isinstance(c, dict) and c.get("name"):
+                    name_to_c[str(c.get("name"))] = c
 
-        if not names:
-            st.warning("No constraints found in this artifact.")
-        else:
-            sel = st.selectbox("Select constraint", names, index=0, key="constraint_inspector_select")
-
-            # Pull both ledger entry (if present) and raw constraint dict (if present)
-            entry = None
+            ledger = art.get("constraint_ledger", {})
+            entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
+            names = []
+            # Prefer ledger order if present (it should reflect evaluation order)
             if entries:
                 for e in entries:
-                    if str(e.get("name")) == sel:
-                        entry = e
-                        break
-            c = name_to_c.get(sel, {}) if isinstance(name_to_c.get(sel, {}), dict) else {}
-
-            # Compose a canonical view (prefer ledger fields where available)
-            view = {}
-            for src in (c, entry or {}):
-                if isinstance(src, dict):
-                    view.update({k: src.get(k) for k in src.keys()})
-
-            # Core inequality (verbatim fields; no inferred math)
-            sense = str(view.get("sense") or "")
-            value = view.get("value")
-            limit = view.get("limit")
-            units = str(view.get("units") or "")
-            meaning = str(view.get("meaning") or view.get("note") or "")
-
-            st.subheader("Inequality")
-            if sense and value is not None and limit is not None:
-                st.code(f"{sel}: value {sense} limit    (value={value}, limit={limit}, units={units})", language="text")
+                    n = str(e.get("name"))
+                    if n and n not in names:
+                        names.append(n)
             else:
-                st.code(f"{sel}: (insufficient fields to render inequality)", language="text")
+                names = sorted(list(name_to_c.keys()))
 
-            # Pass/fail + margins
-            cols = st.columns(4)
-            cols[0].metric("passed", str(bool(view.get("passed", False))))
-            if view.get("severity") is not None:
-                cols[1].metric("severity", str(view.get("severity")))
-            if view.get("group") is not None:
-                cols[2].metric("group", str(view.get("group")))
-            if view.get("dominance_rank") is not None:
-                cols[3].metric("dominance_rank", str(view.get("dominance_rank")))
-
-            c1, c2, c3 = st.columns(3)
-            if view.get("margin") is not None:
-                c1.metric("margin", f"{view.get('margin')}")
-            if view.get("margin_frac") is not None:
-                c2.metric("margin_frac", f"{view.get('margin_frac')}")
-            if view.get("violation_score") is not None:
-                c3.metric("violation_score", f"{view.get('violation_score')}")
-
-            st.subheader("Meaning / proxy")
-            if meaning.strip():
-                st.write(meaning)
+            if not names:
+                st.warning("No constraints found in this artifact.")
             else:
-                st.info("No meaning/proxy text is attached to this constraint.")
+                sel = st.selectbox("Select constraint", names, index=0, key="constraint_inspector_select")
 
-            # Knobs + dominant inputs
-            st.subheader("Knobs / dominant inputs (if present)")
-            bb = view.get("best_knobs")
-            di = view.get("dominant_inputs")
-            kcol1, kcol2 = st.columns(2)
-            with kcol1:
-                if bb:
-                    st.write("**best_knobs**")
-                    st.write(bb)
+                # Pull both ledger entry (if present) and raw constraint dict (if present)
+                entry = None
+                if entries:
+                    for e in entries:
+                        if str(e.get("name")) == sel:
+                            entry = e
+                            break
+                c = name_to_c.get(sel, {}) if isinstance(name_to_c.get(sel, {}), dict) else {}
+
+                # Compose a canonical view (prefer ledger fields where available)
+                view = {}
+                for src in (c, entry or {}):
+                    if isinstance(src, dict):
+                        view.update({k: src.get(k) for k in src.keys()})
+
+                # Core inequality (verbatim fields; no inferred math)
+                sense = str(view.get("sense") or "")
+                value = view.get("value")
+                limit = view.get("limit")
+                units = str(view.get("units") or "")
+                meaning = str(view.get("meaning") or view.get("note") or "")
+
+                st.subheader("Inequality")
+                if sense and value is not None and limit is not None:
+                    st.code(f"{sel}: value {sense} limit    (value={value}, limit={limit}, units={units})", language="text")
                 else:
-                    st.caption("best_knobs: (none)")
-            with kcol2:
-                if di:
-                    st.write("**dominant_inputs**")
-                    st.write(di)
+                    st.code(f"{sel}: (insufficient fields to render inequality)", language="text")
+
+                # Pass/fail + margins
+                cols = st.columns(4)
+                cols[0].metric("passed", str(bool(view.get("passed", False))))
+                if view.get("severity") is not None:
+                    cols[1].metric("severity", str(view.get("severity")))
+                if view.get("group") is not None:
+                    cols[2].metric("group", str(view.get("group")))
+                if view.get("dominance_rank") is not None:
+                    cols[3].metric("dominance_rank", str(view.get("dominance_rank")))
+
+                c1, c2, c3 = st.columns(3)
+                if view.get("margin") is not None:
+                    c1.metric("margin", f"{view.get('margin')}")
+                if view.get("margin_frac") is not None:
+                    c2.metric("margin_frac", f"{view.get('margin_frac')}")
+                if view.get("violation_score") is not None:
+                    c3.metric("violation_score", f"{view.get('violation_score')}")
+
+                st.subheader("Meaning / proxy")
+                if meaning.strip():
+                    st.write(meaning)
                 else:
-                    st.caption("dominant_inputs: (none)")
+                    st.info("No meaning/proxy text is attached to this constraint.")
 
-            # Provenance (constraint-level and artifact-level)
-            st.subheader("Provenance (if present)")
-            prov = {}
-            if isinstance(view.get("provenance"), dict):
-                prov["constraint"] = view.get("provenance")
-            if isinstance(art.get("provenance"), dict):
-                prov["artifact"] = art.get("provenance")
-            if prov:
-                st.json(prov, expanded=False)
-            else:
-                st.info("No provenance keys present on this constraint (artifact-level provenance may still exist under artifact.provenance).")
+                # Knobs + dominant inputs
+                st.subheader("Knobs / dominant inputs (if present)")
+                bb = view.get("best_knobs")
+                di = view.get("dominant_inputs")
+                kcol1, kcol2 = st.columns(2)
+                with kcol1:
+                    if bb:
+                        st.write("**best_knobs**")
+                        st.write(bb)
+                    else:
+                        st.caption("best_knobs: (none)")
+                with kcol2:
+                    if di:
+                        st.write("**dominant_inputs**")
+                        st.write(di)
+                    else:
+                        st.caption("dominant_inputs: (none)")
 
-            # Raw views for auditability
-            with st.expander("Raw JSON (audit)", expanded=False):
-                if isinstance(entry, dict):
-                    st.write("**constraint_ledger entry**")
-                    st.json(entry, expanded=False)
-                if isinstance(c, dict) and c:
-                    st.write("**constraints[] item**")
-                    st.json(c, expanded=False)
+                # Provenance (constraint-level and artifact-level)
+                st.subheader("Provenance (if present)")
+                prov = {}
+                if isinstance(view.get("provenance"), dict):
+                    prov["constraint"] = view.get("provenance")
+                if isinstance(art.get("provenance"), dict):
+                    prov["artifact"] = art.get("provenance")
+                if prov:
+                    st.json(prov, expanded=False)
+                else:
+                    st.info("No provenance keys present on this constraint (artifact-level provenance may still exist under artifact.provenance).")
+
+                # Raw views for auditability
+                with st.expander("Raw JSON (audit)", expanded=False):
+                    if isinstance(entry, dict):
+                        st.write("**constraint_ledger entry**")
+                        st.json(entry, expanded=False)
+                    if isinstance(c, dict) and c:
+                        st.write("**constraints[] item**")
+                        st.json(c, expanded=False)
 
 
 # -----------------------------
 # Sensitivity Explorer
 # -----------------------------
-with tab_sensitivity:
-    st.header("Sensitivity Explorer")
-    st.caption("Local finite-difference sensitivities around the current point (no model changes).")
+if _deck == "🎛️ Control Room":
+    with tab_sensitivity:
+        st.header("Sensitivity Explorer")
+        st.caption("Local finite-difference sensitivities around the current point (no model changes).")
 
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict):
-        st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
-    else:
-        inp_d = art.get("inputs", {})
-        if not isinstance(inp_d, dict):
-            st.error("Artifact inputs missing or invalid.")
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict):
+            st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
         else:
-            try:
-                base = PointInputs.from_dict(inp_d)
-            except Exception:
-                # Fallback: try direct constructor with expected keys
+            inp_d = art.get("inputs", {})
+            if not isinstance(inp_d, dict):
+                st.error("Artifact inputs missing or invalid.")
+            else:
                 try:
-                    base = PointInputs(**{k: inp_d[k] for k in PointInputs.__dataclass_fields__.keys() if k in inp_d})
-                except Exception as e:
-                    st.error(f"Could not build PointInputs from artifact inputs: {e}")
-                    base = None
-
-            if base is not None:
-                st.subheader("Base point")
-                st.json(base.__dict__)
-
-                # Choose knobs + outputs
-                knob_defaults = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Paux_MW", "Ti_keV", "Te_keV"]
-                available_knobs = [k for k in knob_defaults if k in base.__dict__]
-                knobs = st.multiselect("Knobs", available_knobs, default=["Ip_MA", "fG"], key="sens_knobs_v294")
-
-                outputs_default = [
-                    "Q_DT_eqv", "H98", "P_fus_total_MW", "Palpha_MW", "beta_N", "nbar20", "P_e_net_MW",
-                    "B_peak_T", "q95", "TBR",
-                ]
-                outputs = st.multiselect("Outputs", outputs_default, default=["Q_DT_eqv", "H98"], key="sens_outs_v294")
-
-                step_rel = st.number_input("Step size (relative)", value=1e-3, min_value=1e-6, format="%.6f", key="sens_step_rel_v294")
-
-                if st.button("Compute deterministic sensitivity pack", use_container_width=True, key="sens_btn_v294"):
+                    base = PointInputs.from_dict(inp_d)
+                except Exception:
+                    # Fallback: try direct constructor with expected keys
                     try:
-                        from analysis.sensitivity import deterministic_sensitivity_pack
-                        # Characteristic scales for variables when x0 == 0
-                        scales = {k: 1.0 for k in knobs}
-                        scales.update({"Paux_MW": 10.0, "Ip_MA": 1.0, "fG": 0.1, "Bt_T": 0.5, "R0_m": 0.5, "a_m": 0.2})
-                        pack = deterministic_sensitivity_pack(base, variables={k: scales.get(k, 1.0) for k in knobs}, outputs=list(outputs), step_rel=float(step_rel))
-
-                        # Flatten for table
-                        rows = []
-                        jac = pack.get("jacobian", {}) if isinstance(pack, dict) else {}
-                        for o in outputs:
-                            for p in knobs:
-                                try:
-                                    v = float((jac.get(o) or {}).get(p))
-                                except Exception:
-                                    v = float('nan')
-                                rows.append({"output": o, "knob": p, "d(output)/d(knob)": v})
-                        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-                        st.subheader("Constraint tightness (top residuals)")
-                        st.dataframe(pd.DataFrame(pack.get("constraints_tightness", [])), use_container_width=True, hide_index=True)
-
-                        with st.expander("Raw JSON (audit)", expanded=False):
-                            st.json(pack)
+                        base = PointInputs(**{k: inp_d[k] for k in PointInputs.__dataclass_fields__.keys() if k in inp_d})
                     except Exception as e:
-                        st.error(f"Sensitivity computation failed: {e}")
+                        st.error(f"Could not build PointInputs from artifact inputs: {e}")
+                        base = None
+
+                if base is not None:
+                    st.subheader("Base point")
+                    st.json(base.__dict__)
+
+                    # Choose knobs + outputs
+                    knob_defaults = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Paux_MW", "Ti_keV", "Te_keV"]
+                    available_knobs = [k for k in knob_defaults if k in base.__dict__]
+                    knobs = st.multiselect("Knobs", available_knobs, default=["Ip_MA", "fG"], key="sens_knobs_v294")
+
+                    outputs_default = [
+                        "Q_DT_eqv", "H98", "P_fus_total_MW", "Palpha_MW", "beta_N", "nbar20", "P_e_net_MW",
+                        "B_peak_T", "q95", "TBR",
+                    ]
+                    outputs = st.multiselect("Outputs", outputs_default, default=["Q_DT_eqv", "H98"], key="sens_outs_v294")
+
+                    step_rel = st.number_input("Step size (relative)", value=1e-3, min_value=1e-6, format="%.6f", key="sens_step_rel_v294")
+
+                    if st.button("Compute deterministic sensitivity pack", use_container_width=True, key="sens_btn_v294"):
+                        try:
+                            from analysis.sensitivity import deterministic_sensitivity_pack
+                            # Characteristic scales for variables when x0 == 0
+                            scales = {k: 1.0 for k in knobs}
+                            scales.update({"Paux_MW": 10.0, "Ip_MA": 1.0, "fG": 0.1, "Bt_T": 0.5, "R0_m": 0.5, "a_m": 0.2})
+                            pack = deterministic_sensitivity_pack(base, variables={k: scales.get(k, 1.0) for k in knobs}, outputs=list(outputs), step_rel=float(step_rel))
+
+                            # Flatten for table
+                            rows = []
+                            jac = pack.get("jacobian", {}) if isinstance(pack, dict) else {}
+                            for o in outputs:
+                                for p in knobs:
+                                    try:
+                                        v = float((jac.get(o) or {}).get(p))
+                                    except Exception:
+                                        v = float('nan')
+                                    rows.append({"output": o, "knob": p, "d(output)/d(knob)": v})
+                            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+                            st.subheader("Constraint tightness (top residuals)")
+                            st.dataframe(pd.DataFrame(pack.get("constraints_tightness", [])), use_container_width=True, hide_index=True)
+
+                            with st.expander("Raw JSON (audit)", expanded=False):
+                                st.json(pack)
+                        except Exception as e:
+                            st.error(f"Sensitivity computation failed: {e}")
 
 # -----------------------------
 # Feasibility Map Viewer
 # -----------------------------
-with tab_feasmap:
-    st.header("Feasibility Map")
-    st.caption("Visualize feasibility from study sweeps (heatmap).")
+if _deck == "🎛️ Control Room":
+    with tab_feasmap:
+        st.header("Feasibility Map")
+        st.caption("Visualize feasibility from study sweeps (heatmap).")
 
-    # Load study index either from session (Run Library) or by path
-    p_default = st.session_state.get("selected_study_index_path", "")
-    p = st.text_input("Study index.json path", value=p_default)
-    idx_data = None
-    if p and Path(p).exists():
-        try:
-            idx_data = json.loads(Path(p).read_text(encoding="utf-8"))
-        except Exception as e:
-            st.error(f"Could not read study index: {e}")
+        # Load study index either from session (Run Library) or by path
+        p_default = st.session_state.get("selected_study_index_path", "")
+        p = st.text_input("Study index.json path", value=p_default)
+        idx_data = None
+        if p and Path(p).exists():
+            try:
+                idx_data = json.loads(Path(p).read_text(encoding="utf-8"))
+            except Exception as e:
+                st.error(f"Could not read study index: {e}")
 
-    if not isinstance(idx_data, dict) or idx_data.get("schema_version") != "study_index.v1":
-        st.info("Provide a valid study_out/index.json (schema study_index.v1).")
-    else:
-        cases = idx_data.get("cases", [])
-        study = idx_data.get("study", {})
-        sweeps = (study.get("sweeps") if isinstance(study, dict) else None) or []
-        # Determine candidate in_ variables for axes
-        in_cols = []
-        if cases and isinstance(cases, list) and isinstance(cases[0], dict):
-            for k in cases[0].keys():
-                if k.startswith("in_"):
-                    in_cols.append(k)
-        # Prefer sweep variables
-        sweep_vars = ["in_"+str(s.get("name")) for s in sweeps if isinstance(s, dict) and s.get("name") is not None]
-        axis_candidates = [c for c in sweep_vars if c in in_cols] + [c for c in in_cols if c not in sweep_vars]
-        if len(axis_candidates) < 2:
-            st.warning("Need at least two swept input variables (in_*) to plot a 2D feasibility map.")
+        if not isinstance(idx_data, dict) or idx_data.get("schema_version") != "study_index.v1":
+            st.info("Provide a valid study_out/index.json (schema study_index.v1).")
         else:
-            c1, c2 = st.columns([1,1])
-            with c1:
-                xcol = st.selectbox("X axis", axis_candidates, index=0)
-            with c2:
-                ycol = st.selectbox("Y axis", axis_candidates, index=1 if len(axis_candidates)>1 else 0)
-
-            df = pd.DataFrame(cases)
-            if "ok" not in df.columns:
-                st.error("Study cases table missing 'ok' field.")
+            cases = idx_data.get("cases", [])
+            study = idx_data.get("study", {})
+            sweeps = (study.get("sweeps") if isinstance(study, dict) else None) or []
+            # Determine candidate in_ variables for axes
+            in_cols = []
+            if cases and isinstance(cases, list) and isinstance(cases[0], dict):
+                for k in cases[0].keys():
+                    if k.startswith("in_"):
+                        in_cols.append(k)
+            # Prefer sweep variables
+            sweep_vars = ["in_"+str(s.get("name")) for s in sweeps if isinstance(s, dict) and s.get("name") is not None]
+            axis_candidates = [c for c in sweep_vars if c in in_cols] + [c for c in in_cols if c not in sweep_vars]
+            if len(axis_candidates) < 2:
+                st.warning("Need at least two swept input variables (in_*) to plot a 2D feasibility map.")
             else:
-                # Build pivot grid
-                xs = sorted(df[xcol].dropna().unique().tolist())
-                ys = sorted(df[ycol].dropna().unique().tolist())
-                import numpy as np
-                grid = np.full((len(ys), len(xs)), np.nan)
-                for _, r in df.iterrows():
-                    try:
-                        xi = xs.index(r[xcol])
-                        yi = ys.index(r[ycol])
-                        grid[yi, xi] = 1.0 if bool(r["ok"]) else 0.0
-                    except Exception:
-                        continue
+                c1, c2 = st.columns([1,1])
+                with c1:
+                    xcol = st.selectbox("X axis", axis_candidates, index=0)
+                with c2:
+                    ycol = st.selectbox("Y axis", axis_candidates, index=1 if len(axis_candidates)>1 else 0)
 
-                st.subheader("Feasibility heatmap (1=feasible, 0=infeasible)")
-                try:
-                    import matplotlib.pyplot as plt  # type: ignore
-                    fig, ax = plt.subplots()
-                    im = ax.imshow(grid, origin="lower", aspect="auto")
-                    ax.set_xticks(range(len(xs)))
-                    ax.set_yticks(range(len(ys)))
-                    ax.set_xticklabels([str(x) for x in xs], rotation=45, ha="right")
-                    ax.set_yticklabels([str(y) for y in ys])
-                    ax.set_xlabel(xcol)
-                    ax.set_ylabel(ycol)
-                    st.pyplot(fig, clear_figure=True)
-                except Exception as e:
-                    st.error(f"Plot failed: {e}")
-
-                st.subheader("Pick a case to open")
-                selx = st.selectbox("X value", xs, index=0)
-                sely = st.selectbox("Y value", ys, index=0)
-                sub = df[(df[xcol]==selx) & (df[ycol]==sely)]
-                if sub.empty:
-                    st.info("No case for that cell.")
+                df = pd.DataFrame(cases)
+                if "ok" not in df.columns:
+                    st.error("Study cases table missing 'ok' field.")
                 else:
-                    st.dataframe(sub[["case","ok","iters","message","path"] + [xcol,ycol]], use_container_width=True, hide_index=True)
-                    if st.button("Load this case artifact", use_container_width=True):
-                        path = str(sub.iloc[0]["path"])
+                    # Build pivot grid
+                    xs = sorted(df[xcol].dropna().unique().tolist())
+                    ys = sorted(df[ycol].dropna().unique().tolist())
+                    import numpy as np
+                    grid = np.full((len(ys), len(xs)), np.nan)
+                    for _, r in df.iterrows():
                         try:
-                            art = read_run_artifact(Path(path))
-                            st.session_state.selected_artifact = art
-                            st.session_state.selected_artifact_path = path
-                            st.success("Loaded case artifact into session.")
-                        except Exception as e:
-                            st.error(f"Could not load case artifact: {e}")
+                            xi = xs.index(r[xcol])
+                            yi = ys.index(r[ycol])
+                            grid[yi, xi] = 1.0 if bool(r["ok"]) else 0.0
+                        except Exception:
+                            continue
+
+                    st.subheader("Feasibility heatmap (1=feasible, 0=infeasible)")
+                    try:
+                        import matplotlib.pyplot as plt  # type: ignore
+                        fig, ax = plt.subplots()
+                        im = ax.imshow(grid, origin="lower", aspect="auto")
+                        ax.set_xticks(range(len(xs)))
+                        ax.set_yticks(range(len(ys)))
+                        ax.set_xticklabels([str(x) for x in xs], rotation=45, ha="right")
+                        ax.set_yticklabels([str(y) for y in ys])
+                        ax.set_xlabel(xcol)
+                        ax.set_ylabel(ycol)
+                        st.pyplot(fig, clear_figure=True)
+                    except Exception as e:
+                        st.error(f"Plot failed: {e}")
+
+                    st.subheader("Pick a case to open")
+                    selx = st.selectbox("X value", xs, index=0)
+                    sely = st.selectbox("Y value", ys, index=0)
+                    sub = df[(df[xcol]==selx) & (df[ycol]==sely)]
+                    if sub.empty:
+                        st.info("No case for that cell.")
+                    else:
+                        st.dataframe(sub[["case","ok","iters","message","path"] + [xcol,ycol]], use_container_width=True, hide_index=True)
+                        if st.button("Load this case artifact", use_container_width=True):
+                            path = str(sub.iloc[0]["path"])
+                            try:
+                                art = read_run_artifact(Path(path))
+                                st.session_state.selected_artifact = art
+                                st.session_state.selected_artifact_path = path
+                                st.success("Loaded case artifact into session.")
+                            except Exception as e:
+                                st.error(f"Could not load case artifact: {e}")
 
 
 # -----------------------------
@@ -20854,916 +21023,706 @@ def _download_json_button(label: str, data: dict, fname: str, key: str):
     except Exception as e:
         st.warning(f"Download not available: {e}")
 
-with tab_decision:
-    st.header("Decision Front Page Builder")
-    st.caption("UI-native reconstruction of the decision-grade front-page summary from a run artifact (no physics changes).")
+if _deck == "🎛️ Control Room":
+    with tab_decision:
+        st.header("Decision Front Page Builder")
+        st.caption("UI-native reconstruction of the decision-grade front-page summary from a run artifact (no physics changes).")
 
-    art = _get_active_artifact("decision")
-    if not art:
-        st.info("Load an artifact to build the decision summary.")
-    else:
-        d = _decision_summary_from_artifact(art)
-        c1, c2, c3 = st.columns([1,1,1])
-        with c1:
-            st.metric("Feasibility verdict", "FEASIBLE " if d["feasible"] else ("INFEASIBLE " if d["feasible"] is not None else "UNKNOWN"))
-        with c2:
-            st.metric("Top KPI: Q", f"{d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q', '-'))}")
-        with c3:
-            st.metric("Top KPI: Pfus (MW)", f"{d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW', '-'))}")
-
-        st.subheader("Dominant blockers")
-        if d["top_blockers"]:
-            st.dataframe(_safe_df(d["top_blockers"]), use_container_width=True, hide_index=True)
+        art = _get_active_artifact("decision")
+        if not art:
+            st.info("Load an artifact to build the decision summary.")
         else:
-            st.write("No blockers found in artifact.")
+            d = _decision_summary_from_artifact(art)
+            c1, c2, c3 = st.columns([1,1,1])
+            with c1:
+                st.metric("Feasibility verdict", "FEASIBLE " if d["feasible"] else ("INFEASIBLE " if d["feasible"] is not None else "UNKNOWN"))
+            with c2:
+                st.metric("Top KPI: Q", f"{d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q', '-'))}")
+            with c3:
+                st.metric("Top KPI: Pfus (MW)", f"{d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW', '-'))}")
 
-        with st.expander("Full decision inputs (provenance + schema versions)"):
-            prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
-            st.json({
-                "schema_version": art.get("schema_version"),
-                "repo_version": prov.get("repo_version"),
-                "git_commit": prov.get("git_commit"),
-                "python": prov.get("python"),
-                "platform": prov.get("platform"),
-                "created_unix": prov.get("created_unix"),
-            })
+            st.subheader("Dominant blockers")
+            if d["top_blockers"]:
+                st.dataframe(_safe_df(d["top_blockers"]), use_container_width=True, hide_index=True)
+            else:
+                st.write("No blockers found in artifact.")
 
-        _download_json_button("Download decision summary JSON", d, "decision_summary.json", "dl_decision_summary")
+            with st.expander("Full decision inputs (provenance + schema versions)"):
+                prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
+                st.json({
+                    "schema_version": art.get("schema_version"),
+                    "repo_version": prov.get("repo_version"),
+                    "git_commit": prov.get("git_commit"),
+                    "python": prov.get("python"),
+                    "platform": prov.get("platform"),
+                    "created_unix": prov.get("created_unix"),
+                })
+
+            _download_json_button("Download decision summary JSON", d, "decision_summary.json", "dl_decision_summary")
 
 
-with tab_nonfeas:
-    st.header("Guided Non-Feasibility Mode")
-    st.caption("Turn infeasible outcomes into a structured, auditable recovery workflow (UI-only; no physics changes).")
+if _deck == "🎛️ Control Room":
+    with tab_nonfeas:
+        st.header("Guided Non-Feasibility Mode")
+        st.caption("Turn infeasible outcomes into a structured, auditable recovery workflow (UI-only; no physics changes).")
 
-    art = _get_active_artifact("nonfeas")
-    if not art:
-        st.info("Load an artifact to guide a non-feasibility recovery path.")
-    else:
-        cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
-        kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-
-        # Determine hard feasibility
-        feasible_hard = None
-        if "feasible_hard" in kpis:
-            try:
-                feasible_hard = bool(kpis.get("feasible_hard"))
-            except Exception:
-                feasible_hard = None
-        if feasible_hard is None and cons:
-            try:
-                feasible_hard = all(
-                    bool(c.get("passed", True))
-                    for c in cons
-                    if str(c.get("severity", "hard")).lower() == "hard"
-                )
-            except Exception:
-                feasible_hard = None
-
-        if feasible_hard is True:
-            st.success("This run is hard-feasible. Guided non-feasibility mode is not needed.")
+        art = _get_active_artifact("nonfeas")
+        if not art:
+            st.info("Load an artifact to guide a non-feasibility recovery path.")
         else:
-            # Get or construct a non-feasibility certificate
-            cert = art.get("nonfeasibility_certificate") if isinstance(art.get("nonfeasibility_certificate"), dict) else None
-            if not cert:
-                hard_failed = [
-                    c for c in cons
-                    if str(c.get("severity", "hard")).lower() == "hard" and not bool(c.get("passed", True))
-                ]
+            cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
+            kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
 
-                def _mkey(c):
-                    try:
-                        return float(c.get("margin", 0.0))
-                    except Exception:
-                        return 0.0
+            # Determine hard feasibility
+            feasible_hard = None
+            if "feasible_hard" in kpis:
+                try:
+                    feasible_hard = bool(kpis.get("feasible_hard"))
+                except Exception:
+                    feasible_hard = None
+            if feasible_hard is None and cons:
+                try:
+                    feasible_hard = all(
+                        bool(c.get("passed", True))
+                        for c in cons
+                        if str(c.get("severity", "hard")).lower() == "hard"
+                    )
+                except Exception:
+                    feasible_hard = None
 
-                hard_failed.sort(key=_mkey)
-                cert = {
-                    "hard_feasible": False,
-                    "dominant_blockers": [{
-                        "name": c.get("name", ""),
-                        "group": c.get("group", ""),
-                        "value": c.get("value"),
-                        "limit": c.get("limit"),
-                        "sense": c.get("sense"),
-                        "margin": c.get("margin"),
-                        "meaning": c.get("meaning", ""),
-                        "best_knobs": c.get("best_knobs", []),
-                        "maturity": c.get("maturity"),
-                        "provenance": c.get("provenance"),
-                    } for c in hard_failed[:10]],
-                    "recommendation": "Move the listed best_knobs (and/or relax assumptions) until all hard constraints pass.",
-                }
+            if feasible_hard is True:
+                st.success("This run is hard-feasible. Guided non-feasibility mode is not needed.")
+            else:
+                # Get or construct a non-feasibility certificate
+                cert = art.get("nonfeasibility_certificate") if isinstance(art.get("nonfeasibility_certificate"), dict) else None
+                if not cert:
+                    hard_failed = [
+                        c for c in cons
+                        if str(c.get("severity", "hard")).lower() == "hard" and not bool(c.get("passed", True))
+                    ]
 
-            st.subheader("Non-Feasibility Certificate")
-            st.json(cert)
-
-            t1, t2, t3 = st.tabs(["1) Diagnose", "2) Minimal relaxations", "3) Create a scenario (deck)"])
-
-            with t1:
-                st.markdown("### Dominant hard blockers (ranked)")
-                blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
-                if blockers:
-                    bdf = _safe_df(blockers)
-                    pref = [c for c in ["group", "name", "margin", "value", "limit", "sense", "meaning", "best_knobs", "maturity"] if c in bdf.columns]
-                    st.dataframe(bdf[pref] if pref else bdf, use_container_width=True, hide_index=True)
-                else:
-                    st.warning("No dominant blockers found in certificate.")
-
-                # Solver hints (if present)
-                out = art.get("outputs", {}) if isinstance(art.get("outputs"), dict) else {}
-                solver = out.get("_solver") if isinstance(out.get("_solver"), dict) else art.get("solver")
-                if isinstance(solver, dict) and solver:
-                    st.markdown("### Solver hints (from artifact)")
-                    show = {k: solver.get(k) for k in ["status", "reason", "clamped", "clamped_on", "residuals", "ui_log"] if k in solver}
-                    st.json(show or solver)
-
-                st.markdown("### Action principle")
-                st.write(
-                    "Fix **hard** blockers first. Soft constraints are advisory unless your decision policy says otherwise. "
-                    "Use the knob suggestions as **directional guidance** (not optimization)."
-                )
-
-            with t2:
-                st.markdown("### Propose a nearest-feasible adjustment (within UI)")
-                base = _guess_point_inputs_from_artifact(art)
-                if base is None:
-                    base = st.session_state.get("last_point_inp")
-
-                if base is None:
-                    st.warning("Could not infer PointInputs from artifact. Run Point Designer once or ensure artifact includes inputs.")
-                else:
-                    st.caption("Choose a dominant blocker, then adjust one or more knobs and re-evaluate.")
-                    blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
-                    if blockers:
-                        labels = []
-                        for i, b in enumerate(blockers):
-                            nm = b.get("name", "") or f"blocker_{i}"
-                            mg = b.get("margin")
-                            labels.append(f"{i:02d} - {nm} (margin={mg})")
-                        bi = st.selectbox("Select blocker", options=list(range(len(blockers))), format_func=lambda i: labels[i], key="nf_blocker_sel")
-                        b = blockers[int(bi)]
-                        st.markdown("**Suggested knobs (directional):**")
-                        st.write(b.get("best_knobs", []) or ["(none provided)"])
-                        st.markdown("**Meaning:**")
-                        st.write(b.get("meaning", "(no meaning field)"))
-
-                    knob_fields = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Ti_keV", "Paux_MW", "Ti_over_Te"]
-                    colA, colB = st.columns([2, 1])
-                    with colA:
-                        sel_knobs = st.multiselect("Knobs to adjust", options=knob_fields, default=["Ip_MA"], key="nf_knobs")
-                    with colB:
-                        mode = st.selectbox("Adjustment mode", options=["percent", "absolute"], index=0, key="nf_adj_mode")
-
-                    deltas = {}
-                    for k in sel_knobs:
-                        v0 = float(getattr(base, k))
-                        if mode == "percent":
-                            d = st.slider(f"{k} Δ (%)", -50.0, 50.0, 5.0, step=0.5, key=f"nf_d_{k}")
-                            deltas[k] = v0 * (1.0 + d / 100.0)
-                        else:
-                            step = 0.1 if abs < 10 else 1.0
-                            d = st.number_input(f"{k} new value", value=v0, step=step, key=f"nf_abs_{k}")
-                            deltas[k] = float(d)
-
-                    fuel_mode = st.selectbox("fuel_mode", options=["DT", "DD"], index=0 if getattr(base, "fuel_mode", "DT") == "DT" else 1, key="nf_fuel_mode")
-
-                    run = st.button("Re-evaluate adjusted point", key="nf_run_eval", use_container_width=True)
-                    if run:
+                    def _mkey(c):
                         try:
-                            d = base.__dict__.copy()
-                            d.update({k: float(v) for k, v in deltas.items()})
-                            d["fuel_mode"] = str(fuel_mode)
-                            pi = PointInputs(**d)
+                            return float(c.get("margin", 0.0))
+                        except Exception:
+                            return 0.0
 
-                            out2 = hot_ion_point(pi, Paux_for_Q_MW=float(getattr(pi, "Paux_MW", 0.0)))
-                            cons2 = evaluate_constraints(out2)
-                            art2 = build_run_artifact(
-                                inputs=dict(pi.__dict__),
-                                outputs=dict(out2),
-                                constraints=cons2,
-                                meta={"mode": "guided_nonfeas"},
-                                baseline_inputs=dict(base.__dict__),
-                            )
-                            st.session_state["nf_last_artifact"] = art2
-                            k2 = art2.get("kpis", {}) if isinstance(art2.get("kpis"), dict) else {}
-                            st.success(f"Re-evaluated. feasible_hard={k2.get('feasible_hard')}")
-
-                            led = art2.get("constraint_ledger", {}) if isinstance(art2.get("constraint_ledger"), dict) else {}
-                            tb = led.get("top_blockers") if isinstance(led.get("top_blockers"), list) else []
-                            if tb:
-                                st.subheader("New top blockers")
-                                st.dataframe(_safe_df(tb), use_container_width=True, hide_index=True)
-
-                            with st.expander("New run artifact (raw)"):
-                                st.json(art2)
-
-                            _download_json_button("Download adjusted run artifact", art2, "shams_run_artifact_adjusted.json", "dl_nf_adjusted_artifact")
-                        except Exception as e:
-                            st.error(f"Re-evaluation failed: {type(e).__name__}: {e}")
-
-            with t3:
-                st.markdown("### Create a scenario deck for reproducible follow-up")
-                base = _guess_point_inputs_from_artifact(art) or st.session_state.get("last_point_inp")
-                last = st.session_state.get("nf_last_artifact")
-                if not isinstance(last, dict):
-                    st.info("First run an adjustment in 'Minimal relaxations' to generate a proposed follow-up scenario.")
-                else:
-                    try:
-                        import yaml  # type: ignore
-                    except Exception:
-                        yaml = None  # type: ignore
-
-                    new_inputs = last.get("inputs") if isinstance(last.get("inputs"), dict) else {}
-                    base_inputs = dict(base.__dict__) if base is not None else (art.get("inputs") if isinstance(art.get("inputs"), dict) else {})
-
-                    delta = {}
-                    for k, v in new_inputs.items():
-                        if k in base_inputs and base_inputs.get(k) != v:
-                            delta[k] = {"from": base_inputs.get(k), "to": v}
-
-                    st.subheader("Scenario delta (inputs)")
-                    st.json(delta if delta else {"note": "No input delta detected."})
-
-                    case_deck = {
-                        "schema_version": "case_deck.v1",
-                        "name": "guided_nonfeas_followup",
-                        "base": {},
-                        "point": new_inputs,
-                        "notes": {
-                            "generated_by": "Guided Non-Feasibility Mode",
-                            "source_artifact_schema": art.get("schema_version"),
-                        },
+                    hard_failed.sort(key=_mkey)
+                    cert = {
+                        "hard_feasible": False,
+                        "dominant_blockers": [{
+                            "name": c.get("name", ""),
+                            "group": c.get("group", ""),
+                            "value": c.get("value"),
+                            "limit": c.get("limit"),
+                            "sense": c.get("sense"),
+                            "margin": c.get("margin"),
+                            "meaning": c.get("meaning", ""),
+                            "best_knobs": c.get("best_knobs", []),
+                            "maturity": c.get("maturity"),
+                            "provenance": c.get("provenance"),
+                        } for c in hard_failed[:10]],
+                        "recommendation": "Move the listed best_knobs (and/or relax assumptions) until all hard constraints pass.",
                     }
 
-                    deck_txt = yaml.safe_dump(case_deck, sort_keys=False) if yaml is not None else json.dumps(case_deck, indent=2)
+                st.subheader("Non-Feasibility Certificate")
+                st.json(cert)
 
-                    st.markdown("### Case deck")
-                    st.code(deck_txt, language="yaml" if yaml is not None else "json")
+                t1, t2, t3 = st.tabs(["1) Diagnose", "2) Minimal relaxations", "3) Create a scenario (deck)"])
 
-                    st.download_button(
-                        "Download case_deck.yaml",
-                        data=deck_txt.encode("utf-8"),
-                        file_name="case_deck.yaml",
-                        mime="text/yaml" if yaml is not None else "application/json",
-                        use_container_width=True,
+                with t1:
+                    st.markdown("### Dominant hard blockers (ranked)")
+                    blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
+                    if blockers:
+                        bdf = _safe_df(blockers)
+                        pref = [c for c in ["group", "name", "margin", "value", "limit", "sense", "meaning", "best_knobs", "maturity"] if c in bdf.columns]
+                        st.dataframe(bdf[pref] if pref else bdf, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("No dominant blockers found in certificate.")
+
+                    # Solver hints (if present)
+                    out = art.get("outputs", {}) if isinstance(art.get("outputs"), dict) else {}
+                    solver = out.get("_solver") if isinstance(out.get("_solver"), dict) else art.get("solver")
+                    if isinstance(solver, dict) and solver:
+                        st.markdown("### Solver hints (from artifact)")
+                        show = {k: solver.get(k) for k in ["status", "reason", "clamped", "clamped_on", "residuals", "ui_log"] if k in solver}
+                        st.json(show or solver)
+
+                    st.markdown("### Action principle")
+                    st.write(
+                        "Fix **hard** blockers first. Soft constraints are advisory unless your decision policy says otherwise. "
+                        "Use the knob suggestions as **directional guidance** (not optimization)."
                     )
-                    st.download_button(
-                        "Download scenario_delta.json",
-                        data=json.dumps(delta, indent=2).encode("utf-8"),
-                        file_name="scenario_delta.json",
-                        mime="application/json",
-                        use_container_width=True,
-                    )
 
+                with t2:
+                    st.markdown("### Propose a nearest-feasible adjustment (within UI)")
+                    base = _guess_point_inputs_from_artifact(art)
+                    if base is None:
+                        base = st.session_state.get("last_point_inp")
 
-with tab_cprov:
-    st.header("Constraint Provenance Drill-Down")
-    st.caption("Click into constraints to see definition fields, fingerprints, and maturity/provenance metadata embedded in the artifact.")
+                    if base is None:
+                        st.warning("Could not infer PointInputs from artifact. Run Point Designer once or ensure artifact includes inputs.")
+                    else:
+                        st.caption("Choose a dominant blocker, then adjust one or more knobs and re-evaluate.")
+                        blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
+                        if blockers:
+                            labels = []
+                            for i, b in enumerate(blockers):
+                                nm = b.get("name", "") or f"blocker_{i}"
+                                mg = b.get("margin")
+                                labels.append(f"{i:02d} - {nm} (margin={mg})")
+                            bi = st.selectbox("Select blocker", options=list(range(len(blockers))), format_func=lambda i: labels[i], key="nf_blocker_sel")
+                            b = blockers[int(bi)]
+                            st.markdown("**Suggested knobs (directional):**")
+                            st.write(b.get("best_knobs", []) or ["(none provided)"])
+                            st.markdown("**Meaning:**")
+                            st.write(b.get("meaning", "(no meaning field)"))
 
-    art = _get_active_artifact("cprov")
-    if not art:
-        st.info("Load an artifact to inspect constraint provenance.")
-    else:
-        cons = art.get("constraints", [])
-        if not isinstance(cons, list) or not cons:
-            st.warning("No 'constraints' list found in artifact.")
-        else:
-            df = _safe_df(cons)
-            pref_cols = [c for c in ["group","name","failed","soft_failed","severity","value","limit","margin","margin_frac","units","fingerprint","provenance_fingerprint","maturity"] if c in df.columns]
-            st.dataframe(df[pref_cols] if pref_cols else df, use_container_width=True, hide_index=True)
+                        knob_fields = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Ti_keV", "Paux_MW", "Ti_over_Te"]
+                        colA, colB = st.columns([2, 1])
+                        with colA:
+                            sel_knobs = st.multiselect("Knobs to adjust", options=knob_fields, default=["Ip_MA"], key="nf_knobs")
+                        with colB:
+                            mode = st.selectbox("Adjustment mode", options=["percent", "absolute"], index=0, key="nf_adj_mode")
 
-            names = []
-            for i,c in enumerate(cons):
-                n = c.get("name") or c.get("id") or f"constraint_{i}"
-                names.append(f"{i:03d} - {n}")
-            sel = st.selectbox("Select constraint", options=list(range(len(cons))), format_func=lambda i: names[i], key="cprov_sel")
-            c = cons[int(sel)]
-            st.subheader("Selected constraint (raw)")
-            st.json(c)
-            if isinstance(c, dict):
-                st.markdown("**Fingerprint fields**")
-                st.code("\n".join([f"{k}: {c.get(k)}" for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
+                        deltas = {}
+                        for k in sel_knobs:
+                            v0 = float(getattr(base, k))
+                            if mode == "percent":
+                                d = st.slider(f"{k} Δ (%)", -50.0, 50.0, 5.0, step=0.5, key=f"nf_d_{k}")
+                                deltas[k] = v0 * (1.0 + d / 100.0)
+                            else:
+                                step = 0.1 if abs < 10 else 1.0
+                                d = st.number_input(f"{k} new value", value=v0, step=step, key=f"nf_abs_{k}")
+                                deltas[k] = float(d)
 
-with tab_knobs:
-    st.header("Knob Trade-Space Explorer")
-    st.caption("Explore a 2-knob trade-space by evaluating a small grid around the active point (no optimization; feasibility-first).")
+                        fuel_mode = st.selectbox("fuel_mode", options=["DT", "DD"], index=0 if getattr(base, "fuel_mode", "DT") == "DT" else 1, key="nf_fuel_mode")
 
-    art = _get_active_artifact("knobs")
-    base = _guess_point_inputs_from_artifact(art) if art else None
-    if base is None:
-        base = st.session_state.get("last_point_inp")
+                        run = st.button("Re-evaluate adjusted point", key="nf_run_eval", use_container_width=True)
+                        if run:
+                            try:
+                                d = base.__dict__.copy()
+                                d.update({k: float(v) for k, v in deltas.items()})
+                                d["fuel_mode"] = str(fuel_mode)
+                                pi = PointInputs(**d)
 
-    if base is None:
-        st.info("Load an artifact (or run Point Designer) to initialize a base point.")
-    else:
-        st.markdown("**Base point (editable)**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            R0_m = st.number_input("R0 (m)", value=float(base.R0_m), step=0.01, key="knob_R0")
-            a_m = st.number_input("a (m)", value=float(base.a_m), step=0.01, key="knob_a")
-            kappa = st.number_input("kappa", value=float(base.kappa), step=0.05, key="knob_kappa")
-        with col2:
-            Bt_T = st.number_input("Bt (T)", value=float(base.Bt_T), step=0.1, key="knob_Bt")
-            Ip_MA = st.number_input("Ip (MA)", value=float(base.Ip_MA), step=0.1, key="knob_Ip")
-            fG = st.number_input("fG", value=float(base.fG), step=0.01, key="knob_fG")
-        with col3:
-            Ti_keV = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="knob_Ti")
-            Paux_MW = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="knob_Paux")
-            Ti_over_Te = st.number_input("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1, key="knob_TiTe")
+                                out2 = hot_ion_point(pi, Paux_for_Q_MW=float(getattr(pi, "Paux_MW", 0.0)))
+                                cons2 = evaluate_constraints(out2)
+                                art2 = build_run_artifact(
+                                    inputs=dict(pi.__dict__),
+                                    outputs=dict(out2),
+                                    constraints=cons2,
+                                    meta={"mode": "guided_nonfeas"},
+                                    baseline_inputs=dict(base.__dict__),
+                                )
+                                st.session_state["nf_last_artifact"] = art2
+                                k2 = art2.get("kpis", {}) if isinstance(art2.get("kpis"), dict) else {}
+                                st.success(f"Re-evaluated. feasible_hard={k2.get('feasible_hard')}")
 
-        fuel_mode = st.selectbox("fuel_mode", options=["DT","DD"], index=0 if getattr(base, "fuel_mode", "DT")=="DT" else 1, key="knob_fuel")
+                                led = art2.get("constraint_ledger", {}) if isinstance(art2.get("constraint_ledger"), dict) else {}
+                                tb = led.get("top_blockers") if isinstance(led.get("top_blockers"), list) else []
+                                if tb:
+                                    st.subheader("New top blockers")
+                                    st.dataframe(_safe_df(tb), use_container_width=True, hide_index=True)
 
-        knobs = ["Ip_MA","fG","Bt_T","R0_m","Paux_MW","Ti_keV"]
-        kx = st.selectbox("Knob X", knobs, index=0, key="knob_kx")
-        ky = st.selectbox("Knob Y", knobs, index=1, key="knob_ky")
+                                with st.expander("New run artifact (raw)"):
+                                    st.json(art2)
 
-        def _getv(pi: PointInputs, k: str) -> float:
-            return float(getattr(pi, k))
-        def _setv(pi: PointInputs, k: str, v: float) -> PointInputs:
-            d = pi.__dict__.copy()
-            d[k]=float(v)
-            return PointInputs(**d)
+                                _download_json_button("Download adjusted run artifact", art2, "shams_run_artifact_adjusted.json", "dl_nf_adjusted_artifact")
+                            except Exception as e:
+                                st.error(f"Re-evaluation failed: {type(e).__name__}: {e}")
 
-        x0=_getv(base,kx); y0=_getv(base,ky)
-        colA,colB=st.columns(2)
-        with colA:
-            x_span = st.number_input("X span (+/-)", value=0.1*abs(x0) if abs(x0)>0 else 0.1, step=0.01, key="knob_xspan")
-        with colB:
-            y_span = st.number_input("Y span (+/-)", value=0.1*abs(y0) if abs(y0)>0 else 0.1, step=0.01, key="knob_yspan")
-        nx = st.slider("X grid points", 3, 15, 9, key="knob_nx")
-        ny = st.slider("Y grid points", 3, 15, 9, key="knob_ny")
-        run = st.button("Evaluate grid", key="knob_run", use_container_width=True)
-
-    if run:
-            import numpy as np
-            xs = np.linspace(x0-x_span, x0+x_span, int(nx))
-            ys = np.linspace(y0-y_span, y0+y_span, int(ny))
-            rows=[]
-            with st.spinner("Evaluating grid..."):
-                for xv in xs:
-                    for yv in ys:
-                        pi = PointInputs(R0_m=float(R0_m), a_m=float(a_m), kappa=float(kappa),
-                                         Bt_T=float(Bt_T), Ip_MA=float(Ip_MA), Ti_keV=float(Ti_keV),
-                                         fG=float(fG), Paux_MW=float(Paux_MW), Ti_over_Te=float(Ti_over_Te),
-                                         fuel_mode=str(fuel_mode))
-                        pi = _setv(pi, kx, float(xv))
-                        pi = _setv(pi, ky, float(yv))
+                with t3:
+                    st.markdown("### Create a scenario deck for reproducible follow-up")
+                    base = _guess_point_inputs_from_artifact(art) or st.session_state.get("last_point_inp")
+                    last = st.session_state.get("nf_last_artifact")
+                    if not isinstance(last, dict):
+                        st.info("First run an adjustment in 'Minimal relaxations' to generate a proposed follow-up scenario.")
+                    else:
                         try:
-                            out = hot_ion_point(pi)
-                            cons = evaluate_constraints(out, point_inputs=pi)
-                            ok = all((not bool(c.get("failed"))) for c in cons)
-                            top=None
-                            if not ok:
-                                failed=[c for c in cons if c.get("failed")]
-                                if failed:
-                                    top=failed[0].get("name")
-                            rows.append({kx: float(xv), ky: float(yv), "feasible": bool(ok), "top_blocker": top,
-                                         "Q": float(out.get("Q_DT_eqv", out.get("Q", float('nan')))),
-                                         "Pfus_MW": float(out.get("P_fus_MW", out.get("Pfus_MW", float('nan'))))})
+                            import yaml  # type: ignore
                         except Exception:
-                            rows.append({kx: float(xv), ky: float(yv), "feasible": False, "top_blocker": "eval_error", "Q": float('nan'), "Pfus_MW": float('nan')})
-            df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
-            st.subheader("Grid results (table)")
-            st.dataframe(df, use_container_width=True, hide_index=True)
+                            yaml = None  # type: ignore
 
-            try:
-                piv = df.pivot(index=ky, columns=kx, values="feasible")
-                st.subheader("Feasibility heatmap (True=1 / False=0)")
-                st.dataframe(piv.astype(int), use_container_width=True)
-            except Exception as e:
-                st.warning(f"Could not pivot heatmap: {e}")
+                        new_inputs = last.get("inputs") if isinstance(last.get("inputs"), dict) else {}
+                        base_inputs = dict(base.__dict__) if base is not None else (art.get("inputs") if isinstance(art.get("inputs"), dict) else {})
 
-with tab_regress:
-    st.header("What broke? Regression Viewer")
-    st.caption("Compare two artifacts: constraints, ledgers, model sets, and key KPIs. This is UI-only; it doesn't modify artifacts.")
+                        delta = {}
+                        for k, v in new_inputs.items():
+                            if k in base_inputs and base_inputs.get(k) != v:
+                                delta[k] = {"from": base_inputs.get(k), "to": v}
 
-    c1, c2 = st.columns(2)
-    with c1:
-        upA = st.file_uploader("Artifact A (json)", type=["json"], key="regA")
-        artA = _load_json_from_upload(upA)
-    with c2:
-        upB = st.file_uploader("Artifact B (json)", type=["json"], key="regB")
-        artB = _load_json_from_upload(upB)
+                        st.subheader("Scenario delta (inputs)")
+                        st.json(delta if delta else {"note": "No input delta detected."})
 
-    if artA and artB:
-        def _kpi_df(art):
-            k = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-            df = pd.DataFrame([{"kpi": kk, "value": vv} for kk,vv in k.items()])
-            if df.empty:
-                return pd.DataFrame(columns=["kpi","value"])
-            return df.sort_values("kpi")
-        st.subheader("KPI diff")
-        dfA=_kpi_df(artA).set_index("kpi")
-        dfB=_kpi_df(artB).set_index("kpi")
-        join=dfA.join(dfB, lsuffix="_A", rsuffix="_B", how="outer")
-        join["delta"]=pd.to_numeric(join["value_B"], errors="coerce")-pd.to_numeric(join["value_A"], errors="coerce")
-        st.dataframe(join.reset_index().sort_values("kpi"), use_container_width=True, hide_index=True)
+                        case_deck = {
+                            "schema_version": "case_deck.v1",
+                            "name": "guided_nonfeas_followup",
+                            "base": {},
+                            "point": new_inputs,
+                            "notes": {
+                                "generated_by": "Guided Non-Feasibility Mode",
+                                "source_artifact_schema": art.get("schema_version"),
+                            },
+                        }
 
-        st.subheader("New / worsened constraint failures")
-        consA=artA.get("constraints", []) if isinstance(artA.get("constraints"), list) else []
-        consB=artB.get("constraints", []) if isinstance(artB.get("constraints"), list) else []
-        def _map(cons):
-            m={}
-            for c in cons:
-                name=c.get("name") or c.get("id")
-                if name:
-                    m[name]=c
-            return m
-        mA=_map(consA); mB=_map(consB)
-        names=sorted(set(mA.keys())|set(mB.keys()))
-        rows=[]
-        for n in names:
-            a=mA.get(n,{}); b=mB.get(n,{})
-            fa=bool(a.get("failed")); fb=bool(b.get("failed"))
-            ma=a.get("margin"); mb=b.get("margin")
-            rows.append({"name": n, "failed_A": fa, "failed_B": fb, "margin_A": ma, "margin_B": mb,
-                         "margin_delta": (mb-ma) if isinstance(ma,(int,float)) and isinstance(mb,(int,float)) else None})
-        df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
-        df_bad=df[(df["failed_B"]==True) & ((df["failed_A"]==False) | (df["failed_A"].isna()))]
-        st.markdown("**New failures in B**")
-        st.dataframe(df_bad.sort_values("name"), use_container_width=True, hide_index=True)
-        st.markdown("**Largest margin regressions (B-A)**")
-        df_reg=df.dropna(subset=["margin_delta"]).sort_values("margin_delta").head(20)
-        st.dataframe(df_reg, use_container_width=True, hide_index=True)
+                        deck_txt = yaml.safe_dump(case_deck, sort_keys=False) if yaml is not None else json.dumps(case_deck, indent=2)
 
-        st.subheader("Model set comparison")
-        msA=artA.get("model_set"); msB=artB.get("model_set")
-        st.json({"model_set_A": msA, "model_set_B": msB})
+                        st.markdown("### Case deck")
+                        st.code(deck_txt, language="yaml" if yaml is not None else "json")
 
-with tab_study_dash:
-    st.header("Study Dashboard")
-    st.caption("Manager-grade summary for study outputs (feasible fraction, dominant blockers, robustness).")
-
-    up = st.file_uploader("Upload study index.json (study_index.v1)", type=["json"], key="sd_up")
-    idx_data = _load_json_from_upload(up)
-    if not idx_data:
-        idx_path = st.session_state.get("selected_study_path")
-        if idx_path and Path(idx_path).exists():
-            try:
-                idx_data = json.loads(Path(idx_path).read_text(encoding="utf-8"))
-                st.info("Loaded study index from session.")
-            except Exception:
-                idx_data = None
-
-    if idx_data:
-        st.subheader("Study headline")
-        st.json({k: idx_data.get(k) for k in ["schema_version","n_cases","elapsed_s","created_unix"] if k in idx_data})
-        cases = idx_data.get("cases", [])
-        if isinstance(cases, list) and cases:
-            df = pd.DataFrame(cases)
-            if "ok" in df.columns:
-                ok_frac = float(df["ok"].mean())
-                st.metric("Feasible fraction", f"{ok_frac:.3f}")
-            for col in ["dominant_blocker","top_blocker","blocker"]:
-                if col in df.columns:
-                    st.subheader("Dominant blocker distribution")
-                    hist = df[col].fillna("(none)").value_counts().reset_index()
-                    hist.columns=[col,"count"]
-                    st.dataframe(hist, use_container_width=True, hide_index=True)
-                    break
-            st.subheader("Cases table")
-            st.dataframe(df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No 'cases' list found in study index. (Older study output?)")
-
-with tab_maturity:
-    st.header("Engineering Maturity Heatmap")
-    st.caption("Visualize model maturity / validity info embedded in the artifact (model_set + model_registry).")
-
-    art = _get_active_artifact("maturity")
-    if not art:
-        st.info("Load an artifact to view maturity info.")
-    else:
-        reg = art.get("model_registry", {})
-        ms = art.get("model_set", {})
-        rows=[]
-        if isinstance(reg, dict):
-            entries = reg.get("entries") if isinstance(reg.get("entries"), list) else None
-            if entries is None:
-                if all(isinstance(v, dict) for v in reg.values()):
-                    entries=[{"model_id": k, **v} for k,v in reg.items()]
-            if entries:
-                selected = set()
-                if isinstance(ms, dict):
-                    sel = ms.get("selected")
-                    if isinstance(sel, dict):
-                        selected = set(sel.values()) | set(sel.keys())
-                    elif isinstance(sel, list):
-                        selected = set(sel)
-                for e in entries:
-                    mid = e.get("model_id", e.get("id", ""))
-                    rows.append({
-                        "subsystem": e.get("subsystem", e.get("domain", "")),
-                        "model_id": mid,
-                        "maturity": e.get("maturity", e.get("maturity_tag", "")),
-                        "validity": e.get("validity", e.get("validity_range", "")),
-                        "selected": (mid in selected)
-                    })
-        if rows:
-            df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
-            st.dataframe(df.sort_values(["subsystem","model_id"]), use_container_width=True, hide_index=True)
-            st.markdown("Tip: treat this as a policy gate (e.g., block decisions if maturity < required).")
-        else:
-            st.info("No model_registry entries found in artifact.")
-
-
-with tab_maintenance:
-    st.header("Maintenance & Availability Authority")
-    st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
-
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first (sets last_point_out).")
-    else:
-        enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
-        if not enabled:
-            st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in 🧭 Point Designer → Engineering & plant feasibility → 🗓️ Maintenance scheduling authority (v368.0).")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
-        c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
-        c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
-        c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.3g}"))
-
-        with st.expander("What this authority does", expanded=False):
-            st.markdown(
-                "- Converts replacement cadences (FW/blanket from v367, plus HCD and tritium plant) and replacement durations into a bundled outage fraction.\n"
-                "- Combines with planned/forced baselines (and optional trips proxy) to form total outage and availability.\n"
-                "- Emits an explicit event table (maintenance_events_v368) for audit and reviewer use."
-            )
-        with st.expander("What this authority does not do", expanded=False):
-            st.markdown(
-                "- Does not run a time-domain availability/RAMI simulation.\n"
-                "- Does not optimize schedules or negotiate constraints.\n"
-                "- Does not modify plasma truth or materials lifetime truth; it only post-processes into a schedule proxy."
-            )
-
-        st.subheader("Outage decomposition")
-        rows = [
-            {"term": "planned", "outage_frac": out.get("planned_outage_frac_v368")},
-            {"term": "forced", "outage_frac": out.get("forced_outage_frac_v368")},
-            {"term": "replacement", "outage_frac": out.get("replacement_outage_frac_v368")},
-            {"term": "total", "outage_frac": out.get("outage_total_frac_v368")},
-        ]
-        try:
-            import pandas as _pd
-            df = _pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-        except Exception:
-            st.write(rows)
-
-        ev = out.get("maintenance_events_v368")
-        with st.expander("Maintenance event table (v368)", expanded=False):
-            if isinstance(ev, list) and ev:
-                try:
-                    import pandas as _pd
-                    st.dataframe(_pd.DataFrame(ev), use_container_width=True, hide_index=True)
-                except Exception:
-                    st.json(ev)
-            else:
-                st.info("No maintenance_events_v368 found (enable v368 and re-run).")
-
-        with st.expander("Contract fingerprint", expanded=False):
-            st.code(str(out.get("maintenance_contract_sha256", "")))
-
-
-with tab_profile_auth:
-    st.header("Profile Authority")
-    st.caption("1.5D algebraic profile diagnostics (non-iterative, conservative).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first (sets last_point_out).")
-    else:
-        rows=[
-            {"metric":"p_peaking", "value": out.get("profile_p_peaking")},
-            {"metric":"j_peaking", "value": out.get("profile_j_peaking")},
-            {"metric":"li_proxy", "value": out.get("profile_li_proxy")},
-            {"metric":"qmin_proxy", "value": out.get("profile_qmin_proxy")},
-            {"metric":"f_bootstrap_proxy", "value": out.get("profile_f_bootstrap_proxy")},
-            {"metric":"tag", "value": out.get("profile_assumption_tag")},
-        ]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-        with st.expander("Validity flags", expanded=False):
-            st.json(out.get("profile_validity", {}))
-
-with tab_impurity:
-    st.header("Impurity & Radiation")
-    st.caption("v320 authority: impurity radiation partitions (core/edge/SOL/div) + detachment inversion (q_div target → required SOL+div radiation → implied f_z).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        rows=[
-            {"metric":"impurity_contract_species", "value": out.get("impurity_contract_species")},
-            {"metric":"impurity_contract_f_z", "value": out.get("impurity_contract_f_z")},
-            {"metric":"impurity_prad_total_MW", "value": out.get("impurity_prad_total_MW")},
-            {"metric":"impurity_prad_core_MW", "value": out.get("impurity_prad_core_MW")},
-            {"metric":"impurity_prad_edge_MW", "value": out.get("impurity_prad_edge_MW")},
-            {"metric":"impurity_prad_sol_MW", "value": out.get("impurity_prad_sol_MW")},
-            {"metric":"impurity_prad_div_MW", "value": out.get("impurity_prad_div_MW")},
-            {"metric":"impurity_zeff_proxy", "value": out.get("impurity_zeff_proxy")},
-            {"metric":"impurity_fuel_ion_fraction", "value": out.get("impurity_fuel_ion_fraction")},
-            {"metric":"detachment_f_sol_div_required", "value": out.get("detachment_f_sol_div_required")},
-            {"metric":"detachment_prad_sol_div_required_MW", "value": out.get("detachment_prad_sol_div_required_MW")},
-            {"metric":"detachment_f_z_required", "value": out.get("detachment_f_z_required")},
-        ]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-        with st.expander("Validity flags", expanded=False):
-            st.json(out.get("impurity_validity", {}))
-
-with tab_disruption:
-    st.header("Disruption Risk")
-    st.caption("Conservative screening tier: LOW/MED/HIGH (diagnostic; not predictive).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        st.metric("Tier", str(out.get("disruption_risk_tier", "UNKNOWN")))
-        cols=st.columns(3)
-        with cols[0]:
-            st.metric("Risk index", f"{float(out.get('disruption_risk_index', float('nan'))):.3f}" if out.get('disruption_risk_index')==out.get('disruption_risk_index') else "nan")
-        with cols[1]:
-            st.metric("Dominant driver", str(out.get("disruption_dominant_driver", "unknown")))
-        with cols[2]:
-            st.metric("fG", f"{float(getattr(st.session_state.get('last_point_inp', None),'fG', float('nan'))):.3f}" if st.session_state.get('last_point_inp') is not None else "nan")
-        with st.expander("Components", expanded=False):
-            st.json(out.get("disruption_risk_components", {}))
-
-with tab_stability:
-    st.header("Stability Risk")
-    st.caption("Conservative screening tier: LOW/MED/HIGH for vertical stability + RWM/control budgets (diagnostic; not predictive).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        st.metric("Tier", str(out.get("stability_risk_tier", "UNKNOWN")))
-        cols = st.columns(4)
-        with cols[0]:
-            st.metric(
-                "Risk index",
-                f"{float(out.get('stability_risk_index', float('nan'))):.3f}"
-                if out.get("stability_risk_index") == out.get("stability_risk_index")
-                else "nan",
-            )
-        with cols[1]:
-            st.metric("Dominant driver", str(out.get("stability_dominant_driver", "unknown")))
-        with cols[2]:
-            st.metric(
-                "vs_margin",
-                f"{float(out.get('vs_margin', float('nan'))):.3f}"
-                if out.get("vs_margin") == out.get("vs_margin")
-                else "nan",
-            )
-        with cols[3]:
-            st.metric("RWM ok", "yes" if bool(out.get("rwm_control_ok", True)) else "no")
-
-        st.divider()
-        oc = st.columns(2)
-        with oc[0]:
-            st.metric("Operational tier", str(out.get("operational_risk_tier", "UNKNOWN")))
-        with oc[1]:
-            st.metric("Operational driver", str(out.get("operational_dominant_driver", "")) or "-")
-
-        with st.expander("Components", expanded=False):
-            st.json(out.get("stability_risk_components", {}))
-        with st.expander("Control contract margins", expanded=False):
-            st.json(out.get("control_contract_margins", {}))
-
-with tab_cert_search:
-    st.header("Certified Search")
-    st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
-
-    from dataclasses import replace
-    from solvers.budgeted_search import SearchVar
-    from solvers.certified_search_orchestrator import OrchestratorSpec, SearchStage, run_orchestrated_certified_search
-
-    base = st.session_state.get("last_point_inp")
-    if base is None:
-        st.info("Run a point in Point Designer first so a base point exists.")
-    else:
-        st.subheader("Knobs")
-        knob_options = [
-            ("Bt_T", 2.0, 25.0),
-            ("Ip_MA", 1.0, 25.0),
-            ("Paux_MW", 0.0, 200.0),
-            ("Ti_keV", 1.0, 40.0),
-            ("fG", 0.2, 1.2),
-            ("kappa", 1.0, 2.6),
-            ("a_m", 0.2, 3.0),
-            ("R0_m", 0.8, 12.0),
-        ]
-        cols = st.columns(2)
-        with cols[0]:
-            chosen = st.multiselect("Select up to 4 knobs", [k[0] for k in knob_options], default=["Bt_T","Ip_MA"], max_selections=4)
-        with cols[1]:
-            objective = st.selectbox("Score objective (PASS-only)", ["Q_DT_eqv","P_fus_MW","P_net_MW"], index=0)
-
-        vars_=[]
-        for name,lo,hi in knob_options:
-            if name in chosen:
-                c1,c2=st.columns(2)
-                with c1:
-                    lo_v = st.number_input(f"{name} lo", value=float(getattr(base,name)), step=0.1, key=f"cs_lo_{name}")
-                with c2:
-                    hi_v = st.number_input(f"{name} hi", value=float(getattr(base,name)), step=0.1, key=f"cs_hi_{name}")
-                if hi_v <= lo_v:
-                    hi_v = lo_v + 1e-6
-                vars_.append(SearchVar(name=name, lo=float(lo_v), hi=float(hi_v)))
-
-        c1,c2,c3,c4=st.columns(4)
-        with c1:
-            budget = int(st.number_input("Budget", value=96, min_value=8, max_value=2048, step=8, key="cs_budget"))
-        with c2:
-            seed = int(st.number_input("Seed", value=0, min_value=0, max_value=10_000, step=1, key="cs_seed"))
-        with c3:
-            method = st.selectbox("Method", ["halton","lhs","grid"], index=0, key="cs_method")
-        with c4:
-            two_stage = bool(st.checkbox("Two-stage refine", value=True, key="cs_two_stage"))
-
-        stage2_budget_frac = float(st.slider("Stage-2 budget fraction", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_frac")) if two_stage else 0.0
-        stage2_shrink = float(st.slider("Stage-2 local shrink", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_shrink")) if two_stage else 0.0
-        stage2_method = st.selectbox("Stage-2 method", ["grid","halton","lhs"], index=0, key="cs_stage2_method") if two_stage else "grid"
-
-        st.markdown("---")
-        insert_surr = bool(st.checkbox("Insert surrogate stage (feasible-first, non-authoritative)", value=False, key="cs_insert_surr"))
-        surr_frac = float(
-            st.slider(
-                "Surrogate budget fraction",
-                min_value=0.05,
-                max_value=0.60,
-                value=0.20,
-                step=0.05,
-                key="cs_surr_frac",
-                disabled=(not insert_surr),
-            )
-        )
-        s1, s2, s3 = st.columns(3)
-        with s1:
-            surr_pool_mult = int(st.number_input("Surrogate pool multiplier", value=50, min_value=4, max_value=200, step=1, key="cs_surr_pool", disabled=(not insert_surr)))
-        with s2:
-            surr_kappa = float(st.slider("Surrogate kappa", min_value=0.0, max_value=2.0, value=0.5, step=0.1, key="cs_surr_kappa", disabled=(not insert_surr)))
-        with s3:
-            surr_ridge = float(st.number_input("Surrogate ridge alpha", value=1e-3, min_value=1e-6, max_value=1.0, format="%.6f", key="cs_surr_ridge", disabled=(not insert_surr)))
-
-        def _builder(b, overrides):
-            return replace(b, **{k: float(v) for k,v in overrides.items()})
-
-        def _verifier(inp_obj):
-            out = hot_ion_point(inp_obj)
-            cons = evaluate_constraints(out, point_inputs=inp_obj)
-            try:
-                from constraints.bookkeeping import summarize as _summarize_constraints
-                _cs = _summarize_constraints(cons)
-                _min_margin_frac = float(_cs.worst_hard_margin_frac) if _cs.worst_hard_margin_frac is not None else float("nan")
-                _worst_hard = str(_cs.worst_hard or "")
-            except Exception:
-                _min_margin_frac = float("nan")
-                _worst_hard = ""
-            ok = all((not bool(c.get("failed"))) for c in cons)
-            score = float(out.get(objective, 0.0)) if ok else float("-inf")
-
-            evidence={
-                "objective": objective,
-                "objective_value": float(out.get(objective, float("nan"))),
-                "min_margin_frac": _min_margin_frac,
-                "worst_hard": _worst_hard,
-                "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
-                "n_failed": int(sum(1 for c in cons if c.get("failed"))),
-                "top_blocker": (next((c.get("name") for c in cons if c.get("failed")), None)),
-            }
-            return ("PASS" if ok else "FAIL"), score, evidence
-
-        if st.button("Run certified search", use_container_width=True, key="run_cert_search"):
-            if not vars_:
-                st.warning("Select at least one knob.")
-            else:
-                b1 = int(max(1, round(float(budget) * (1.0 - float(stage2_budget_frac)))))
-                b2 = int(max(0, round(float(budget) * float(stage2_budget_frac))))
-                bs = int(max(0, round(float(budget) * float(surr_frac)))) if insert_surr else 0
-                # cap budgets deterministically
-                b2 = int(min(int(b2), int(max(0, budget - 1))))
-                bs = int(min(int(bs), int(max(0, budget - 1 - b2))))
-                b1 = int(max(1, int(budget) - int(b2) - int(bs)))
-
-                stages = [SearchStage(name="stage1", method=str(method), budget=int(b1), seed=int(seed), local_refine=False)]
-                if insert_surr and bs > 0:
-                    stages.append(
-                        SearchStage(
-                            name="surrogate",
-                            method="surrogate",
-                            budget=int(bs),
-                            seed=int(seed + 1),
-                            local_refine=False,
-                            surrogate_pool_mult=int(surr_pool_mult),
-                            surrogate_kappa=float(surr_kappa),
-                            surrogate_ridge_alpha=float(surr_ridge),
-                            surrogate_feas_margin_key="min_margin_frac",
-                        )
-                    )
-                if two_stage and b2 > 0:
-                    stages.append(
-                        SearchStage(
-                            name="stage2",
-                            method=str(stage2_method),
-                            budget=int(b2),
-                            seed=int(seed + (2 if (insert_surr and bs > 0) else 1)),
-                            local_refine=True,
-                            local_shrink=float(stage2_shrink),
-                        )
-                    )
-                art = run_orchestrated_certified_search(
-                    base,
-                    OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
-                    verifier=_verifier,
-                    builder=_builder,
-                )
-                st.session_state["last_certified_search_artifact"] = art
-                st.session_state["v340_cert_search_last"] = art
-                try:
-                    _v98_record_run("certified_search_orchestrated", art, mode="SystemSuite/Chronicle")
-                except Exception:
-                    pass
-
-                n_pass = 0
-                n_tot = 0
-                try:
-                    for stg in art.get("stages", []):
-                        recs = stg.get("records", [])
-                        n_tot += len(recs)
-                        n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
-                except Exception:
-                    pass
-                st.success(f"Done. Digest: {str(art.get('digest',''))[:12]} | PASS found: {n_pass}/{n_tot}")
-
-        art = st.session_state.get("v340_cert_search_last")
-        if isinstance(art, dict) and art.get("schema_version"):
-            st.subheader("Results")
-            # Flatten across stages for display
-            rows = []
-            for stg in art.get("stages", []):
-                for r in stg.get("records", []):
-                    rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
-            df = pd.DataFrame(rows)
-            with st.expander("Results table", expanded=False):
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
-                with st.expander("Best PASS candidate", expanded=False):
-                    st.json(art.get("best"))
-
-            # v297: export deterministic evidence pack
-            try:
-                from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
-                art2 = st.session_state.get("last_certified_search_artifact")
-                if isinstance(art2, dict):
-                    if st.button("Build Certified Search evidence pack", use_container_width=True, key="cs_build_ev"):
-                        b = build_simple_evidence_zip_bytes(art2, basename=f"certified_search_{art2.get('digest','')[:12]}")
-                        st.session_state["certified_search_evidence_zip"] = b
-                        st.success("Evidence pack built.")
-                    b = st.session_state.get("certified_search_evidence_zip")
-                    if isinstance(b, (bytes, bytearray)) and len(b) > 0:
                         st.download_button(
-                            "Download certified_search_evidence.zip",
-                            data=b,
-                            file_name="certified_search_evidence.zip",
-                            mime="application/zip",
+                            "Download case_deck.yaml",
+                            data=deck_txt.encode("utf-8"),
+                            file_name="case_deck.yaml",
+                            mime="text/yaml" if yaml is not None else "application/json",
                             use_container_width=True,
-                            key="cs_dl_ev",
                         )
-            except Exception:
-                pass
+                        st.download_button(
+                            "Download scenario_delta.json",
+                            data=json.dumps(delta, indent=2).encode("utf-8"),
+                            file_name="scenario_delta.json",
+                            mime="application/json",
+                            use_container_width=True,
+                        )
 
-with tab_repair:
-    st.header("Repair Suggestions")
-    st.caption("Explanatory-only: proposes bounded knob deltas to reduce dominant constraint residuals; every proposal must be verified by truth.")
 
-    from dataclasses import replace
-    from solvers.repair_suggestions import RepairKnob, propose_repair_candidates
+if _deck == "🎛️ Control Room":
+    with tab_cprov:
+        st.header("Constraint Provenance Drill-Down")
+        st.caption("Click into constraints to see definition fields, fingerprints, and maturity/provenance metadata embedded in the artifact.")
 
-    base_inp = st.session_state.get("last_point_inp")
-    base_out = st.session_state.get("last_point_out")
-    if base_inp is None or not isinstance(base_out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        cons = evaluate_constraints(base_out, point_inputs=base_inp)
-        failed = [c for c in cons if c.get("failed")]
-        if not failed:
-            st.info("Base point is already feasible; repair suggestions are not needed.")
+        art = _get_active_artifact("cprov")
+        if not art:
+            st.info("Load an artifact to inspect constraint provenance.")
         else:
-            # Residual proxy: use 'margin' if present else 1.0
-            residuals = {}
-            for c in failed:
-                name = str(c.get("name", "(unnamed)"))
-                m = c.get("margin")
-                try:
-                    m = float(m)
-                except Exception:
-                    m = None
-                # Convert to positive residual where 0 is pass.
-                if m is None or not (m == m):
-                    residuals[name] = 1.0
-                else:
-                    residuals[name] = max(0.0, -m)
+            cons = art.get("constraints", [])
+            if not isinstance(cons, list) or not cons:
+                st.warning("No 'constraints' list found in artifact.")
+            else:
+                df = _safe_df(cons)
+                pref_cols = [c for c in ["group","name","failed","soft_failed","severity","value","limit","margin","margin_frac","units","fingerprint","provenance_fingerprint","maturity"] if c in df.columns]
+                st.dataframe(df[pref_cols] if pref_cols else df, use_container_width=True, hide_index=True)
 
-            st.subheader("Select knobs")
+                names = []
+                for i,c in enumerate(cons):
+                    n = c.get("name") or c.get("id") or f"constraint_{i}"
+                    names.append(f"{i:03d} - {n}")
+                sel = st.selectbox("Select constraint", options=list(range(len(cons))), format_func=lambda i: names[i], key="cprov_sel")
+                c = cons[int(sel)]
+                st.subheader("Selected constraint (raw)")
+                st.json(c)
+                if isinstance(c, dict):
+                    st.markdown("**Fingerprint fields**")
+                    st.code("\n".join([f"{k}: {c.get(k)}" for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
+
+if _deck == "🎛️ Control Room":
+    with tab_knobs:
+        st.header("Knob Trade-Space Explorer")
+        st.caption("Explore a 2-knob trade-space by evaluating a small grid around the active point (no optimization; feasibility-first).")
+
+        art = _get_active_artifact("knobs")
+        base = _guess_point_inputs_from_artifact(art) if art else None
+        if base is None:
+            base = st.session_state.get("last_point_inp")
+
+        if base is None:
+            st.info("Load an artifact (or run Point Designer) to initialize a base point.")
+        else:
+            st.markdown("**Base point (editable)**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                R0_m = st.number_input("R0 (m)", value=float(base.R0_m), step=0.01, key="knob_R0")
+                a_m = st.number_input("a (m)", value=float(base.a_m), step=0.01, key="knob_a")
+                kappa = st.number_input("kappa", value=float(base.kappa), step=0.05, key="knob_kappa")
+            with col2:
+                Bt_T = st.number_input("Bt (T)", value=float(base.Bt_T), step=0.1, key="knob_Bt")
+                Ip_MA = st.number_input("Ip (MA)", value=float(base.Ip_MA), step=0.1, key="knob_Ip")
+                fG = st.number_input("fG", value=float(base.fG), step=0.01, key="knob_fG")
+            with col3:
+                Ti_keV = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="knob_Ti")
+                Paux_MW = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="knob_Paux")
+                Ti_over_Te = st.number_input("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1, key="knob_TiTe")
+
+            fuel_mode = st.selectbox("fuel_mode", options=["DT","DD"], index=0 if getattr(base, "fuel_mode", "DT")=="DT" else 1, key="knob_fuel")
+
+            knobs = ["Ip_MA","fG","Bt_T","R0_m","Paux_MW","Ti_keV"]
+            kx = st.selectbox("Knob X", knobs, index=0, key="knob_kx")
+            ky = st.selectbox("Knob Y", knobs, index=1, key="knob_ky")
+
+            def _getv(pi: PointInputs, k: str) -> float:
+                return float(getattr(pi, k))
+            def _setv(pi: PointInputs, k: str, v: float) -> PointInputs:
+                d = pi.__dict__.copy()
+                d[k]=float(v)
+                return PointInputs(**d)
+
+            x0=_getv(base,kx); y0=_getv(base,ky)
+            colA,colB=st.columns(2)
+            with colA:
+                x_span = st.number_input("X span (+/-)", value=0.1*abs(x0) if abs(x0)>0 else 0.1, step=0.01, key="knob_xspan")
+            with colB:
+                y_span = st.number_input("Y span (+/-)", value=0.1*abs(y0) if abs(y0)>0 else 0.1, step=0.01, key="knob_yspan")
+            nx = st.slider("X grid points", 3, 15, 9, key="knob_nx")
+            ny = st.slider("Y grid points", 3, 15, 9, key="knob_ny")
+            run = st.button("Evaluate grid", key="knob_run", use_container_width=True)
+
+        if run:
+                import numpy as np
+                xs = np.linspace(x0-x_span, x0+x_span, int(nx))
+                ys = np.linspace(y0-y_span, y0+y_span, int(ny))
+                rows=[]
+                with st.spinner("Evaluating grid..."):
+                    for xv in xs:
+                        for yv in ys:
+                            pi = PointInputs(R0_m=float(R0_m), a_m=float(a_m), kappa=float(kappa),
+                                             Bt_T=float(Bt_T), Ip_MA=float(Ip_MA), Ti_keV=float(Ti_keV),
+                                             fG=float(fG), Paux_MW=float(Paux_MW), Ti_over_Te=float(Ti_over_Te),
+                                             fuel_mode=str(fuel_mode))
+                            pi = _setv(pi, kx, float(xv))
+                            pi = _setv(pi, ky, float(yv))
+                            try:
+                                out = hot_ion_point(pi)
+                                cons = evaluate_constraints(out, point_inputs=pi)
+                                ok = all((not bool(c.get("failed"))) for c in cons)
+                                top=None
+                                if not ok:
+                                    failed=[c for c in cons if c.get("failed")]
+                                    if failed:
+                                        top=failed[0].get("name")
+                                rows.append({kx: float(xv), ky: float(yv), "feasible": bool(ok), "top_blocker": top,
+                                             "Q": float(out.get("Q_DT_eqv", out.get("Q", float('nan')))),
+                                             "Pfus_MW": float(out.get("P_fus_MW", out.get("Pfus_MW", float('nan'))))})
+                            except Exception:
+                                rows.append({kx: float(xv), ky: float(yv), "feasible": False, "top_blocker": "eval_error", "Q": float('nan'), "Pfus_MW": float('nan')})
+                df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
+                st.subheader("Grid results (table)")
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+                try:
+                    piv = df.pivot(index=ky, columns=kx, values="feasible")
+                    st.subheader("Feasibility heatmap (True=1 / False=0)")
+                    st.dataframe(piv.astype(int), use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not pivot heatmap: {e}")
+
+if _deck == "🎛️ Control Room":
+    with tab_regress:
+        st.header("What broke? Regression Viewer")
+        st.caption("Compare two artifacts: constraints, ledgers, model sets, and key KPIs. This is UI-only; it doesn't modify artifacts.")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            upA = st.file_uploader("Artifact A (json)", type=["json"], key="regA")
+            artA = _load_json_from_upload(upA)
+        with c2:
+            upB = st.file_uploader("Artifact B (json)", type=["json"], key="regB")
+            artB = _load_json_from_upload(upB)
+
+        if artA and artB:
+            def _kpi_df(art):
+                k = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
+                df = pd.DataFrame([{"kpi": kk, "value": vv} for kk,vv in k.items()])
+                if df.empty:
+                    return pd.DataFrame(columns=["kpi","value"])
+                return df.sort_values("kpi")
+            st.subheader("KPI diff")
+            dfA=_kpi_df(artA).set_index("kpi")
+            dfB=_kpi_df(artB).set_index("kpi")
+            join=dfA.join(dfB, lsuffix="_A", rsuffix="_B", how="outer")
+            join["delta"]=pd.to_numeric(join["value_B"], errors="coerce")-pd.to_numeric(join["value_A"], errors="coerce")
+            st.dataframe(join.reset_index().sort_values("kpi"), use_container_width=True, hide_index=True)
+
+            st.subheader("New / worsened constraint failures")
+            consA=artA.get("constraints", []) if isinstance(artA.get("constraints"), list) else []
+            consB=artB.get("constraints", []) if isinstance(artB.get("constraints"), list) else []
+            def _map(cons):
+                m={}
+                for c in cons:
+                    name=c.get("name") or c.get("id")
+                    if name:
+                        m[name]=c
+                return m
+            mA=_map(consA); mB=_map(consB)
+            names=sorted(set(mA.keys())|set(mB.keys()))
+            rows=[]
+            for n in names:
+                a=mA.get(n,{}); b=mB.get(n,{})
+                fa=bool(a.get("failed")); fb=bool(b.get("failed"))
+                ma=a.get("margin"); mb=b.get("margin")
+                rows.append({"name": n, "failed_A": fa, "failed_B": fb, "margin_A": ma, "margin_B": mb,
+                             "margin_delta": (mb-ma) if isinstance(ma,(int,float)) and isinstance(mb,(int,float)) else None})
+            df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
+            df_bad=df[(df["failed_B"]==True) & ((df["failed_A"]==False) | (df["failed_A"].isna()))]
+            st.markdown("**New failures in B**")
+            st.dataframe(df_bad.sort_values("name"), use_container_width=True, hide_index=True)
+            st.markdown("**Largest margin regressions (B-A)**")
+            df_reg=df.dropna(subset=["margin_delta"]).sort_values("margin_delta").head(20)
+            st.dataframe(df_reg, use_container_width=True, hide_index=True)
+
+            st.subheader("Model set comparison")
+            msA=artA.get("model_set"); msB=artB.get("model_set")
+            st.json({"model_set_A": msA, "model_set_B": msB})
+
+if _deck == "🎛️ Control Room":
+    with tab_study_dash:
+        st.header("Study Dashboard")
+        st.caption("Manager-grade summary for study outputs (feasible fraction, dominant blockers, robustness).")
+
+        up = st.file_uploader("Upload study index.json (study_index.v1)", type=["json"], key="sd_up")
+        idx_data = _load_json_from_upload(up)
+        if not idx_data:
+            idx_path = st.session_state.get("selected_study_path")
+            if idx_path and Path(idx_path).exists():
+                try:
+                    idx_data = json.loads(Path(idx_path).read_text(encoding="utf-8"))
+                    st.info("Loaded study index from session.")
+                except Exception:
+                    idx_data = None
+
+        if idx_data:
+            st.subheader("Study headline")
+            st.json({k: idx_data.get(k) for k in ["schema_version","n_cases","elapsed_s","created_unix"] if k in idx_data})
+            cases = idx_data.get("cases", [])
+            if isinstance(cases, list) and cases:
+                df = pd.DataFrame(cases)
+                if "ok" in df.columns:
+                    ok_frac = float(df["ok"].mean())
+                    st.metric("Feasible fraction", f"{ok_frac:.3f}")
+                for col in ["dominant_blocker","top_blocker","blocker"]:
+                    if col in df.columns:
+                        st.subheader("Dominant blocker distribution")
+                        hist = df[col].fillna("(none)").value_counts().reset_index()
+                        hist.columns=[col,"count"]
+                        st.dataframe(hist, use_container_width=True, hide_index=True)
+                        break
+                st.subheader("Cases table")
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No 'cases' list found in study index. (Older study output?)")
+
+if _deck == "🎛️ Control Room":
+    with tab_maturity:
+        st.header("Engineering Maturity Heatmap")
+        st.caption("Visualize model maturity / validity info embedded in the artifact (model_set + model_registry).")
+
+        art = _get_active_artifact("maturity")
+        if not art:
+            st.info("Load an artifact to view maturity info.")
+        else:
+            reg = art.get("model_registry", {})
+            ms = art.get("model_set", {})
+            rows=[]
+            if isinstance(reg, dict):
+                entries = reg.get("entries") if isinstance(reg.get("entries"), list) else None
+                if entries is None:
+                    if all(isinstance(v, dict) for v in reg.values()):
+                        entries=[{"model_id": k, **v} for k,v in reg.items()]
+                if entries:
+                    selected = set()
+                    if isinstance(ms, dict):
+                        sel = ms.get("selected")
+                        if isinstance(sel, dict):
+                            selected = set(sel.values()) | set(sel.keys())
+                        elif isinstance(sel, list):
+                            selected = set(sel)
+                    for e in entries:
+                        mid = e.get("model_id", e.get("id", ""))
+                        rows.append({
+                            "subsystem": e.get("subsystem", e.get("domain", "")),
+                            "model_id": mid,
+                            "maturity": e.get("maturity", e.get("maturity_tag", "")),
+                            "validity": e.get("validity", e.get("validity_range", "")),
+                            "selected": (mid in selected)
+                        })
+            if rows:
+                df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
+                st.dataframe(df.sort_values(["subsystem","model_id"]), use_container_width=True, hide_index=True)
+                st.markdown("Tip: treat this as a policy gate (e.g., block decisions if maturity < required).")
+            else:
+                st.info("No model_registry entries found in artifact.")
+
+
+if _deck == "🎛️ Control Room":
+    with tab_maintenance:
+        st.header("Maintenance & Availability Authority")
+        st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
+
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first (sets last_point_out).")
+        else:
+            enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
+            if not enabled:
+                st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in 🧭 Point Designer → Engineering & plant feasibility → 🗓️ Maintenance scheduling authority (v368.0).")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
+            c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
+            c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+            c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.3g}"))
+
+            with st.expander("What this authority does", expanded=False):
+                st.markdown(
+                    "- Converts replacement cadences (FW/blanket from v367, plus HCD and tritium plant) and replacement durations into a bundled outage fraction.\n"
+                    "- Combines with planned/forced baselines (and optional trips proxy) to form total outage and availability.\n"
+                    "- Emits an explicit event table (maintenance_events_v368) for audit and reviewer use."
+                )
+            with st.expander("What this authority does not do", expanded=False):
+                st.markdown(
+                    "- Does not run a time-domain availability/RAMI simulation.\n"
+                    "- Does not optimize schedules or negotiate constraints.\n"
+                    "- Does not modify plasma truth or materials lifetime truth; it only post-processes into a schedule proxy."
+                )
+
+            st.subheader("Outage decomposition")
+            rows = [
+                {"term": "planned", "outage_frac": out.get("planned_outage_frac_v368")},
+                {"term": "forced", "outage_frac": out.get("forced_outage_frac_v368")},
+                {"term": "replacement", "outage_frac": out.get("replacement_outage_frac_v368")},
+                {"term": "total", "outage_frac": out.get("outage_total_frac_v368")},
+            ]
+            try:
+                import pandas as _pd
+                df = _pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            except Exception:
+                st.write(rows)
+
+            ev = out.get("maintenance_events_v368")
+            with st.expander("Maintenance event table (v368)", expanded=False):
+                if isinstance(ev, list) and ev:
+                    try:
+                        import pandas as _pd
+                        st.dataframe(_pd.DataFrame(ev), use_container_width=True, hide_index=True)
+                    except Exception:
+                        st.json(ev)
+                else:
+                    st.info("No maintenance_events_v368 found (enable v368 and re-run).")
+
+            with st.expander("Contract fingerprint", expanded=False):
+                st.code(str(out.get("maintenance_contract_sha256", "")))
+
+
+if _deck == "🎛️ Control Room":
+    with tab_profile_auth:
+        st.header("Profile Authority")
+        st.caption("1.5D algebraic profile diagnostics (non-iterative, conservative).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first (sets last_point_out).")
+        else:
+            rows=[
+                {"metric":"p_peaking", "value": out.get("profile_p_peaking")},
+                {"metric":"j_peaking", "value": out.get("profile_j_peaking")},
+                {"metric":"li_proxy", "value": out.get("profile_li_proxy")},
+                {"metric":"qmin_proxy", "value": out.get("profile_qmin_proxy")},
+                {"metric":"f_bootstrap_proxy", "value": out.get("profile_f_bootstrap_proxy")},
+                {"metric":"tag", "value": out.get("profile_assumption_tag")},
+            ]
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+            with st.expander("Validity flags", expanded=False):
+                st.json(out.get("profile_validity", {}))
+
+if _deck == "🎛️ Control Room":
+    with tab_impurity:
+        st.header("Impurity & Radiation")
+        st.caption("v320 authority: impurity radiation partitions (core/edge/SOL/div) + detachment inversion (q_div target → required SOL+div radiation → implied f_z).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            rows=[
+                {"metric":"impurity_contract_species", "value": out.get("impurity_contract_species")},
+                {"metric":"impurity_contract_f_z", "value": out.get("impurity_contract_f_z")},
+                {"metric":"impurity_prad_total_MW", "value": out.get("impurity_prad_total_MW")},
+                {"metric":"impurity_prad_core_MW", "value": out.get("impurity_prad_core_MW")},
+                {"metric":"impurity_prad_edge_MW", "value": out.get("impurity_prad_edge_MW")},
+                {"metric":"impurity_prad_sol_MW", "value": out.get("impurity_prad_sol_MW")},
+                {"metric":"impurity_prad_div_MW", "value": out.get("impurity_prad_div_MW")},
+                {"metric":"impurity_zeff_proxy", "value": out.get("impurity_zeff_proxy")},
+                {"metric":"impurity_fuel_ion_fraction", "value": out.get("impurity_fuel_ion_fraction")},
+                {"metric":"detachment_f_sol_div_required", "value": out.get("detachment_f_sol_div_required")},
+                {"metric":"detachment_prad_sol_div_required_MW", "value": out.get("detachment_prad_sol_div_required_MW")},
+                {"metric":"detachment_f_z_required", "value": out.get("detachment_f_z_required")},
+            ]
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+            with st.expander("Validity flags", expanded=False):
+                st.json(out.get("impurity_validity", {}))
+
+if _deck == "🎛️ Control Room":
+    with tab_disruption:
+        st.header("Disruption Risk")
+        st.caption("Conservative screening tier: LOW/MED/HIGH (diagnostic; not predictive).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            st.metric("Tier", str(out.get("disruption_risk_tier", "UNKNOWN")))
+            cols=st.columns(3)
+            with cols[0]:
+                st.metric("Risk index", f"{float(out.get('disruption_risk_index', float('nan'))):.3f}" if out.get('disruption_risk_index')==out.get('disruption_risk_index') else "nan")
+            with cols[1]:
+                st.metric("Dominant driver", str(out.get("disruption_dominant_driver", "unknown")))
+            with cols[2]:
+                st.metric("fG", f"{float(getattr(st.session_state.get('last_point_inp', None),'fG', float('nan'))):.3f}" if st.session_state.get('last_point_inp') is not None else "nan")
+            with st.expander("Components", expanded=False):
+                st.json(out.get("disruption_risk_components", {}))
+
+if _deck == "🎛️ Control Room":
+    with tab_stability:
+        st.header("Stability Risk")
+        st.caption("Conservative screening tier: LOW/MED/HIGH for vertical stability + RWM/control budgets (diagnostic; not predictive).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            st.metric("Tier", str(out.get("stability_risk_tier", "UNKNOWN")))
+            cols = st.columns(4)
+            with cols[0]:
+                st.metric(
+                    "Risk index",
+                    f"{float(out.get('stability_risk_index', float('nan'))):.3f}"
+                    if out.get("stability_risk_index") == out.get("stability_risk_index")
+                    else "nan",
+                )
+            with cols[1]:
+                st.metric("Dominant driver", str(out.get("stability_dominant_driver", "unknown")))
+            with cols[2]:
+                st.metric(
+                    "vs_margin",
+                    f"{float(out.get('vs_margin', float('nan'))):.3f}"
+                    if out.get("vs_margin") == out.get("vs_margin")
+                    else "nan",
+                )
+            with cols[3]:
+                st.metric("RWM ok", "yes" if bool(out.get("rwm_control_ok", True)) else "no")
+
+            st.divider()
+            oc = st.columns(2)
+            with oc[0]:
+                st.metric("Operational tier", str(out.get("operational_risk_tier", "UNKNOWN")))
+            with oc[1]:
+                st.metric("Operational driver", str(out.get("operational_dominant_driver", "")) or "-")
+
+            with st.expander("Components", expanded=False):
+                st.json(out.get("stability_risk_components", {}))
+            with st.expander("Control contract margins", expanded=False):
+                st.json(out.get("control_contract_margins", {}))
+
+if _deck == "🎛️ Control Room":
+    with tab_cert_search:
+        st.header("Certified Search")
+        st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
+
+        from dataclasses import replace
+        from solvers.budgeted_search import SearchVar
+        from solvers.certified_search_orchestrator import OrchestratorSpec, SearchStage, run_orchestrated_certified_search
+
+        base = st.session_state.get("last_point_inp")
+        if base is None:
+            st.info("Run a point in Point Designer first so a base point exists.")
+        else:
+            st.subheader("Knobs")
             knob_options = [
                 ("Bt_T", 2.0, 25.0),
                 ("Ip_MA", 1.0, 25.0),
@@ -21771,436 +21730,667 @@ with tab_repair:
                 ("Ti_keV", 1.0, 40.0),
                 ("fG", 0.2, 1.2),
                 ("kappa", 1.0, 2.6),
+                ("a_m", 0.2, 3.0),
+                ("R0_m", 0.8, 12.0),
             ]
-            chosen = st.multiselect("Knobs used for repair", [k[0] for k in knob_options], default=["Bt_T","Ip_MA","Paux_MW"], max_selections=6)
-            knobs=[]
+            cols = st.columns(2)
+            with cols[0]:
+                chosen = st.multiselect("Select up to 4 knobs", [k[0] for k in knob_options], default=["Bt_T","Ip_MA"], max_selections=4)
+            with cols[1]:
+                objective = st.selectbox("Score objective (PASS-only)", ["Q_DT_eqv","P_fus_MW","P_net_MW"], index=0)
+
+            vars_=[]
             for name,lo,hi in knob_options:
                 if name in chosen:
-                    lo_v=float(st.number_input(f"{name} lo", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_lo_{name}"))
-                    hi_v=float(st.number_input(f"{name} hi", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_hi_{name}"))
+                    c1,c2=st.columns(2)
+                    with c1:
+                        lo_v = st.number_input(f"{name} lo", value=float(getattr(base,name)), step=0.1, key=f"cs_lo_{name}")
+                    with c2:
+                        hi_v = st.number_input(f"{name} hi", value=float(getattr(base,name)), step=0.1, key=f"cs_hi_{name}")
                     if hi_v <= lo_v:
                         hi_v = lo_v + 1e-6
-                    knobs.append(RepairKnob(name=name, lo=lo_v, hi=hi_v))
+                    vars_.append(SearchVar(name=name, lo=float(lo_v), hi=float(hi_v)))
 
-            # Finite-difference jacobian (deterministic): d(residual)/dvar
-            def _eval_res(inp_obj):
+            c1,c2,c3,c4=st.columns(4)
+            with c1:
+                budget = int(st.number_input("Budget", value=96, min_value=8, max_value=2048, step=8, key="cs_budget"))
+            with c2:
+                seed = int(st.number_input("Seed", value=0, min_value=0, max_value=10_000, step=1, key="cs_seed"))
+            with c3:
+                method = st.selectbox("Method", ["halton","lhs","grid"], index=0, key="cs_method")
+            with c4:
+                two_stage = bool(st.checkbox("Two-stage refine", value=True, key="cs_two_stage"))
+
+            stage2_budget_frac = float(st.slider("Stage-2 budget fraction", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_frac")) if two_stage else 0.0
+            stage2_shrink = float(st.slider("Stage-2 local shrink", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_shrink")) if two_stage else 0.0
+            stage2_method = st.selectbox("Stage-2 method", ["grid","halton","lhs"], index=0, key="cs_stage2_method") if two_stage else "grid"
+
+            st.markdown("---")
+            insert_surr = bool(st.checkbox("Insert surrogate stage (feasible-first, non-authoritative)", value=False, key="cs_insert_surr"))
+            surr_frac = float(
+                st.slider(
+                    "Surrogate budget fraction",
+                    min_value=0.05,
+                    max_value=0.60,
+                    value=0.20,
+                    step=0.05,
+                    key="cs_surr_frac",
+                    disabled=(not insert_surr),
+                )
+            )
+            s1, s2, s3 = st.columns(3)
+            with s1:
+                surr_pool_mult = int(st.number_input("Surrogate pool multiplier", value=50, min_value=4, max_value=200, step=1, key="cs_surr_pool", disabled=(not insert_surr)))
+            with s2:
+                surr_kappa = float(st.slider("Surrogate kappa", min_value=0.0, max_value=2.0, value=0.5, step=0.1, key="cs_surr_kappa", disabled=(not insert_surr)))
+            with s3:
+                surr_ridge = float(st.number_input("Surrogate ridge alpha", value=1e-3, min_value=1e-6, max_value=1.0, format="%.6f", key="cs_surr_ridge", disabled=(not insert_surr)))
+
+            def _builder(b, overrides):
+                return replace(b, **{k: float(v) for k,v in overrides.items()})
+
+            def _verifier(inp_obj):
                 out = hot_ion_point(inp_obj)
-                cons2 = evaluate_constraints(out, point_inputs=inp_obj)
-                res={}
-                for c in cons2:
-                    name=str(c.get("name","(unnamed)"))
-                    m=c.get("margin")
-                    try:
-                        m=float(m)
-                    except Exception:
-                        continue
-                    res[name]=max(0.0, -m)
-                return res
+                cons = evaluate_constraints(out, point_inputs=inp_obj)
+                try:
+                    from constraints.bookkeeping import summarize as _summarize_constraints
+                    _cs = _summarize_constraints(cons)
+                    _min_margin_frac = float(_cs.worst_hard_margin_frac) if _cs.worst_hard_margin_frac is not None else float("nan")
+                    _worst_hard = str(_cs.worst_hard or "")
+                except Exception:
+                    _min_margin_frac = float("nan")
+                    _worst_hard = ""
+                ok = all((not bool(c.get("failed"))) for c in cons)
+                score = float(out.get(objective, 0.0)) if ok else float("-inf")
 
-            if st.button("Compute repair candidates", use_container_width=True, key="run_repairs"):
-                base_res = _eval_res(base_inp)
-                jac={}
-                for c in base_res:
-                    jac[c]={}
-                for kb in knobs:
-                    span = kb.hi - kb.lo
-                    h = 0.02*span
-                    if h<=0: continue
-                    x0=float(getattr(base_inp,kb.name))
-                    x1=min(kb.hi, x0+h)
-                    x2=max(kb.lo, x0-h)
-                    # central difference when possible
-                    inp_p = replace(base_inp, **{kb.name: x1})
-                    inp_m = replace(base_inp, **{kb.name: x2})
-                    rp=_eval_res(inp_p)
-                    rm=_eval_res(inp_m)
-                    denom = (x1-x2) if (x1-x2)!=0 else 1e-12
-                    for c in base_res:
-                        jac[c][kb.name] = (float(rp.get(c,0.0))-float(rm.get(c,0.0)))/denom
+                evidence={
+                    "objective": objective,
+                    "objective_value": float(out.get(objective, float("nan"))),
+                    "min_margin_frac": _min_margin_frac,
+                    "worst_hard": _worst_hard,
+                    "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
+                    "n_failed": int(sum(1 for c in cons if c.get("failed"))),
+                    "top_blocker": (next((c.get("name") for c in cons if c.get("failed")), None)),
+                }
+                return ("PASS" if ok else "FAIL"), score, evidence
 
-                cands = propose_repair_candidates(residuals=base_res, jacobian=jac, knobs=knobs, k=8)
-                st.session_state["v296_repair_last"] = {"base_res": base_res, "jac": jac, "cands": cands}
-
-            last = st.session_state.get("v296_repair_last")
-            if last:
-                with st.expander("Base residuals", expanded=False):
-                    st.dataframe(pd.DataFrame([{ "constraint": k, "residual": v } for k,v in sorted(last["base_res"].items(), key=lambda kv: kv[1], reverse=True)]), use_container_width=True, hide_index=True)
-                st.subheader("Candidates")
-                cands = last["cands"]
-                if cands:
-                    df = pd.DataFrame([{ "rationale": c.rationale, "est_reduction": c.estimated_residual_reduction, **c.deltas } for c in cands])
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+            if st.button("Run certified search", use_container_width=True, key="run_cert_search"):
+                if not vars_:
+                    st.warning("Select at least one knob.")
                 else:
-                    st.info("No candidates produced (check knob selections).")
+                    b1 = int(max(1, round(float(budget) * (1.0 - float(stage2_budget_frac)))))
+                    b2 = int(max(0, round(float(budget) * float(stage2_budget_frac))))
+                    bs = int(max(0, round(float(budget) * float(surr_frac)))) if insert_surr else 0
+                    # cap budgets deterministically
+                    b2 = int(min(int(b2), int(max(0, budget - 1))))
+                    bs = int(min(int(bs), int(max(0, budget - 1 - b2))))
+                    b1 = int(max(1, int(budget) - int(b2) - int(bs)))
 
-                # v297: build + download a deterministic repair evidence pack
+                    stages = [SearchStage(name="stage1", method=str(method), budget=int(b1), seed=int(seed), local_refine=False)]
+                    if insert_surr and bs > 0:
+                        stages.append(
+                            SearchStage(
+                                name="surrogate",
+                                method="surrogate",
+                                budget=int(bs),
+                                seed=int(seed + 1),
+                                local_refine=False,
+                                surrogate_pool_mult=int(surr_pool_mult),
+                                surrogate_kappa=float(surr_kappa),
+                                surrogate_ridge_alpha=float(surr_ridge),
+                                surrogate_feas_margin_key="min_margin_frac",
+                            )
+                        )
+                    if two_stage and b2 > 0:
+                        stages.append(
+                            SearchStage(
+                                name="stage2",
+                                method=str(stage2_method),
+                                budget=int(b2),
+                                seed=int(seed + (2 if (insert_surr and bs > 0) else 1)),
+                                local_refine=True,
+                                local_shrink=float(stage2_shrink),
+                            )
+                        )
+                    art = run_orchestrated_certified_search(
+                        base,
+                        OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
+                        verifier=_verifier,
+                        builder=_builder,
+                    )
+                    st.session_state["last_certified_search_artifact"] = art
+                    st.session_state["v340_cert_search_last"] = art
+                    try:
+                        _v98_record_run("certified_search_orchestrated", art, mode="SystemSuite/Chronicle")
+                    except Exception:
+                        pass
+
+                    n_pass = 0
+                    n_tot = 0
+                    try:
+                        for stg in art.get("stages", []):
+                            recs = stg.get("records", [])
+                            n_tot += len(recs)
+                            n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
+                    except Exception:
+                        pass
+                    st.success(f"Done. Digest: {str(art.get('digest',''))[:12]} | PASS found: {n_pass}/{n_tot}")
+
+            art = st.session_state.get("v340_cert_search_last")
+            if isinstance(art, dict) and art.get("schema_version"):
+                st.subheader("Results")
+                # Flatten across stages for display
+                rows = []
+                for stg in art.get("stages", []):
+                    for r in stg.get("records", []):
+                        rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
+                df = pd.DataFrame(rows)
+                with st.expander("Results table", expanded=False):
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
+                    with st.expander("Best PASS candidate", expanded=False):
+                        st.json(art.get("best"))
+
+                # v297: export deterministic evidence pack
+                try:
+                    from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
+                    art2 = st.session_state.get("last_certified_search_artifact")
+                    if isinstance(art2, dict):
+                        if st.button("Build Certified Search evidence pack", use_container_width=True, key="cs_build_ev"):
+                            b = build_simple_evidence_zip_bytes(art2, basename=f"certified_search_{art2.get('digest','')[:12]}")
+                            st.session_state["certified_search_evidence_zip"] = b
+                            st.success("Evidence pack built.")
+                        b = st.session_state.get("certified_search_evidence_zip")
+                        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                            st.download_button(
+                                "Download certified_search_evidence.zip",
+                                data=b,
+                                file_name="certified_search_evidence.zip",
+                                mime="application/zip",
+                                use_container_width=True,
+                                key="cs_dl_ev",
+                            )
+                except Exception:
+                    pass
+
+if _deck == "🎛️ Control Room":
+    with tab_repair:
+        st.header("Repair Suggestions")
+        st.caption("Explanatory-only: proposes bounded knob deltas to reduce dominant constraint residuals; every proposal must be verified by truth.")
+
+        from dataclasses import replace
+        from solvers.repair_suggestions import RepairKnob, propose_repair_candidates
+
+        base_inp = st.session_state.get("last_point_inp")
+        base_out = st.session_state.get("last_point_out")
+        if base_inp is None or not isinstance(base_out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            cons = evaluate_constraints(base_out, point_inputs=base_inp)
+            failed = [c for c in cons if c.get("failed")]
+            if not failed:
+                st.info("Base point is already feasible; repair suggestions are not needed.")
+            else:
+                # Residual proxy: use 'margin' if present else 1.0
+                residuals = {}
+                for c in failed:
+                    name = str(c.get("name", "(unnamed)"))
+                    m = c.get("margin")
+                    try:
+                        m = float(m)
+                    except Exception:
+                        m = None
+                    # Convert to positive residual where 0 is pass.
+                    if m is None or not (m == m):
+                        residuals[name] = 1.0
+                    else:
+                        residuals[name] = max(0.0, -m)
+
+                st.subheader("Select knobs")
+                knob_options = [
+                    ("Bt_T", 2.0, 25.0),
+                    ("Ip_MA", 1.0, 25.0),
+                    ("Paux_MW", 0.0, 200.0),
+                    ("Ti_keV", 1.0, 40.0),
+                    ("fG", 0.2, 1.2),
+                    ("kappa", 1.0, 2.6),
+                ]
+                chosen = st.multiselect("Knobs used for repair", [k[0] for k in knob_options], default=["Bt_T","Ip_MA","Paux_MW"], max_selections=6)
+                knobs=[]
+                for name,lo,hi in knob_options:
+                    if name in chosen:
+                        lo_v=float(st.number_input(f"{name} lo", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_lo_{name}"))
+                        hi_v=float(st.number_input(f"{name} hi", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_hi_{name}"))
+                        if hi_v <= lo_v:
+                            hi_v = lo_v + 1e-6
+                        knobs.append(RepairKnob(name=name, lo=lo_v, hi=hi_v))
+
+                # Finite-difference jacobian (deterministic): d(residual)/dvar
+                def _eval_res(inp_obj):
+                    out = hot_ion_point(inp_obj)
+                    cons2 = evaluate_constraints(out, point_inputs=inp_obj)
+                    res={}
+                    for c in cons2:
+                        name=str(c.get("name","(unnamed)"))
+                        m=c.get("margin")
+                        try:
+                            m=float(m)
+                        except Exception:
+                            continue
+                        res[name]=max(0.0, -m)
+                    return res
+
+                if st.button("Compute repair candidates", use_container_width=True, key="run_repairs"):
+                    base_res = _eval_res(base_inp)
+                    jac={}
+                    for c in base_res:
+                        jac[c]={}
+                    for kb in knobs:
+                        span = kb.hi - kb.lo
+                        h = 0.02*span
+                        if h<=0: continue
+                        x0=float(getattr(base_inp,kb.name))
+                        x1=min(kb.hi, x0+h)
+                        x2=max(kb.lo, x0-h)
+                        # central difference when possible
+                        inp_p = replace(base_inp, **{kb.name: x1})
+                        inp_m = replace(base_inp, **{kb.name: x2})
+                        rp=_eval_res(inp_p)
+                        rm=_eval_res(inp_m)
+                        denom = (x1-x2) if (x1-x2)!=0 else 1e-12
+                        for c in base_res:
+                            jac[c][kb.name] = (float(rp.get(c,0.0))-float(rm.get(c,0.0)))/denom
+
+                    cands = propose_repair_candidates(residuals=base_res, jacobian=jac, knobs=knobs, k=8)
+                    st.session_state["v296_repair_last"] = {"base_res": base_res, "jac": jac, "cands": cands}
+
+                last = st.session_state.get("v296_repair_last")
+                if last:
+                    with st.expander("Base residuals", expanded=False):
+                        st.dataframe(pd.DataFrame([{ "constraint": k, "residual": v } for k,v in sorted(last["base_res"].items(), key=lambda kv: kv[1], reverse=True)]), use_container_width=True, hide_index=True)
+                    st.subheader("Candidates")
+                    cands = last["cands"]
+                    if cands:
+                        df = pd.DataFrame([{ "rationale": c.rationale, "est_reduction": c.estimated_residual_reduction, **c.deltas } for c in cands])
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No candidates produced (check knob selections).")
+
+                    # v297: build + download a deterministic repair evidence pack
+                    try:
+                        from dataclasses import asdict
+                        from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
+
+                        repair_art = {
+                            "schema_version": "repair_evidence.v1",
+                            "base_inputs": asdict(base_inp),
+                            "base_failed_constraints": [str(c.get("name")) for c in failed][:50],
+                            "base_residuals": dict(last.get("base_res", {})),
+                            "knobs": [asdict(k) for k in knobs],
+                            "candidates": [
+                                {
+                                    "rationale": getattr(c, "rationale", ""),
+                                    "estimated_residual_reduction": float(getattr(c, "estimated_residual_reduction", 0.0)),
+                                    "deltas": dict(getattr(c, "deltas", {})),
+                                }
+                                for c in (cands or [])
+                            ],
+                        }
+                        st.session_state["last_repair_evidence_artifact"] = repair_art
+
+                        if st.button("Build Repair evidence pack", use_container_width=True, key="rep_build_ev"):
+                            b = build_simple_evidence_zip_bytes(repair_art, basename="repair_evidence")
+                            st.session_state["repair_evidence_zip"] = b
+                            _v98_record_run("repair_evidence", repair_art, mode="SystemSuite/Chronicle")
+                            st.success("Repair evidence pack built.")
+
+                        b = st.session_state.get("repair_evidence_zip")
+                        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                            st.download_button(
+                                "Download repair_evidence.zip",
+                                data=b,
+                                file_name="repair_evidence.zip",
+                                mime="application/zip",
+                                use_container_width=True,
+                                key="rep_dl_ev",
+                            )
+                    except Exception:
+                        pass
+
+if _deck == "🎛️ Control Room":
+    with tab_refine:
+        st.header("Interval Refinement")
+        st.caption("Deterministic corner evaluation + contract refinement suggestions (explanatory-only).")
+
+        from dataclasses import replace
+        from uq_contracts.refinement import suggest_interval_refinements
+
+        base = st.session_state.get("last_point_inp")
+        if base is None:
+            st.info("Run a point in Point Designer first so a base point exists.")
+        else:
+            st.subheader("Select up to 3 uncertain variables")
+            var_options = ["Bt_T","Ip_MA","Paux_MW","Ti_keV","fG","kappa"]
+            chosen = st.multiselect("Variables", var_options, default=["fG"], max_selections=3, key="ref_vars")
+            intervals={}
+            for v in chosen:
+                c1,c2=st.columns(2)
+                with c1:
+                    lo = float(st.number_input(f"{v} lo", value=float(getattr(base,v))*0.95, step=0.1, key=f"ref_lo_{v}"))
+                with c2:
+                    hi = float(st.number_input(f"{v} hi", value=float(getattr(base,v))*1.05 + (0.01 if v=='fG' else 0.0), step=0.1, key=f"ref_hi_{v}"))
+                if hi <= lo:
+                    hi = lo + 1e-6
+                intervals[v]=(lo,hi)
+
+            if st.button("Evaluate corners", use_container_width=True, key="run_ref_corners"):
+                # build corners
+                vs=list(intervals.items())
+                corners=[]
+                def rec(i,cur):
+                    if i==len(vs):
+                        corners.append(dict(cur)); return
+                    name,(lo,hi)=vs[i]
+                    cur[name]=lo; rec(i+1,cur)
+                    cur[name]=hi; rec(i+1,cur)
+                    cur.pop(name,None)
+                rec(0,{})
+
+                results=[]
+                for c in corners:
+                    inp_obj=base
+                    inp_obj=replace(inp_obj, **{k: float(v) for k,v in c.items()})
+                    out = hot_ion_point(inp_obj)
+                    cons = evaluate_constraints(out, point_inputs=inp_obj)
+                    ok = all((not bool(cc.get("failed"))) for cc in cons)
+                    dom = next((cc.get("name") for cc in cons if cc.get("failed")), None)
+                    results.append({"corner": c, "verdict": "PASS" if ok else "FAIL", "dominant_mechanism": dom})
+
+                st.session_state["v296_ref_corners"] = {"intervals": intervals, "results": results}
+
+            last = st.session_state.get("v296_ref_corners")
+            if last:
+                res = last["results"]
+                df = pd.DataFrame([{**r["corner"], "verdict": r["verdict"], "dominant": r.get("dominant_mechanism")} for r in res])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                fails=sum(1 for r in res if r["verdict"]!='PASS')
+                st.metric("FAIL corners", f"{fails}/{len(res)}")
+                sugg = suggest_interval_refinements(last["intervals"], res)
+                if sugg:
+                    st.subheader("Refinement suggestions")
+                    sdf = pd.DataFrame([{"var": s.var, "current": s.current_interval, "suggested": s.suggested_interval, "rationale": s.rationale} for s in sugg])
+                    st.dataframe(sdf, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No refinement suggestions (either robust already or insufficient failure signal).")
+
+                # v297: interval refinement evidence pack
                 try:
                     from dataclasses import asdict
                     from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
 
-                    repair_art = {
-                        "schema_version": "repair_evidence.v1",
-                        "base_inputs": asdict(base_inp),
-                        "base_failed_constraints": [str(c.get("name")) for c in failed][:50],
-                        "base_residuals": dict(last.get("base_res", {})),
-                        "knobs": [asdict(k) for k in knobs],
-                        "candidates": [
+                    refine_art = {
+                        "schema_version": "interval_refinement_evidence.v1",
+                        "base_inputs": asdict(base),
+                        "intervals": {k: list(v) for k, v in (last.get("intervals") or {}).items()},
+                        "corner_results": list(res),
+                        "suggestions": [
                             {
-                                "rationale": getattr(c, "rationale", ""),
-                                "estimated_residual_reduction": float(getattr(c, "estimated_residual_reduction", 0.0)),
-                                "deltas": dict(getattr(c, "deltas", {})),
+                                "var": s.var,
+                                "current_interval": list(s.current_interval),
+                                "suggested_interval": list(s.suggested_interval),
+                                "rationale": s.rationale,
                             }
-                            for c in (cands or [])
+                            for s in (sugg or [])
                         ],
                     }
-                    st.session_state["last_repair_evidence_artifact"] = repair_art
+                    st.session_state["last_interval_refinement_artifact"] = refine_art
 
-                    if st.button("Build Repair evidence pack", use_container_width=True, key="rep_build_ev"):
-                        b = build_simple_evidence_zip_bytes(repair_art, basename="repair_evidence")
-                        st.session_state["repair_evidence_zip"] = b
-                        _v98_record_run("repair_evidence", repair_art, mode="SystemSuite/Chronicle")
-                        st.success("Repair evidence pack built.")
+                    if st.button("Build Interval Refinement evidence pack", use_container_width=True, key="ref_build_ev"):
+                        b = build_simple_evidence_zip_bytes(refine_art, basename="interval_refinement")
+                        st.session_state["interval_refinement_zip"] = b
+                        _v98_record_run("interval_refinement", refine_art, mode="SystemSuite/Chronicle")
+                        st.success("Interval refinement evidence pack built.")
 
-                    b = st.session_state.get("repair_evidence_zip")
+                    b = st.session_state.get("interval_refinement_zip")
                     if isinstance(b, (bytes, bytearray)) and len(b) > 0:
                         st.download_button(
-                            "Download repair_evidence.zip",
+                            "Download interval_refinement_evidence.zip",
                             data=b,
-                            file_name="repair_evidence.zip",
+                            file_name="interval_refinement_evidence.zip",
                             mime="application/zip",
                             use_container_width=True,
-                            key="rep_dl_ev",
+                            key="ref_dl_ev",
                         )
                 except Exception:
                     pass
 
-with tab_refine:
-    st.header("Interval Refinement")
-    st.caption("Deterministic corner evaluation + contract refinement suggestions (explanatory-only).")
-
-    from dataclasses import replace
-    from uq_contracts.refinement import suggest_interval_refinements
-
-    base = st.session_state.get("last_point_inp")
-    if base is None:
-        st.info("Run a point in Point Designer first so a base point exists.")
-    else:
-        st.subheader("Select up to 3 uncertain variables")
-        var_options = ["Bt_T","Ip_MA","Paux_MW","Ti_keV","fG","kappa"]
-        chosen = st.multiselect("Variables", var_options, default=["fG"], max_selections=3, key="ref_vars")
-        intervals={}
-        for v in chosen:
-            c1,c2=st.columns(2)
-            with c1:
-                lo = float(st.number_input(f"{v} lo", value=float(getattr(base,v))*0.95, step=0.1, key=f"ref_lo_{v}"))
-            with c2:
-                hi = float(st.number_input(f"{v} hi", value=float(getattr(base,v))*1.05 + (0.01 if v=='fG' else 0.0), step=0.1, key=f"ref_hi_{v}"))
-            if hi <= lo:
-                hi = lo + 1e-6
-            intervals[v]=(lo,hi)
-
-        if st.button("Evaluate corners", use_container_width=True, key="run_ref_corners"):
-            # build corners
-            vs=list(intervals.items())
-            corners=[]
-            def rec(i,cur):
-                if i==len(vs):
-                    corners.append(dict(cur)); return
-                name,(lo,hi)=vs[i]
-                cur[name]=lo; rec(i+1,cur)
-                cur[name]=hi; rec(i+1,cur)
-                cur.pop(name,None)
-            rec(0,{})
-
-            results=[]
-            for c in corners:
-                inp_obj=base
-                inp_obj=replace(inp_obj, **{k: float(v) for k,v in c.items()})
-                out = hot_ion_point(inp_obj)
-                cons = evaluate_constraints(out, point_inputs=inp_obj)
-                ok = all((not bool(cc.get("failed"))) for cc in cons)
-                dom = next((cc.get("name") for cc in cons if cc.get("failed")), None)
-                results.append({"corner": c, "verdict": "PASS" if ok else "FAIL", "dominant_mechanism": dom})
-
-            st.session_state["v296_ref_corners"] = {"intervals": intervals, "results": results}
-
-        last = st.session_state.get("v296_ref_corners")
-        if last:
-            res = last["results"]
-            df = pd.DataFrame([{**r["corner"], "verdict": r["verdict"], "dominant": r.get("dominant_mechanism")} for r in res])
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            fails=sum(1 for r in res if r["verdict"]!='PASS')
-            st.metric("FAIL corners", f"{fails}/{len(res)}")
-            sugg = suggest_interval_refinements(last["intervals"], res)
-            if sugg:
-                st.subheader("Refinement suggestions")
-                sdf = pd.DataFrame([{"var": s.var, "current": s.current_interval, "suggested": s.suggested_interval, "rationale": s.rationale} for s in sugg])
-                st.dataframe(sdf, use_container_width=True, hide_index=True)
-            else:
-                st.info("No refinement suggestions (either robust already or insufficient failure signal).")
-
-            # v297: interval refinement evidence pack
-            try:
-                from dataclasses import asdict
-                from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
-
-                refine_art = {
-                    "schema_version": "interval_refinement_evidence.v1",
-                    "base_inputs": asdict(base),
-                    "intervals": {k: list(v) for k, v in (last.get("intervals") or {}).items()},
-                    "corner_results": list(res),
-                    "suggestions": [
-                        {
-                            "var": s.var,
-                            "current_interval": list(s.current_interval),
-                            "suggested_interval": list(s.suggested_interval),
-                            "rationale": s.rationale,
-                        }
-                        for s in (sugg or [])
-                    ],
-                }
-                st.session_state["last_interval_refinement_artifact"] = refine_art
-
-                if st.button("Build Interval Refinement evidence pack", use_container_width=True, key="ref_build_ev"):
-                    b = build_simple_evidence_zip_bytes(refine_art, basename="interval_refinement")
-                    st.session_state["interval_refinement_zip"] = b
-                    _v98_record_run("interval_refinement", refine_art, mode="SystemSuite/Chronicle")
-                    st.success("Interval refinement evidence pack built.")
-
-                b = st.session_state.get("interval_refinement_zip")
-                if isinstance(b, (bytes, bytearray)) and len(b) > 0:
-                    st.download_button(
-                        "Download interval_refinement_evidence.zip",
-                        data=b,
-                        file_name="interval_refinement_evidence.zip",
-                        mime="application/zip",
-                        use_container_width=True,
-                        key="ref_dl_ev",
-                    )
-            except Exception:
-                pass
-
-with tab_narrowing:
-    st.header("Interval Narrowing")
-    st.caption(
-        "Advisory dead-region flags + interval narrowing proposals + repair contract export (no truth mutation)."
-    )
-    try:
-        from ui.interval_narrowing import render_interval_narrowing_panel
-        render_interval_narrowing_panel(st, pd, BASE_DIR, st.session_state)
-    except Exception as _e:
-        st.info("Panel unavailable in this build.")
-
-with tab_surrogate:
-    st.header("Surrogate Overlay")
-    st.caption("Non-authoritative ridge surrogate fitted to the latest Certified Search results.")
-
-    from optimization.surrogates import fit_ridge_surrogate, predict_surrogate
-
-    res = st.session_state.get("v296_cert_search_last")
-    if res is None:
-        st.info("Run Certified Search first (Chronicle → Certified Search) to generate training data.")
-    else:
-        # train on PASS points only
-        rows=[]
-        for r in res.records:
-            if r.verdict == "PASS":
-                rows.append({"x": r.x, "y": r.score})
-        if len(rows) < 8:
-            st.warning(f"Need at least 8 PASS samples to fit a surrogate; currently have {len(rows)}.")
-        else:
-            feat = list(rows[0]["x"].keys())
-            samples=[rr["x"] for rr in rows]
-            targets=[rr["y"] for rr in rows]
-            ridge=float(st.number_input("Ridge", value=1e-6, format="%e"))
-            if st.button("Fit surrogate", use_container_width=True, key="fit_surr"):
-                model = fit_ridge_surrogate(samples, targets, feat, ridge=ridge)
-                st.session_state["v296_surrogate_model"] = model
-                st.success("Surrogate fitted (non-authoritative).")
-
-            model = st.session_state.get("v296_surrogate_model")
-            if model is not None:
-                st.subheader("Query")
-                q={}
-                for f in model.feature_names:
-                    q[f]=float(st.number_input(f"{f}", value=float(st.session_state.get('last_point_inp').__dict__.get(f, 0.0)), step=0.1, key=f"surr_q_{f}"))
-                yhat, unc = predict_surrogate(model, q)
-                st.metric("Predicted score", f"{yhat:.6g}")
-                st.metric("Uncertainty proxy", f"{unc:.3f}")
-                with st.expander("Model details", expanded=False):
-                    st.write({"features": list(model.feature_names), "ridge": model.ridge})
-
-with tab_active_learning:
-    st.header("Active Learning")
-    st.caption("Propose new points where surrogate uncertainty is high (non-authoritative).")
-
-    from optimization.active_learning import ALVar, propose_active_learning_points
-
-    model = st.session_state.get("v296_surrogate_model")
-    res = st.session_state.get("v296_cert_search_last")
-    if model is None or res is None:
-        st.info("Fit a surrogate first (Chronicle → Surrogate Overlay).")
-    else:
-        vars_=[]
-        # derive bounds from SearchSpec
-        for v in res.spec.variables:
-            vars_.append(ALVar(name=v.name, lo=v.lo, hi=v.hi))
-        c1,c2,c3=st.columns(3)
-        with c1:
-            n_candidates=int(st.number_input("Candidates", value=512, min_value=64, max_value=5000, step=64))
-        with c2:
-            n_select=int(st.number_input("Select", value=16, min_value=4, max_value=128, step=4))
-        with c3:
-            seed=int(st.number_input("Seed", value=int(res.spec.seed), min_value=0, max_value=10000, step=1))
-
-        if st.button("Propose points", use_container_width=True, key="run_al"):
-            props = propose_active_learning_points(model, vars_, n_candidates=n_candidates, n_select=n_select, seed=seed)
-            st.session_state["v296_al_props"] = props
-
-        props = st.session_state.get("v296_al_props")
-        if props:
-            df = pd.DataFrame([{**p.x, "y_pred": p.y_pred, "uncertainty": p.uncertainty} for p in props])
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            st.caption("Verify proposals by setting last_point_inp to a row and running Point Designer. External harness integration can automate that next.")
-
-with tab_assumptions:
-    st.header("Assumption Toggle Bar")
-    st.caption("Fast scenario exploration by toggling common assumptions and re-evaluating the point (still feasibility-first; no optimization).")
-
-    art = _get_active_artifact("assumptions")
-    base = _guess_point_inputs_from_artifact(art) if art else None
-    if base is None:
-        base = st.session_state.get("last_point_inp")
-    if base is None:
-        st.info("Load an artifact (or run Point Designer) to use assumption toggles.")
-    else:
-        col1,col2,col3=st.columns(3)
-        with col1:
-            fuel = st.selectbox("Fuel mode", ["DT","DD"], index=0 if getattr(base,"fuel_mode","DT")=="DT" else 1, key="ass_fuel")
-        with col2:
-            ti = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="ass_Ti")
-        with col3:
-            paux = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="ass_Paux")
-        tite = st.number_input("Ti/Te", value=float(getattr(base,"Ti_over_Te", 2.0)), step=0.1, key="ass_TiTe")
-        apply = st.button("Apply toggles and evaluate", use_container_width=True, key="ass_run")
-
-        if apply:
-            pi = PointInputs(R0_m=float(base.R0_m), a_m=float(base.a_m), kappa=float(base.kappa),
-                             Bt_T=float(base.Bt_T), Ip_MA=float(base.Ip_MA), Ti_keV=float(ti),
-                             fG=float(base.fG), Paux_MW=float(paux), Ti_over_Te=float(tite),
-                             fuel_mode=str(fuel))
-            out = hot_ion_point(pi)
-            cons = evaluate_constraints(out, point_inputs=pi)
-            ok = all((not bool(c.get("failed"))) for c in cons)
-            st.metric("Feasible", "YES " if ok else "NO ")
-            st.subheader("Key outputs")
-            st.json({k: out.get(k) for k in ["Q_DT_eqv","P_fus_MW","P_net_MW","betaN","q95","fG"] if k in out})
-            st.subheader("Top failed constraints")
-            failed=[c for c in cons if c.get("failed")]
-            if failed:
-                st.dataframe(_safe_df(failed[:10]), use_container_width=True, hide_index=True)
-            else:
-                st.write("No failed constraints.")
-
-with tab_export:
-    st.header("Export / Communication Panel")
-    st.caption("One-click export helpers (JSON, CSV, and a one-slide PNG-style summary) with provenance footer.")
-
-    art = _get_active_artifact("export")
-    if not art:
-        st.info("Load an artifact to export.")
-    else:
-        _download_json_button("Download run artifact JSON", art, "shams_run_artifact.json", "dl_artifact")
-        tables = art.get("tables", {}) if isinstance(art.get("tables"), dict) else {}
-        if tables:
-            for name, obj in tables.items():
-                try:
-                    df = _safe_df(obj)
-                    st.download_button(f"Download {name}.csv", data=df.to_csv(index=False).encode("utf-8"),
-                                       file_name=f"{name}.csv", mime="text/csv", key=f"dl_csv_{name}")
-                except Exception:
-                    continue
-        else:
-            st.info("No standardized tables found in artifact ('tables').")
-
+if _deck == "🎛️ Control Room":
+    with tab_narrowing:
+        st.header("Interval Narrowing")
+        st.caption(
+            "Advisory dead-region flags + interval narrowing proposals + repair contract export (no truth mutation)."
+        )
         try:
-            import io
-            import matplotlib.pyplot as plt
-            prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
-            d = _decision_summary_from_artifact(art)
-            fig = plt.figure(figsize=(10, 5))
-            ax = fig.add_subplot(111)
-            ax.axis("off")
-            title = "SHAMS Decision Summary"
-            verdict = "FEASIBLE" if d["feasible"] else "INFEASIBLE"
-            ax.text(0.02, 0.92, f"{title} - {verdict}", fontsize=16, weight="bold")
-            ax.text(0.02, 0.82, f"Q: {d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q','-'))}    Pfus(MW): {d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW','-'))}", fontsize=12)
-            ax.text(0.02, 0.72, "Top blockers:", fontsize=12, weight="bold")
-            y=0.66
-            for b in (d["top_blockers"] or [])[:6]:
-                ax.text(0.04, y, f"- {b.get('group','')}: {b.get('name','')}", fontsize=11)
-                y -= 0.06
-            footer = f"repo_version={prov.get('repo_version')}  git={prov.get('git_commit')}  python={prov.get('python')}"
-            ax.text(0.02, 0.03, footer, fontsize=9)
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
-            plt.close(fig)
-            st.download_button("Download one-slide summary PNG", data=buf.getvalue(), file_name="shams_one_slide.png",
-                               mime="image/png", key="dl_png_slide")
-        except Exception as e:
-            st.warning(f"PNG summary unavailable: {e}")
+            from ui.interval_narrowing import render_interval_narrowing_panel
+            render_interval_narrowing_panel(st, pd, BASE_DIR, st.session_state)
+        except Exception as _e:
+            st.info("Panel unavailable in this build.")
 
-with tab_solver:
-    st.header("Solver Introspection")
-    st.caption("Inspect solver trace/clamp/residual info from artifacts or the last Point Designer run.")
+if _deck == "🎛️ Control Room":
+    with tab_surrogate:
+        st.header("Surrogate Overlay")
+        st.caption("Non-authoritative ridge surrogate fitted to the latest Certified Search results.")
 
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict) or not art:
-        st.info("No session artifact loaded. Upload one below to inspect solver annotations.")
-        up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="solver_up")
-        art = _load_json_from_upload(up)
+        from optimization.surrogates import fit_ridge_surrogate, predict_surrogate
 
-    if art:
-        trace = art.get("solver_trace") if isinstance(art.get("solver_trace"), dict) else None
-        if trace:
-            st.subheader("solver_trace (artifact)")
-            st.json(trace)
+        res = st.session_state.get("v296_cert_search_last")
+        if res is None:
+            st.info("Run Certified Search first (Chronicle → Certified Search) to generate training data.")
         else:
-            st.subheader("Solver annotations (best-effort)")
-            flat = {}
-            for k,v in art.items():
-                if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
-                    flat[k]=v
-            kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-            for k,v in kpis.items():
-                if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
-                    flat[f"kpis.{k}"]=v
-            if flat:
-                st.json(flat)
+            # train on PASS points only
+            rows=[]
+            for r in res.records:
+                if r.verdict == "PASS":
+                    rows.append({"x": r.x, "y": r.score})
+            if len(rows) < 8:
+                st.warning(f"Need at least 8 PASS samples to fit a surrogate; currently have {len(rows)}.")
             else:
-                st.info("No solver trace fields found in artifact.")
+                feat = list(rows[0]["x"].keys())
+                samples=[rr["x"] for rr in rows]
+                targets=[rr["y"] for rr in rows]
+                ridge=float(st.number_input("Ridge", value=1e-6, format="%e"))
+                if st.button("Fit surrogate", use_container_width=True, key="fit_surr"):
+                    model = fit_ridge_surrogate(samples, targets, feat, ridge=ridge)
+                    st.session_state["v296_surrogate_model"] = model
+                    st.success("Surrogate fitted (non-authoritative).")
 
-        st.divider()
-        st.subheader("CCFS verifier (external solver firewall)")
-        st.caption("Verify an external candidate bundle against frozen truth. Runs do not modify SHAMS physics.")
-        up_ccfs = st.file_uploader("Upload ccfs_bundle.json", type=["json"], key="ccfs_up_v294")
-        b = _load_json_from_upload(up_ccfs)
-        if isinstance(b, dict):
-            req_cols = st.columns(2)
-            with req_cols[0]:
-                do_phase = st.checkbox("Require phase envelope PASS", value=True, key="ccfs_req_phase_v294")
-            with req_cols[1]:
-                do_uq = st.checkbox("Require UQ contract not FAIL", value=False, key="ccfs_req_uq_v294")
+                model = st.session_state.get("v296_surrogate_model")
+                if model is not None:
+                    st.subheader("Query")
+                    q={}
+                    for f in model.feature_names:
+                        q[f]=float(st.number_input(f"{f}", value=float(st.session_state.get('last_point_inp').__dict__.get(f, 0.0)), step=0.1, key=f"surr_q_{f}"))
+                    yhat, unc = predict_surrogate(model, q)
+                    st.metric("Predicted score", f"{yhat:.6g}")
+                    st.metric("Uncertainty proxy", f"{unc:.3f}")
+                    with st.expander("Model details", expanded=False):
+                        st.write({"features": list(model.feature_names), "ridge": model.ridge})
 
-            if st.button("Verify CCFS bundle", use_container_width=True, key="ccfs_btn_v294"):
-                try:
-                    from extopt.certified_solve import verify_ccfs_bundle
-                    res = verify_ccfs_bundle(b, default_request={"phase_envelope": bool(do_phase), "uq_contracts": bool(do_uq)})
-                    st.success("CCFS verification complete.")
-                    st.json(res, expanded=False)
-                    _v98_record_run("ccfs_verify", res, mode="ControlRoom/Diagnostics")
-                except Exception as e:
-                    st.error(f"CCFS verification failed: {e}")
+if _deck == "🎛️ Control Room":
+    with tab_active_learning:
+        st.header("Active Learning")
+        st.caption("Propose new points where surrogate uncertainty is high (non-authoritative).")
+
+        from optimization.active_learning import ALVar, propose_active_learning_points
+
+        model = st.session_state.get("v296_surrogate_model")
+        res = st.session_state.get("v296_cert_search_last")
+        if model is None or res is None:
+            st.info("Fit a surrogate first (Chronicle → Surrogate Overlay).")
+        else:
+            vars_=[]
+            # derive bounds from SearchSpec
+            for v in res.spec.variables:
+                vars_.append(ALVar(name=v.name, lo=v.lo, hi=v.hi))
+            c1,c2,c3=st.columns(3)
+            with c1:
+                n_candidates=int(st.number_input("Candidates", value=512, min_value=64, max_value=5000, step=64))
+            with c2:
+                n_select=int(st.number_input("Select", value=16, min_value=4, max_value=128, step=4))
+            with c3:
+                seed=int(st.number_input("Seed", value=int(res.spec.seed), min_value=0, max_value=10000, step=1))
+
+            if st.button("Propose points", use_container_width=True, key="run_al"):
+                props = propose_active_learning_points(model, vars_, n_candidates=n_candidates, n_select=n_select, seed=seed)
+                st.session_state["v296_al_props"] = props
+
+            props = st.session_state.get("v296_al_props")
+            if props:
+                df = pd.DataFrame([{**p.x, "y_pred": p.y_pred, "uncertainty": p.uncertainty} for p in props])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.caption("Verify proposals by setting last_point_inp to a row and running Point Designer. External harness integration can automate that next.")
+
+if _deck == "🎛️ Control Room":
+    with tab_assumptions:
+        st.header("Assumption Toggle Bar")
+        st.caption("Fast scenario exploration by toggling common assumptions and re-evaluating the point (still feasibility-first; no optimization).")
+
+        art = _get_active_artifact("assumptions")
+        base = _guess_point_inputs_from_artifact(art) if art else None
+        if base is None:
+            base = st.session_state.get("last_point_inp")
+        if base is None:
+            st.info("Load an artifact (or run Point Designer) to use assumption toggles.")
+        else:
+            col1,col2,col3=st.columns(3)
+            with col1:
+                fuel = st.selectbox("Fuel mode", ["DT","DD"], index=0 if getattr(base,"fuel_mode","DT")=="DT" else 1, key="ass_fuel")
+            with col2:
+                ti = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="ass_Ti")
+            with col3:
+                paux = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="ass_Paux")
+            tite = st.number_input("Ti/Te", value=float(getattr(base,"Ti_over_Te", 2.0)), step=0.1, key="ass_TiTe")
+            apply = st.button("Apply toggles and evaluate", use_container_width=True, key="ass_run")
+
+            if apply:
+                pi = PointInputs(R0_m=float(base.R0_m), a_m=float(base.a_m), kappa=float(base.kappa),
+                                 Bt_T=float(base.Bt_T), Ip_MA=float(base.Ip_MA), Ti_keV=float(ti),
+                                 fG=float(base.fG), Paux_MW=float(paux), Ti_over_Te=float(tite),
+                                 fuel_mode=str(fuel))
+                out = hot_ion_point(pi)
+                cons = evaluate_constraints(out, point_inputs=pi)
+                ok = all((not bool(c.get("failed"))) for c in cons)
+                st.metric("Feasible", "YES " if ok else "NO ")
+                st.subheader("Key outputs")
+                st.json({k: out.get(k) for k in ["Q_DT_eqv","P_fus_MW","P_net_MW","betaN","q95","fG"] if k in out})
+                st.subheader("Top failed constraints")
+                failed=[c for c in cons if c.get("failed")]
+                if failed:
+                    st.dataframe(_safe_df(failed[:10]), use_container_width=True, hide_index=True)
+                else:
+                    st.write("No failed constraints.")
+
+if _deck == "🎛️ Control Room":
+    with tab_export:
+        st.header("Export / Communication Panel")
+        st.caption("One-click export helpers (JSON, CSV, and a one-slide PNG-style summary) with provenance footer.")
+
+        art = _get_active_artifact("export")
+        if not art:
+            st.info("Load an artifact to export.")
+        else:
+            _download_json_button("Download run artifact JSON", art, "shams_run_artifact.json", "dl_artifact")
+            tables = art.get("tables", {}) if isinstance(art.get("tables"), dict) else {}
+            if tables:
+                for name, obj in tables.items():
+                    try:
+                        df = _safe_df(obj)
+                        st.download_button(f"Download {name}.csv", data=df.to_csv(index=False).encode("utf-8"),
+                                           file_name=f"{name}.csv", mime="text/csv", key=f"dl_csv_{name}")
+                    except Exception:
+                        continue
+            else:
+                st.info("No standardized tables found in artifact ('tables').")
+
+            try:
+                import io
+                import matplotlib.pyplot as plt
+                prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
+                d = _decision_summary_from_artifact(art)
+                fig = plt.figure(figsize=(10, 5))
+                ax = fig.add_subplot(111)
+                ax.axis("off")
+                title = "SHAMS Decision Summary"
+                verdict = "FEASIBLE" if d["feasible"] else "INFEASIBLE"
+                ax.text(0.02, 0.92, f"{title} - {verdict}", fontsize=16, weight="bold")
+                ax.text(0.02, 0.82, f"Q: {d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q','-'))}    Pfus(MW): {d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW','-'))}", fontsize=12)
+                ax.text(0.02, 0.72, "Top blockers:", fontsize=12, weight="bold")
+                y=0.66
+                for b in (d["top_blockers"] or [])[:6]:
+                    ax.text(0.04, y, f"- {b.get('group','')}: {b.get('name','')}", fontsize=11)
+                    y -= 0.06
+                footer = f"repo_version={prov.get('repo_version')}  git={prov.get('git_commit')}  python={prov.get('python')}"
+                ax.text(0.02, 0.03, footer, fontsize=9)
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+                plt.close(fig)
+                st.download_button("Download one-slide summary PNG", data=buf.getvalue(), file_name="shams_one_slide.png",
+                                   mime="image/png", key="dl_png_slide")
+            except Exception as e:
+                st.warning(f"PNG summary unavailable: {e}")
+
+if _deck == "🎛️ Control Room":
+    with tab_solver:
+        st.header("Solver Introspection")
+        st.caption("Inspect solver trace/clamp/residual info from artifacts or the last Point Designer run.")
+
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict) or not art:
+            st.info("No session artifact loaded. Upload one below to inspect solver annotations.")
+            up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="solver_up")
+            art = _load_json_from_upload(up)
+
+        if art:
+            trace = art.get("solver_trace") if isinstance(art.get("solver_trace"), dict) else None
+            if trace:
+                st.subheader("solver_trace (artifact)")
+                st.json(trace)
+            else:
+                st.subheader("Solver annotations (best-effort)")
+                flat = {}
+                for k,v in art.items():
+                    if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
+                        flat[k]=v
+                kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
+                for k,v in kpis.items():
+                    if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
+                        flat[f"kpis.{k}"]=v
+                if flat:
+                    st.json(flat)
+                else:
+                    st.info("No solver trace fields found in artifact.")
+
+            st.divider()
+            st.subheader("CCFS verifier (external solver firewall)")
+            st.caption("Verify an external candidate bundle against frozen truth. Runs do not modify SHAMS physics.")
+            up_ccfs = st.file_uploader("Upload ccfs_bundle.json", type=["json"], key="ccfs_up_v294")
+            b = _load_json_from_upload(up_ccfs)
+            if isinstance(b, dict):
+                req_cols = st.columns(2)
+                with req_cols[0]:
+                    do_phase = st.checkbox("Require phase envelope PASS", value=True, key="ccfs_req_phase_v294")
+                with req_cols[1]:
+                    do_uq = st.checkbox("Require UQ contract not FAIL", value=False, key="ccfs_req_uq_v294")
+
+                if st.button("Verify CCFS bundle", use_container_width=True, key="ccfs_btn_v294"):
+                    try:
+                        from extopt.certified_solve import verify_ccfs_bundle
+                        res = verify_ccfs_bundle(b, default_request={"phase_envelope": bool(do_phase), "uq_contracts": bool(do_uq)})
+                        st.success("CCFS verification complete.")
+                        st.json(res, expanded=False)
+                        _v98_record_run("ccfs_verify", res, mode="ControlRoom/Diagnostics")
+                    except Exception as e:
+                        st.error(f"CCFS verification failed: {e}")
 
 
 # --- Copyright notice

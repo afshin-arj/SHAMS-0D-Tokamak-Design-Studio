@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.8.1 — UI stabilization Phase 1 hotfix (Point Designer Configure restored)
+**Current version:** v372.8.8 — UI stabilization Phase 1 hotfix (Remove module-scope tab handle leakage: render Studies manager inside Control Room → Studies tab; prevent `tab_studies` NameError)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
