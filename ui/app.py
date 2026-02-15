@@ -2095,6 +2095,25 @@ def _shams_status_strip():
 _shams_status_strip()
 
 st.session_state.setdefault('shams_state', SessionStateModel())
+# =====================
+# v92 UI state-machine helpers (append-only; top-level)
+# =====================
+
+def _v92_state_get():
+    """Return the global SHAMS session-state model, initializing safe defaults.
+
+    Must be defined before first use; Streamlit's rerun + lazy execution can
+    otherwise trigger NameError.
+    """
+    import streamlit as st
+    st.session_state.setdefault('shams_state', SessionStateModel())
+    s = st.session_state['shams_state']
+    if getattr(s, 'run_history', None) is None:
+        s.run_history = []
+    if getattr(s, 'pinned_run_ids', None) is None:
+        s.pinned_run_ids = []
+    return s
+
 # ---- UI polish (CSS) ----
 # Streamlit theming is usually done via .streamlit/config.toml, but we keep it self-contained.
 st.markdown(
@@ -5501,6 +5520,103 @@ if _deck == "🧭 Point Designer":
             st.session_state["pd_current_inputs_hash"] = _pd_inputs_hash
         except Exception:
             pass
+
+        # -----------------------------
+        # Point Designer run path (authoritative evaluator call)
+        # Run must happen inside Configure, because Streamlit tabs are lazy.
+        # Telemetry is strictly read-only and renders cached results.
+        # -----------------------------
+        if bool(run_btn):
+            try:
+                status = st.empty()
+                status.info('Evaluating point (frozen truth)…')
+
+                # Build base inputs from the current UI knobs.
+                # Build base inputs from the current UI knobs.
+                # IMPORTANT: UI may carry optional governance knobs that are not present in PointInputs.
+                # We must therefore construct via make_point_inputs() (filters unknown keys) to preserve
+                # freeze-readiness across schema evolution.
+                _base_kwargs = {
+                    'R0_m': float(R0),
+                    'a_m': float(a),
+                    'kappa': float(kappa),
+                    'delta': float(delta),
+                    'Bt_T': float(B0),
+                    'Ip_MA': float(getattr(_base_pd, 'Ip_MA', 8.0)),
+                    'Ti_keV': float(Ti),
+                    'Ti_over_Te': float(Ti_over_Te),
+                    'fG': float(getattr(_base_pd, 'fG', 0.8)),
+                    'Paux_MW': float(Paux),
+                    't_shield_m': float(getattr(_base_pd, 't_shield_m', 0.70)),
+                    'magnet_technology': str(tech) if 'tech' in locals() else str(getattr(_base_pd, 'magnet_technology', 'HTS_REBCO')),
+                    'Tcoil_K': float(Tcoil) if 'Tcoil' in locals() else float(getattr(_base_pd, 'Tcoil_K', 20.0)),
+                    # Optional governance knobs (ignored if PointInputs lacks them):
+                    'confidence': str(confidence) if 'confidence' in locals() else str(getattr(_base_pd, 'confidence', 'Nominal')),
+                    'calib_confinement': float(st.session_state.get('calib_confinement', 1.0)),
+                    'calib_divertor': float(st.session_state.get('calib_divertor', 1.0)),
+                    'calib_bootstrap': float(st.session_state.get('calib_bootstrap', 1.0)),
+                }
+                base = make_point_inputs(**_base_kwargs)
+
+                # Operating-target knobs (default to safe values if not present).
+                _H98_t = float(locals().get('H98_target', getattr(_base_pd, 'H98_target', 1.2)))
+                _Q_t = float(locals().get('Q_target', getattr(_base_pd, 'Q_target', 10.0)))
+                _Ip_min = float(locals().get('Ip_min', max(0.1, 0.5*float(getattr(base, 'Ip_MA', 8.0)))))
+                _Ip_max = float(locals().get('Ip_max', 1.8*float(getattr(base, 'Ip_MA', 8.0))))
+                _fG_min = float(locals().get('fG_min', 0.2))
+                _fG_max = float(locals().get('fG_max', 1.2))
+                _tol = float(locals().get('tol', 1e-3))
+                _Paux_for_Q = float(locals().get('Paux_for_Q', float(getattr(base, 'Paux_MW', 0.0))))
+
+                # Run the deterministic (bounded) operating-target solver wrapper.
+                sol_inp, out, ok = solve_Ip_for_H98_with_Q_match(
+                    base=base,
+                    target_H98=_H98_t,
+                    target_Q=_Q_t,
+                    Ip_min=_Ip_min, Ip_max=_Ip_max,
+                    fG_min=_fG_min, fG_max=_fG_max,
+                    tol=_tol,
+                    Paux_for_Q_MW=_Paux_for_Q,
+                )
+
+                # Cache result for Telemetry/Constraints/Compare regardless of ok.
+                if not isinstance(out, dict):
+                    out = {'_pd_eval_ok': bool(ok), '_pd_eval_reason': 'non_dict_out'}
+                out['_pd_eval_ok'] = bool(ok)
+                out['_pd_eval_reason'] = 'ok' if bool(ok) else (out.get('_pd_eval_reason') or 'solver_failed')
+
+                st.session_state['last_point_inp'] = sol_inp if sol_inp is not None else base
+                st.session_state['last_point_out'] = out
+                st.session_state['pd_last_outputs'] = out
+
+                # Minimal artifact scaffold so downstream panels can show inputs.
+                try:
+                    st.session_state['pd_last_artifact'] = {
+                        'schema_version': 'pd_artifact.v0',
+                        'inputs': dict(getattr((sol_inp if sol_inp is not None else base), '__dict__', {}) or {}),
+                        'outputs': dict(out),
+                    }
+                except Exception:
+                    pass
+
+                try:
+                    import time as _time
+                    st.session_state['pd_last_run_ts'] = float(_time.time())
+                    st.session_state['pd_last_inputs_hash'] = st.session_state.get('pd_current_inputs_hash')
+                except Exception:
+                    pass
+
+                if status is not None:
+                    if bool(ok):
+                        status.success('Evaluation complete. Open **📡 Telemetry** for results.')
+                    else:
+                        status.error('Evaluation produced NO-SOLUTION / infeasible within bounds. Open **📡 Telemetry** for diagnostics.')
+            except Exception as _e:
+                try:
+                    _alog_exc('🧭 Point Designer', 'EvaluatePoint', _e)
+                except Exception:
+                    pass
+                st.error(f'Point Designer evaluation failed: {type(_e).__name__}: {_e}')
 
 
     with tab_tel:
@@ -12250,7 +12366,7 @@ if _deck == "🧠 Systems Mode":
                     opts["trust_delta"] = float(trust_delta)
                 if block_solve:
                     opts["block_solve"] = True
-                return SolverRequest(base=_base, targets=_t, variables=variables, max_iter=max_iter, tol=float(tol), damping=float(damping), options=opts)
+                return SolverRequest(base=_base, targets=_t, variables=variables, max_iter=int(st.session_state.get('systems_max_iter', 35)), tol=float(tol), damping=float(damping), options=opts)
 
             base_stage = base_for_solve
             for s in range(1, int(cont_steps)):
@@ -12278,14 +12394,14 @@ if _deck == "🧠 Systems Mode":
                 base_for_solve,
                 targets=targets,
                 variables=variables,
-                max_iter=max_iter,
+                max_iter=int(st.session_state.get('systems_max_iter', 35)),
                 tol=float(tol),
                 damping=float(damping),
                 trust_delta=(float(trust_delta) if trust_delta is not None else None),
             ):
                 last = step
                 log.code(json.dumps(step, indent=2, sort_keys=True))
-            req = SolverRequest(base=base_for_solve, targets=targets, variables=variables, max_iter=max_iter, tol=float(tol), damping=float(damping), options={"multistart": True, "restarts": 8, "cache_enabled": True, "cache_max": 1024, **({"trust_delta": float(trust_delta)} if trust_delta is not None else {}), **({"block_solve": True} if block_solve else {})})
+            req = SolverRequest(base=base_for_solve, targets=targets, variables=variables, max_iter=int(st.session_state.get('systems_max_iter', 35)), tol=float(tol), damping=float(damping), options={"multistart": True, "restarts": 8, "cache_enabled": True, "cache_max": 1024, **({"trust_delta": float(trust_delta)} if trust_delta is not None else {}), **({"block_solve": True} if block_solve else {})})
             import time as _time
             t_solve0 = _time.perf_counter()
             res = solve_request(req, backend=DefaultTargetSolverBackend())
@@ -12406,7 +12522,7 @@ if _deck == "🧠 Systems Mode":
                     "block_solve": bool(block_solve),
                     "n_targets": int(len(targets)),
                     "n_variables": int(len(variables)),
-                    "max_iter": int(max_iter),
+                    "max_iter": int(st.session_state.get("systems_max_iter", 35)),
                     "tol": float(tol),
                 }
                 artifact.setdefault("meta", {})
@@ -19047,2622 +19163,2400 @@ if _deck == "⚒️ Reactor Design Forge":
             st.error(f"Envelope check failed: {e}")
 
 
-with tab_model:
-    st.header("0-D Tokamak Physics Model (Phase‑1)")
-
-    with st.expander("0‑D Physical Models - explanations", expanded=False):
-        _pm = os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md")
-        try:
-            with open(_pm, "r", encoding="utf-8") as _f:
-                st.markdown(_f.read())
-        except Exception as _e:
-            st.error(f"Failed to load physical model doc: {_e}")
-
-
-    st.markdown(r"""
-    This tab is written to be **actionable**: each section maps to code in `src/physics/`, `src/phase1_models.py`,
-    `src/phase1_systems.py`, and `src/solvers/`.
-
-    SHAMS remains a **0‑D / volume‑averaged / steady‑state** point-design model at its core, intended for *fast feasibility scanning*.
-    Over time we have added several **external systems codes‑inspired** upgrades that remain lightweight and Windows‑friendly:
-
-    - **Optional analytic profiles ("½‑D")** for $n_e(\rho)$, $T_i(\rho)$, $T_e(\rho)$ with **normalization to the chosen volume averages**,
-      plus derived averages like peaking factors and $\langle n_e^2 \rangle/\langle n_e \rangle^2$.
-    - **Radiation options:** legacy fractional radiation (stable for scans) and a physics‑based path (brem + synchrotron + simple impurity line radiation).
-    - **Constraint system:** engineering and plasma constraints are represented as reusable objects (external systems codes‑like), usable by scans and vector solvers.
-    - **Solvers:** classic nested 1‑D solves are still available, plus a more general bounded "targets → variables" solve primitive.
-
-    It is **not** a full transport / equilibrium / neutronics code, but it is designed to grow in that direction while staying usable.
-    """)
-
-    st.caption("Tip: expand only the models you care about - each block is independent.")
-
-    # --- Geometry ---
-    with st.expander("Geometry: volume and surface area (implemented)", expanded=False):
-        st.markdown(r"""
-        Implemented helpers:
-
-        **Plasma volume** (`tokamak_volume`)
-        $$
-        V \approx 2\pi^2\,R\,a^2\,\kappa
-        $$
-
-        **Plasma surface area** (`tokamak_surface_area`)
-        $$
-        S \approx 4\pi^2\,R\,a\,\kappa
-        $$
-
-        Notes:
-        - These are **engineering approximations** intended to preserve correct monotonic trends.
-        - Units: $R,a$ in m, $V$ in m$^3$, $S$ in m$^2$.
-        """)
-
-    # --- Confinement ---
-    with st.expander("Energy confinement: IPB98(y,2) (implemented)"):
-        st.markdown(r"""
-        Implemented model: `tauE_ipb98y2`.
-
-        $$
-        \tau_E = 0.0562\, I_p^{0.93} B_t^{0.15} \bar{n}^{0.41} P_{loss}^{-0.69} R^{1.97} \epsilon^{0.58} \kappa^{0.78} M^{0.19}
-        $$
-        where $\epsilon=a/R$.
-
-        **Units (must match the implementation):**
-        - $I_p$ in MA
-        - $B_t$ in T
-        - $\bar{n}$ in units of $10^{20}\,\mathrm{m^{-3}}$ (i.e. `ne20`)
-        - $P_{loss}$ in MW
-        - $R,a$ in m
-        - $M$ in amu (default 2.5)
-
-        Output: $\tau_E$ in seconds.
-        """)
-
-    # --- L-H threshold ---
-    with st.expander("H-mode access: Martin-2008 L–H threshold (implemented)"):
-        st.markdown(r"""
-        Implemented model: `p_LH_martin08`.
-
-        $$
-        P_{LH} = 0.0488\, \bar{n}^{0.717} B_t^{0.803} S^{0.941}\,\left(\frac{2}{A_{eff}}\right)
-        $$
-
-        **Units:**
-        - $\bar{n}$ in $10^{20}\,\mathrm{m^{-3}}$ (line-averaged)
-        - $B_t$ in T
-        - $S$ in m$^2$ (uses the same proxy as the geometry block)
-        - $A_{eff}$ dimensionless (defaults to 2.0)
-
-        Output: $P_{LH}$ in MW.
-        """)
-
-    # --- Greenwald ---
-    with st.expander("Density limit: Greenwald (implemented)"):
-        st.markdown(r"""
-        Implemented helper: `greenwald_density_20`.
-
-        $$
-        n_{GW}\,[10^{20}\,\mathrm{m^{-3}}] = \frac{I_p\,[\mathrm{MA}]}{\pi a^2\,[\mathrm{m^2}]}
-        $$
-
-        In scans, an operating fraction is typically applied:
-        $$
-        \bar{n} = f_{nG}\,n_{GW},\qquad 0 < f_{nG} \le 1.
-        $$
-        """)
-
-    # --- Screening proxies ---
-    with st.expander("Screening proxies: q95, βN, bootstrap fraction (implemented proxies)"):
-        st.markdown(r"""
-        These are explicitly labeled **proxies** (trend-correct, not equilibrium/transport solutions).
-
-        **q95 proxy** (`q95_proxy_cyl`)
-        $$
-        q_{95} \approx \left(\frac{2\pi R B_t}{\mu_0 I_p}\right)\left(\frac{a}{R}\right)\frac{1}{\kappa}
-        $$
-        with $I_p$ converted to amperes internally.
-
-        **Normalized beta** (`betaN_from_beta`)
-        $$
-        \beta_N = \beta(\%)\,\frac{a\,B_t}{I_p}
-        \qquad\text{with}\qquad \beta(\%)=100\,\beta
-        $$
-        where $\beta$ is the *fractional* beta.
-
-        **Bootstrap fraction proxy** (`bootstrap_fraction_proxy`)
-        $$
-        f_{bs} \approx C_{bs}\,\frac{\beta_N}{q_{95}}
-        $$
-        then clamped to a configured range (default 0 to 0.95).
-        """)
-
-    # --- Fusion reactivity ---
-    with st.expander("Fusion reactivity: Bosch–Hale ⟨σv⟩ (implemented)"):
-        st.markdown(r"""
-        Implemented function: `bosch_hale_sigmav(T_i, reaction)`.
-
-        This uses the Bosch–Hale parameterization for Maxwellian-averaged reactivity:
-        $$
-        \langle\sigma v\rangle(T_i)\;[\mathrm{m^3/s}]
-        $$
-
-        Internally, the implementation computes intermediate variables ($\theta$, $\xi$) from a
-        reaction-specific coefficient set and returns a strictly non-negative value.
-
-        **Important for UI users:**
-        - Input $T_i$ is in **keV**.
-        - Output is in **m$^3$/s**.
-        """)
-
-        # Bosch–Hale coefficient values used by the implementation (from `BH_COEFFS`)
-        _bh_rows = []
-        for _rxn in ["DT", "DD_Tp", "DD_He3n"]:
-            _c = BH_COEFFS[_rxn]
-            _bh_rows.append({"Reaction": _rxn, **asdict(_c)})
-        _bh_df = pd.DataFrame(_bh_rows).set_index("Reaction")
-        st.caption("Bosch–Hale coefficients used for DT and DD channels (exact values as implemented).")
-        st.dataframe(_bh_df, use_container_width=True)
-
-    # --- Fusion power / gain symbols (fixing the screenshot issue) ---
-    with st.expander("Fusion power & gain definitions: P_f, P_α, Q (notation)"):
-        st.markdown(r"""
-        **What these symbols mean (and how they relate):**
-
-        **Fusion power, $P_f$**  
-        Total thermal power released by fusion reactions occurring in the plasma:
-        $$
-        P_f \;=\; \dot{N}_{\text{fus}}\,E_{\text{fus}}
-        $$
-        where $\dot{N}_{\text{fus}}$ is the fusion reaction rate [1/s] and $E_{\text{fus}}$ is the energy released per reaction.
-        For D‑T, $E_{\text{fus}} = 17.6\,\mathrm{MeV}$.
-
-        **Alpha heating power, $P_{\alpha}$**  
-        Part of $P_f$ carried by *charged* alpha particles and deposited back into the plasma (self‑heating):
-        $$
-        P_{\alpha} \;=\; f_\alpha\,P_f
-        $$
-        For D‑T, $f_\alpha = \frac{3.5}{17.6} \approx 0.199$, so $P_{\alpha} \approx 0.20\,P_f$.
-        (The rest is mainly neutron power: $P_n \approx 0.80\,P_f$.)
-
-        **Fusion gain, $Q$**  
-        In this UI, $Q$ is the standard *plasma gain*:
-        $$
-        Q \;=\; \frac{P_f}{P_{\mathrm{aux}}}
-        $$
-        where $P_{\mathrm{aux}}$ is the **externally applied** auxiliary heating power (e.g., NBI/RF) required to sustain the operating point.
-        This is distinct from “wall‑plug” gain, which would include plant efficiencies and non‑plasma power draws.
-
-        **How to interpret in scans**
-        - Increasing $P_f$ increases $P_{\alpha}$ proportionally (more self‑heating).  
-        - $Q$ improves only when $P_f$ grows faster than the required $P_{\mathrm{aux}}$.
-        """)
-
-    # --- SOL width metric ---
-    with st.expander("Optional divertor/SOL risk metric: Eich λq (implemented)"):
-        st.markdown(r"""
-        Implemented metric: `lambda_q_eich14_mm`.
-
-        $$
-        \lambda_q\,[\mathrm{mm}] \approx \text{factor}\times 0.63\,B_{pol}^{-1.19}
-        $$
-
-        with $B_{pol}$ approximated by:
-        $$
-        B_{pol} \approx \frac{\mu_0 I_p}{2\pi a}
-        $$
-
-        This is **not** a self‑consistent divertor / edge power‑exhaust model - it’s a compact, order‑of‑magnitude **screening proxy** for quickly comparing design points.
-        """)
-
-    st.info(
-        "If you want the *full* step-by-step closure shown here (power balance → temperatures → Pf/Q), "
-        "tell me which exact function in `src/phase1_core.py` you want treated as the single source of truth, "
-        "and I’ll mirror it line-for-line in this tab."
-    )
-
-# -----------------------------
-# Benchmarks
-# -----------------------------
-with tab_bench:
-    st.subheader("Regression Benchmarks")
-    st.write("Run a small suite of SPARC-like cases to ensure recent physics/solver changes haven't broken behavior.")
-
-    import json
-    from pathlib import Path
-
-    bench_dir = Path(__file__).resolve().parent.parent / "benchmarks"
-    cases_path = bench_dir / "cases.json"
-    golden_path = bench_dir / "golden.json"
-
-    diff_path = bench_dir / "last_diff_report.json"
-    with st.expander("Latest diff report (from last run)", expanded=False):
-        if diff_path.exists():
+if _deck == "🎛️ Control Room":
+    with tab_model:
+        st.header("0-D Tokamak Physics Model (Phase‑1)")
+    
+        with st.expander("0‑D Physical Models - explanations", expanded=False):
+            _pm = os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md")
             try:
-                rep = json.loads(diff_path.read_text(encoding="utf-8"))
-                st.caption(f"Generated at unix={rep.get('created_unix'):.0f} | failures={rep.get('n_failed',0)}")
-                rows = rep.get("rows", [])
-                if rows:
-                    import pandas as pd
-
-                    df_rep = pd.DataFrame(rows)
-                    # show worst first
-                    if "ok" in df_rep.columns and "rel_err" in df_rep.columns:
-                        df_rep = df_rep.sort_values(by=["ok","rel_err"], ascending=[True, False])
-                    st.dataframe(df_rep, use_container_width=True, height=260)
-                # Structural diffs (constraints/model cards) vs golden artifacts, if present
-                ss = rep.get("structural_summary")
-                if ss:
-                    st.markdown("**Structural diffs vs golden artifacts**")
-                    st.write({k: ss.get(k) for k in ["n_cases","n_with_changes","total_added_constraints","total_removed_constraints","total_changed_constraints","total_modelcard_changes"]})
-                structural = rep.get("structural") or {}
-                if structural:
-                    with st.expander("Show structural diffs by case", expanded=False):
-                        for cname, d in structural.items():
-                            cadd = d.get("constraints", {}).get("added", [])
-                            crem = d.get("constraints", {}).get("removed", [])
-                            cchg = d.get("constraints", {}).get("changed_meta", [])
-                            mc = d.get("model_cards", {})
-                            mcchg = (mc.get("added", []) or []) + (mc.get("removed", []) or []) + (mc.get("changed", []) or [])
-                            if not (cadd or crem or cchg or mcchg or (d.get("schema_version", {}).get("new") != d.get("schema_version", {}).get("old"))):
-                                continue
-                            with st.expander(f"{cname}", expanded=False):
-                                if cadd: st.write({"constraints_added": cadd})
-                                if crem: st.write({"constraints_removed": crem})
-                                if cchg: st.write({"constraint_meta_changes": cchg})
-                                if mc.get("added"): st.write({"model_cards_added": mc.get("added")})
-                                if mc.get("removed"): st.write({"model_cards_removed": mc.get("removed")})
-                                if mc.get("changed"): st.write({"model_cards_changed": mc.get("changed")})
-
-                st.download_button("Download diff report JSON", data=diff_path.read_bytes(), file_name="last_diff_report.json")
-            except Exception as e:
-                st.warning(f"Could not read diff report: {e}")
-        else:
-            st.info("No diff report yet. Run benchmarks to generate one.")
-
-
-    # Release notes (auto-generated)
-    with st.expander("Release notes (auto)", expanded=False):
-        import subprocess, sys
+                with open(_pm, "r", encoding="utf-8") as _f:
+                    st.markdown(_f.read())
+            except Exception as _e:
+                st.error(f"Failed to load physical model doc: {_e}")
+    
+    
+        st.markdown(r"""
+        This tab is written to be **actionable**: each section maps to code in `src/physics/`, `src/phase1_models.py`,
+        `src/phase1_systems.py`, and `src/solvers/`.
+    
+        SHAMS remains a **0‑D / volume‑averaged / steady‑state** point-design model at its core, intended for *fast feasibility scanning*.
+        Over time we have added several **external systems codes‑inspired** upgrades that remain lightweight and Windows‑friendly:
+    
+        - **Optional analytic profiles ("½‑D")** for $n_e(\rho)$, $T_i(\rho)$, $T_e(\rho)$ with **normalization to the chosen volume averages**,
+          plus derived averages like peaking factors and $\langle n_e^2 \rangle/\langle n_e \rangle^2$.
+        - **Radiation options:** legacy fractional radiation (stable for scans) and a physics‑based path (brem + synchrotron + simple impurity line radiation).
+        - **Constraint system:** engineering and plasma constraints are represented as reusable objects (external systems codes‑like), usable by scans and vector solvers.
+        - **Solvers:** classic nested 1‑D solves are still available, plus a more general bounded "targets → variables" solve primitive.
+    
+        It is **not** a full transport / equilibrium / neutronics code, but it is designed to grow in that direction while staying usable.
+        """)
+    
+        st.caption("Tip: expand only the models you care about - each block is independent.")
+    
+        # --- Geometry ---
+        with st.expander("Geometry: volume and surface area (implemented)", expanded=False):
+            st.markdown(r"""
+            Implemented helpers:
+    
+            **Plasma volume** (`tokamak_volume`)
+            $$
+            V \approx 2\pi^2\,R\,a^2\,\kappa
+            $$
+    
+            **Plasma surface area** (`tokamak_surface_area`)
+            $$
+            S \approx 4\pi^2\,R\,a\,\kappa
+            $$
+    
+            Notes:
+            - These are **engineering approximations** intended to preserve correct monotonic trends.
+            - Units: $R,a$ in m, $V$ in m$^3$, $S$ in m$^2$.
+            """)
+    
+        # --- Confinement ---
+        with st.expander("Energy confinement: IPB98(y,2) (implemented)"):
+            st.markdown(r"""
+            Implemented model: `tauE_ipb98y2`.
+    
+            $$
+            \tau_E = 0.0562\, I_p^{0.93} B_t^{0.15} \bar{n}^{0.41} P_{loss}^{-0.69} R^{1.97} \epsilon^{0.58} \kappa^{0.78} M^{0.19}
+            $$
+            where $\epsilon=a/R$.
+    
+            **Units (must match the implementation):**
+            - $I_p$ in MA
+            - $B_t$ in T
+            - $\bar{n}$ in units of $10^{20}\,\mathrm{m^{-3}}$ (i.e. `ne20`)
+            - $P_{loss}$ in MW
+            - $R,a$ in m
+            - $M$ in amu (default 2.5)
+    
+            Output: $\tau_E$ in seconds.
+            """)
+    
+        # --- L-H threshold ---
+        with st.expander("H-mode access: Martin-2008 L–H threshold (implemented)"):
+            st.markdown(r"""
+            Implemented model: `p_LH_martin08`.
+    
+            $$
+            P_{LH} = 0.0488\, \bar{n}^{0.717} B_t^{0.803} S^{0.941}\,\left(\frac{2}{A_{eff}}\right)
+            $$
+    
+            **Units:**
+            - $\bar{n}$ in $10^{20}\,\mathrm{m^{-3}}$ (line-averaged)
+            - $B_t$ in T
+            - $S$ in m$^2$ (uses the same proxy as the geometry block)
+            - $A_{eff}$ dimensionless (defaults to 2.0)
+    
+            Output: $P_{LH}$ in MW.
+            """)
+    
+        # --- Greenwald ---
+        with st.expander("Density limit: Greenwald (implemented)"):
+            st.markdown(r"""
+            Implemented helper: `greenwald_density_20`.
+    
+            $$
+            n_{GW}\,[10^{20}\,\mathrm{m^{-3}}] = \frac{I_p\,[\mathrm{MA}]}{\pi a^2\,[\mathrm{m^2}]}
+            $$
+    
+            In scans, an operating fraction is typically applied:
+            $$
+            \bar{n} = f_{nG}\,n_{GW},\qquad 0 < f_{nG} \le 1.
+            $$
+            """)
+    
+        # --- Screening proxies ---
+        with st.expander("Screening proxies: q95, βN, bootstrap fraction (implemented proxies)"):
+            st.markdown(r"""
+            These are explicitly labeled **proxies** (trend-correct, not equilibrium/transport solutions).
+    
+            **q95 proxy** (`q95_proxy_cyl`)
+            $$
+            q_{95} \approx \left(\frac{2\pi R B_t}{\mu_0 I_p}\right)\left(\frac{a}{R}\right)\frac{1}{\kappa}
+            $$
+            with $I_p$ converted to amperes internally.
+    
+            **Normalized beta** (`betaN_from_beta`)
+            $$
+            \beta_N = \beta(\%)\,\frac{a\,B_t}{I_p}
+            \qquad\text{with}\qquad \beta(\%)=100\,\beta
+            $$
+            where $\beta$ is the *fractional* beta.
+    
+            **Bootstrap fraction proxy** (`bootstrap_fraction_proxy`)
+            $$
+            f_{bs} \approx C_{bs}\,\frac{\beta_N}{q_{95}}
+            $$
+            then clamped to a configured range (default 0 to 0.95).
+            """)
+    
+        # --- Fusion reactivity ---
+        with st.expander("Fusion reactivity: Bosch–Hale ⟨σv⟩ (implemented)"):
+            st.markdown(r"""
+            Implemented function: `bosch_hale_sigmav(T_i, reaction)`.
+    
+            This uses the Bosch–Hale parameterization for Maxwellian-averaged reactivity:
+            $$
+            \langle\sigma v\rangle(T_i)\;[\mathrm{m^3/s}]
+            $$
+    
+            Internally, the implementation computes intermediate variables ($\theta$, $\xi$) from a
+            reaction-specific coefficient set and returns a strictly non-negative value.
+    
+            **Important for UI users:**
+            - Input $T_i$ is in **keV**.
+            - Output is in **m$^3$/s**.
+            """)
+    
+            # Bosch–Hale coefficient values used by the implementation (from `BH_COEFFS`)
+            _bh_rows = []
+            for _rxn in ["DT", "DD_Tp", "DD_He3n"]:
+                _c = BH_COEFFS[_rxn]
+                _bh_rows.append({"Reaction": _rxn, **asdict(_c)})
+            _bh_df = pd.DataFrame(_bh_rows).set_index("Reaction")
+            st.caption("Bosch–Hale coefficients used for DT and DD channels (exact values as implemented).")
+            st.dataframe(_bh_df, use_container_width=True)
+    
+        # --- Fusion power / gain symbols (fixing the screenshot issue) ---
+        with st.expander("Fusion power & gain definitions: P_f, P_α, Q (notation)"):
+            st.markdown(r"""
+            **What these symbols mean (and how they relate):**
+    
+            **Fusion power, $P_f$**  
+            Total thermal power released by fusion reactions occurring in the plasma:
+            $$
+            P_f \;=\; \dot{N}_{\text{fus}}\,E_{\text{fus}}
+            $$
+            where $\dot{N}_{\text{fus}}$ is the fusion reaction rate [1/s] and $E_{\text{fus}}$ is the energy released per reaction.
+            For D‑T, $E_{\text{fus}} = 17.6\,\mathrm{MeV}$.
+    
+            **Alpha heating power, $P_{\alpha}$**  
+            Part of $P_f$ carried by *charged* alpha particles and deposited back into the plasma (self‑heating):
+            $$
+            P_{\alpha} \;=\; f_\alpha\,P_f
+            $$
+            For D‑T, $f_\alpha = \frac{3.5}{17.6} \approx 0.199$, so $P_{\alpha} \approx 0.20\,P_f$.
+            (The rest is mainly neutron power: $P_n \approx 0.80\,P_f$.)
+    
+            **Fusion gain, $Q$**  
+            In this UI, $Q$ is the standard *plasma gain*:
+            $$
+            Q \;=\; \frac{P_f}{P_{\mathrm{aux}}}
+            $$
+            where $P_{\mathrm{aux}}$ is the **externally applied** auxiliary heating power (e.g., NBI/RF) required to sustain the operating point.
+            This is distinct from “wall‑plug” gain, which would include plant efficiencies and non‑plasma power draws.
+    
+            **How to interpret in scans**
+            - Increasing $P_f$ increases $P_{\alpha}$ proportionally (more self‑heating).  
+            - $Q$ improves only when $P_f$ grows faster than the required $P_{\mathrm{aux}}$.
+            """)
+    
+        # --- SOL width metric ---
+        with st.expander("Optional divertor/SOL risk metric: Eich λq (implemented)"):
+            st.markdown(r"""
+            Implemented metric: `lambda_q_eich14_mm`.
+    
+            $$
+            \lambda_q\,[\mathrm{mm}] \approx \text{factor}\times 0.63\,B_{pol}^{-1.19}
+            $$
+    
+            with $B_{pol}$ approximated by:
+            $$
+            B_{pol} \approx \frac{\mu_0 I_p}{2\pi a}
+            $$
+    
+            This is **not** a self‑consistent divertor / edge power‑exhaust model - it’s a compact, order‑of‑magnitude **screening proxy** for quickly comparing design points.
+            """)
+    
+        st.info(
+            "If you want the *full* step-by-step closure shown here (power balance → temperatures → Pf/Q), "
+            "tell me which exact function in `src/phase1_core.py` you want treated as the single source of truth, "
+            "and I’ll mirror it line-for-line in this tab."
+        )
+    
+    # -----------------------------
+    # Benchmarks
+    # -----------------------------
+    with tab_bench:
+        st.subheader("Regression Benchmarks")
+        st.write("Run a small suite of SPARC-like cases to ensure recent physics/solver changes haven't broken behavior.")
+    
+        import json
         from pathlib import Path
-
-        repo_root = Path(__file__).resolve().parent.parent
-        out_md = repo_root / "RELEASE_NOTES.md"
-        old_default = str((repo_root.parent / "SHAMS_old").resolve()) if (repo_root.parent / "SHAMS_old").exists() else r"..\SHAMS_old"
-        old_path = st.text_input("Old SHAMS repo path", value=st.session_state.get("release_notes_old", old_default))
-        st.session_state["release_notes_old"] = old_path
-
-        auto = st.checkbox("Auto-generate if missing/out-of-date", value=True, key="release_notes_auto")
-        run_now_rn = st.button("Generate release notes now", key="btn_release_notes_now")
-
-        def _needs_rn() -> bool:
-            if not out_md.exists():
-                return True
-            try:
-                m_out = out_md.stat().st_mtime
-                # regenerate if diff report is newer, or tool changed
-                tool_p = repo_root / "tools" / "release_notes.py"
-                diff_p = repo_root / "benchmarks" / "last_diff_report.json"
-                newest = max([p.stat().st_mtime for p in [tool_p, diff_p] if p.exists()] + [0])
-                return newest > m_out
-            except Exception:
-                return False
-
-        if (auto and _needs_rn() and not st.session_state.get("_rn_ran_this_session", False)) or run_now_rn:
-            cmd = [sys.executable, str(repo_root / "tools" / "release_notes.py"), "--old", old_path, "--new", str(repo_root), "--out", str(out_md)]
-            st.caption("Running: " + " ".join(cmd))
-            try:
-                p = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
-                st.session_state["_rn_last_stdout"] = p.stdout
-                st.session_state["_rn_last_stderr"] = p.stderr
-                st.session_state["_rn_last_rc"] = p.returncode
-                st.session_state["_rn_ran_this_session"] = True
-            except Exception as e:
-                st.session_state["_rn_last_stderr"] = str(e)
-                st.session_state["_rn_last_rc"] = 1
-
-        rc = st.session_state.get("_rn_last_rc")
-        if rc is not None:
-            if rc == 0:
-                st.success("Release notes generated.")
+    
+        bench_dir = Path(__file__).resolve().parent.parent / "benchmarks"
+        cases_path = bench_dir / "cases.json"
+        golden_path = bench_dir / "golden.json"
+    
+        diff_path = bench_dir / "last_diff_report.json"
+        with st.expander("Latest diff report (from last run)", expanded=False):
+            if diff_path.exists():
+                try:
+                    rep = json.loads(diff_path.read_text(encoding="utf-8"))
+                    st.caption(f"Generated at unix={rep.get('created_unix'):.0f} | failures={rep.get('n_failed',0)}")
+                    rows = rep.get("rows", [])
+                    if rows:
+                        import pandas as pd
+    
+                        df_rep = pd.DataFrame(rows)
+                        # show worst first
+                        if "ok" in df_rep.columns and "rel_err" in df_rep.columns:
+                            df_rep = df_rep.sort_values(by=["ok","rel_err"], ascending=[True, False])
+                        st.dataframe(df_rep, use_container_width=True, height=260)
+                    # Structural diffs (constraints/model cards) vs golden artifacts, if present
+                    ss = rep.get("structural_summary")
+                    if ss:
+                        st.markdown("**Structural diffs vs golden artifacts**")
+                        st.write({k: ss.get(k) for k in ["n_cases","n_with_changes","total_added_constraints","total_removed_constraints","total_changed_constraints","total_modelcard_changes"]})
+                    structural = rep.get("structural") or {}
+                    if structural:
+                        with st.expander("Show structural diffs by case", expanded=False):
+                            for cname, d in structural.items():
+                                cadd = d.get("constraints", {}).get("added", [])
+                                crem = d.get("constraints", {}).get("removed", [])
+                                cchg = d.get("constraints", {}).get("changed_meta", [])
+                                mc = d.get("model_cards", {})
+                                mcchg = (mc.get("added", []) or []) + (mc.get("removed", []) or []) + (mc.get("changed", []) or [])
+                                if not (cadd or crem or cchg or mcchg or (d.get("schema_version", {}).get("new") != d.get("schema_version", {}).get("old"))):
+                                    continue
+                                with st.expander(f"{cname}", expanded=False):
+                                    if cadd: st.write({"constraints_added": cadd})
+                                    if crem: st.write({"constraints_removed": crem})
+                                    if cchg: st.write({"constraint_meta_changes": cchg})
+                                    if mc.get("added"): st.write({"model_cards_added": mc.get("added")})
+                                    if mc.get("removed"): st.write({"model_cards_removed": mc.get("removed")})
+                                    if mc.get("changed"): st.write({"model_cards_changed": mc.get("changed")})
+    
+                    st.download_button("Download diff report JSON", data=diff_path.read_bytes(), file_name="last_diff_report.json")
+                except Exception as e:
+                    st.warning(f"Could not read diff report: {e}")
             else:
-                st.warning("Release notes generation had issues (see logs).")
-            with st.expander("Logs", expanded=False):
-                st.code((st.session_state.get("_rn_last_stdout") or "") + "\n" + (st.session_state.get("_rn_last_stderr") or ""))
-
-        if out_md.exists():
-            st.markdown(out_md.read_text(encoding="utf-8", errors="ignore"))
-            st.download_button("Download RELEASE_NOTES.md", data=out_md.read_bytes(), file_name="RELEASE_NOTES.md", mime="text/markdown")
-        else:
-            st.info("RELEASE_NOTES.md not found yet.")
-
-    with st.expander("Regression comparisons", expanded=False):
-        colA, colB = st.columns([1,1])
-        with colA:
-            run_now = st.button("Run benchmarks")
-        with colB:
-            regen = st.button("Regenerate golden (intentional changes)")
+                st.info("No diff report yet. Run benchmarks to generate one.")
     
-        def _safe(v):
-            try:
-                return float(v)
-            except Exception:
-                return float("nan")
     
-        if cases_path.exists():
-            _cases_raw = json.loads(cases_path.read_text())
-        else:
-            _cases_raw = {}
+        # Release notes (auto-generated)
+        with st.expander("Release notes (auto)", expanded=False):
+            import subprocess, sys
+            from pathlib import Path
     
-        # Normalize benchmark cases into a list[dict] with keys: name, inputs
-        # Supports dict-form (name -> inputs), list-form (dicts), or list-form (names).
-        cases = []
-        if isinstance(_cases_raw, dict):
-            for _name, _inp in _cases_raw.items():
-                if isinstance(_inp, dict):
-                    cases.append({"name": str(_name), "inputs": _inp})
-        elif isinstance(_cases_raw, list):
-            for i, _c in enumerate(_cases_raw):
-                if isinstance(_c, dict):
-                    _name = _c.get("name", f"case_{i}")
-                    _inp = _c.get("inputs", _c.get("inp", _c.get("input", {})))
+            repo_root = Path(__file__).resolve().parent.parent
+            out_md = repo_root / "RELEASE_NOTES.md"
+            old_default = str((repo_root.parent / "SHAMS_old").resolve()) if (repo_root.parent / "SHAMS_old").exists() else r"..\SHAMS_old"
+            old_path = st.text_input("Old SHAMS repo path", value=st.session_state.get("release_notes_old", old_default))
+            st.session_state["release_notes_old"] = old_path
+    
+            auto = st.checkbox("Auto-generate if missing/out-of-date", value=True, key="release_notes_auto")
+            run_now_rn = st.button("Generate release notes now", key="btn_release_notes_now")
+    
+            def _needs_rn() -> bool:
+                if not out_md.exists():
+                    return True
+                try:
+                    m_out = out_md.stat().st_mtime
+                    # regenerate if diff report is newer, or tool changed
+                    tool_p = repo_root / "tools" / "release_notes.py"
+                    diff_p = repo_root / "benchmarks" / "last_diff_report.json"
+                    newest = max([p.stat().st_mtime for p in [tool_p, diff_p] if p.exists()] + [0])
+                    return newest > m_out
+                except Exception:
+                    return False
+    
+            if (auto and _needs_rn() and not st.session_state.get("_rn_ran_this_session", False)) or run_now_rn:
+                cmd = [sys.executable, str(repo_root / "tools" / "release_notes.py"), "--old", old_path, "--new", str(repo_root), "--out", str(out_md)]
+                st.caption("Running: " + " ".join(cmd))
+                try:
+                    p = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
+                    st.session_state["_rn_last_stdout"] = p.stdout
+                    st.session_state["_rn_last_stderr"] = p.stderr
+                    st.session_state["_rn_last_rc"] = p.returncode
+                    st.session_state["_rn_ran_this_session"] = True
+                except Exception as e:
+                    st.session_state["_rn_last_stderr"] = str(e)
+                    st.session_state["_rn_last_rc"] = 1
+    
+            rc = st.session_state.get("_rn_last_rc")
+            if rc is not None:
+                if rc == 0:
+                    st.success("Release notes generated.")
+                else:
+                    st.warning("Release notes generation had issues (see logs).")
+                with st.expander("Logs", expanded=False):
+                    st.code((st.session_state.get("_rn_last_stdout") or "") + "\n" + (st.session_state.get("_rn_last_stderr") or ""))
+    
+            if out_md.exists():
+                st.markdown(out_md.read_text(encoding="utf-8", errors="ignore"))
+                st.download_button("Download RELEASE_NOTES.md", data=out_md.read_bytes(), file_name="RELEASE_NOTES.md", mime="text/markdown")
+            else:
+                st.info("RELEASE_NOTES.md not found yet.")
+    
+        with st.expander("Regression comparisons", expanded=False):
+            colA, colB = st.columns([1,1])
+            with colA:
+                run_now = st.button("Run benchmarks")
+            with colB:
+                regen = st.button("Regenerate golden (intentional changes)")
+        
+            def _safe(v):
+                try:
+                    return float(v)
+                except Exception:
+                    return float("nan")
+        
+            if cases_path.exists():
+                _cases_raw = json.loads(cases_path.read_text())
+            else:
+                _cases_raw = {}
+        
+            # Normalize benchmark cases into a list[dict] with keys: name, inputs
+            # Supports dict-form (name -> inputs), list-form (dicts), or list-form (names).
+            cases = []
+            if isinstance(_cases_raw, dict):
+                for _name, _inp in _cases_raw.items():
                     if isinstance(_inp, dict):
                         cases.append({"name": str(_name), "inputs": _inp})
-                else:
-                    cases.append({"name": str(_c), "inputs": {}})
-    
-        if not cases:
-            # Always provide at least one default case so the UI doesn't crash
-            cases = [{"name": "default", "inputs": {"R0_m": 1.85, "a_m": 0.6, "kappa": 1.75, "Bt_T": 12.0, "Ip_MA": 8.0, "Ti_keV": 10.0, "fG": 0.85, "t_shield_m": 0.25, "Paux_MW": 25.0}}]
-    
-        base = PointInputs(R0_m=1.85, a_m=0.6, kappa=1.75, Bt_T=12.0, Ip_MA=8.0, Ti_keV=10.0, fG=0.85, t_shield_m=0.25, Paux_MW=25.0)
-        if run_now or regen:
-            results = {}
-            for _case in cases:
-                name = _case.get("name","case")
-                overrides = _case.get("inputs", {})
-                # Defensive: apply only existing fields
-                d = base.__dict__.copy()
-                for k, v in overrides.items():
-                    if k in d:
-                        d[k] = v
-                inp_case = PointInputs(**d)
-                results[name] = hot_ion_point(inp_case)
-    
-            if regen:
-                golden_path.write_text(json.dumps(results, indent=2))
-                st.success(f"Wrote golden: {golden_path}")
-            else:
-                if not golden_path.exists():
-                    st.error("golden.json not found. Click 'Regenerate golden' once to create it.")
-                else:
-                    golden = json.loads(golden_path.read_text())
-                    CURATED = ["Q_DT_eqv","H98","P_fus_MW","P_SOL_MW","q_div_MW_m2","B_peak_T","sigma_hoop_MPa","hts_margin_cs","J_eng_A_mm2","t_flat_s","P_net_MW"]
-                    rows = []
-                    failed = 0
-                    for name, cur in results.items():
-                        ref = golden.get(name, {})
-                        for k in CURATED:
-                            a = _safe(cur.get(k))
-                            b = _safe(ref.get(k))
-                            if not (math.isfinite(a) and math.isfinite(b)):
-                                continue
-                            atol = 1e-6
-                            rtol = 5e-3
-                            ok = abs(a-b) <= max(atol, rtol*max(abs(b),1e-9))
-                            if not ok:
-                                failed += 1
-                            rows.append({"case":name,"key":k,"got":a,"golden":b,"rel_err":(abs(a-b)/max(abs(b),1e-9)),"ok":ok})
-                    import pandas as pd
-
-                    df = pd.DataFrame(rows)
-                    st.dataframe(df, use_container_width=True)
-
-                    # Write a machine-readable diff report (used by CI and the UI)
-                    try:
-                        import time as _time
-                        report = {
-                            "created_unix": _time.time(),
-                            "rtol": 5e-3,
-                            "atol": 1e-6,
-                            "n_rows": int(len(rows)),
-                            "n_failed": int(failed),
-                            "rows": rows,
-                        }
-                        (bench_dir / "last_diff_report.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-                    except Exception:
-                        pass
-
-                    if failed==0:
-                        st.success("All benchmark comparisons passed (within tolerances).")
+            elif isinstance(_cases_raw, list):
+                for i, _c in enumerate(_cases_raw):
+                    if isinstance(_c, dict):
+                        _name = _c.get("name", f"case_{i}")
+                        _inp = _c.get("inputs", _c.get("inp", _c.get("input", {})))
+                        if isinstance(_inp, dict):
+                            cases.append({"name": str(_name), "inputs": _inp})
                     else:
-                        st.warning(f"{failed} comparisons exceeded tolerance. See table.")
+                        cases.append({"name": str(_c), "inputs": {}})
+        
+            if not cases:
+                # Always provide at least one default case so the UI doesn't crash
+                cases = [{"name": "default", "inputs": {"R0_m": 1.85, "a_m": 0.6, "kappa": 1.75, "Bt_T": 12.0, "Ip_MA": 8.0, "Ti_keV": 10.0, "fG": 0.85, "t_shield_m": 0.25, "Paux_MW": 25.0}}]
+        
+            base = PointInputs(R0_m=1.85, a_m=0.6, kappa=1.75, Bt_T=12.0, Ip_MA=8.0, Ti_keV=10.0, fG=0.85, t_shield_m=0.25, Paux_MW=25.0)
+            if run_now or regen:
+                results = {}
+                for _case in cases:
+                    name = _case.get("name","case")
+                    overrides = _case.get("inputs", {})
+                    # Defensive: apply only existing fields
+                    d = base.__dict__.copy()
+                    for k, v in overrides.items():
+                        if k in d:
+                            d[k] = v
+                    inp_case = PointInputs(**d)
+                    results[name] = hot_ion_point(inp_case)
+        
+                if regen:
+                    golden_path.write_text(json.dumps(results, indent=2))
+                    st.success(f"Wrote golden: {golden_path}")
+                else:
+                    if not golden_path.exists():
+                        st.error("golden.json not found. Click 'Regenerate golden' once to create it.")
+                    else:
+                        golden = json.loads(golden_path.read_text())
+                        CURATED = ["Q_DT_eqv","H98","P_fus_MW","P_SOL_MW","q_div_MW_m2","B_peak_T","sigma_hoop_MPa","hts_margin_cs","J_eng_A_mm2","t_flat_s","P_net_MW"]
+                        rows = []
+                        failed = 0
+                        for name, cur in results.items():
+                            ref = golden.get(name, {})
+                            for k in CURATED:
+                                a = _safe(cur.get(k))
+                                b = _safe(ref.get(k))
+                                if not (math.isfinite(a) and math.isfinite(b)):
+                                    continue
+                                atol = 1e-6
+                                rtol = 5e-3
+                                ok = abs(a-b) <= max(atol, rtol*max(abs(b),1e-9))
+                                if not ok:
+                                    failed += 1
+                                rows.append({"case":name,"key":k,"got":a,"golden":b,"rel_err":(abs(a-b)/max(abs(b),1e-9)),"ok":ok})
+                        import pandas as pd
     
+                        df = pd.DataFrame(rows)
+                        st.dataframe(df, use_container_width=True)
     
-    st.divider()
-    with st.expander("Sensitivity and uncertainty (Monte Carlo)", expanded=False):
-        st.subheader("Sensitivity (Monte Carlo)")
-        st.write("Runs a lightweight uncertainty scan around a selected benchmark case (Windows-native).")
+                        # Write a machine-readable diff report (used by CI and the UI)
+                        try:
+                            import time as _time
+                            report = {
+                                "created_unix": _time.time(),
+                                "rtol": 5e-3,
+                                "atol": 1e-6,
+                                "n_rows": int(len(rows)),
+                                "n_failed": int(failed),
+                                "rows": rows,
+                            }
+                            (bench_dir / "last_diff_report.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+                        except Exception:
+                            pass
     
-        from analysis.sensitivity import monte_carlo_feasibility
-        from models.inputs import PointInputs
-    
-        case_names = [c.get("name", f"case_{i}") for i,c in enumerate(cases)]
-        case_sel = st.selectbox("Benchmark case for sensitivity", case_names, index=0, key="sens_case_sel")
-        n_mc = st.number_input("Samples", min_value=50, max_value=2000, value=50, step=50, key="sens_n")
-        if st.button("Run Monte Carlo", key="run_mc_bench"):
-            c = cases[case_names.index(case_sel)]
-            base_inp = PointInputs(**c["inputs"])
-            res = monte_carlo_feasibility(base_inp, n=int(n_mc), seed=42)
-            st.metric("Feasible probability", f"{res['p_feasible']*100:.1f}%")
-            st.write("Most frequently violated constraints:")
-            st.dataframe(res["worst_constraints"], use_container_width=True)
-    
-    st.divider()
-    with st.expander("Pareto search (design studies)", expanded=False):
-        st.subheader("Pareto Search (LHS)")
-        st.write("Finds a feasible Pareto set for a small set of design knobs around a benchmark case.")
-        from solvers.optimize import pareto_optimize
-    
-        case_sel2 = st.selectbox("Benchmark case for Pareto", case_names, index=0, key="pareto_case_sel")
-        n_lhs = st.number_input("LHS samples", min_value=50, max_value=5000, value=100, step=50, key="pareto_n")
-        # simple bounds
-        colp1, colp2 = st.columns(2)
-        with colp1:
-            R0_lo = st.number_input("R0 min [m]", value=1.5, step=0.1, key="R0_lo")
-            Ip_lo = st.number_input("Ip min [MA]", value=5.0, step=0.5, key="Ip_lo")
-        with colp2:
-            R0_hi = st.number_input("R0 max [m]", value=2.5, step=0.1, key="R0_hi")
-            Ip_hi = st.number_input("Ip max [MA]", value=12.0, step=0.5, key="Ip_hi")
-        fG_lo = st.number_input("fG min", value=0.4, step=0.05, key="fG_lo")
-        fG_hi = st.number_input("fG max", value=1.2, step=0.05, key="fG_hi")
-    
-        if st.button("Run Pareto search", key="run_pareto"):
-            c = cases[case_names.index(case_sel2)]
-            base_inp = PointInputs(**c["inputs"])
-            bounds = {"R0_m": (float(R0_lo), float(R0_hi)), "Ip_MA": (float(Ip_lo), float(Ip_hi)), "fG": (float(fG_lo), float(fG_hi))}
-            objectives = {"R0_m": "min", "B_peak_T": "min", "P_e_net_MW": "max"}
-            res = pareto_optimize(base_inp, bounds=bounds, objectives=objectives, n_samples=int(n_lhs), seed=1)
-            st.write(f"Feasible points: {len(res['feasible'])}  |  Pareto points: {len(res['pareto'])}")
-            st.dataframe(res["pareto"], use_container_width=True)
-    
-    # -----------------------------
-    # Variable Registry (auditable meanings/units/sources)
-    # -----------------------------
-with tab_registry:
-    st.subheader("Variable Registry")
-    st.markdown(
-        "A external systems codes-style registry of key SHAMS variables with units, meaning, and model provenance. "
-        "Use this to keep the code **auditable** as physics/engineering fidelity increases."
-    )
-    q = st.text_input("Search variables", value="", placeholder="e.g., H98, q_div, HTS, TBR")
-    try:
-        df = registry_dataframe(q)
-        st.dataframe(df, use_container_width=True, height=520)
-        st.download_button(
-            "Download registry (CSV)",
-            data=df.to_csv(index=False),
-            file_name="shams_variable_registry.csv",
-            mime="text/csv",
-            use_container_width=True,
+                        if failed==0:
+                            st.success("All benchmark comparisons passed (within tolerances).")
+                        else:
+                            st.warning(f"{failed} comparisons exceeded tolerance. See table.")
+        
+        
+        st.divider()
+        with st.expander("Sensitivity and uncertainty (Monte Carlo)", expanded=False):
+            st.subheader("Sensitivity (Monte Carlo)")
+            st.write("Runs a lightweight uncertainty scan around a selected benchmark case (Windows-native).")
+        
+            from analysis.sensitivity import monte_carlo_feasibility
+            from models.inputs import PointInputs
+        
+            case_names = [c.get("name", f"case_{i}") for i,c in enumerate(cases)]
+            case_sel = st.selectbox("Benchmark case for sensitivity", case_names, index=0, key="sens_case_sel")
+            n_mc = st.number_input("Samples", min_value=50, max_value=2000, value=50, step=50, key="sens_n")
+            if st.button("Run Monte Carlo", key="run_mc_bench"):
+                c = cases[case_names.index(case_sel)]
+                base_inp = PointInputs(**c["inputs"])
+                res = monte_carlo_feasibility(base_inp, n=int(n_mc), seed=42)
+                st.metric("Feasible probability", f"{res['p_feasible']*100:.1f}%")
+                st.write("Most frequently violated constraints:")
+                st.dataframe(res["worst_constraints"], use_container_width=True)
+        
+        st.divider()
+        with st.expander("Pareto search (design studies)", expanded=False):
+            st.subheader("Pareto Search (LHS)")
+            st.write("Finds a feasible Pareto set for a small set of design knobs around a benchmark case.")
+            from solvers.optimize import pareto_optimize
+        
+            case_sel2 = st.selectbox("Benchmark case for Pareto", case_names, index=0, key="pareto_case_sel")
+            n_lhs = st.number_input("LHS samples", min_value=50, max_value=5000, value=100, step=50, key="pareto_n")
+            # simple bounds
+            colp1, colp2 = st.columns(2)
+            with colp1:
+                R0_lo = st.number_input("R0 min [m]", value=1.5, step=0.1, key="R0_lo")
+                Ip_lo = st.number_input("Ip min [MA]", value=5.0, step=0.5, key="Ip_lo")
+            with colp2:
+                R0_hi = st.number_input("R0 max [m]", value=2.5, step=0.1, key="R0_hi")
+                Ip_hi = st.number_input("Ip max [MA]", value=12.0, step=0.5, key="Ip_hi")
+            fG_lo = st.number_input("fG min", value=0.4, step=0.05, key="fG_lo")
+            fG_hi = st.number_input("fG max", value=1.2, step=0.05, key="fG_hi")
+        
+            if st.button("Run Pareto search", key="run_pareto"):
+                c = cases[case_names.index(case_sel2)]
+                base_inp = PointInputs(**c["inputs"])
+                bounds = {"R0_m": (float(R0_lo), float(R0_hi)), "Ip_MA": (float(Ip_lo), float(Ip_hi)), "fG": (float(fG_lo), float(fG_hi))}
+                objectives = {"R0_m": "min", "B_peak_T": "min", "P_e_net_MW": "max"}
+                res = pareto_optimize(base_inp, bounds=bounds, objectives=objectives, n_samples=int(n_lhs), seed=1)
+                st.write(f"Feasible points: {len(res['feasible'])}  |  Pareto points: {len(res['pareto'])}")
+                st.dataframe(res["pareto"], use_container_width=True)
+        
+        # -----------------------------
+        # Variable Registry (auditable meanings/units/sources)
+        # -----------------------------
+    with tab_registry:
+        st.subheader("Variable Registry")
+        st.markdown(
+            "A external systems codes-style registry of key SHAMS variables with units, meaning, and model provenance. "
+            "Use this to keep the code **auditable** as physics/engineering fidelity increases."
         )
-    except Exception as e:
-        st.error(f"Registry unavailable: {e}")
-
-# -----------------------------
-# Validation (envelopes)
-# -----------------------------
-with tab_validation:
-    st.subheader("Validation envelopes")
-    st.markdown(
-        "Decision-grade validation in SHAMS is **envelope-based**: we check whether a solution lies within "
-        "a broad reference band for key metrics, rather than trying to match a single reference point. "
-        "This is robust to proxy changes and is aligned with external systems codes-style workflows."
-    )
-    try:
-        from validation.envelopes import default_envelopes
-        envs = default_envelopes()
-        env_name = st.selectbox("Select envelope", list(envs.keys()), index=0, key="validation_env_sel")
-        env = envs[env_name]
-        st.caption(env.notes)
-
-        out = st.session_state.get("last_point_out")
-        if not out:
-            st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
-        else:
-            report = env.check(out)
-            import pandas as pd
-
-            rows = []
-            n_fail = 0
-            for k, r in report.items():
-                if not r.get("ok"):
-                    n_fail += 1
-                rows.append({
-                    "metric": k,
-                    "value": r.get("value"),
-                    "lo": r.get("lo"),
-                    "hi": r.get("hi"),
-                    "ok": bool(r.get("ok")),
-                })
-            df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, height=360)
-            if n_fail == 0:
-                st.success("All selected envelope checks passed.")
-            else:
-                st.warning(f"{n_fail} envelope checks failed. This indicates the *targets/bounds* are outside the reference band (not a code error).")
-    except Exception as e:
-        st.error(f"Validation module unavailable: {e}")
-
-    st.divider()
-    st.subheader("Invariant guardrails")
-    st.caption("Deterministic sign/bookkeeping checks (not experimental validation).")
-    try:
-        from validation.invariants import check_invariants
-        out = st.session_state.get("last_point_out")
-        if not out:
-            st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
-        else:
-            rep = check_invariants(out)
-            if bool(rep.get("ok")):
-                st.success("All invariant guardrails passed.")
-            else:
-                st.error("Invariant guardrail failures detected (likely bookkeeping/sign issue or invalid inputs).")
-                st.json(rep.get("failures", {}))
-    except Exception as e:
-        st.caption(f"Invariant checks unavailable: {e}")
-
-
-# -----------------------------
-# Compliance (requirements + model cards)
-# -----------------------------
-with tab_compliance:
-    st.subheader("Verification & Compliance")
-    st.caption("Shows the latest verification/compliance matrix from verification/report.json (if present).")
-
-    def _load_verification_report_ui():
+        q = st.text_input("Search variables", value="", placeholder="e.g., H98, q_div, HTS, TBR")
         try:
-            here = Path(__file__).resolve()
-            root = here.parent.parent  # ui/ -> repo root
-            rp = root / "verification" / "report.json"
-            if rp.exists():
-                return json.loads(rp.read_text(encoding="utf-8"))
+            df = registry_dataframe(q)
+            st.dataframe(df, use_container_width=True, height=520)
+            st.download_button(
+                "Download registry (CSV)",
+                data=df.to_csv(index=False),
+                file_name="shams_variable_registry.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        except Exception as e:
+            st.error(f"Registry unavailable: {e}")
+    
+    # -----------------------------
+    # Validation (envelopes)
+    # -----------------------------
+    with tab_validation:
+        st.subheader("Validation envelopes")
+        st.markdown(
+            "Decision-grade validation in SHAMS is **envelope-based**: we check whether a solution lies within "
+            "a broad reference band for key metrics, rather than trying to match a single reference point. "
+            "This is robust to proxy changes and is aligned with external systems codes-style workflows."
+        )
+        try:
+            from validation.envelopes import default_envelopes
+            envs = default_envelopes()
+            env_name = st.selectbox("Select envelope", list(envs.keys()), index=0, key="validation_env_sel")
+            env = envs[env_name]
+            st.caption(env.notes)
+    
+            out = st.session_state.get("last_point_out")
+            if not out:
+                st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
+            else:
+                report = env.check(out)
+                import pandas as pd
+    
+                rows = []
+                n_fail = 0
+                for k, r in report.items():
+                    if not r.get("ok"):
+                        n_fail += 1
+                    rows.append({
+                        "metric": k,
+                        "value": r.get("value"),
+                        "lo": r.get("lo"),
+                        "hi": r.get("hi"),
+                        "ok": bool(r.get("ok")),
+                    })
+                df = pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True, height=360)
+                if n_fail == 0:
+                    st.success("All selected envelope checks passed.")
+                else:
+                    st.warning(f"{n_fail} envelope checks failed. This indicates the *targets/bounds* are outside the reference band (not a code error).")
+        except Exception as e:
+            st.error(f"Validation module unavailable: {e}")
+    
+        st.divider()
+        st.subheader("Invariant guardrails")
+        st.caption("Deterministic sign/bookkeeping checks (not experimental validation).")
+        try:
+            from validation.invariants import check_invariants
+            out = st.session_state.get("last_point_out")
+            if not out:
+                st.info("Run a Point Designer solve first. The latest outputs will be checked here.")
+            else:
+                rep = check_invariants(out)
+                if bool(rep.get("ok")):
+                    st.success("All invariant guardrails passed.")
+                else:
+                    st.error("Invariant guardrail failures detected (likely bookkeeping/sign issue or invalid inputs).")
+                    st.json(rep.get("failures", {}))
+        except Exception as e:
+            st.caption(f"Invariant checks unavailable: {e}")
+    
+    
+    # -----------------------------
+    # Compliance (requirements + model cards)
+    # -----------------------------
+    with tab_compliance:
+        st.subheader("Verification & Compliance")
+        st.caption("Shows the latest verification/compliance matrix from verification/report.json (if present).")
+    
+        def _load_verification_report_ui():
+            try:
+                here = Path(__file__).resolve()
+                root = here.parent.parent  # ui/ -> repo root
+                rp = root / "verification" / "report.json"
+                if rp.exists():
+                    return json.loads(rp.read_text(encoding="utf-8"))
+            except Exception:
+                return None
+            return None
+    
+        report = _load_verification_report_ui()
+        if not report:
+            st.info("No verification/report.json found. Run: `python verification/run_verification.py` to generate it.")
+        else:
+            meta = report.get("meta", {})
+            st.write({
+                "generated_unix": meta.get("generated_unix"),
+                "python": meta.get("python"),
+                "platform": meta.get("platform"),
+                "git_commit": meta.get("git_commit"),
+            })
+    
+            # Summary
+            summary = report.get("summary", {})
+            cols = st.columns(4)
+            cols[0].metric("Requirements", int(summary.get("n_requirements", 0)))
+            cols[1].metric("Passed", int(summary.get("n_pass", 0)))
+            cols[2].metric("Failed", int(summary.get("n_fail", 0)))
+            cols[3].metric("Overall", "PASS" if summary.get("all_pass") else "FAIL")
+    
+            # Detailed table
+            rows = report.get("results", [])
+            if rows:
+                df = pd.DataFrame(rows)
+                # Friendly columns ordering
+                keep = [c for c in ["req_id","title","status","details","linked_model_cards"] if c in df.columns]
+                df = df[keep] if keep else df
+                st.dataframe(df, use_container_width=True, height=520)
+    
+            # Download JSON
+            st.download_button(
+                "Download verification report.json",
+                data=json.dumps(report, indent=2, sort_keys=True),
+                file_name="verification_report.json",
+                mime="application/json",
+            )
+    
+    
+    with tab_docs:
+        st.header("Docs")
+        st.caption("Built-in documentation bundled with this repository (no internet required).")
+    
+        doc_options = {
+            "Upgrade plan (transparent)": os.path.join(ROOT, "docs", "SHAMS_upgrade_plan_from_PROCESS.md"),
+            "Lessons learned (systems codes)": os.path.join(ROOT, "docs", "PROCESS_lessons.md"),
+            "0‑D Physical Models (Phase‑1)": os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md"),
+            "Engineering closures": os.path.join(ROOT, "docs", "ENGINEERING_CLOSURES.md"),
+            "Operating envelope (multi-point)": os.path.join(ROOT, "docs", "ENVELOPE.md"),
+            "Studies workflows": os.path.join(ROOT, "docs", "STUDIES.md"),
+            "Model cards (auditability)": os.path.join(ROOT, "docs", "MODEL_CARDS.md"),
+            "Compliance & verification": os.path.join(ROOT, "docs", "COMPLIANCE.md"),
+            "Regression & golden benchmarks": os.path.join(ROOT, "docs", "REGRESSION.md"),
+            "Release notes generation": os.path.join(ROOT, "docs", "RELEASE_NOTES.md"),
+            "UI quickstart": os.path.join(ROOT, "README_UI.md"),
+        }
+    
+        doc_sel = st.selectbox("Select a document", list(doc_options.keys()), index=0, key="doc_select")
+        doc_path = doc_options.get(doc_sel)
+    
+        if doc_path and os.path.exists(doc_path):
+            try:
+                with open(doc_path, "r", encoding="utf-8") as f:
+                    st.markdown(f.read())
+            except Exception as _e:
+                st.error(f"Failed to read doc: {_e}")
+        else:
+            st.warning("Document file not found in this checkout.")
+    
+    
+    # -----------------------------
+    # Artifacts Explorer (new)
+    # -----------------------------
+    def _load_json_from_upload(uploaded) -> Dict[str, Any] | None:
+        if uploaded is None:
+            return None
+        try:
+            raw = uploaded.getvalue()
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8")
+            return json.loads(raw)
         except Exception:
             return None
-        return None
-
-    report = _load_verification_report_ui()
-    if not report:
-        st.info("No verification/report.json found. Run: `python verification/run_verification.py` to generate it.")
-    else:
-        meta = report.get("meta", {})
-        st.write({
-            "generated_unix": meta.get("generated_unix"),
-            "python": meta.get("python"),
-            "platform": meta.get("platform"),
-            "git_commit": meta.get("git_commit"),
-        })
-
-        # Summary
-        summary = report.get("summary", {})
-        cols = st.columns(4)
-        cols[0].metric("Requirements", int(summary.get("n_requirements", 0)))
-        cols[1].metric("Passed", int(summary.get("n_pass", 0)))
-        cols[2].metric("Failed", int(summary.get("n_fail", 0)))
-        cols[3].metric("Overall", "PASS" if summary.get("all_pass") else "FAIL")
-
-        # Detailed table
-        rows = report.get("results", [])
-        if rows:
-            df = pd.DataFrame(rows)
-            # Friendly columns ordering
-            keep = [c for c in ["req_id","title","status","details","linked_model_cards"] if c in df.columns]
-            df = df[keep] if keep else df
-            st.dataframe(df, use_container_width=True, height=520)
-
-        # Download JSON
-        st.download_button(
-            "Download verification report.json",
-            data=json.dumps(report, indent=2, sort_keys=True),
-            file_name="verification_report.json",
-            mime="application/json",
-        )
-
-
-with tab_docs:
-    st.header("Docs")
-    st.caption("Built-in documentation bundled with this repository (no internet required).")
-
-    doc_options = {
-        "Upgrade plan (transparent)": os.path.join(ROOT, "docs", "SHAMS_upgrade_plan_from_PROCESS.md"),
-        "Lessons learned (systems codes)": os.path.join(ROOT, "docs", "PROCESS_lessons.md"),
-        "0‑D Physical Models (Phase‑1)": os.path.join(ROOT, "docs", "PHYSICAL_MODELS_0D.md"),
-        "Engineering closures": os.path.join(ROOT, "docs", "ENGINEERING_CLOSURES.md"),
-        "Operating envelope (multi-point)": os.path.join(ROOT, "docs", "ENVELOPE.md"),
-        "Studies workflows": os.path.join(ROOT, "docs", "STUDIES.md"),
-        "Model cards (auditability)": os.path.join(ROOT, "docs", "MODEL_CARDS.md"),
-        "Compliance & verification": os.path.join(ROOT, "docs", "COMPLIANCE.md"),
-        "Regression & golden benchmarks": os.path.join(ROOT, "docs", "REGRESSION.md"),
-        "Release notes generation": os.path.join(ROOT, "docs", "RELEASE_NOTES.md"),
-        "UI quickstart": os.path.join(ROOT, "README_UI.md"),
-    }
-
-    doc_sel = st.selectbox("Select a document", list(doc_options.keys()), index=0, key="doc_select")
-    doc_path = doc_options.get(doc_sel)
-
-    if doc_path and os.path.exists(doc_path):
+    
+    
+    def _safe_df(rows: List[Dict[str, Any]]) -> pd.DataFrame:
         try:
-            with open(doc_path, "r", encoding="utf-8") as f:
-                st.markdown(f.read())
-        except Exception as _e:
-            st.error(f"Failed to read doc: {_e}")
-    else:
-        st.warning("Document file not found in this checkout.")
-
-
-# -----------------------------
-# Artifacts Explorer (new)
-# -----------------------------
-def _load_json_from_upload(uploaded) -> Dict[str, Any] | None:
-    if uploaded is None:
-        return None
-    try:
-        raw = uploaded.getvalue()
-        if isinstance(raw, bytes):
-            raw = raw.decode("utf-8")
-        return json.loads(raw)
-    except Exception:
-        return None
-
-
-def _safe_df(rows: List[Dict[str, Any]]) -> pd.DataFrame:
-    try:
-        return pd.DataFrame(rows)
-    except Exception:
-        return pd.DataFrame()
-
-
-def _as_float(x) -> float | None:
-    try:
-        if x is None:
-            return None
-        if isinstance(x, bool):
-            return None
-        return float(x)
-    except Exception:
-        return None
-
-
-def _numeric_delta_table(base_out: Dict[str, Any], scen_out: Dict[str, Any], limit: int = 40) -> pd.DataFrame:
-    keys = sorted(set(base_out.keys()) | set(scen_out.keys()))
-    rows = []
-    for k in keys:
-        a = _as_float(base_out.get(k))
-        b = _as_float(scen_out.get(k))
-        if a is None or b is None:
-            continue
-        d = b - a
-        # skip near-identical
-        if abs(d) < 1e-12:
-            continue
-        rows.append({"metric": k, "baseline": a, "scenario": b, "delta": d, "delta_frac": (d / a) if abs(a) > 1e-12 else None})
-    df = pd.DataFrame(rows)
-    if df.empty:
-        return df
-    df = df.reindex(df["delta"].abs().sort_values(ascending=False).index)
-    return df.head(limit)
-
-
-with tab_artifacts:
-    st.header("Artifacts Explorer")
-    st.caption("Load a SHAMS run artifact and inspect new v50+ artifact sections (constraint ledger, model set, standardized tables).")
-
-    up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="ae_upload")
-    art = _load_json_from_upload(up)
-
-    col_a, col_b = st.columns([1.2, 1.0])
-    with col_a:
-        alt_path = st.text_input("...or load from local path", value="", key="ae_path")
-    with col_b:
-        load_btn = st.button("Load from path", key="ae_load_path")
-
-    if load_btn and alt_path:
+            return pd.DataFrame(rows)
+        except Exception:
+            return pd.DataFrame()
+    
+    
+    def _as_float(x) -> float | None:
         try:
-            with open(alt_path, "r", encoding="utf-8") as f:
-                art = json.load(f)
-        except Exception as e:
-            st.error(f"Failed to load JSON: {type(e).__name__}: {e}")
-            art = None
-
-    if not art:
-        st.info("Upload an artifact JSON (or provide a path) to explore.")
-    else:
-        meta = art.get("meta", {}) or {}
-        prov = art.get("provenance", {}) or {}
-        st.subheader("Metadata")
-        st.write({
-            "schema_version": art.get("schema_version"),
-            "label": meta.get("label"),
-            "mode": meta.get("mode"),
-            "git_commit": prov.get("git_commit"),
-            "python": prov.get("python"),
-            "platform": prov.get("platform"),
-            "repo_version": prov.get("repo_version"),
-        })
-
-        # --- Constraint ledger ---
-        st.subheader("Constraint Margin Ledger")
-        ledger = art.get("constraint_ledger") or {}
-        if isinstance(ledger, dict) and ledger.get("entries"):
-            st.caption(f"schema={ledger.get('schema_version','(missing)')}  fingerprint={ledger.get('ledger_fingerprint_sha256','(missing)')}")
-            top = ledger.get("top_blockers") or []
-            if top:
-                st.markdown("**Top blockers**")
-                st.dataframe(_safe_df(top), use_container_width=True)
-            with st.expander("All ledger entries"):
-                st.dataframe(_safe_df(ledger.get("entries") or []), use_container_width=True)
-        else:
-            st.info("No constraint_ledger found in this artifact.")
-
-        # --- Model set / registry ---
-        st.subheader("Model Set")
-        model_set = art.get("model_set") or {}
-        model_registry = art.get("model_registry") or {}
-        if model_set:
-            st.caption(f"schema={model_set.get('schema_version','(missing)')}")
-            st.json(model_set)
-        else:
-            st.info("No model_set embedded in this artifact.")
-        with st.expander("Model Registry"):
-            if model_registry:
-                st.caption(f"schema={model_registry.get('schema_version','(missing)')}")
-                st.json(model_registry)
-            else:
-                st.info("No model_registry embedded in this artifact.")
-
-        # --- Standard tables ---
-        st.subheader("Standard Tables")
-        tables = art.get("tables") or {}
-        if isinstance(tables, dict) and tables:
-            for k in ["plasma", "power_balance", "tritium"]:
-                if k in tables:
-                    st.markdown(f"**{k}**")
-                    t = tables.get(k)
-                    if isinstance(t, dict):
-                        st.dataframe(pd.DataFrame([t]), use_container_width=True)
-                    elif isinstance(t, list):
-                        st.dataframe(pd.DataFrame(t), use_container_width=True)
-                    else:
-                        st.json(t)
-        else:
-            st.info("No tables.v1 section found in this artifact.")
-
-        with st.expander("Full artifact JSON"):
-            st.json(art)
-
-
-# -----------------------------
-# Case Deck Runner (new)
-# -----------------------------
-with tab_deck:
-    st.header("Case Deck Runner")
-    st.caption("Run a case_deck.v1 YAML/JSON deck and view the resolved config + artifact outputs.")
-
-    up_deck = st.file_uploader("Upload case_deck.yaml / .json", type=["yaml", "yml", "json"], key="deck_upload")
-    out_root = os.path.join(ROOT, "ui_runs")
-    os.makedirs(out_root, exist_ok=True)
-    out_name = st.text_input("Output folder name (under ui_runs/)", value=f"deck_{int(time.time())}", key="deck_out_name")
-    run_btn = st.button("Run Case Deck", key="deck_run")
-
-    if run_btn:
-        if up_deck is None:
-            st.error("Please upload a case deck file first.")
-        else:
-            try:
-                deck_path = os.path.join(out_root, f"_uploaded_{up_deck.name}")
-                with open(deck_path, "wb") as f:
-                    f.write(up_deck.getvalue())
-                out_dir = os.path.join(out_root, out_name)
-                os.makedirs(out_dir, exist_ok=True)
-                runner = os.path.join(ROOT, "tools", "run_case_deck.py")
-                proc = subprocess.run(
-                    [sys.executable, runner, deck_path, "--out", out_dir],
-                    cwd=ROOT,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                st.code(proc.stdout or "", language="text")
-                if proc.returncode != 0:
-                    st.error("Case deck run failed.")
-                    st.code(proc.stderr or "", language="text")
-                else:
-                    art_path = os.path.join(out_dir, "shams_run_artifact.json")
-                    cfg_path = os.path.join(out_dir, "run_config_resolved.json")
-                    st.success(f"Wrote outputs to: {out_dir}")
-                    if os.path.exists(cfg_path):
-                        st.subheader("Resolved config")
-                        with open(cfg_path, "r", encoding="utf-8") as f:
-                            st.json(json.load(f))
-                    if os.path.exists(art_path):
-                        st.subheader("Run artifact (preview)")
-                        with open(art_path, "r", encoding="utf-8") as f:
-                            st.json(json.load(f))
-            except Exception as e:
-                st.error(f"{type(e).__name__}: {e}")
-
-
-# -----------------------------
-# Authority & Confidence (v256.0)
-# -----------------------------
-with tab_authority_conf:
-    st.header("Authority & Confidence")
-    st.caption("Trust ledger: authority tiers, maturity tags, and a design-level confidence class. Post-processing only; truth unchanged.")
-
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authconf_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            # Fall back to the most recent artifact in session if present.
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
-            if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
-
-        if not art:
-            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
-        else:
-            ac = art.get("authority_confidence") if isinstance(art, dict) else None
-            if not isinstance(ac, dict):
-                st.warning("No authority_confidence found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
-            else:
-                dc = str((ac.get("design") or {}).get("design_confidence_class", "UNKNOWN"))
-                st.markdown(f"**Design confidence class:** `{dc}`")
-                st.caption("Class is a conservative aggregation over implicated subsystems and near-binding hard constraints.")
-
-    with colB:
-        st.markdown("### Quick legend")
-        st.markdown("- **A**: anchored by authoritative/external contracts (best)")
-        st.markdown("- **B**: parametric / semi-authoritative closure")
-        st.markdown("- **C**: proxy models or extrapolation-heavy")
-        st.markdown("- **D**: speculative / unknown authority")
-        st.markdown("- **UNKNOWN**: missing metadata")
-
-    if isinstance(art, dict) and isinstance(art.get("authority_confidence"), dict):
-        ac = art["authority_confidence"]
-        subs = ac.get("subsystems") or {}
+            if x is None:
+                return None
+            if isinstance(x, bool):
+                return None
+            return float(x)
+        except Exception:
+            return None
+    
+    
+    def _numeric_delta_table(base_out: Dict[str, Any], scen_out: Dict[str, Any], limit: int = 40) -> pd.DataFrame:
+        keys = sorted(set(base_out.keys()) | set(scen_out.keys()))
         rows = []
-        for k in sorted(list(subs.keys())):
-            v = subs.get(k) or {}
-            if not isinstance(v, dict):
+        for k in keys:
+            a = _as_float(base_out.get(k))
+            b = _as_float(scen_out.get(k))
+            if a is None or b is None:
                 continue
-            rows.append({
-                "subsystem": k,
-                "confidence": v.get("confidence_class"),
-                "authority_tier": v.get("authority_tier"),
-                "maturity": v.get("maturity"),
-                "involved": v.get("involved"),
-                "rationale": v.get("rationale"),
+            d = b - a
+            # skip near-identical
+            if abs(d) < 1e-12:
+                continue
+            rows.append({"metric": k, "baseline": a, "scenario": b, "delta": d, "delta_frac": (d / a) if abs(a) > 1e-12 else None})
+        df = pd.DataFrame(rows)
+        if df.empty:
+            return df
+        df = df.reindex(df["delta"].abs().sort_values(ascending=False).index)
+        return df.head(limit)
+    
+    
+    with tab_artifacts:
+        st.header("Artifacts Explorer")
+        st.caption("Load a SHAMS run artifact and inspect new v50+ artifact sections (constraint ledger, model set, standardized tables).")
+    
+        up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="ae_upload")
+        art = _load_json_from_upload(up)
+    
+        col_a, col_b = st.columns([1.2, 1.0])
+        with col_a:
+            alt_path = st.text_input("...or load from local path", value="", key="ae_path")
+        with col_b:
+            load_btn = st.button("Load from path", key="ae_load_path")
+    
+        if load_btn and alt_path:
+            try:
+                with open(alt_path, "r", encoding="utf-8") as f:
+                    art = json.load(f)
+            except Exception as e:
+                st.error(f"Failed to load JSON: {type(e).__name__}: {e}")
+                art = None
+    
+        if not art:
+            st.info("Upload an artifact JSON (or provide a path) to explore.")
+        else:
+            meta = art.get("meta", {}) or {}
+            prov = art.get("provenance", {}) or {}
+            st.subheader("Metadata")
+            st.write({
+                "schema_version": art.get("schema_version"),
+                "label": meta.get("label"),
+                "mode": meta.get("mode"),
+                "git_commit": prov.get("git_commit"),
+                "python": prov.get("python"),
+                "platform": prov.get("platform"),
+                "repo_version": prov.get("repo_version"),
             })
-        if rows:
-            st.subheader("Subsystem trust ledger")
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        else:
-            st.info("No subsystem entries available.")
-
-
-# -----------------------------
-# Decision Consequences (v257.0)
-# -----------------------------
-with tab_decision_conseq:
-    st.header("Decision Consequences")
-    st.caption(
-        "Advisory governance layer: converts margins + authority into a deterministic 'posture' and risk framing. "
-        "Post-processing only; truth unchanged."
-    )
-
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="deccon_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
-            if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
-
-        if not art:
-            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
-        else:
-            dc = art.get("decision_consequences") if isinstance(art, dict) else None
-            if not isinstance(dc, dict):
-                st.warning("No decision_consequences found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+    
+            # --- Constraint ledger ---
+            st.subheader("Constraint Margin Ledger")
+            ledger = art.get("constraint_ledger") or {}
+            if isinstance(ledger, dict) and ledger.get("entries"):
+                st.caption(f"schema={ledger.get('schema_version','(missing)')}  fingerprint={ledger.get('ledger_fingerprint_sha256','(missing)')}")
+                top = ledger.get("top_blockers") or []
+                if top:
+                    st.markdown("**Top blockers**")
+                    st.dataframe(_safe_df(top), use_container_width=True)
+                with st.expander("All ledger entries"):
+                    st.dataframe(_safe_df(ledger.get("entries") or []), use_container_width=True)
             else:
-                st.markdown(f"**Decision posture:** `{str(dc.get('decision_posture','UNKNOWN'))}`")
-                pr = str(dc.get("primary_risk_driver", "") or "")
-                if pr:
-                    st.markdown(f"**Primary risk driver:** `{pr}`")
-                wh = dc.get("worst_hard_margin_frac", None)
-                try:
-                    wh_s = f"{float(wh):.3f}" if wh is not None else "-"
-                except Exception:
-                    wh_s = "-"
-                st.markdown(f"**Worst hard margin (frac):** {wh_s}")
-                st.caption(str(dc.get("narrative", "") or ""))
-
-    with colB:
-        st.markdown("### Posture legend")
-        st.markdown("- **PROCEED**: feasible with adequate authority")
-        st.markdown("- **PROCEED_TARGETED_RD**: feasible but near-binding and/or authority-limited")
-        st.markdown("- **HOLD_FOUNDATIONAL**: hard-infeasible; address dominant limiter")
-        st.markdown("- **UNKNOWN**: missing/legacy artifact")
-
-    if isinstance(art, dict) and isinstance(art.get("decision_consequences"), dict):
-        dc = art["decision_consequences"]
-        rows = [
-            {"field": "decision_posture", "value": dc.get("decision_posture")},
-            {"field": "primary_risk_driver", "value": dc.get("primary_risk_driver")},
-            {"field": "dominant_mechanism", "value": dc.get("dominant_mechanism")},
-            {"field": "dominant_constraint", "value": dc.get("dominant_constraint")},
-            {"field": "worst_hard_margin_frac", "value": dc.get("worst_hard_margin_frac")},
-            {"field": "uncertainty_reduction_axis", "value": dc.get("uncertainty_reduction_axis")},
-            {"field": "leverage_knobs", "value": dc.get("leverage_knobs")},
-            {"field": "stamp_sha256", "value": dc.get("stamp_sha256")},
-        ]
-        st.subheader("Snapshot")
-        st.table(rows)
-
-
-# ----------------------------------
-# Authority Dominance Engine (v330.0)
-# ----------------------------------
-with tab_authority_dominance:
-    st.header("Authority Dominance")
-    st.caption(
-        "Deterministic dominance engine: identifies the dominant feasibility killer authority "
-        "(PLASMA/EXHAUST/MAGNET/CONTROL/NEUTRONICS/FUEL/PLANT) and ranks the top limiting constraints. "
-        "Post-processing only; truth unchanged."
-    )
-
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authdom_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
-            if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
-
-        if not art:
-            st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
-        else:
-            ad = art.get("authority_dominance") if isinstance(art, dict) else None
-            if not isinstance(ad, dict):
-                st.warning("No authority_dominance found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:60]}, expanded=False)
+                st.info("No constraint_ledger found in this artifact.")
+    
+            # --- Model set / registry ---
+            st.subheader("Model Set")
+            model_set = art.get("model_set") or {}
+            model_registry = art.get("model_registry") or {}
+            if model_set:
+                st.caption(f"schema={model_set.get('schema_version','(missing)')}")
+                st.json(model_set)
             else:
-                st.markdown(f"**Dominance verdict:** `{str(ad.get('dominance_verdict','UNKNOWN'))}`")
-                st.markdown(f"**Dominant authority:** `{str(ad.get('dominant_authority',''))}`")
-                st.markdown(f"**Dominant constraint:** `{str(ad.get('dominant_constraint',''))}`")
-                mm = ad.get("dominant_margin_frac", None)
+                st.info("No model_set embedded in this artifact.")
+            with st.expander("Model Registry"):
+                if model_registry:
+                    st.caption(f"schema={model_registry.get('schema_version','(missing)')}")
+                    st.json(model_registry)
+                else:
+                    st.info("No model_registry embedded in this artifact.")
+    
+            # --- Standard tables ---
+            st.subheader("Standard Tables")
+            tables = art.get("tables") or {}
+            if isinstance(tables, dict) and tables:
+                for k in ["plasma", "power_balance", "tritium"]:
+                    if k in tables:
+                        st.markdown(f"**{k}**")
+                        t = tables.get(k)
+                        if isinstance(t, dict):
+                            st.dataframe(pd.DataFrame([t]), use_container_width=True)
+                        elif isinstance(t, list):
+                            st.dataframe(pd.DataFrame(t), use_container_width=True)
+                        else:
+                            st.json(t)
+            else:
+                st.info("No tables.v1 section found in this artifact.")
+    
+            with st.expander("Full artifact JSON"):
+                st.json(art)
+    
+    
+    # -----------------------------
+    # Case Deck Runner (new)
+    # -----------------------------
+    with tab_deck:
+        st.header("Case Deck Runner")
+        st.caption("Run a case_deck.v1 YAML/JSON deck and view the resolved config + artifact outputs.")
+    
+        up_deck = st.file_uploader("Upload case_deck.yaml / .json", type=["yaml", "yml", "json"], key="deck_upload")
+        out_root = os.path.join(ROOT, "ui_runs")
+        os.makedirs(out_root, exist_ok=True)
+        out_name = st.text_input("Output folder name (under ui_runs/)", value=f"deck_{int(time.time())}", key="deck_out_name")
+        run_btn = st.button("Run Case Deck", key="deck_run")
+    
+        if run_btn:
+            if up_deck is None:
+                st.error("Please upload a case deck file first.")
+            else:
                 try:
-                    mm_s = f"{float(mm):.4f}" if mm is not None else "-"
-                except Exception:
-                    mm_s = "-"
-                st.markdown(f"**Dominant margin (frac):** {mm_s}")
-                st.caption(f"stamp_sha256: {str(ad.get('stamp_sha256',''))[:16]}…")
-
-    with colB:
-        st.markdown("### Interpretation")
-        st.markdown("- **INFEASIBLE**: at least one hard constraint violated; dominance points to the worst hard margin.")
-        st.markdown("- **FRAGILE**: hard-feasible but the tightest hard margin is near-binding (default < 0.05).")
-        st.markdown("- **FEASIBLE**: hard-feasible with comfortable margins.")
-
-    if isinstance(art, dict) and isinstance(art.get("authority_dominance"), dict):
-        ad = art["authority_dominance"]
-        with st.expander("Top limiting constraints (hard)", expanded=False):
-            rows = ad.get("dominance_topk") or []
-            if isinstance(rows, list) and rows:
+                    deck_path = os.path.join(out_root, f"_uploaded_{up_deck.name}")
+                    with open(deck_path, "wb") as f:
+                        f.write(up_deck.getvalue())
+                    out_dir = os.path.join(out_root, out_name)
+                    os.makedirs(out_dir, exist_ok=True)
+                    runner = os.path.join(ROOT, "tools", "run_case_deck.py")
+                    proc = subprocess.run(
+                        [sys.executable, runner, deck_path, "--out", out_dir],
+                        cwd=ROOT,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    st.code(proc.stdout or "", language="text")
+                    if proc.returncode != 0:
+                        st.error("Case deck run failed.")
+                        st.code(proc.stderr or "", language="text")
+                    else:
+                        art_path = os.path.join(out_dir, "shams_run_artifact.json")
+                        cfg_path = os.path.join(out_dir, "run_config_resolved.json")
+                        st.success(f"Wrote outputs to: {out_dir}")
+                        if os.path.exists(cfg_path):
+                            st.subheader("Resolved config")
+                            with open(cfg_path, "r", encoding="utf-8") as f:
+                                st.json(json.load(f))
+                        if os.path.exists(art_path):
+                            st.subheader("Run artifact (preview)")
+                            with open(art_path, "r", encoding="utf-8") as f:
+                                st.json(json.load(f))
+                except Exception as e:
+                    st.error(f"{type(e).__name__}: {e}")
+    
+    
+    # -----------------------------
+    # Authority & Confidence (v256.0)
+    # -----------------------------
+    with tab_authority_conf:
+        st.header("Authority & Confidence")
+        st.caption("Trust ledger: authority tiers, maturity tags, and a design-level confidence class. Post-processing only; truth unchanged.")
+    
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authconf_upload")
+            art = _load_json_from_upload(up_art)
+            if not art:
+                # Fall back to the most recent artifact in session if present.
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+    
+            if not art:
+                st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
+            else:
+                ac = art.get("authority_confidence") if isinstance(art, dict) else None
+                if not isinstance(ac, dict):
+                    st.warning("No authority_confidence found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+                else:
+                    dc = str((ac.get("design") or {}).get("design_confidence_class", "UNKNOWN"))
+                    st.markdown(f"**Design confidence class:** `{dc}`")
+                    st.caption("Class is a conservative aggregation over implicated subsystems and near-binding hard constraints.")
+    
+        with colB:
+            st.markdown("### Quick legend")
+            st.markdown("- **A**: anchored by authoritative/external contracts (best)")
+            st.markdown("- **B**: parametric / semi-authoritative closure")
+            st.markdown("- **C**: proxy models or extrapolation-heavy")
+            st.markdown("- **D**: speculative / unknown authority")
+            st.markdown("- **UNKNOWN**: missing metadata")
+    
+        if isinstance(art, dict) and isinstance(art.get("authority_confidence"), dict):
+            ac = art["authority_confidence"]
+            subs = ac.get("subsystems") or {}
+            rows = []
+            for k in sorted(list(subs.keys())):
+                v = subs.get(k) or {}
+                if not isinstance(v, dict):
+                    continue
+                rows.append({
+                    "subsystem": k,
+                    "confidence": v.get("confidence_class"),
+                    "authority_tier": v.get("authority_tier"),
+                    "maturity": v.get("maturity"),
+                    "involved": v.get("involved"),
+                    "rationale": v.get("rationale"),
+                })
+            if rows:
+                st.subheader("Subsystem trust ledger")
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             else:
-                st.info("No top-k rows available.")
-
-        with st.expander("Authority ranking", expanded=False):
-            rows = ad.get("authority_ranked") or []
-            if isinstance(rows, list) and rows:
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            else:
-                st.info("No authority ranking available.")
-
-
-# -----------------------------
-# Scenario Delta Viewer (new)
-# -----------------------------
-
-with tab_epoch_feas:
-    st.header("Epoch Feasibility")
-    st.caption(
-        "Lifecycle-epoch feasibility (Startup / Nominal / End-of-Life). "
-        "Constitutional reclassification only; no re-solving and no truth modification."
-    )
-
-    colA, colB = st.columns([0.55, 0.45], gap="large")
-    with colA:
-        st.markdown("### Load artifact")
-        up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="epochfeas_upload")
-        art = _load_json_from_upload(up_art)
-        if not art:
-            art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                st.info("No subsystem entries available.")
+    
+    
+    # -----------------------------
+    # Decision Consequences (v257.0)
+    # -----------------------------
+    with tab_decision_conseq:
+        st.header("Decision Consequences")
+        st.caption(
+            "Advisory governance layer: converts margins + authority into a deterministic 'posture' and risk framing. "
+            "Post-processing only; truth unchanged."
+        )
+    
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="deccon_upload")
+            art = _load_json_from_upload(up_art)
             if not art:
-                art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
-
-        if not art:
-            st.info("Upload an artifact, or run Systems Mode to populate a last artifact.")
-        else:
-            ef = art.get("epoch_feasibility") if isinstance(art, dict) else None
-            if not isinstance(ef, dict):
-                st.warning("No epoch_feasibility found. (Older artifact?)")
-                st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+    
+            if not art:
+                st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
             else:
-                st.markdown(f"**Overall:** `{str(ef.get('overall','UNKNOWN'))}`")
-                epochs = ef.get("epochs") or []
-                rows = []
-                for e in epochs:
-                    if not isinstance(e, dict):
-                        continue
-                    wh = e.get("worst_hard_margin_frac", None)
+                dc = art.get("decision_consequences") if isinstance(art, dict) else None
+                if not isinstance(dc, dict):
+                    st.warning("No decision_consequences found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+                else:
+                    st.markdown(f"**Decision posture:** `{str(dc.get('decision_posture','UNKNOWN'))}`")
+                    pr = str(dc.get("primary_risk_driver", "") or "")
+                    if pr:
+                        st.markdown(f"**Primary risk driver:** `{pr}`")
+                    wh = dc.get("worst_hard_margin_frac", None)
                     try:
                         wh_s = f"{float(wh):.3f}" if wh is not None else "-"
                     except Exception:
                         wh_s = "-"
-                    rows.append({
-                        "epoch": str(e.get("epoch","")),
-                        "verdict": str(e.get("verdict","")),
-                        "dominant_mechanism": str(e.get("dominant_mechanism","")),
-                        "dominant_constraint": str(e.get("dominant_constraint","")),
-                        "worst_hard_margin": wh_s,
-                        "n_blocking": len(list(e.get("blocking") or [])),
-                        "n_diag": len(list(e.get("diagnostic") or [])),
-                    })
-                if rows:
-                    st.dataframe(rows, use_container_width=True, hide_index=True)
+                    st.markdown(f"**Worst hard margin (frac):** {wh_s}")
+                    st.caption(str(dc.get("narrative", "") or ""))
+    
+        with colB:
+            st.markdown("### Posture legend")
+            st.markdown("- **PROCEED**: feasible with adequate authority")
+            st.markdown("- **PROCEED_TARGETED_RD**: feasible but near-binding and/or authority-limited")
+            st.markdown("- **HOLD_FOUNDATIONAL**: hard-infeasible; address dominant limiter")
+            st.markdown("- **UNKNOWN**: missing/legacy artifact")
+    
+        if isinstance(art, dict) and isinstance(art.get("decision_consequences"), dict):
+            dc = art["decision_consequences"]
+            rows = [
+                {"field": "decision_posture", "value": dc.get("decision_posture")},
+                {"field": "primary_risk_driver", "value": dc.get("primary_risk_driver")},
+                {"field": "dominant_mechanism", "value": dc.get("dominant_mechanism")},
+                {"field": "dominant_constraint", "value": dc.get("dominant_constraint")},
+                {"field": "worst_hard_margin_frac", "value": dc.get("worst_hard_margin_frac")},
+                {"field": "uncertainty_reduction_axis", "value": dc.get("uncertainty_reduction_axis")},
+                {"field": "leverage_knobs", "value": dc.get("leverage_knobs")},
+                {"field": "stamp_sha256", "value": dc.get("stamp_sha256")},
+            ]
+            st.subheader("Snapshot")
+            st.table(rows)
+    
+    
+    # ----------------------------------
+    # Authority Dominance Engine (v330.0)
+    # ----------------------------------
+    with tab_authority_dominance:
+        st.header("Authority Dominance")
+        st.caption(
+            "Deterministic dominance engine: identifies the dominant feasibility killer authority "
+            "(PLASMA/EXHAUST/MAGNET/CONTROL/NEUTRONICS/FUEL/PLANT) and ranks the top limiting constraints. "
+            "Post-processing only; truth unchanged."
+        )
+    
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="authdom_upload")
+            art = _load_json_from_upload(up_art)
+            if not art:
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+    
+            if not art:
+                st.info("Upload an artifact, or run Point Designer / Systems Mode to populate a last artifact.")
+            else:
+                ad = art.get("authority_dominance") if isinstance(art, dict) else None
+                if not isinstance(ad, dict):
+                    st.warning("No authority_dominance found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:60]}, expanded=False)
                 else:
-                    st.warning("Epoch list empty.")
-    with colB:
-        st.markdown("### Constitution (selected epoch)")
-        if not art or not isinstance(art, dict) or not isinstance(art.get("epoch_feasibility"), dict):
-            st.caption("Load an artifact to view epoch constitutions.")
-        else:
-            ef = art.get("epoch_feasibility") or {}
-            epochs = ef.get("epochs") or []
-            labels = [str(e.get("epoch","")) for e in epochs if isinstance(e, dict)]
-            sel = st.selectbox("Epoch", labels, index=0 if labels else None, key="epochfeas_pick")
-            chosen = None
-            for e in epochs:
-                if isinstance(e, dict) and str(e.get("epoch","")) == sel:
-                    chosen = e
-                    break
-            if chosen is None:
-                st.info("No epoch selected.")
+                    st.markdown(f"**Dominance verdict:** `{str(ad.get('dominance_verdict','UNKNOWN'))}`")
+                    st.markdown(f"**Dominant authority:** `{str(ad.get('dominant_authority',''))}`")
+                    st.markdown(f"**Dominant constraint:** `{str(ad.get('dominant_constraint',''))}`")
+                    mm = ad.get("dominant_margin_frac", None)
+                    try:
+                        mm_s = f"{float(mm):.4f}" if mm is not None else "-"
+                    except Exception:
+                        mm_s = "-"
+                    st.markdown(f"**Dominant margin (frac):** {mm_s}")
+                    st.caption(f"stamp_sha256: {str(ad.get('stamp_sha256',''))[:16]}…")
+    
+        with colB:
+            st.markdown("### Interpretation")
+            st.markdown("- **INFEASIBLE**: at least one hard constraint violated; dominance points to the worst hard margin.")
+            st.markdown("- **FRAGILE**: hard-feasible but the tightest hard margin is near-binding (default < 0.05).")
+            st.markdown("- **FEASIBLE**: hard-feasible with comfortable margins.")
+    
+        if isinstance(art, dict) and isinstance(art.get("authority_dominance"), dict):
+            ad = art["authority_dominance"]
+            with st.expander("Top limiting constraints (hard)", expanded=False):
+                rows = ad.get("dominance_topk") or []
+                if isinstance(rows, list) and rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No top-k rows available.")
+    
+            with st.expander("Authority ranking", expanded=False):
+                rows = ad.get("authority_ranked") or []
+                if isinstance(rows, list) and rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No authority ranking available.")
+    
+    
+    # -----------------------------
+    # Scenario Delta Viewer (new)
+    # -----------------------------
+    
+    with tab_epoch_feas:
+        st.header("Epoch Feasibility")
+        st.caption(
+            "Lifecycle-epoch feasibility (Startup / Nominal / End-of-Life). "
+            "Constitutional reclassification only; no re-solving and no truth modification."
+        )
+    
+        colA, colB = st.columns([0.55, 0.45], gap="large")
+        with colA:
+            st.markdown("### Load artifact")
+            up_art = st.file_uploader("shams_run_artifact.json", type=["json"], key="epochfeas_upload")
+            art = _load_json_from_upload(up_art)
+            if not art:
+                art = st.session_state.get("systems_last_solve_artifact") if isinstance(st.session_state.get("systems_last_solve_artifact"), dict) else None
+                if not art:
+                    art = st.session_state.get("last_point_artifact") if isinstance(st.session_state.get("last_point_artifact"), dict) else None
+    
+            if not art:
+                st.info("Upload an artifact, or run Systems Mode to populate a last artifact.")
             else:
-                st.markdown(f"**Epoch:** `{sel}`")
-                st.json(chosen.get("constitution") or {}, expanded=False)
-                st.caption("These clauses reclassify constraint enforcement deterministically across epochs.")
-
-with tab_delta:
-    st.header("Scenario Delta Viewer")
-    st.caption("Compare two run artifacts (baseline vs scenario). Uses embedded scenario_delta when available; otherwise computes a transparent diff.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        up_base = st.file_uploader("Baseline shams_run_artifact.json", type=["json"], key="delta_base")
-    with col2:
-        up_scen = st.file_uploader("Scenario shams_run_artifact.json", type=["json"], key="delta_scen")
-
-    base = _load_json_from_upload(up_base)
-    scen = _load_json_from_upload(up_scen)
-
-    if not base or not scen:
-        st.info("Upload both baseline and scenario artifacts to view deltas.")
-    else:
-        st.subheader("Embedded scenario_delta")
-        sd = scen.get("scenario_delta")
-        if sd:
-            st.json(sd)
-        else:
-            st.info("No embedded scenario_delta found; computing diffs from inputs/outputs.")
-
-        st.subheader("Changed inputs")
-        bi = base.get("inputs") or {}
-        si = scen.get("inputs") or {}
-        changed = []
-        for k in sorted(set(bi.keys()) | set(si.keys())):
-            if bi.get(k) != si.get(k):
-                changed.append({"field": k, "baseline": bi.get(k), "scenario": si.get(k)})
-        if changed:
-            st.dataframe(pd.DataFrame(changed), use_container_width=True)
-        else:
-            st.info("No input differences detected.")
-
-        st.subheader("Numeric output deltas")
-        bo = base.get("outputs") or {}
-        so = scen.get("outputs") or {}
-        df = _numeric_delta_table(bo, so)
-        if not df.empty:
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.info("No numeric output differences detected.")
-
-
-
-        st.subheader("Structural / schema diff (read-only)")
-        st.caption("Reports *structure* changes (constraints added/removed/meta changes, model cards) without numeric tolerances.")
-
-        try:
-            from shams_io.structural_diff import structural_diff as _structural_diff
-            sd = _structural_diff(new_artifact=scen, old_artifact=base)
-        except Exception as e:
-            sd = None
-            st.error(f"Structural diff failed: {e}")
-
-        if isinstance(sd, dict):
-            # Constraints changes
-            cchg = (sd.get("constraints") or {})
-            added = cchg.get("added") or []
-            removed = cchg.get("removed") or []
-            changed = cchg.get("changed_meta") or []
-            cols = st.columns(3)
-            cols[0].metric("constraints added", str(len(added)))
-            cols[1].metric("constraints removed", str(len(removed)))
-            cols[2].metric("constraints meta changed", str(len(changed)))
-
-            if added:
-                with st.expander("Added constraints", expanded=False):
-                    st.write(added)
-            if removed:
-                with st.expander("Removed constraints", expanded=False):
-                    st.write(removed)
-            if changed:
-                with st.expander("Changed constraint metadata", expanded=False):
-                    st.dataframe(pd.DataFrame(changed), use_container_width=True, hide_index=True)
-
-            # Model cards changes
-            mc = (sd.get("model_cards") or {})
-            mc_added = mc.get("added") or []
-            mc_removed = mc.get("removed") or []
-            mc_changed = mc.get("changed") or []
-            cols2 = st.columns(3)
-            cols2[0].metric("model cards added", str(len(mc_added)))
-            cols2[1].metric("model cards removed", str(len(mc_removed)))
-            cols2[2].metric("model cards changed", str(len(mc_changed)))
-            if mc_added or mc_removed or mc_changed:
-                with st.expander("Model card diffs", expanded=False):
-                    st.json({"added": mc_added, "removed": mc_removed, "changed": mc_changed}, expanded=False)
-
-            with st.expander("Raw structural diff JSON (audit)", expanded=False):
-                st.json(sd, expanded=False)
-
-
-# -----------------------------
-# Run Library (Workspace)
-# -----------------------------
-with tab_library:
-    st.header("Run Library")
-    st.caption("Browse a workspace directory of SHAMS run/study artifacts (no physics changes; read-only).")
-
-    def _scan_workspace(root: Path):
-        runs = []
-        studies = []
-        if not root.exists():
-            return runs, studies
-
-        # Run artifacts
-        for p in root.rglob("*.json"):
-            if p.name.lower() in {"shams_run_artifact.json"} or p.name.lower().startswith("case_") or p.name.lower().endswith("_artifact.json"):
-                try:
-                    art = read_run_artifact(p)
-                    k = art.get("kpis", {}) if isinstance(art, dict) else {}
-                    prov = art.get("provenance", {}) if isinstance(art, dict) else {}
-                    runs.append({
-                        "type": "run",
-                        "path": str(p),
-                        "created_unix": float(art.get("created_unix", prov.get("created_unix", float("nan")))) if isinstance(art, dict) else float("nan"),
-                        "hard_ok": bool(k.get("hard_ok", False)),
-                        "hard_worst_margin": k.get("hard_worst_margin", None),
-                        "Q": k.get("Q_DT_eqv", k.get("Q", None)),
-                        "H98": k.get("H98", None),
-                        "message": ((art.get("solver") or {}).get("message") if isinstance(art.get("solver"), dict) else ""),
-                    })
-                except Exception:
-                    continue
-
-        # Study indexes
-        for p in root.rglob("index.json"):
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                if isinstance(data, dict) and data.get("schema_version") == "study_index.v1":
-                    prov = data.get("provenance", {}) if isinstance(data.get("provenance"), dict) else {}
-                    studies.append({
-                        "type": "study",
-                        "path": str(p),
-                        "created_unix": float(data.get("created_unix", prov.get("created_unix", float('nan')))),
-                        "n_cases": int(data.get("n_cases", 0)),
-                        "elapsed_s": float(data.get("elapsed_s", float('nan'))),
-                    })
-            except Exception:
-                continue
-        return runs, studies
-
-    default_ws = str((Path.cwd()/ "ui_runs").resolve())
-    ws = st.text_input("Workspace folder", value=st.session_state.get("ui_workspace", default_ws))
-    st.session_state.ui_workspace = ws
-    root = Path(ws)
-
-    colA, colB = st.columns([1, 1])
-    with colA:
-        do_scan = st.button("Scan workspace", use_container_width=True)
-    with colB:
-        st.write("")
-        st.write("")
-
-    if do_scan:
-        runs, studies = _scan_workspace(root)
-        st.session_state._ws_runs = runs
-        st.session_state._ws_studies = studies
-
-    runs = st.session_state.get("_ws_runs", [])
-    studies = st.session_state.get("_ws_studies", [])
-
-    st.subheader("Runs")
-    if not runs:
-        st.info("No run artifacts found yet. Tip: point runs write artifacts under your chosen output directory; studies write case_XXXX.json under the study out folder.")
-    else:
-        df = pd.DataFrame(runs)
-        # Sort: newest first when available
-        if "created_unix" in df.columns:
-            df = df.sort_values("created_unix", ascending=False, na_position="last")
-        st.dataframe(df, use_container_width=True, hide_index=True)
-
-        sel = st.text_input("Select a run artifact path to open", value=st.session_state.get("selected_artifact_path", ""))
-        if st.button("Open selected run", use_container_width=True):
-            p = Path(sel)
-            if p.exists():
-                try:
-                    art = read_run_artifact(p)
-                    st.session_state.selected_artifact = art
-                    st.session_state.selected_artifact_path = str(p)
-                    st.success("Loaded run artifact into session.")
-                except Exception as e:
-                    st.error(f"Failed to read artifact: {e}")
+                ef = art.get("epoch_feasibility") if isinstance(art, dict) else None
+                if not isinstance(ef, dict):
+                    st.warning("No epoch_feasibility found. (Older artifact?)")
+                    st.json({"available_keys": sorted(list(art.keys()))[:40]}, expanded=False)
+                else:
+                    st.markdown(f"**Overall:** `{str(ef.get('overall','UNKNOWN'))}`")
+                    epochs = ef.get("epochs") or []
+                    rows = []
+                    for e in epochs:
+                        if not isinstance(e, dict):
+                            continue
+                        wh = e.get("worst_hard_margin_frac", None)
+                        try:
+                            wh_s = f"{float(wh):.3f}" if wh is not None else "-"
+                        except Exception:
+                            wh_s = "-"
+                        rows.append({
+                            "epoch": str(e.get("epoch","")),
+                            "verdict": str(e.get("verdict","")),
+                            "dominant_mechanism": str(e.get("dominant_mechanism","")),
+                            "dominant_constraint": str(e.get("dominant_constraint","")),
+                            "worst_hard_margin": wh_s,
+                            "n_blocking": len(list(e.get("blocking") or [])),
+                            "n_diag": len(list(e.get("diagnostic") or [])),
+                        })
+                    if rows:
+                        st.dataframe(rows, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("Epoch list empty.")
+        with colB:
+            st.markdown("### Constitution (selected epoch)")
+            if not art or not isinstance(art, dict) or not isinstance(art.get("epoch_feasibility"), dict):
+                st.caption("Load an artifact to view epoch constitutions.")
             else:
-                st.error("Path does not exist.")
-
-    st.subheader("Studies")
-    if studies:
-        st.dataframe(pd.DataFrame(studies).sort_values("created_unix", ascending=False, na_position="last"), use_container_width=True, hide_index=True)
-        ssel = st.text_input("Select a study index.json path to open", value=st.session_state.get("selected_study_index_path", ""))
-        if st.button("Open selected study", use_container_width=True):
-            p = Path(ssel)
-            if p.exists():
-                try:
-                    st.session_state.selected_study_index_path = str(p)
-                    st.session_state.selected_study_index = json.loads(p.read_text(encoding="utf-8"))
-                    st.success("Loaded study index into session.")
-                except Exception as e:
-                    st.error(f"Failed to read study index: {e}")
-            else:
-                st.error("Path does not exist.")
-    else:
-        st.caption("No study indexes found in this workspace.")
-
-# -----------------------------
-# Constraint Cockpit
-# -----------------------------
-with tab_constraints:
-    st.header("Constraint Cockpit")
-    st.caption("Interactively triage constraints using the embedded constraint ledger (read-only).")
-
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict):
-        st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
-    else:
-        ledger = art.get("constraint_ledger", {})
-        entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
-        if not entries:
-            st.warning("This artifact has no constraint ledger. (It should be present in v39+ artifacts.)")
-        else:
-            df = pd.DataFrame(entries)
-            # Basic filters
-            c1, c2, c3 = st.columns([1,1,1])
-            with c1:
-                sev = st.multiselect("Severity", sorted(df.get("severity", pd.Series(["hard"])).dropna().unique().tolist()), default=["hard","soft"] if "soft" in df.get("severity", pd.Series([])).unique() else ["hard"])
-            with c2:
-                grp = st.multiselect("Group", sorted(df.get("group", pd.Series(["general"])).dropna().unique().tolist()), default=[])
-            with c3:
-                show_only_failed = st.checkbox("Only failed constraints", value=True)
-
-            view = df.copy()
-            if sev:
-                view = view[view["severity"].isin(sev)]
-            if grp:
-                view = view[view["group"].isin(grp)]
-            if show_only_failed and "passed" in view.columns:
-                view = view[view["passed"] == False]
-
-            # Sort: worst first by margin_frac or margin
-            if "margin_frac" in view.columns:
-                view = view.sort_values("margin_frac", ascending=True, na_position="last")
-            elif "margin" in view.columns:
-                view = view.sort_values("margin", ascending=True, na_position="last")
-
-            st.subheader("Ledger")
-            st.dataframe(view, use_container_width=True, hide_index=True)
-
-            st.subheader("Top blockers")
-            top = ledger.get("top_blockers", []) if isinstance(ledger, dict) else []
-            if top:
-                st.dataframe(pd.DataFrame(top), use_container_width=True, hide_index=True)
-            fp = ledger.get("ledger_fingerprint_sha256")
-            if fp:
-                st.caption(f"Ledger fingerprint: `{fp}`")
-
-
-# -----------------------------
-# Constraint Inspector (read-only)
-# -----------------------------
-with tab_constraint_inspector:
-    st.header("Constraint Inspector")
-    st.caption("Read-only, equation-first inspection of a single constraint: raw inequality, margin, meaning, knobs, and provenance (when available).")
-
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict):
-        st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
-    else:
-        constraints_list = art.get("constraints") or []
-        # Build a name -> constraint dict map (best-effort)
-        name_to_c = {}
-        for c in constraints_list:
-            if isinstance(c, dict) and c.get("name"):
-                name_to_c[str(c.get("name"))] = c
-
-        ledger = art.get("constraint_ledger", {})
-        entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
-        names = []
-        # Prefer ledger order if present (it should reflect evaluation order)
-        if entries:
-            for e in entries:
-                n = str(e.get("name"))
-                if n and n not in names:
-                    names.append(n)
-        else:
-            names = sorted(list(name_to_c.keys()))
-
-        if not names:
-            st.warning("No constraints found in this artifact.")
-        else:
-            sel = st.selectbox("Select constraint", names, index=0, key="constraint_inspector_select")
-
-            # Pull both ledger entry (if present) and raw constraint dict (if present)
-            entry = None
-            if entries:
-                for e in entries:
-                    if str(e.get("name")) == sel:
-                        entry = e
+                ef = art.get("epoch_feasibility") or {}
+                epochs = ef.get("epochs") or []
+                labels = [str(e.get("epoch","")) for e in epochs if isinstance(e, dict)]
+                sel = st.selectbox("Epoch", labels, index=0 if labels else None, key="epochfeas_pick")
+                chosen = None
+                for e in epochs:
+                    if isinstance(e, dict) and str(e.get("epoch","")) == sel:
+                        chosen = e
                         break
-            c = name_to_c.get(sel, {}) if isinstance(name_to_c.get(sel, {}), dict) else {}
-
-            # Compose a canonical view (prefer ledger fields where available)
-            view = {}
-            for src in (c, entry or {}):
-                if isinstance(src, dict):
-                    view.update({k: src.get(k) for k in src.keys()})
-
-            # Core inequality (verbatim fields; no inferred math)
-            sense = str(view.get("sense") or "")
-            value = view.get("value")
-            limit = view.get("limit")
-            units = str(view.get("units") or "")
-            meaning = str(view.get("meaning") or view.get("note") or "")
-
-            st.subheader("Inequality")
-            if sense and value is not None and limit is not None:
-                st.code(f"{sel}: value {sense} limit    (value={value}, limit={limit}, units={units})", language="text")
-            else:
-                st.code(f"{sel}: (insufficient fields to render inequality)", language="text")
-
-            # Pass/fail + margins
-            cols = st.columns(4)
-            cols[0].metric("passed", str(bool(view.get("passed", False))))
-            if view.get("severity") is not None:
-                cols[1].metric("severity", str(view.get("severity")))
-            if view.get("group") is not None:
-                cols[2].metric("group", str(view.get("group")))
-            if view.get("dominance_rank") is not None:
-                cols[3].metric("dominance_rank", str(view.get("dominance_rank")))
-
-            c1, c2, c3 = st.columns(3)
-            if view.get("margin") is not None:
-                c1.metric("margin", f"{view.get('margin')}")
-            if view.get("margin_frac") is not None:
-                c2.metric("margin_frac", f"{view.get('margin_frac')}")
-            if view.get("violation_score") is not None:
-                c3.metric("violation_score", f"{view.get('violation_score')}")
-
-            st.subheader("Meaning / proxy")
-            if meaning.strip():
-                st.write(meaning)
-            else:
-                st.info("No meaning/proxy text is attached to this constraint.")
-
-            # Knobs + dominant inputs
-            st.subheader("Knobs / dominant inputs (if present)")
-            bb = view.get("best_knobs")
-            di = view.get("dominant_inputs")
-            kcol1, kcol2 = st.columns(2)
-            with kcol1:
-                if bb:
-                    st.write("**best_knobs**")
-                    st.write(bb)
+                if chosen is None:
+                    st.info("No epoch selected.")
                 else:
-                    st.caption("best_knobs: (none)")
-            with kcol2:
-                if di:
-                    st.write("**dominant_inputs**")
-                    st.write(di)
-                else:
-                    st.caption("dominant_inputs: (none)")
-
-            # Provenance (constraint-level and artifact-level)
-            st.subheader("Provenance (if present)")
-            prov = {}
-            if isinstance(view.get("provenance"), dict):
-                prov["constraint"] = view.get("provenance")
-            if isinstance(art.get("provenance"), dict):
-                prov["artifact"] = art.get("provenance")
-            if prov:
-                st.json(prov, expanded=False)
-            else:
-                st.info("No provenance keys present on this constraint (artifact-level provenance may still exist under artifact.provenance).")
-
-            # Raw views for auditability
-            with st.expander("Raw JSON (audit)", expanded=False):
-                if isinstance(entry, dict):
-                    st.write("**constraint_ledger entry**")
-                    st.json(entry, expanded=False)
-                if isinstance(c, dict) and c:
-                    st.write("**constraints[] item**")
-                    st.json(c, expanded=False)
-
-
-# -----------------------------
-# Sensitivity Explorer
-# -----------------------------
-with tab_sensitivity:
-    st.header("Sensitivity Explorer")
-    st.caption("Local finite-difference sensitivities around the current point (no model changes).")
-
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict):
-        st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
-    else:
-        inp_d = art.get("inputs", {})
-        if not isinstance(inp_d, dict):
-            st.error("Artifact inputs missing or invalid.")
+                    st.markdown(f"**Epoch:** `{sel}`")
+                    st.json(chosen.get("constitution") or {}, expanded=False)
+                    st.caption("These clauses reclassify constraint enforcement deterministically across epochs.")
+    
+    with tab_delta:
+        st.header("Scenario Delta Viewer")
+        st.caption("Compare two run artifacts (baseline vs scenario). Uses embedded scenario_delta when available; otherwise computes a transparent diff.")
+    
+        col1, col2 = st.columns(2)
+        with col1:
+            up_base = st.file_uploader("Baseline shams_run_artifact.json", type=["json"], key="delta_base")
+        with col2:
+            up_scen = st.file_uploader("Scenario shams_run_artifact.json", type=["json"], key="delta_scen")
+    
+        base = _load_json_from_upload(up_base)
+        scen = _load_json_from_upload(up_scen)
+    
+        if not base or not scen:
+            st.info("Upload both baseline and scenario artifacts to view deltas.")
         else:
+            st.subheader("Embedded scenario_delta")
+            sd = scen.get("scenario_delta")
+            if sd:
+                st.json(sd)
+            else:
+                st.info("No embedded scenario_delta found; computing diffs from inputs/outputs.")
+    
+            st.subheader("Changed inputs")
+            bi = base.get("inputs") or {}
+            si = scen.get("inputs") or {}
+            changed = []
+            for k in sorted(set(bi.keys()) | set(si.keys())):
+                if bi.get(k) != si.get(k):
+                    changed.append({"field": k, "baseline": bi.get(k), "scenario": si.get(k)})
+            if changed:
+                st.dataframe(pd.DataFrame(changed), use_container_width=True)
+            else:
+                st.info("No input differences detected.")
+    
+            st.subheader("Numeric output deltas")
+            bo = base.get("outputs") or {}
+            so = scen.get("outputs") or {}
+            df = _numeric_delta_table(bo, so)
+            if not df.empty:
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("No numeric output differences detected.")
+    
+    
+    
+            st.subheader("Structural / schema diff (read-only)")
+            st.caption("Reports *structure* changes (constraints added/removed/meta changes, model cards) without numeric tolerances.")
+    
             try:
-                base = PointInputs.from_dict(inp_d)
-            except Exception:
-                # Fallback: try direct constructor with expected keys
-                try:
-                    base = PointInputs(**{k: inp_d[k] for k in PointInputs.__dataclass_fields__.keys() if k in inp_d})
-                except Exception as e:
-                    st.error(f"Could not build PointInputs from artifact inputs: {e}")
-                    base = None
-
-            if base is not None:
-                st.subheader("Base point")
-                st.json(base.__dict__)
-
-                # Choose knobs + outputs
-                knob_defaults = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Paux_MW", "Ti_keV", "Te_keV"]
-                available_knobs = [k for k in knob_defaults if k in base.__dict__]
-                knobs = st.multiselect("Knobs", available_knobs, default=["Ip_MA", "fG"], key="sens_knobs_v294")
-
-                outputs_default = [
-                    "Q_DT_eqv", "H98", "P_fus_total_MW", "Palpha_MW", "beta_N", "nbar20", "P_e_net_MW",
-                    "B_peak_T", "q95", "TBR",
-                ]
-                outputs = st.multiselect("Outputs", outputs_default, default=["Q_DT_eqv", "H98"], key="sens_outs_v294")
-
-                step_rel = st.number_input("Step size (relative)", value=1e-3, min_value=1e-6, format="%.6f", key="sens_step_rel_v294")
-
-                if st.button("Compute deterministic sensitivity pack", use_container_width=True, key="sens_btn_v294"):
+                from shams_io.structural_diff import structural_diff as _structural_diff
+                sd = _structural_diff(new_artifact=scen, old_artifact=base)
+            except Exception as e:
+                sd = None
+                st.error(f"Structural diff failed: {e}")
+    
+            if isinstance(sd, dict):
+                # Constraints changes
+                cchg = (sd.get("constraints") or {})
+                added = cchg.get("added") or []
+                removed = cchg.get("removed") or []
+                changed = cchg.get("changed_meta") or []
+                cols = st.columns(3)
+                cols[0].metric("constraints added", str(len(added)))
+                cols[1].metric("constraints removed", str(len(removed)))
+                cols[2].metric("constraints meta changed", str(len(changed)))
+    
+                if added:
+                    with st.expander("Added constraints", expanded=False):
+                        st.write(added)
+                if removed:
+                    with st.expander("Removed constraints", expanded=False):
+                        st.write(removed)
+                if changed:
+                    with st.expander("Changed constraint metadata", expanded=False):
+                        st.dataframe(pd.DataFrame(changed), use_container_width=True, hide_index=True)
+    
+                # Model cards changes
+                mc = (sd.get("model_cards") or {})
+                mc_added = mc.get("added") or []
+                mc_removed = mc.get("removed") or []
+                mc_changed = mc.get("changed") or []
+                cols2 = st.columns(3)
+                cols2[0].metric("model cards added", str(len(mc_added)))
+                cols2[1].metric("model cards removed", str(len(mc_removed)))
+                cols2[2].metric("model cards changed", str(len(mc_changed)))
+                if mc_added or mc_removed or mc_changed:
+                    with st.expander("Model card diffs", expanded=False):
+                        st.json({"added": mc_added, "removed": mc_removed, "changed": mc_changed}, expanded=False)
+    
+                with st.expander("Raw structural diff JSON (audit)", expanded=False):
+                    st.json(sd, expanded=False)
+    
+    
+    # -----------------------------
+    # Run Library (Workspace)
+    # -----------------------------
+    with tab_library:
+        st.header("Run Library")
+        st.caption("Browse a workspace directory of SHAMS run/study artifacts (no physics changes; read-only).")
+    
+        def _scan_workspace(root: Path):
+            runs = []
+            studies = []
+            if not root.exists():
+                return runs, studies
+    
+            # Run artifacts
+            for p in root.rglob("*.json"):
+                if p.name.lower() in {"shams_run_artifact.json"} or p.name.lower().startswith("case_") or p.name.lower().endswith("_artifact.json"):
                     try:
-                        from analysis.sensitivity import deterministic_sensitivity_pack
-                        # Characteristic scales for variables when x0 == 0
-                        scales = {k: 1.0 for k in knobs}
-                        scales.update({"Paux_MW": 10.0, "Ip_MA": 1.0, "fG": 0.1, "Bt_T": 0.5, "R0_m": 0.5, "a_m": 0.2})
-                        pack = deterministic_sensitivity_pack(base, variables={k: scales.get(k, 1.0) for k in knobs}, outputs=list(outputs), step_rel=float(step_rel))
-
-                        # Flatten for table
-                        rows = []
-                        jac = pack.get("jacobian", {}) if isinstance(pack, dict) else {}
-                        for o in outputs:
-                            for p in knobs:
-                                try:
-                                    v = float((jac.get(o) or {}).get(p))
-                                except Exception:
-                                    v = float('nan')
-                                rows.append({"output": o, "knob": p, "d(output)/d(knob)": v})
-                        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-                        st.subheader("Constraint tightness (top residuals)")
-                        st.dataframe(pd.DataFrame(pack.get("constraints_tightness", [])), use_container_width=True, hide_index=True)
-
-                        with st.expander("Raw JSON (audit)", expanded=False):
-                            st.json(pack)
-                    except Exception as e:
-                        st.error(f"Sensitivity computation failed: {e}")
-
-# -----------------------------
-# Feasibility Map Viewer
-# -----------------------------
-with tab_feasmap:
-    st.header("Feasibility Map")
-    st.caption("Visualize feasibility from study sweeps (heatmap).")
-
-    # Load study index either from session (Run Library) or by path
-    p_default = st.session_state.get("selected_study_index_path", "")
-    p = st.text_input("Study index.json path", value=p_default)
-    idx_data = None
-    if p and Path(p).exists():
-        try:
-            idx_data = json.loads(Path(p).read_text(encoding="utf-8"))
-        except Exception as e:
-            st.error(f"Could not read study index: {e}")
-
-    if not isinstance(idx_data, dict) or idx_data.get("schema_version") != "study_index.v1":
-        st.info("Provide a valid study_out/index.json (schema study_index.v1).")
-    else:
-        cases = idx_data.get("cases", [])
-        study = idx_data.get("study", {})
-        sweeps = (study.get("sweeps") if isinstance(study, dict) else None) or []
-        # Determine candidate in_ variables for axes
-        in_cols = []
-        if cases and isinstance(cases, list) and isinstance(cases[0], dict):
-            for k in cases[0].keys():
-                if k.startswith("in_"):
-                    in_cols.append(k)
-        # Prefer sweep variables
-        sweep_vars = ["in_"+str(s.get("name")) for s in sweeps if isinstance(s, dict) and s.get("name") is not None]
-        axis_candidates = [c for c in sweep_vars if c in in_cols] + [c for c in in_cols if c not in sweep_vars]
-        if len(axis_candidates) < 2:
-            st.warning("Need at least two swept input variables (in_*) to plot a 2D feasibility map.")
-        else:
-            c1, c2 = st.columns([1,1])
-            with c1:
-                xcol = st.selectbox("X axis", axis_candidates, index=0)
-            with c2:
-                ycol = st.selectbox("Y axis", axis_candidates, index=1 if len(axis_candidates)>1 else 0)
-
-            df = pd.DataFrame(cases)
-            if "ok" not in df.columns:
-                st.error("Study cases table missing 'ok' field.")
-            else:
-                # Build pivot grid
-                xs = sorted(df[xcol].dropna().unique().tolist())
-                ys = sorted(df[ycol].dropna().unique().tolist())
-                import numpy as np
-                grid = np.full((len(ys), len(xs)), np.nan)
-                for _, r in df.iterrows():
-                    try:
-                        xi = xs.index(r[xcol])
-                        yi = ys.index(r[ycol])
-                        grid[yi, xi] = 1.0 if bool(r["ok"]) else 0.0
+                        art = read_run_artifact(p)
+                        k = art.get("kpis", {}) if isinstance(art, dict) else {}
+                        prov = art.get("provenance", {}) if isinstance(art, dict) else {}
+                        runs.append({
+                            "type": "run",
+                            "path": str(p),
+                            "created_unix": float(art.get("created_unix", prov.get("created_unix", float("nan")))) if isinstance(art, dict) else float("nan"),
+                            "hard_ok": bool(k.get("hard_ok", False)),
+                            "hard_worst_margin": k.get("hard_worst_margin", None),
+                            "Q": k.get("Q_DT_eqv", k.get("Q", None)),
+                            "H98": k.get("H98", None),
+                            "message": ((art.get("solver") or {}).get("message") if isinstance(art.get("solver"), dict) else ""),
+                        })
                     except Exception:
                         continue
-
-                st.subheader("Feasibility heatmap (1=feasible, 0=infeasible)")
+    
+            # Study indexes
+            for p in root.rglob("index.json"):
                 try:
-                    import matplotlib.pyplot as plt  # type: ignore
-                    fig, ax = plt.subplots()
-                    im = ax.imshow(grid, origin="lower", aspect="auto")
-                    ax.set_xticks(range(len(xs)))
-                    ax.set_yticks(range(len(ys)))
-                    ax.set_xticklabels([str(x) for x in xs], rotation=45, ha="right")
-                    ax.set_yticklabels([str(y) for y in ys])
-                    ax.set_xlabel(xcol)
-                    ax.set_ylabel(ycol)
-                    st.pyplot(fig, clear_figure=True)
-                except Exception as e:
-                    st.error(f"Plot failed: {e}")
-
-                st.subheader("Pick a case to open")
-                selx = st.selectbox("X value", xs, index=0)
-                sely = st.selectbox("Y value", ys, index=0)
-                sub = df[(df[xcol]==selx) & (df[ycol]==sely)]
-                if sub.empty:
-                    st.info("No case for that cell.")
-                else:
-                    st.dataframe(sub[["case","ok","iters","message","path"] + [xcol,ycol]], use_container_width=True, hide_index=True)
-                    if st.button("Load this case artifact", use_container_width=True):
-                        path = str(sub.iloc[0]["path"])
-                        try:
-                            art = read_run_artifact(Path(path))
-                            st.session_state.selected_artifact = art
-                            st.session_state.selected_artifact_path = path
-                            st.success("Loaded case artifact into session.")
-                        except Exception as e:
-                            st.error(f"Could not load case artifact: {e}")
-
-
-# -----------------------------
-# UI Upgrade Pack v53 (UI-only): decision/provenance/knobs/regression/study dashboard/maturity/assumptions/export/solver introspection
-# -----------------------------
-def _get_active_artifact(label: str = "Use loaded artifact in session") -> dict | None:
-    "Return the currently active artifact (from session_state or upload)."
-    art = st.session_state.get("selected_artifact")
-    if isinstance(art, dict) and art:
-        st.info("Using artifact loaded into session (Run Library / Feasibility Map).")
-        return art
-    up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key=f"active_artifact_upload_{label}")
-    return _load_json_from_upload(up)
-
-def _guess_point_inputs_from_artifact(art: dict) -> PointInputs | None:
-    "Best-effort extraction of PointInputs from an artifact. Falls back safely."
-    if not isinstance(art, dict):
-        return None
-    cand = {}
-    for k in ["inputs", "point", "point_inputs", "design_point", "config", "run_config", "resolved_config"]:
-        v = art.get(k)
-        if isinstance(v, dict):
-            cand.update(v)
-    cand.update({k: art.get(k) for k in ["R0_m","a_m","kappa","Bt_T","B0_T","Ip_MA","Ti_keV","fG","Paux_MW","Ti_over_Te","fuel_mode"] if k in art})
-    if "B0_T" in cand and "Bt_T" not in cand:
-        cand["Bt_T"] = cand["B0_T"]
-    if "Ti_Te" in cand and "Ti_over_Te" not in cand:
-        cand["Ti_over_Te"] = cand["Ti_Te"]
-    if "Ti/Te" in cand and "Ti_over_Te" not in cand:
-        cand["Ti_over_Te"] = cand["Ti/Te"]
-    try:
-        return _make_point_inputs_safe(**cand)
-    except Exception:
-        return None
-
-def _decision_summary_from_artifact(art: dict) -> dict:
-    kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-    cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
-    ledger = art.get("constraint_ledger", {}) if isinstance(art.get("constraint_ledger"), dict) else {}
-    feas = bool(art.get("is_feasible")) if "is_feasible" in art else None
-    if feas is None:
-        feas = all((not bool(c.get("failed"))) for c in cons) if cons else None
-    top = ledger.get("top_blockers") if isinstance(ledger.get("top_blockers"), list) else []
-    if not top and cons:
-        failed = [c for c in cons if c.get("failed")]
-        failed = failed[:8]
-        top = [{"name": c.get("name"), "group": c.get("group"), "margin": c.get("margin"), "severity": c.get("severity")} for c in failed]
-    return {"feasible": feas, "kpis": kpis, "top_blockers": top, "ledger": ledger, "constraints": cons}
-
-def _download_json_button(label: str, data: dict, fname: str, key: str):
-    try:
-        st.download_button(label, data=json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"),
-                           file_name=fname, mime="application/json", key=key)
-    except Exception as e:
-        st.warning(f"Download not available: {e}")
-
-with tab_decision:
-    st.header("Decision Front Page Builder")
-    st.caption("UI-native reconstruction of the decision-grade front-page summary from a run artifact (no physics changes).")
-
-    art = _get_active_artifact("decision")
-    if not art:
-        st.info("Load an artifact to build the decision summary.")
-    else:
-        d = _decision_summary_from_artifact(art)
-        c1, c2, c3 = st.columns([1,1,1])
-        with c1:
-            st.metric("Feasibility verdict", "FEASIBLE " if d["feasible"] else ("INFEASIBLE " if d["feasible"] is not None else "UNKNOWN"))
-        with c2:
-            st.metric("Top KPI: Q", f"{d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q', '-'))}")
-        with c3:
-            st.metric("Top KPI: Pfus (MW)", f"{d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW', '-'))}")
-
-        st.subheader("Dominant blockers")
-        if d["top_blockers"]:
-            st.dataframe(_safe_df(d["top_blockers"]), use_container_width=True, hide_index=True)
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                    if isinstance(data, dict) and data.get("schema_version") == "study_index.v1":
+                        prov = data.get("provenance", {}) if isinstance(data.get("provenance"), dict) else {}
+                        studies.append({
+                            "type": "study",
+                            "path": str(p),
+                            "created_unix": float(data.get("created_unix", prov.get("created_unix", float('nan')))),
+                            "n_cases": int(data.get("n_cases", 0)),
+                            "elapsed_s": float(data.get("elapsed_s", float('nan'))),
+                        })
+                except Exception:
+                    continue
+            return runs, studies
+    
+        default_ws = str((Path.cwd()/ "ui_runs").resolve())
+        ws = st.text_input("Workspace folder", value=st.session_state.get("ui_workspace", default_ws))
+        st.session_state.ui_workspace = ws
+        root = Path(ws)
+    
+        colA, colB = st.columns([1, 1])
+        with colA:
+            do_scan = st.button("Scan workspace", use_container_width=True)
+        with colB:
+            st.write("")
+            st.write("")
+    
+        if do_scan:
+            runs, studies = _scan_workspace(root)
+            st.session_state._ws_runs = runs
+            st.session_state._ws_studies = studies
+    
+        runs = st.session_state.get("_ws_runs", [])
+        studies = st.session_state.get("_ws_studies", [])
+    
+        st.subheader("Runs")
+        if not runs:
+            st.info("No run artifacts found yet. Tip: point runs write artifacts under your chosen output directory; studies write case_XXXX.json under the study out folder.")
         else:
-            st.write("No blockers found in artifact.")
-
-        with st.expander("Full decision inputs (provenance + schema versions)"):
-            prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
-            st.json({
-                "schema_version": art.get("schema_version"),
-                "repo_version": prov.get("repo_version"),
-                "git_commit": prov.get("git_commit"),
-                "python": prov.get("python"),
-                "platform": prov.get("platform"),
-                "created_unix": prov.get("created_unix"),
-            })
-
-        _download_json_button("Download decision summary JSON", d, "decision_summary.json", "dl_decision_summary")
-
-
-with tab_nonfeas:
-    st.header("Guided Non-Feasibility Mode")
-    st.caption("Turn infeasible outcomes into a structured, auditable recovery workflow (UI-only; no physics changes).")
-
-    art = _get_active_artifact("nonfeas")
-    if not art:
-        st.info("Load an artifact to guide a non-feasibility recovery path.")
-    else:
-        cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
-        kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-
-        # Determine hard feasibility
-        feasible_hard = None
-        if "feasible_hard" in kpis:
-            try:
-                feasible_hard = bool(kpis.get("feasible_hard"))
-            except Exception:
-                feasible_hard = None
-        if feasible_hard is None and cons:
-            try:
-                feasible_hard = all(
-                    bool(c.get("passed", True))
-                    for c in cons
-                    if str(c.get("severity", "hard")).lower() == "hard"
-                )
-            except Exception:
-                feasible_hard = None
-
-        if feasible_hard is True:
-            st.success("This run is hard-feasible. Guided non-feasibility mode is not needed.")
-        else:
-            # Get or construct a non-feasibility certificate
-            cert = art.get("nonfeasibility_certificate") if isinstance(art.get("nonfeasibility_certificate"), dict) else None
-            if not cert:
-                hard_failed = [
-                    c for c in cons
-                    if str(c.get("severity", "hard")).lower() == "hard" and not bool(c.get("passed", True))
-                ]
-
-                def _mkey(c):
+            df = pd.DataFrame(runs)
+            # Sort: newest first when available
+            if "created_unix" in df.columns:
+                df = df.sort_values("created_unix", ascending=False, na_position="last")
+            st.dataframe(df, use_container_width=True, hide_index=True)
+    
+            sel = st.text_input("Select a run artifact path to open", value=st.session_state.get("selected_artifact_path", ""))
+            if st.button("Open selected run", use_container_width=True):
+                p = Path(sel)
+                if p.exists():
                     try:
-                        return float(c.get("margin", 0.0))
-                    except Exception:
-                        return 0.0
-
-                hard_failed.sort(key=_mkey)
-                cert = {
-                    "hard_feasible": False,
-                    "dominant_blockers": [{
-                        "name": c.get("name", ""),
-                        "group": c.get("group", ""),
-                        "value": c.get("value"),
-                        "limit": c.get("limit"),
-                        "sense": c.get("sense"),
-                        "margin": c.get("margin"),
-                        "meaning": c.get("meaning", ""),
-                        "best_knobs": c.get("best_knobs", []),
-                        "maturity": c.get("maturity"),
-                        "provenance": c.get("provenance"),
-                    } for c in hard_failed[:10]],
-                    "recommendation": "Move the listed best_knobs (and/or relax assumptions) until all hard constraints pass.",
-                }
-
-            st.subheader("Non-Feasibility Certificate")
-            st.json(cert)
-
-            t1, t2, t3 = st.tabs(["1) Diagnose", "2) Minimal relaxations", "3) Create a scenario (deck)"])
-
-            with t1:
-                st.markdown("### Dominant hard blockers (ranked)")
-                blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
-                if blockers:
-                    bdf = _safe_df(blockers)
-                    pref = [c for c in ["group", "name", "margin", "value", "limit", "sense", "meaning", "best_knobs", "maturity"] if c in bdf.columns]
-                    st.dataframe(bdf[pref] if pref else bdf, use_container_width=True, hide_index=True)
+                        art = read_run_artifact(p)
+                        st.session_state.selected_artifact = art
+                        st.session_state.selected_artifact_path = str(p)
+                        st.success("Loaded run artifact into session.")
+                    except Exception as e:
+                        st.error(f"Failed to read artifact: {e}")
                 else:
-                    st.warning("No dominant blockers found in certificate.")
-
-                # Solver hints (if present)
-                out = art.get("outputs", {}) if isinstance(art.get("outputs"), dict) else {}
-                solver = out.get("_solver") if isinstance(out.get("_solver"), dict) else art.get("solver")
-                if isinstance(solver, dict) and solver:
-                    st.markdown("### Solver hints (from artifact)")
-                    show = {k: solver.get(k) for k in ["status", "reason", "clamped", "clamped_on", "residuals", "ui_log"] if k in solver}
-                    st.json(show or solver)
-
-                st.markdown("### Action principle")
-                st.write(
-                    "Fix **hard** blockers first. Soft constraints are advisory unless your decision policy says otherwise. "
-                    "Use the knob suggestions as **directional guidance** (not optimization)."
-                )
-
-            with t2:
-                st.markdown("### Propose a nearest-feasible adjustment (within UI)")
-                base = _guess_point_inputs_from_artifact(art)
-                if base is None:
-                    base = st.session_state.get("last_point_inp")
-
-                if base is None:
-                    st.warning("Could not infer PointInputs from artifact. Run Point Designer once or ensure artifact includes inputs.")
+                    st.error("Path does not exist.")
+    
+        st.subheader("Studies")
+        if studies:
+            st.dataframe(pd.DataFrame(studies).sort_values("created_unix", ascending=False, na_position="last"), use_container_width=True, hide_index=True)
+            ssel = st.text_input("Select a study index.json path to open", value=st.session_state.get("selected_study_index_path", ""))
+            if st.button("Open selected study", use_container_width=True):
+                p = Path(ssel)
+                if p.exists():
+                    try:
+                        st.session_state.selected_study_index_path = str(p)
+                        st.session_state.selected_study_index = json.loads(p.read_text(encoding="utf-8"))
+                        st.success("Loaded study index into session.")
+                    except Exception as e:
+                        st.error(f"Failed to read study index: {e}")
                 else:
-                    st.caption("Choose a dominant blocker, then adjust one or more knobs and re-evaluate.")
+                    st.error("Path does not exist.")
+        else:
+            st.caption("No study indexes found in this workspace.")
+    
+    # -----------------------------
+    # Constraint Cockpit
+    # -----------------------------
+    with tab_constraints:
+        st.header("Constraint Cockpit")
+        st.caption("Interactively triage constraints using the embedded constraint ledger (read-only).")
+    
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict):
+            st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
+        else:
+            ledger = art.get("constraint_ledger", {})
+            entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
+            if not entries:
+                st.warning("This artifact has no constraint ledger. (It should be present in v39+ artifacts.)")
+            else:
+                df = pd.DataFrame(entries)
+                # Basic filters
+                c1, c2, c3 = st.columns([1,1,1])
+                with c1:
+                    sev = st.multiselect("Severity", sorted(df.get("severity", pd.Series(["hard"])).dropna().unique().tolist()), default=["hard","soft"] if "soft" in df.get("severity", pd.Series([])).unique() else ["hard"])
+                with c2:
+                    grp = st.multiselect("Group", sorted(df.get("group", pd.Series(["general"])).dropna().unique().tolist()), default=[])
+                with c3:
+                    show_only_failed = st.checkbox("Only failed constraints", value=True)
+    
+                view = df.copy()
+                if sev:
+                    view = view[view["severity"].isin(sev)]
+                if grp:
+                    view = view[view["group"].isin(grp)]
+                if show_only_failed and "passed" in view.columns:
+                    view = view[view["passed"] == False]
+    
+                # Sort: worst first by margin_frac or margin
+                if "margin_frac" in view.columns:
+                    view = view.sort_values("margin_frac", ascending=True, na_position="last")
+                elif "margin" in view.columns:
+                    view = view.sort_values("margin", ascending=True, na_position="last")
+    
+                st.subheader("Ledger")
+                st.dataframe(view, use_container_width=True, hide_index=True)
+    
+                st.subheader("Top blockers")
+                top = ledger.get("top_blockers", []) if isinstance(ledger, dict) else []
+                if top:
+                    st.dataframe(pd.DataFrame(top), use_container_width=True, hide_index=True)
+                fp = ledger.get("ledger_fingerprint_sha256")
+                if fp:
+                    st.caption(f"Ledger fingerprint: `{fp}`")
+    
+    
+    # -----------------------------
+    # Constraint Inspector (read-only)
+    # -----------------------------
+    with tab_constraint_inspector:
+        st.header("Constraint Inspector")
+        st.caption("Read-only, equation-first inspection of a single constraint: raw inequality, margin, meaning, knobs, and provenance (when available).")
+    
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict):
+            st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
+        else:
+            constraints_list = art.get("constraints") or []
+            # Build a name -> constraint dict map (best-effort)
+            name_to_c = {}
+            for c in constraints_list:
+                if isinstance(c, dict) and c.get("name"):
+                    name_to_c[str(c.get("name"))] = c
+    
+            ledger = art.get("constraint_ledger", {})
+            entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
+            names = []
+            # Prefer ledger order if present (it should reflect evaluation order)
+            if entries:
+                for e in entries:
+                    n = str(e.get("name"))
+                    if n and n not in names:
+                        names.append(n)
+            else:
+                names = sorted(list(name_to_c.keys()))
+    
+            if not names:
+                st.warning("No constraints found in this artifact.")
+            else:
+                sel = st.selectbox("Select constraint", names, index=0, key="constraint_inspector_select")
+    
+                # Pull both ledger entry (if present) and raw constraint dict (if present)
+                entry = None
+                if entries:
+                    for e in entries:
+                        if str(e.get("name")) == sel:
+                            entry = e
+                            break
+                c = name_to_c.get(sel, {}) if isinstance(name_to_c.get(sel, {}), dict) else {}
+    
+                # Compose a canonical view (prefer ledger fields where available)
+                view = {}
+                for src in (c, entry or {}):
+                    if isinstance(src, dict):
+                        view.update({k: src.get(k) for k in src.keys()})
+    
+                # Core inequality (verbatim fields; no inferred math)
+                sense = str(view.get("sense") or "")
+                value = view.get("value")
+                limit = view.get("limit")
+                units = str(view.get("units") or "")
+                meaning = str(view.get("meaning") or view.get("note") or "")
+    
+                st.subheader("Inequality")
+                if sense and value is not None and limit is not None:
+                    st.code(f"{sel}: value {sense} limit    (value={value}, limit={limit}, units={units})", language="text")
+                else:
+                    st.code(f"{sel}: (insufficient fields to render inequality)", language="text")
+    
+                # Pass/fail + margins
+                cols = st.columns(4)
+                cols[0].metric("passed", str(bool(view.get("passed", False))))
+                if view.get("severity") is not None:
+                    cols[1].metric("severity", str(view.get("severity")))
+                if view.get("group") is not None:
+                    cols[2].metric("group", str(view.get("group")))
+                if view.get("dominance_rank") is not None:
+                    cols[3].metric("dominance_rank", str(view.get("dominance_rank")))
+    
+                c1, c2, c3 = st.columns(3)
+                if view.get("margin") is not None:
+                    c1.metric("margin", f"{view.get('margin')}")
+                if view.get("margin_frac") is not None:
+                    c2.metric("margin_frac", f"{view.get('margin_frac')}")
+                if view.get("violation_score") is not None:
+                    c3.metric("violation_score", f"{view.get('violation_score')}")
+    
+                st.subheader("Meaning / proxy")
+                if meaning.strip():
+                    st.write(meaning)
+                else:
+                    st.info("No meaning/proxy text is attached to this constraint.")
+    
+                # Knobs + dominant inputs
+                st.subheader("Knobs / dominant inputs (if present)")
+                bb = view.get("best_knobs")
+                di = view.get("dominant_inputs")
+                kcol1, kcol2 = st.columns(2)
+                with kcol1:
+                    if bb:
+                        st.write("**best_knobs**")
+                        st.write(bb)
+                    else:
+                        st.caption("best_knobs: (none)")
+                with kcol2:
+                    if di:
+                        st.write("**dominant_inputs**")
+                        st.write(di)
+                    else:
+                        st.caption("dominant_inputs: (none)")
+    
+                # Provenance (constraint-level and artifact-level)
+                st.subheader("Provenance (if present)")
+                prov = {}
+                if isinstance(view.get("provenance"), dict):
+                    prov["constraint"] = view.get("provenance")
+                if isinstance(art.get("provenance"), dict):
+                    prov["artifact"] = art.get("provenance")
+                if prov:
+                    st.json(prov, expanded=False)
+                else:
+                    st.info("No provenance keys present on this constraint (artifact-level provenance may still exist under artifact.provenance).")
+    
+                # Raw views for auditability
+                with st.expander("Raw JSON (audit)", expanded=False):
+                    if isinstance(entry, dict):
+                        st.write("**constraint_ledger entry**")
+                        st.json(entry, expanded=False)
+                    if isinstance(c, dict) and c:
+                        st.write("**constraints[] item**")
+                        st.json(c, expanded=False)
+    
+    
+    # -----------------------------
+    # Sensitivity Explorer
+    # -----------------------------
+    with tab_sensitivity:
+        st.header("Sensitivity Explorer")
+        st.caption("Local finite-difference sensitivities around the current point (no model changes).")
+    
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict):
+            st.info("Load a run artifact first (Run Library or Artifacts Explorer).")
+        else:
+            inp_d = art.get("inputs", {})
+            if not isinstance(inp_d, dict):
+                st.error("Artifact inputs missing or invalid.")
+            else:
+                try:
+                    base = PointInputs.from_dict(inp_d)
+                except Exception:
+                    # Fallback: try direct constructor with expected keys
+                    try:
+                        base = PointInputs(**{k: inp_d[k] for k in PointInputs.__dataclass_fields__.keys() if k in inp_d})
+                    except Exception as e:
+                        st.error(f"Could not build PointInputs from artifact inputs: {e}")
+                        base = None
+    
+                if base is not None:
+                    st.subheader("Base point")
+                    st.json(base.__dict__)
+    
+                    # Choose knobs + outputs
+                    knob_defaults = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Paux_MW", "Ti_keV", "Te_keV"]
+                    available_knobs = [k for k in knob_defaults if k in base.__dict__]
+                    knobs = st.multiselect("Knobs", available_knobs, default=["Ip_MA", "fG"], key="sens_knobs_v294")
+    
+                    outputs_default = [
+                        "Q_DT_eqv", "H98", "P_fus_total_MW", "Palpha_MW", "beta_N", "nbar20", "P_e_net_MW",
+                        "B_peak_T", "q95", "TBR",
+                    ]
+                    outputs = st.multiselect("Outputs", outputs_default, default=["Q_DT_eqv", "H98"], key="sens_outs_v294")
+    
+                    step_rel = st.number_input("Step size (relative)", value=1e-3, min_value=1e-6, format="%.6f", key="sens_step_rel_v294")
+    
+                    if st.button("Compute deterministic sensitivity pack", use_container_width=True, key="sens_btn_v294"):
+                        try:
+                            from analysis.sensitivity import deterministic_sensitivity_pack
+                            # Characteristic scales for variables when x0 == 0
+                            scales = {k: 1.0 for k in knobs}
+                            scales.update({"Paux_MW": 10.0, "Ip_MA": 1.0, "fG": 0.1, "Bt_T": 0.5, "R0_m": 0.5, "a_m": 0.2})
+                            pack = deterministic_sensitivity_pack(base, variables={k: scales.get(k, 1.0) for k in knobs}, outputs=list(outputs), step_rel=float(step_rel))
+    
+                            # Flatten for table
+                            rows = []
+                            jac = pack.get("jacobian", {}) if isinstance(pack, dict) else {}
+                            for o in outputs:
+                                for p in knobs:
+                                    try:
+                                        v = float((jac.get(o) or {}).get(p))
+                                    except Exception:
+                                        v = float('nan')
+                                    rows.append({"output": o, "knob": p, "d(output)/d(knob)": v})
+                            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    
+                            st.subheader("Constraint tightness (top residuals)")
+                            st.dataframe(pd.DataFrame(pack.get("constraints_tightness", [])), use_container_width=True, hide_index=True)
+    
+                            with st.expander("Raw JSON (audit)", expanded=False):
+                                st.json(pack)
+                        except Exception as e:
+                            st.error(f"Sensitivity computation failed: {e}")
+    
+    # -----------------------------
+    # Feasibility Map Viewer
+    # -----------------------------
+    with tab_feasmap:
+        st.header("Feasibility Map")
+        st.caption("Visualize feasibility from study sweeps (heatmap).")
+    
+        # Load study index either from session (Run Library) or by path
+        p_default = st.session_state.get("selected_study_index_path", "")
+        p = st.text_input("Study index.json path", value=p_default)
+        idx_data = None
+        if p and Path(p).exists():
+            try:
+                idx_data = json.loads(Path(p).read_text(encoding="utf-8"))
+            except Exception as e:
+                st.error(f"Could not read study index: {e}")
+    
+        if not isinstance(idx_data, dict) or idx_data.get("schema_version") != "study_index.v1":
+            st.info("Provide a valid study_out/index.json (schema study_index.v1).")
+        else:
+            cases = idx_data.get("cases", [])
+            study = idx_data.get("study", {})
+            sweeps = (study.get("sweeps") if isinstance(study, dict) else None) or []
+            # Determine candidate in_ variables for axes
+            in_cols = []
+            if cases and isinstance(cases, list) and isinstance(cases[0], dict):
+                for k in cases[0].keys():
+                    if k.startswith("in_"):
+                        in_cols.append(k)
+            # Prefer sweep variables
+            sweep_vars = ["in_"+str(s.get("name")) for s in sweeps if isinstance(s, dict) and s.get("name") is not None]
+            axis_candidates = [c for c in sweep_vars if c in in_cols] + [c for c in in_cols if c not in sweep_vars]
+            if len(axis_candidates) < 2:
+                st.warning("Need at least two swept input variables (in_*) to plot a 2D feasibility map.")
+            else:
+                c1, c2 = st.columns([1,1])
+                with c1:
+                    xcol = st.selectbox("X axis", axis_candidates, index=0)
+                with c2:
+                    ycol = st.selectbox("Y axis", axis_candidates, index=1 if len(axis_candidates)>1 else 0)
+    
+                df = pd.DataFrame(cases)
+                if "ok" not in df.columns:
+                    st.error("Study cases table missing 'ok' field.")
+                else:
+                    # Build pivot grid
+                    xs = sorted(df[xcol].dropna().unique().tolist())
+                    ys = sorted(df[ycol].dropna().unique().tolist())
+                    import numpy as np
+                    grid = np.full((len(ys), len(xs)), np.nan)
+                    for _, r in df.iterrows():
+                        try:
+                            xi = xs.index(r[xcol])
+                            yi = ys.index(r[ycol])
+                            grid[yi, xi] = 1.0 if bool(r["ok"]) else 0.0
+                        except Exception:
+                            continue
+    
+                    st.subheader("Feasibility heatmap (1=feasible, 0=infeasible)")
+                    try:
+                        import matplotlib.pyplot as plt  # type: ignore
+                        fig, ax = plt.subplots()
+                        im = ax.imshow(grid, origin="lower", aspect="auto")
+                        ax.set_xticks(range(len(xs)))
+                        ax.set_yticks(range(len(ys)))
+                        ax.set_xticklabels([str(x) for x in xs], rotation=45, ha="right")
+                        ax.set_yticklabels([str(y) for y in ys])
+                        ax.set_xlabel(xcol)
+                        ax.set_ylabel(ycol)
+                        st.pyplot(fig, clear_figure=True)
+                    except Exception as e:
+                        st.error(f"Plot failed: {e}")
+    
+                    st.subheader("Pick a case to open")
+                    selx = st.selectbox("X value", xs, index=0)
+                    sely = st.selectbox("Y value", ys, index=0)
+                    sub = df[(df[xcol]==selx) & (df[ycol]==sely)]
+                    if sub.empty:
+                        st.info("No case for that cell.")
+                    else:
+                        st.dataframe(sub[["case","ok","iters","message","path"] + [xcol,ycol]], use_container_width=True, hide_index=True)
+                        if st.button("Load this case artifact", use_container_width=True):
+                            path = str(sub.iloc[0]["path"])
+                            try:
+                                art = read_run_artifact(Path(path))
+                                st.session_state.selected_artifact = art
+                                st.session_state.selected_artifact_path = path
+                                st.success("Loaded case artifact into session.")
+                            except Exception as e:
+                                st.error(f"Could not load case artifact: {e}")
+    
+    
+    # -----------------------------
+    # UI Upgrade Pack v53 (UI-only): decision/provenance/knobs/regression/study dashboard/maturity/assumptions/export/solver introspection
+    # -----------------------------
+    def _get_active_artifact(label: str = "Use loaded artifact in session") -> dict | None:
+        "Return the currently active artifact (from session_state or upload)."
+        art = st.session_state.get("selected_artifact")
+        if isinstance(art, dict) and art:
+            st.info("Using artifact loaded into session (Run Library / Feasibility Map).")
+            return art
+        up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key=f"active_artifact_upload_{label}")
+        return _load_json_from_upload(up)
+    
+    def _guess_point_inputs_from_artifact(art: dict) -> PointInputs | None:
+        "Best-effort extraction of PointInputs from an artifact. Falls back safely."
+        if not isinstance(art, dict):
+            return None
+        cand = {}
+        for k in ["inputs", "point", "point_inputs", "design_point", "config", "run_config", "resolved_config"]:
+            v = art.get(k)
+            if isinstance(v, dict):
+                cand.update(v)
+        cand.update({k: art.get(k) for k in ["R0_m","a_m","kappa","Bt_T","B0_T","Ip_MA","Ti_keV","fG","Paux_MW","Ti_over_Te","fuel_mode"] if k in art})
+        if "B0_T" in cand and "Bt_T" not in cand:
+            cand["Bt_T"] = cand["B0_T"]
+        if "Ti_Te" in cand and "Ti_over_Te" not in cand:
+            cand["Ti_over_Te"] = cand["Ti_Te"]
+        if "Ti/Te" in cand and "Ti_over_Te" not in cand:
+            cand["Ti_over_Te"] = cand["Ti/Te"]
+        try:
+            return _make_point_inputs_safe(**cand)
+        except Exception:
+            return None
+    
+    def _decision_summary_from_artifact(art: dict) -> dict:
+        kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
+        cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
+        ledger = art.get("constraint_ledger", {}) if isinstance(art.get("constraint_ledger"), dict) else {}
+        feas = bool(art.get("is_feasible")) if "is_feasible" in art else None
+        if feas is None:
+            feas = all((not bool(c.get("failed"))) for c in cons) if cons else None
+        top = ledger.get("top_blockers") if isinstance(ledger.get("top_blockers"), list) else []
+        if not top and cons:
+            failed = [c for c in cons if c.get("failed")]
+            failed = failed[:8]
+            top = [{"name": c.get("name"), "group": c.get("group"), "margin": c.get("margin"), "severity": c.get("severity")} for c in failed]
+        return {"feasible": feas, "kpis": kpis, "top_blockers": top, "ledger": ledger, "constraints": cons}
+    
+    def _download_json_button(label: str, data: dict, fname: str, key: str):
+        try:
+            st.download_button(label, data=json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"),
+                               file_name=fname, mime="application/json", key=key)
+        except Exception as e:
+            st.warning(f"Download not available: {e}")
+    
+    with tab_decision:
+        st.header("Decision Front Page Builder")
+        st.caption("UI-native reconstruction of the decision-grade front-page summary from a run artifact (no physics changes).")
+    
+        art = _get_active_artifact("decision")
+        if not art:
+            st.info("Load an artifact to build the decision summary.")
+        else:
+            d = _decision_summary_from_artifact(art)
+            c1, c2, c3 = st.columns([1,1,1])
+            with c1:
+                st.metric("Feasibility verdict", "FEASIBLE " if d["feasible"] else ("INFEASIBLE " if d["feasible"] is not None else "UNKNOWN"))
+            with c2:
+                st.metric("Top KPI: Q", f"{d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q', '-'))}")
+            with c3:
+                st.metric("Top KPI: Pfus (MW)", f"{d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW', '-'))}")
+    
+            st.subheader("Dominant blockers")
+            if d["top_blockers"]:
+                st.dataframe(_safe_df(d["top_blockers"]), use_container_width=True, hide_index=True)
+            else:
+                st.write("No blockers found in artifact.")
+    
+            with st.expander("Full decision inputs (provenance + schema versions)"):
+                prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
+                st.json({
+                    "schema_version": art.get("schema_version"),
+                    "repo_version": prov.get("repo_version"),
+                    "git_commit": prov.get("git_commit"),
+                    "python": prov.get("python"),
+                    "platform": prov.get("platform"),
+                    "created_unix": prov.get("created_unix"),
+                })
+    
+            _download_json_button("Download decision summary JSON", d, "decision_summary.json", "dl_decision_summary")
+    
+    
+    with tab_nonfeas:
+        st.header("Guided Non-Feasibility Mode")
+        st.caption("Turn infeasible outcomes into a structured, auditable recovery workflow (UI-only; no physics changes).")
+    
+        art = _get_active_artifact("nonfeas")
+        if not art:
+            st.info("Load an artifact to guide a non-feasibility recovery path.")
+        else:
+            cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
+            kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
+    
+            # Determine hard feasibility
+            feasible_hard = None
+            if "feasible_hard" in kpis:
+                try:
+                    feasible_hard = bool(kpis.get("feasible_hard"))
+                except Exception:
+                    feasible_hard = None
+            if feasible_hard is None and cons:
+                try:
+                    feasible_hard = all(
+                        bool(c.get("passed", True))
+                        for c in cons
+                        if str(c.get("severity", "hard")).lower() == "hard"
+                    )
+                except Exception:
+                    feasible_hard = None
+    
+            if feasible_hard is True:
+                st.success("This run is hard-feasible. Guided non-feasibility mode is not needed.")
+            else:
+                # Get or construct a non-feasibility certificate
+                cert = art.get("nonfeasibility_certificate") if isinstance(art.get("nonfeasibility_certificate"), dict) else None
+                if not cert:
+                    hard_failed = [
+                        c for c in cons
+                        if str(c.get("severity", "hard")).lower() == "hard" and not bool(c.get("passed", True))
+                    ]
+    
+                    def _mkey(c):
+                        try:
+                            return float(c.get("margin", 0.0))
+                        except Exception:
+                            return 0.0
+    
+                    hard_failed.sort(key=_mkey)
+                    cert = {
+                        "hard_feasible": False,
+                        "dominant_blockers": [{
+                            "name": c.get("name", ""),
+                            "group": c.get("group", ""),
+                            "value": c.get("value"),
+                            "limit": c.get("limit"),
+                            "sense": c.get("sense"),
+                            "margin": c.get("margin"),
+                            "meaning": c.get("meaning", ""),
+                            "best_knobs": c.get("best_knobs", []),
+                            "maturity": c.get("maturity"),
+                            "provenance": c.get("provenance"),
+                        } for c in hard_failed[:10]],
+                        "recommendation": "Move the listed best_knobs (and/or relax assumptions) until all hard constraints pass.",
+                    }
+    
+                st.subheader("Non-Feasibility Certificate")
+                st.json(cert)
+    
+                t1, t2, t3 = st.tabs(["1) Diagnose", "2) Minimal relaxations", "3) Create a scenario (deck)"])
+    
+                with t1:
+                    st.markdown("### Dominant hard blockers (ranked)")
                     blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
                     if blockers:
-                        labels = []
-                        for i, b in enumerate(blockers):
-                            nm = b.get("name", "") or f"blocker_{i}"
-                            mg = b.get("margin")
-                            labels.append(f"{i:02d} - {nm} (margin={mg})")
-                        bi = st.selectbox("Select blocker", options=list(range(len(blockers))), format_func=lambda i: labels[i], key="nf_blocker_sel")
-                        b = blockers[int(bi)]
-                        st.markdown("**Suggested knobs (directional):**")
-                        st.write(b.get("best_knobs", []) or ["(none provided)"])
-                        st.markdown("**Meaning:**")
-                        st.write(b.get("meaning", "(no meaning field)"))
-
-                    knob_fields = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Ti_keV", "Paux_MW", "Ti_over_Te"]
-                    colA, colB = st.columns([2, 1])
-                    with colA:
-                        sel_knobs = st.multiselect("Knobs to adjust", options=knob_fields, default=["Ip_MA"], key="nf_knobs")
-                    with colB:
-                        mode = st.selectbox("Adjustment mode", options=["percent", "absolute"], index=0, key="nf_adj_mode")
-
-                    deltas = {}
-                    for k in sel_knobs:
-                        v0 = float(getattr(base, k))
-                        if mode == "percent":
-                            d = st.slider(f"{k} Δ (%)", -50.0, 50.0, 5.0, step=0.5, key=f"nf_d_{k}")
-                            deltas[k] = v0 * (1.0 + d / 100.0)
-                        else:
-                            step = 0.1 if abs < 10 else 1.0
-                            d = st.number_input(f"{k} new value", value=v0, step=step, key=f"nf_abs_{k}")
-                            deltas[k] = float(d)
-
-                    fuel_mode = st.selectbox("fuel_mode", options=["DT", "DD"], index=0 if getattr(base, "fuel_mode", "DT") == "DT" else 1, key="nf_fuel_mode")
-
-                    run = st.button("Re-evaluate adjusted point", key="nf_run_eval", use_container_width=True)
-                    if run:
-                        try:
-                            d = base.__dict__.copy()
-                            d.update({k: float(v) for k, v in deltas.items()})
-                            d["fuel_mode"] = str(fuel_mode)
-                            pi = PointInputs(**d)
-
-                            out2 = hot_ion_point(pi, Paux_for_Q_MW=float(getattr(pi, "Paux_MW", 0.0)))
-                            cons2 = evaluate_constraints(out2)
-                            art2 = build_run_artifact(
-                                inputs=dict(pi.__dict__),
-                                outputs=dict(out2),
-                                constraints=cons2,
-                                meta={"mode": "guided_nonfeas"},
-                                baseline_inputs=dict(base.__dict__),
-                            )
-                            st.session_state["nf_last_artifact"] = art2
-                            k2 = art2.get("kpis", {}) if isinstance(art2.get("kpis"), dict) else {}
-                            st.success(f"Re-evaluated. feasible_hard={k2.get('feasible_hard')}")
-
-                            led = art2.get("constraint_ledger", {}) if isinstance(art2.get("constraint_ledger"), dict) else {}
-                            tb = led.get("top_blockers") if isinstance(led.get("top_blockers"), list) else []
-                            if tb:
-                                st.subheader("New top blockers")
-                                st.dataframe(_safe_df(tb), use_container_width=True, hide_index=True)
-
-                            with st.expander("New run artifact (raw)"):
-                                st.json(art2)
-
-                            _download_json_button("Download adjusted run artifact", art2, "shams_run_artifact_adjusted.json", "dl_nf_adjusted_artifact")
-                        except Exception as e:
-                            st.error(f"Re-evaluation failed: {type(e).__name__}: {e}")
-
-            with t3:
-                st.markdown("### Create a scenario deck for reproducible follow-up")
-                base = _guess_point_inputs_from_artifact(art) or st.session_state.get("last_point_inp")
-                last = st.session_state.get("nf_last_artifact")
-                if not isinstance(last, dict):
-                    st.info("First run an adjustment in 'Minimal relaxations' to generate a proposed follow-up scenario.")
-                else:
-                    try:
-                        import yaml  # type: ignore
-                    except Exception:
-                        yaml = None  # type: ignore
-
-                    new_inputs = last.get("inputs") if isinstance(last.get("inputs"), dict) else {}
-                    base_inputs = dict(base.__dict__) if base is not None else (art.get("inputs") if isinstance(art.get("inputs"), dict) else {})
-
-                    delta = {}
-                    for k, v in new_inputs.items():
-                        if k in base_inputs and base_inputs.get(k) != v:
-                            delta[k] = {"from": base_inputs.get(k), "to": v}
-
-                    st.subheader("Scenario delta (inputs)")
-                    st.json(delta if delta else {"note": "No input delta detected."})
-
-                    case_deck = {
-                        "schema_version": "case_deck.v1",
-                        "name": "guided_nonfeas_followup",
-                        "base": {},
-                        "point": new_inputs,
-                        "notes": {
-                            "generated_by": "Guided Non-Feasibility Mode",
-                            "source_artifact_schema": art.get("schema_version"),
-                        },
-                    }
-
-                    deck_txt = yaml.safe_dump(case_deck, sort_keys=False) if yaml is not None else json.dumps(case_deck, indent=2)
-
-                    st.markdown("### Case deck")
-                    st.code(deck_txt, language="yaml" if yaml is not None else "json")
-
-                    st.download_button(
-                        "Download case_deck.yaml",
-                        data=deck_txt.encode("utf-8"),
-                        file_name="case_deck.yaml",
-                        mime="text/yaml" if yaml is not None else "application/json",
-                        use_container_width=True,
+                        bdf = _safe_df(blockers)
+                        pref = [c for c in ["group", "name", "margin", "value", "limit", "sense", "meaning", "best_knobs", "maturity"] if c in bdf.columns]
+                        st.dataframe(bdf[pref] if pref else bdf, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("No dominant blockers found in certificate.")
+    
+                    # Solver hints (if present)
+                    out = art.get("outputs", {}) if isinstance(art.get("outputs"), dict) else {}
+                    solver = out.get("_solver") if isinstance(out.get("_solver"), dict) else art.get("solver")
+                    if isinstance(solver, dict) and solver:
+                        st.markdown("### Solver hints (from artifact)")
+                        show = {k: solver.get(k) for k in ["status", "reason", "clamped", "clamped_on", "residuals", "ui_log"] if k in solver}
+                        st.json(show or solver)
+    
+                    st.markdown("### Action principle")
+                    st.write(
+                        "Fix **hard** blockers first. Soft constraints are advisory unless your decision policy says otherwise. "
+                        "Use the knob suggestions as **directional guidance** (not optimization)."
                     )
-                    st.download_button(
-                        "Download scenario_delta.json",
-                        data=json.dumps(delta, indent=2).encode("utf-8"),
-                        file_name="scenario_delta.json",
-                        mime="application/json",
-                        use_container_width=True,
-                    )
-
-
-with tab_cprov:
-    st.header("Constraint Provenance Drill-Down")
-    st.caption("Click into constraints to see definition fields, fingerprints, and maturity/provenance metadata embedded in the artifact.")
-
-    art = _get_active_artifact("cprov")
-    if not art:
-        st.info("Load an artifact to inspect constraint provenance.")
-    else:
-        cons = art.get("constraints", [])
-        if not isinstance(cons, list) or not cons:
-            st.warning("No 'constraints' list found in artifact.")
-        else:
-            df = _safe_df(cons)
-            pref_cols = [c for c in ["group","name","failed","soft_failed","severity","value","limit","margin","margin_frac","units","fingerprint","provenance_fingerprint","maturity"] if c in df.columns]
-            st.dataframe(df[pref_cols] if pref_cols else df, use_container_width=True, hide_index=True)
-
-            names = []
-            for i,c in enumerate(cons):
-                n = c.get("name") or c.get("id") or f"constraint_{i}"
-                names.append(f"{i:03d} - {n}")
-            sel = st.selectbox("Select constraint", options=list(range(len(cons))), format_func=lambda i: names[i], key="cprov_sel")
-            c = cons[int(sel)]
-            st.subheader("Selected constraint (raw)")
-            st.json(c)
-            if isinstance(c, dict):
-                st.markdown("**Fingerprint fields**")
-                st.code("\n".join([f"{k}: {c.get(k)}" for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
-
-with tab_knobs:
-    st.header("Knob Trade-Space Explorer")
-    st.caption("Explore a 2-knob trade-space by evaluating a small grid around the active point (no optimization; feasibility-first).")
-
-    art = _get_active_artifact("knobs")
-    base = _guess_point_inputs_from_artifact(art) if art else None
-    if base is None:
-        base = st.session_state.get("last_point_inp")
-
-    if base is None:
-        st.info("Load an artifact (or run Point Designer) to initialize a base point.")
-    else:
-        st.markdown("**Base point (editable)**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            R0_m = st.number_input("R0 (m)", value=float(base.R0_m), step=0.01, key="knob_R0")
-            a_m = st.number_input("a (m)", value=float(base.a_m), step=0.01, key="knob_a")
-            kappa = st.number_input("kappa", value=float(base.kappa), step=0.05, key="knob_kappa")
-        with col2:
-            Bt_T = st.number_input("Bt (T)", value=float(base.Bt_T), step=0.1, key="knob_Bt")
-            Ip_MA = st.number_input("Ip (MA)", value=float(base.Ip_MA), step=0.1, key="knob_Ip")
-            fG = st.number_input("fG", value=float(base.fG), step=0.01, key="knob_fG")
-        with col3:
-            Ti_keV = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="knob_Ti")
-            Paux_MW = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="knob_Paux")
-            Ti_over_Te = st.number_input("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1, key="knob_TiTe")
-
-        fuel_mode = st.selectbox("fuel_mode", options=["DT","DD"], index=0 if getattr(base, "fuel_mode", "DT")=="DT" else 1, key="knob_fuel")
-
-        knobs = ["Ip_MA","fG","Bt_T","R0_m","Paux_MW","Ti_keV"]
-        kx = st.selectbox("Knob X", knobs, index=0, key="knob_kx")
-        ky = st.selectbox("Knob Y", knobs, index=1, key="knob_ky")
-
-        def _getv(pi: PointInputs, k: str) -> float:
-            return float(getattr(pi, k))
-        def _setv(pi: PointInputs, k: str, v: float) -> PointInputs:
-            d = pi.__dict__.copy()
-            d[k]=float(v)
-            return PointInputs(**d)
-
-        x0=_getv(base,kx); y0=_getv(base,ky)
-        colA,colB=st.columns(2)
-        with colA:
-            x_span = st.number_input("X span (+/-)", value=0.1*abs(x0) if abs(x0)>0 else 0.1, step=0.01, key="knob_xspan")
-        with colB:
-            y_span = st.number_input("Y span (+/-)", value=0.1*abs(y0) if abs(y0)>0 else 0.1, step=0.01, key="knob_yspan")
-        nx = st.slider("X grid points", 3, 15, 9, key="knob_nx")
-        ny = st.slider("Y grid points", 3, 15, 9, key="knob_ny")
-        run = st.button("Evaluate grid", key="knob_run", use_container_width=True)
-
-    if run:
-            import numpy as np
-            xs = np.linspace(x0-x_span, x0+x_span, int(nx))
-            ys = np.linspace(y0-y_span, y0+y_span, int(ny))
-            rows=[]
-            with st.spinner("Evaluating grid..."):
-                for xv in xs:
-                    for yv in ys:
-                        pi = PointInputs(R0_m=float(R0_m), a_m=float(a_m), kappa=float(kappa),
-                                         Bt_T=float(Bt_T), Ip_MA=float(Ip_MA), Ti_keV=float(Ti_keV),
-                                         fG=float(fG), Paux_MW=float(Paux_MW), Ti_over_Te=float(Ti_over_Te),
-                                         fuel_mode=str(fuel_mode))
-                        pi = _setv(pi, kx, float(xv))
-                        pi = _setv(pi, ky, float(yv))
+    
+                with t2:
+                    st.markdown("### Propose a nearest-feasible adjustment (within UI)")
+                    base = _guess_point_inputs_from_artifact(art)
+                    if base is None:
+                        base = st.session_state.get("last_point_inp")
+    
+                    if base is None:
+                        st.warning("Could not infer PointInputs from artifact. Run Point Designer once or ensure artifact includes inputs.")
+                    else:
+                        st.caption("Choose a dominant blocker, then adjust one or more knobs and re-evaluate.")
+                        blockers = cert.get("dominant_blockers", []) if isinstance(cert.get("dominant_blockers"), list) else []
+                        if blockers:
+                            labels = []
+                            for i, b in enumerate(blockers):
+                                nm = b.get("name", "") or f"blocker_{i}"
+                                mg = b.get("margin")
+                                labels.append(f"{i:02d} - {nm} (margin={mg})")
+                            bi = st.selectbox("Select blocker", options=list(range(len(blockers))), format_func=lambda i: labels[i], key="nf_blocker_sel")
+                            b = blockers[int(bi)]
+                            st.markdown("**Suggested knobs (directional):**")
+                            st.write(b.get("best_knobs", []) or ["(none provided)"])
+                            st.markdown("**Meaning:**")
+                            st.write(b.get("meaning", "(no meaning field)"))
+    
+                        knob_fields = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Ti_keV", "Paux_MW", "Ti_over_Te"]
+                        colA, colB = st.columns([2, 1])
+                        with colA:
+                            sel_knobs = st.multiselect("Knobs to adjust", options=knob_fields, default=["Ip_MA"], key="nf_knobs")
+                        with colB:
+                            mode = st.selectbox("Adjustment mode", options=["percent", "absolute"], index=0, key="nf_adj_mode")
+    
+                        deltas = {}
+                        for k in sel_knobs:
+                            v0 = float(getattr(base, k))
+                            if mode == "percent":
+                                d = st.slider(f"{k} Δ (%)", -50.0, 50.0, 5.0, step=0.5, key=f"nf_d_{k}")
+                                deltas[k] = v0 * (1.0 + d / 100.0)
+                            else:
+                                step = 0.1 if abs < 10 else 1.0
+                                d = st.number_input(f"{k} new value", value=v0, step=step, key=f"nf_abs_{k}")
+                                deltas[k] = float(d)
+    
+                        fuel_mode = st.selectbox("fuel_mode", options=["DT", "DD"], index=0 if getattr(base, "fuel_mode", "DT") == "DT" else 1, key="nf_fuel_mode")
+    
+                        run = st.button("Re-evaluate adjusted point", key="nf_run_eval", use_container_width=True)
+                        if run:
+                            try:
+                                d = base.__dict__.copy()
+                                d.update({k: float(v) for k, v in deltas.items()})
+                                d["fuel_mode"] = str(fuel_mode)
+                                pi = PointInputs(**d)
+    
+                                out2 = hot_ion_point(pi, Paux_for_Q_MW=float(getattr(pi, "Paux_MW", 0.0)))
+                                cons2 = evaluate_constraints(out2)
+                                art2 = build_run_artifact(
+                                    inputs=dict(pi.__dict__),
+                                    outputs=dict(out2),
+                                    constraints=cons2,
+                                    meta={"mode": "guided_nonfeas"},
+                                    baseline_inputs=dict(base.__dict__),
+                                )
+                                st.session_state["nf_last_artifact"] = art2
+                                k2 = art2.get("kpis", {}) if isinstance(art2.get("kpis"), dict) else {}
+                                st.success(f"Re-evaluated. feasible_hard={k2.get('feasible_hard')}")
+    
+                                led = art2.get("constraint_ledger", {}) if isinstance(art2.get("constraint_ledger"), dict) else {}
+                                tb = led.get("top_blockers") if isinstance(led.get("top_blockers"), list) else []
+                                if tb:
+                                    st.subheader("New top blockers")
+                                    st.dataframe(_safe_df(tb), use_container_width=True, hide_index=True)
+    
+                                with st.expander("New run artifact (raw)"):
+                                    st.json(art2)
+    
+                                _download_json_button("Download adjusted run artifact", art2, "shams_run_artifact_adjusted.json", "dl_nf_adjusted_artifact")
+                            except Exception as e:
+                                st.error(f"Re-evaluation failed: {type(e).__name__}: {e}")
+    
+                with t3:
+                    st.markdown("### Create a scenario deck for reproducible follow-up")
+                    base = _guess_point_inputs_from_artifact(art) or st.session_state.get("last_point_inp")
+                    last = st.session_state.get("nf_last_artifact")
+                    if not isinstance(last, dict):
+                        st.info("First run an adjustment in 'Minimal relaxations' to generate a proposed follow-up scenario.")
+                    else:
                         try:
-                            out = hot_ion_point(pi)
-                            cons = evaluate_constraints(out, point_inputs=pi)
-                            ok = all((not bool(c.get("failed"))) for c in cons)
-                            top=None
-                            if not ok:
-                                failed=[c for c in cons if c.get("failed")]
-                                if failed:
-                                    top=failed[0].get("name")
-                            rows.append({kx: float(xv), ky: float(yv), "feasible": bool(ok), "top_blocker": top,
-                                         "Q": float(out.get("Q_DT_eqv", out.get("Q", float('nan')))),
-                                         "Pfus_MW": float(out.get("P_fus_MW", out.get("Pfus_MW", float('nan'))))})
+                            import yaml  # type: ignore
                         except Exception:
-                            rows.append({kx: float(xv), ky: float(yv), "feasible": False, "top_blocker": "eval_error", "Q": float('nan'), "Pfus_MW": float('nan')})
-            df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
-            st.subheader("Grid results (table)")
-            st.dataframe(df, use_container_width=True, hide_index=True)
-
-            try:
-                piv = df.pivot(index=ky, columns=kx, values="feasible")
-                st.subheader("Feasibility heatmap (True=1 / False=0)")
-                st.dataframe(piv.astype(int), use_container_width=True)
-            except Exception as e:
-                st.warning(f"Could not pivot heatmap: {e}")
-
-with tab_regress:
-    st.header("What broke? Regression Viewer")
-    st.caption("Compare two artifacts: constraints, ledgers, model sets, and key KPIs. This is UI-only; it doesn't modify artifacts.")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        upA = st.file_uploader("Artifact A (json)", type=["json"], key="regA")
-        artA = _load_json_from_upload(upA)
-    with c2:
-        upB = st.file_uploader("Artifact B (json)", type=["json"], key="regB")
-        artB = _load_json_from_upload(upB)
-
-    if artA and artB:
-        def _kpi_df(art):
-            k = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-            df = pd.DataFrame([{"kpi": kk, "value": vv} for kk,vv in k.items()])
-            if df.empty:
-                return pd.DataFrame(columns=["kpi","value"])
-            return df.sort_values("kpi")
-        st.subheader("KPI diff")
-        dfA=_kpi_df(artA).set_index("kpi")
-        dfB=_kpi_df(artB).set_index("kpi")
-        join=dfA.join(dfB, lsuffix="_A", rsuffix="_B", how="outer")
-        join["delta"]=pd.to_numeric(join["value_B"], errors="coerce")-pd.to_numeric(join["value_A"], errors="coerce")
-        st.dataframe(join.reset_index().sort_values("kpi"), use_container_width=True, hide_index=True)
-
-        st.subheader("New / worsened constraint failures")
-        consA=artA.get("constraints", []) if isinstance(artA.get("constraints"), list) else []
-        consB=artB.get("constraints", []) if isinstance(artB.get("constraints"), list) else []
-        def _map(cons):
-            m={}
-            for c in cons:
-                name=c.get("name") or c.get("id")
-                if name:
-                    m[name]=c
-            return m
-        mA=_map(consA); mB=_map(consB)
-        names=sorted(set(mA.keys())|set(mB.keys()))
-        rows=[]
-        for n in names:
-            a=mA.get(n,{}); b=mB.get(n,{})
-            fa=bool(a.get("failed")); fb=bool(b.get("failed"))
-            ma=a.get("margin"); mb=b.get("margin")
-            rows.append({"name": n, "failed_A": fa, "failed_B": fb, "margin_A": ma, "margin_B": mb,
-                         "margin_delta": (mb-ma) if isinstance(ma,(int,float)) and isinstance(mb,(int,float)) else None})
-        df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
-        df_bad=df[(df["failed_B"]==True) & ((df["failed_A"]==False) | (df["failed_A"].isna()))]
-        st.markdown("**New failures in B**")
-        st.dataframe(df_bad.sort_values("name"), use_container_width=True, hide_index=True)
-        st.markdown("**Largest margin regressions (B-A)**")
-        df_reg=df.dropna(subset=["margin_delta"]).sort_values("margin_delta").head(20)
-        st.dataframe(df_reg, use_container_width=True, hide_index=True)
-
-        st.subheader("Model set comparison")
-        msA=artA.get("model_set"); msB=artB.get("model_set")
-        st.json({"model_set_A": msA, "model_set_B": msB})
-
-with tab_study_dash:
-    st.header("Study Dashboard")
-    st.caption("Manager-grade summary for study outputs (feasible fraction, dominant blockers, robustness).")
-
-    up = st.file_uploader("Upload study index.json (study_index.v1)", type=["json"], key="sd_up")
-    idx_data = _load_json_from_upload(up)
-    if not idx_data:
-        idx_path = st.session_state.get("selected_study_path")
-        if idx_path and Path(idx_path).exists():
-            try:
-                idx_data = json.loads(Path(idx_path).read_text(encoding="utf-8"))
-                st.info("Loaded study index from session.")
-            except Exception:
-                idx_data = None
-
-    if idx_data:
-        st.subheader("Study headline")
-        st.json({k: idx_data.get(k) for k in ["schema_version","n_cases","elapsed_s","created_unix"] if k in idx_data})
-        cases = idx_data.get("cases", [])
-        if isinstance(cases, list) and cases:
-            df = pd.DataFrame(cases)
-            if "ok" in df.columns:
-                ok_frac = float(df["ok"].mean())
-                st.metric("Feasible fraction", f"{ok_frac:.3f}")
-            for col in ["dominant_blocker","top_blocker","blocker"]:
-                if col in df.columns:
-                    st.subheader("Dominant blocker distribution")
-                    hist = df[col].fillna("(none)").value_counts().reset_index()
-                    hist.columns=[col,"count"]
-                    st.dataframe(hist, use_container_width=True, hide_index=True)
-                    break
-            st.subheader("Cases table")
-            st.dataframe(df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No 'cases' list found in study index. (Older study output?)")
-
-with tab_maturity:
-    st.header("Engineering Maturity Heatmap")
-    st.caption("Visualize model maturity / validity info embedded in the artifact (model_set + model_registry).")
-
-    art = _get_active_artifact("maturity")
-    if not art:
-        st.info("Load an artifact to view maturity info.")
-    else:
-        reg = art.get("model_registry", {})
-        ms = art.get("model_set", {})
-        rows=[]
-        if isinstance(reg, dict):
-            entries = reg.get("entries") if isinstance(reg.get("entries"), list) else None
-            if entries is None:
-                if all(isinstance(v, dict) for v in reg.values()):
-                    entries=[{"model_id": k, **v} for k,v in reg.items()]
-            if entries:
-                selected = set()
-                if isinstance(ms, dict):
-                    sel = ms.get("selected")
-                    if isinstance(sel, dict):
-                        selected = set(sel.values()) | set(sel.keys())
-                    elif isinstance(sel, list):
-                        selected = set(sel)
-                for e in entries:
-                    mid = e.get("model_id", e.get("id", ""))
-                    rows.append({
-                        "subsystem": e.get("subsystem", e.get("domain", "")),
-                        "model_id": mid,
-                        "maturity": e.get("maturity", e.get("maturity_tag", "")),
-                        "validity": e.get("validity", e.get("validity_range", "")),
-                        "selected": (mid in selected)
-                    })
-        if rows:
-            df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
-            st.dataframe(df.sort_values(["subsystem","model_id"]), use_container_width=True, hide_index=True)
-            st.markdown("Tip: treat this as a policy gate (e.g., block decisions if maturity < required).")
-        else:
-            st.info("No model_registry entries found in artifact.")
-
-
-with tab_maintenance:
-    st.header("Maintenance & Availability Authority")
-    st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
-
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first (sets last_point_out).")
-    else:
-        enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
-        if not enabled:
-            st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in 🧭 Point Designer → Engineering & plant feasibility → 🗓️ Maintenance scheduling authority (v368.0).")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
-        c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
-        c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
-        c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.3g}"))
-
-        with st.expander("What this authority does", expanded=False):
-            st.markdown(
-                "- Converts replacement cadences (FW/blanket from v367, plus HCD and tritium plant) and replacement durations into a bundled outage fraction.\n"
-                "- Combines with planned/forced baselines (and optional trips proxy) to form total outage and availability.\n"
-                "- Emits an explicit event table (maintenance_events_v368) for audit and reviewer use."
-            )
-        with st.expander("What this authority does not do", expanded=False):
-            st.markdown(
-                "- Does not run a time-domain availability/RAMI simulation.\n"
-                "- Does not optimize schedules or negotiate constraints.\n"
-                "- Does not modify plasma truth or materials lifetime truth; it only post-processes into a schedule proxy."
-            )
-
-        st.subheader("Outage decomposition")
-        rows = [
-            {"term": "planned", "outage_frac": out.get("planned_outage_frac_v368")},
-            {"term": "forced", "outage_frac": out.get("forced_outage_frac_v368")},
-            {"term": "replacement", "outage_frac": out.get("replacement_outage_frac_v368")},
-            {"term": "total", "outage_frac": out.get("outage_total_frac_v368")},
-        ]
-        try:
-            import pandas as _pd
-            df = _pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-        except Exception:
-            st.write(rows)
-
-        ev = out.get("maintenance_events_v368")
-        with st.expander("Maintenance event table (v368)", expanded=False):
-            if isinstance(ev, list) and ev:
-                try:
-                    import pandas as _pd
-                    st.dataframe(_pd.DataFrame(ev), use_container_width=True, hide_index=True)
-                except Exception:
-                    st.json(ev)
-            else:
-                st.info("No maintenance_events_v368 found (enable v368 and re-run).")
-
-        with st.expander("Contract fingerprint", expanded=False):
-            st.code(str(out.get("maintenance_contract_sha256", "")))
-
-
-with tab_profile_auth:
-    st.header("Profile Authority")
-    st.caption("1.5D algebraic profile diagnostics (non-iterative, conservative).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first (sets last_point_out).")
-    else:
-        rows=[
-            {"metric":"p_peaking", "value": out.get("profile_p_peaking")},
-            {"metric":"j_peaking", "value": out.get("profile_j_peaking")},
-            {"metric":"li_proxy", "value": out.get("profile_li_proxy")},
-            {"metric":"qmin_proxy", "value": out.get("profile_qmin_proxy")},
-            {"metric":"f_bootstrap_proxy", "value": out.get("profile_f_bootstrap_proxy")},
-            {"metric":"tag", "value": out.get("profile_assumption_tag")},
-        ]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-        with st.expander("Validity flags", expanded=False):
-            st.json(out.get("profile_validity", {}))
-
-with tab_impurity:
-    st.header("Impurity & Radiation")
-    st.caption("v320 authority: impurity radiation partitions (core/edge/SOL/div) + detachment inversion (q_div target → required SOL+div radiation → implied f_z).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        rows=[
-            {"metric":"impurity_contract_species", "value": out.get("impurity_contract_species")},
-            {"metric":"impurity_contract_f_z", "value": out.get("impurity_contract_f_z")},
-            {"metric":"impurity_prad_total_MW", "value": out.get("impurity_prad_total_MW")},
-            {"metric":"impurity_prad_core_MW", "value": out.get("impurity_prad_core_MW")},
-            {"metric":"impurity_prad_edge_MW", "value": out.get("impurity_prad_edge_MW")},
-            {"metric":"impurity_prad_sol_MW", "value": out.get("impurity_prad_sol_MW")},
-            {"metric":"impurity_prad_div_MW", "value": out.get("impurity_prad_div_MW")},
-            {"metric":"impurity_zeff_proxy", "value": out.get("impurity_zeff_proxy")},
-            {"metric":"impurity_fuel_ion_fraction", "value": out.get("impurity_fuel_ion_fraction")},
-            {"metric":"detachment_f_sol_div_required", "value": out.get("detachment_f_sol_div_required")},
-            {"metric":"detachment_prad_sol_div_required_MW", "value": out.get("detachment_prad_sol_div_required_MW")},
-            {"metric":"detachment_f_z_required", "value": out.get("detachment_f_z_required")},
-        ]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-        with st.expander("Validity flags", expanded=False):
-            st.json(out.get("impurity_validity", {}))
-
-with tab_disruption:
-    st.header("Disruption Risk")
-    st.caption("Conservative screening tier: LOW/MED/HIGH (diagnostic; not predictive).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        st.metric("Tier", str(out.get("disruption_risk_tier", "UNKNOWN")))
-        cols=st.columns(3)
-        with cols[0]:
-            st.metric("Risk index", f"{float(out.get('disruption_risk_index', float('nan'))):.3f}" if out.get('disruption_risk_index')==out.get('disruption_risk_index') else "nan")
-        with cols[1]:
-            st.metric("Dominant driver", str(out.get("disruption_dominant_driver", "unknown")))
-        with cols[2]:
-            st.metric("fG", f"{float(getattr(st.session_state.get('last_point_inp', None),'fG', float('nan'))):.3f}" if st.session_state.get('last_point_inp') is not None else "nan")
-        with st.expander("Components", expanded=False):
-            st.json(out.get("disruption_risk_components", {}))
-
-with tab_stability:
-    st.header("Stability Risk")
-    st.caption("Conservative screening tier: LOW/MED/HIGH for vertical stability + RWM/control budgets (diagnostic; not predictive).")
-    out = st.session_state.get("last_point_out")
-    if not isinstance(out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        st.metric("Tier", str(out.get("stability_risk_tier", "UNKNOWN")))
-        cols = st.columns(4)
-        with cols[0]:
-            st.metric(
-                "Risk index",
-                f"{float(out.get('stability_risk_index', float('nan'))):.3f}"
-                if out.get("stability_risk_index") == out.get("stability_risk_index")
-                else "nan",
-            )
-        with cols[1]:
-            st.metric("Dominant driver", str(out.get("stability_dominant_driver", "unknown")))
-        with cols[2]:
-            st.metric(
-                "vs_margin",
-                f"{float(out.get('vs_margin', float('nan'))):.3f}"
-                if out.get("vs_margin") == out.get("vs_margin")
-                else "nan",
-            )
-        with cols[3]:
-            st.metric("RWM ok", "yes" if bool(out.get("rwm_control_ok", True)) else "no")
-
-        st.divider()
-        oc = st.columns(2)
-        with oc[0]:
-            st.metric("Operational tier", str(out.get("operational_risk_tier", "UNKNOWN")))
-        with oc[1]:
-            st.metric("Operational driver", str(out.get("operational_dominant_driver", "")) or "-")
-
-        with st.expander("Components", expanded=False):
-            st.json(out.get("stability_risk_components", {}))
-        with st.expander("Control contract margins", expanded=False):
-            st.json(out.get("control_contract_margins", {}))
-
-with tab_cert_search:
-    st.header("Certified Search")
-    st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
-
-    from dataclasses import replace
-    from solvers.budgeted_search import SearchVar
-    from solvers.certified_search_orchestrator import OrchestratorSpec, SearchStage, run_orchestrated_certified_search
-
-    base = st.session_state.get("last_point_inp")
-    if base is None:
-        st.info("Run a point in Point Designer first so a base point exists.")
-    else:
-        st.subheader("Knobs")
-        knob_options = [
-            ("Bt_T", 2.0, 25.0),
-            ("Ip_MA", 1.0, 25.0),
-            ("Paux_MW", 0.0, 200.0),
-            ("Ti_keV", 1.0, 40.0),
-            ("fG", 0.2, 1.2),
-            ("kappa", 1.0, 2.6),
-            ("a_m", 0.2, 3.0),
-            ("R0_m", 0.8, 12.0),
-        ]
-        cols = st.columns(2)
-        with cols[0]:
-            chosen = st.multiselect("Select up to 4 knobs", [k[0] for k in knob_options], default=["Bt_T","Ip_MA"], max_selections=4)
-        with cols[1]:
-            objective = st.selectbox("Score objective (PASS-only)", ["Q_DT_eqv","P_fus_MW","P_net_MW"], index=0)
-
-        vars_=[]
-        for name,lo,hi in knob_options:
-            if name in chosen:
-                c1,c2=st.columns(2)
-                with c1:
-                    lo_v = st.number_input(f"{name} lo", value=float(getattr(base,name)), step=0.1, key=f"cs_lo_{name}")
-                with c2:
-                    hi_v = st.number_input(f"{name} hi", value=float(getattr(base,name)), step=0.1, key=f"cs_hi_{name}")
-                if hi_v <= lo_v:
-                    hi_v = lo_v + 1e-6
-                vars_.append(SearchVar(name=name, lo=float(lo_v), hi=float(hi_v)))
-
-        c1,c2,c3,c4=st.columns(4)
-        with c1:
-            budget = int(st.number_input("Budget", value=96, min_value=8, max_value=2048, step=8, key="cs_budget"))
-        with c2:
-            seed = int(st.number_input("Seed", value=0, min_value=0, max_value=10_000, step=1, key="cs_seed"))
-        with c3:
-            method = st.selectbox("Method", ["halton","lhs","grid"], index=0, key="cs_method")
-        with c4:
-            two_stage = bool(st.checkbox("Two-stage refine", value=True, key="cs_two_stage"))
-
-        stage2_budget_frac = float(st.slider("Stage-2 budget fraction", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_frac")) if two_stage else 0.0
-        stage2_shrink = float(st.slider("Stage-2 local shrink", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_shrink")) if two_stage else 0.0
-        stage2_method = st.selectbox("Stage-2 method", ["grid","halton","lhs"], index=0, key="cs_stage2_method") if two_stage else "grid"
-
-        st.markdown("---")
-        insert_surr = bool(st.checkbox("Insert surrogate stage (feasible-first, non-authoritative)", value=False, key="cs_insert_surr"))
-        surr_frac = float(
-            st.slider(
-                "Surrogate budget fraction",
-                min_value=0.05,
-                max_value=0.60,
-                value=0.20,
-                step=0.05,
-                key="cs_surr_frac",
-                disabled=(not insert_surr),
-            )
-        )
-        s1, s2, s3 = st.columns(3)
-        with s1:
-            surr_pool_mult = int(st.number_input("Surrogate pool multiplier", value=50, min_value=4, max_value=200, step=1, key="cs_surr_pool", disabled=(not insert_surr)))
-        with s2:
-            surr_kappa = float(st.slider("Surrogate kappa", min_value=0.0, max_value=2.0, value=0.5, step=0.1, key="cs_surr_kappa", disabled=(not insert_surr)))
-        with s3:
-            surr_ridge = float(st.number_input("Surrogate ridge alpha", value=1e-3, min_value=1e-6, max_value=1.0, format="%.6f", key="cs_surr_ridge", disabled=(not insert_surr)))
-
-        def _builder(b, overrides):
-            return replace(b, **{k: float(v) for k,v in overrides.items()})
-
-        def _verifier(inp_obj):
-            out = hot_ion_point(inp_obj)
-            cons = evaluate_constraints(out, point_inputs=inp_obj)
-            try:
-                from constraints.bookkeeping import summarize as _summarize_constraints
-                _cs = _summarize_constraints(cons)
-                _min_margin_frac = float(_cs.worst_hard_margin_frac) if _cs.worst_hard_margin_frac is not None else float("nan")
-                _worst_hard = str(_cs.worst_hard or "")
-            except Exception:
-                _min_margin_frac = float("nan")
-                _worst_hard = ""
-            ok = all((not bool(c.get("failed"))) for c in cons)
-            score = float(out.get(objective, 0.0)) if ok else float("-inf")
-
-            evidence={
-                "objective": objective,
-                "objective_value": float(out.get(objective, float("nan"))),
-                "min_margin_frac": _min_margin_frac,
-                "worst_hard": _worst_hard,
-                "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
-                "n_failed": int(sum(1 for c in cons if c.get("failed"))),
-                "top_blocker": (next((c.get("name") for c in cons if c.get("failed")), None)),
-            }
-            return ("PASS" if ok else "FAIL"), score, evidence
-
-        if st.button("Run certified search", use_container_width=True, key="run_cert_search"):
-            if not vars_:
-                st.warning("Select at least one knob.")
-            else:
-                b1 = int(max(1, round(float(budget) * (1.0 - float(stage2_budget_frac)))))
-                b2 = int(max(0, round(float(budget) * float(stage2_budget_frac))))
-                bs = int(max(0, round(float(budget) * float(surr_frac)))) if insert_surr else 0
-                # cap budgets deterministically
-                b2 = int(min(int(b2), int(max(0, budget - 1))))
-                bs = int(min(int(bs), int(max(0, budget - 1 - b2))))
-                b1 = int(max(1, int(budget) - int(b2) - int(bs)))
-
-                stages = [SearchStage(name="stage1", method=str(method), budget=int(b1), seed=int(seed), local_refine=False)]
-                if insert_surr and bs > 0:
-                    stages.append(
-                        SearchStage(
-                            name="surrogate",
-                            method="surrogate",
-                            budget=int(bs),
-                            seed=int(seed + 1),
-                            local_refine=False,
-                            surrogate_pool_mult=int(surr_pool_mult),
-                            surrogate_kappa=float(surr_kappa),
-                            surrogate_ridge_alpha=float(surr_ridge),
-                            surrogate_feas_margin_key="min_margin_frac",
-                        )
-                    )
-                if two_stage and b2 > 0:
-                    stages.append(
-                        SearchStage(
-                            name="stage2",
-                            method=str(stage2_method),
-                            budget=int(b2),
-                            seed=int(seed + (2 if (insert_surr and bs > 0) else 1)),
-                            local_refine=True,
-                            local_shrink=float(stage2_shrink),
-                        )
-                    )
-                art = run_orchestrated_certified_search(
-                    base,
-                    OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
-                    verifier=_verifier,
-                    builder=_builder,
-                )
-                st.session_state["last_certified_search_artifact"] = art
-                st.session_state["v340_cert_search_last"] = art
-                try:
-                    _v98_record_run("certified_search_orchestrated", art, mode="SystemSuite/Chronicle")
-                except Exception:
-                    pass
-
-                n_pass = 0
-                n_tot = 0
-                try:
-                    for stg in art.get("stages", []):
-                        recs = stg.get("records", [])
-                        n_tot += len(recs)
-                        n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
-                except Exception:
-                    pass
-                st.success(f"Done. Digest: {str(art.get('digest',''))[:12]} | PASS found: {n_pass}/{n_tot}")
-
-        art = st.session_state.get("v340_cert_search_last")
-        if isinstance(art, dict) and art.get("schema_version"):
-            st.subheader("Results")
-            # Flatten across stages for display
-            rows = []
-            for stg in art.get("stages", []):
-                for r in stg.get("records", []):
-                    rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
-            df = pd.DataFrame(rows)
-            with st.expander("Results table", expanded=False):
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
-                with st.expander("Best PASS candidate", expanded=False):
-                    st.json(art.get("best"))
-
-            # v297: export deterministic evidence pack
-            try:
-                from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
-                art2 = st.session_state.get("last_certified_search_artifact")
-                if isinstance(art2, dict):
-                    if st.button("Build Certified Search evidence pack", use_container_width=True, key="cs_build_ev"):
-                        b = build_simple_evidence_zip_bytes(art2, basename=f"certified_search_{art2.get('digest','')[:12]}")
-                        st.session_state["certified_search_evidence_zip"] = b
-                        st.success("Evidence pack built.")
-                    b = st.session_state.get("certified_search_evidence_zip")
-                    if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                            yaml = None  # type: ignore
+    
+                        new_inputs = last.get("inputs") if isinstance(last.get("inputs"), dict) else {}
+                        base_inputs = dict(base.__dict__) if base is not None else (art.get("inputs") if isinstance(art.get("inputs"), dict) else {})
+    
+                        delta = {}
+                        for k, v in new_inputs.items():
+                            if k in base_inputs and base_inputs.get(k) != v:
+                                delta[k] = {"from": base_inputs.get(k), "to": v}
+    
+                        st.subheader("Scenario delta (inputs)")
+                        st.json(delta if delta else {"note": "No input delta detected."})
+    
+                        case_deck = {
+                            "schema_version": "case_deck.v1",
+                            "name": "guided_nonfeas_followup",
+                            "base": {},
+                            "point": new_inputs,
+                            "notes": {
+                                "generated_by": "Guided Non-Feasibility Mode",
+                                "source_artifact_schema": art.get("schema_version"),
+                            },
+                        }
+    
+                        deck_txt = yaml.safe_dump(case_deck, sort_keys=False) if yaml is not None else json.dumps(case_deck, indent=2)
+    
+                        st.markdown("### Case deck")
+                        st.code(deck_txt, language="yaml" if yaml is not None else "json")
+    
                         st.download_button(
-                            "Download certified_search_evidence.zip",
-                            data=b,
-                            file_name="certified_search_evidence.zip",
-                            mime="application/zip",
+                            "Download case_deck.yaml",
+                            data=deck_txt.encode("utf-8"),
+                            file_name="case_deck.yaml",
+                            mime="text/yaml" if yaml is not None else "application/json",
                             use_container_width=True,
-                            key="cs_dl_ev",
                         )
-            except Exception:
-                pass
-
-with tab_repair:
-    st.header("Repair Suggestions")
-    st.caption("Explanatory-only: proposes bounded knob deltas to reduce dominant constraint residuals; every proposal must be verified by truth.")
-
-    from dataclasses import replace
-    from solvers.repair_suggestions import RepairKnob, propose_repair_candidates
-
-    base_inp = st.session_state.get("last_point_inp")
-    base_out = st.session_state.get("last_point_out")
-    if base_inp is None or not isinstance(base_out, dict):
-        st.info("Run a point in Point Designer first.")
-    else:
-        cons = evaluate_constraints(base_out, point_inputs=base_inp)
-        failed = [c for c in cons if c.get("failed")]
-        if not failed:
-            st.info("Base point is already feasible; repair suggestions are not needed.")
+                        st.download_button(
+                            "Download scenario_delta.json",
+                            data=json.dumps(delta, indent=2).encode("utf-8"),
+                            file_name="scenario_delta.json",
+                            mime="application/json",
+                            use_container_width=True,
+                        )
+    
+    
+    with tab_cprov:
+        st.header("Constraint Provenance Drill-Down")
+        st.caption("Click into constraints to see definition fields, fingerprints, and maturity/provenance metadata embedded in the artifact.")
+    
+        art = _get_active_artifact("cprov")
+        if not art:
+            st.info("Load an artifact to inspect constraint provenance.")
         else:
-            # Residual proxy: use 'margin' if present else 1.0
-            residuals = {}
-            for c in failed:
-                name = str(c.get("name", "(unnamed)"))
-                m = c.get("margin")
+            cons = art.get("constraints", [])
+            if not isinstance(cons, list) or not cons:
+                st.warning("No 'constraints' list found in artifact.")
+            else:
+                df = _safe_df(cons)
+                pref_cols = [c for c in ["group","name","failed","soft_failed","severity","value","limit","margin","margin_frac","units","fingerprint","provenance_fingerprint","maturity"] if c in df.columns]
+                st.dataframe(df[pref_cols] if pref_cols else df, use_container_width=True, hide_index=True)
+    
+                names = []
+                for i,c in enumerate(cons):
+                    n = c.get("name") or c.get("id") or f"constraint_{i}"
+                    names.append(f"{i:03d} - {n}")
+                sel = st.selectbox("Select constraint", options=list(range(len(cons))), format_func=lambda i: names[i], key="cprov_sel")
+                c = cons[int(sel)]
+                st.subheader("Selected constraint (raw)")
+                st.json(c)
+                if isinstance(c, dict):
+                    st.markdown("**Fingerprint fields**")
+                    st.code("\n".join([f"{k}: {c.get(k)}" for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
+    
+    with tab_knobs:
+        st.header("Knob Trade-Space Explorer")
+        st.caption("Explore a 2-knob trade-space by evaluating a small grid around the active point (no optimization; feasibility-first).")
+    
+        art = _get_active_artifact("knobs")
+        base = _guess_point_inputs_from_artifact(art) if art else None
+        if base is None:
+            base = st.session_state.get("last_point_inp")
+    
+        if base is None:
+            st.info("Load an artifact (or run Point Designer) to initialize a base point.")
+        else:
+            st.markdown("**Base point (editable)**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                R0_m = st.number_input("R0 (m)", value=float(base.R0_m), step=0.01, key="knob_R0")
+                a_m = st.number_input("a (m)", value=float(base.a_m), step=0.01, key="knob_a")
+                kappa = st.number_input("kappa", value=float(base.kappa), step=0.05, key="knob_kappa")
+            with col2:
+                Bt_T = st.number_input("Bt (T)", value=float(base.Bt_T), step=0.1, key="knob_Bt")
+                Ip_MA = st.number_input("Ip (MA)", value=float(base.Ip_MA), step=0.1, key="knob_Ip")
+                fG = st.number_input("fG", value=float(base.fG), step=0.01, key="knob_fG")
+            with col3:
+                Ti_keV = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="knob_Ti")
+                Paux_MW = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="knob_Paux")
+                Ti_over_Te = st.number_input("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1, key="knob_TiTe")
+    
+            fuel_mode = st.selectbox("fuel_mode", options=["DT","DD"], index=0 if getattr(base, "fuel_mode", "DT")=="DT" else 1, key="knob_fuel")
+    
+            knobs = ["Ip_MA","fG","Bt_T","R0_m","Paux_MW","Ti_keV"]
+            kx = st.selectbox("Knob X", knobs, index=0, key="knob_kx")
+            ky = st.selectbox("Knob Y", knobs, index=1, key="knob_ky")
+    
+            def _getv(pi: PointInputs, k: str) -> float:
+                return float(getattr(pi, k))
+            def _setv(pi: PointInputs, k: str, v: float) -> PointInputs:
+                d = pi.__dict__.copy()
+                d[k]=float(v)
+                return PointInputs(**d)
+    
+            x0=_getv(base,kx); y0=_getv(base,ky)
+            colA,colB=st.columns(2)
+            with colA:
+                x_span = st.number_input("X span (+/-)", value=0.1*abs(x0) if abs(x0)>0 else 0.1, step=0.01, key="knob_xspan")
+            with colB:
+                y_span = st.number_input("Y span (+/-)", value=0.1*abs(y0) if abs(y0)>0 else 0.1, step=0.01, key="knob_yspan")
+            nx = st.slider("X grid points", 3, 15, 9, key="knob_nx")
+            ny = st.slider("Y grid points", 3, 15, 9, key="knob_ny")
+            run = st.button("Evaluate grid", key="knob_run", use_container_width=True)
+    
+        if run:
+                import numpy as np
+                xs = np.linspace(x0-x_span, x0+x_span, int(nx))
+                ys = np.linspace(y0-y_span, y0+y_span, int(ny))
+                rows=[]
+                with st.spinner("Evaluating grid..."):
+                    for xv in xs:
+                        for yv in ys:
+                            pi = PointInputs(R0_m=float(R0_m), a_m=float(a_m), kappa=float(kappa),
+                                             Bt_T=float(Bt_T), Ip_MA=float(Ip_MA), Ti_keV=float(Ti_keV),
+                                             fG=float(fG), Paux_MW=float(Paux_MW), Ti_over_Te=float(Ti_over_Te),
+                                             fuel_mode=str(fuel_mode))
+                            pi = _setv(pi, kx, float(xv))
+                            pi = _setv(pi, ky, float(yv))
+                            try:
+                                out = hot_ion_point(pi)
+                                cons = evaluate_constraints(out, point_inputs=pi)
+                                ok = all((not bool(c.get("failed"))) for c in cons)
+                                top=None
+                                if not ok:
+                                    failed=[c for c in cons if c.get("failed")]
+                                    if failed:
+                                        top=failed[0].get("name")
+                                rows.append({kx: float(xv), ky: float(yv), "feasible": bool(ok), "top_blocker": top,
+                                             "Q": float(out.get("Q_DT_eqv", out.get("Q", float('nan')))),
+                                             "Pfus_MW": float(out.get("P_fus_MW", out.get("Pfus_MW", float('nan'))))})
+                            except Exception:
+                                rows.append({kx: float(xv), ky: float(yv), "feasible": False, "top_blocker": "eval_error", "Q": float('nan'), "Pfus_MW": float('nan')})
+                df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
+                st.subheader("Grid results (table)")
+                st.dataframe(df, use_container_width=True, hide_index=True)
+    
                 try:
-                    m = float(m)
+                    piv = df.pivot(index=ky, columns=kx, values="feasible")
+                    st.subheader("Feasibility heatmap (True=1 / False=0)")
+                    st.dataframe(piv.astype(int), use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not pivot heatmap: {e}")
+    
+    with tab_regress:
+        st.header("What broke? Regression Viewer")
+        st.caption("Compare two artifacts: constraints, ledgers, model sets, and key KPIs. This is UI-only; it doesn't modify artifacts.")
+    
+        c1, c2 = st.columns(2)
+        with c1:
+            upA = st.file_uploader("Artifact A (json)", type=["json"], key="regA")
+            artA = _load_json_from_upload(upA)
+        with c2:
+            upB = st.file_uploader("Artifact B (json)", type=["json"], key="regB")
+            artB = _load_json_from_upload(upB)
+    
+        if artA and artB:
+            def _kpi_df(art):
+                k = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
+                df = pd.DataFrame([{"kpi": kk, "value": vv} for kk,vv in k.items()])
+                if df.empty:
+                    return pd.DataFrame(columns=["kpi","value"])
+                return df.sort_values("kpi")
+            st.subheader("KPI diff")
+            dfA=_kpi_df(artA).set_index("kpi")
+            dfB=_kpi_df(artB).set_index("kpi")
+            join=dfA.join(dfB, lsuffix="_A", rsuffix="_B", how="outer")
+            join["delta"]=pd.to_numeric(join["value_B"], errors="coerce")-pd.to_numeric(join["value_A"], errors="coerce")
+            st.dataframe(join.reset_index().sort_values("kpi"), use_container_width=True, hide_index=True)
+    
+            st.subheader("New / worsened constraint failures")
+            consA=artA.get("constraints", []) if isinstance(artA.get("constraints"), list) else []
+            consB=artB.get("constraints", []) if isinstance(artB.get("constraints"), list) else []
+            def _map(cons):
+                m={}
+                for c in cons:
+                    name=c.get("name") or c.get("id")
+                    if name:
+                        m[name]=c
+                return m
+            mA=_map(consA); mB=_map(consB)
+            names=sorted(set(mA.keys())|set(mB.keys()))
+            rows=[]
+            for n in names:
+                a=mA.get(n,{}); b=mB.get(n,{})
+                fa=bool(a.get("failed")); fb=bool(b.get("failed"))
+                ma=a.get("margin"); mb=b.get("margin")
+                rows.append({"name": n, "failed_A": fa, "failed_B": fb, "margin_A": ma, "margin_B": mb,
+                             "margin_delta": (mb-ma) if isinstance(ma,(int,float)) and isinstance(mb,(int,float)) else None})
+            df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
+            df_bad=df[(df["failed_B"]==True) & ((df["failed_A"]==False) | (df["failed_A"].isna()))]
+            st.markdown("**New failures in B**")
+            st.dataframe(df_bad.sort_values("name"), use_container_width=True, hide_index=True)
+            st.markdown("**Largest margin regressions (B-A)**")
+            df_reg=df.dropna(subset=["margin_delta"]).sort_values("margin_delta").head(20)
+            st.dataframe(df_reg, use_container_width=True, hide_index=True)
+    
+            st.subheader("Model set comparison")
+            msA=artA.get("model_set"); msB=artB.get("model_set")
+            st.json({"model_set_A": msA, "model_set_B": msB})
+    
+    with tab_study_dash:
+        st.header("Study Dashboard")
+        st.caption("Manager-grade summary for study outputs (feasible fraction, dominant blockers, robustness).")
+    
+        up = st.file_uploader("Upload study index.json (study_index.v1)", type=["json"], key="sd_up")
+        idx_data = _load_json_from_upload(up)
+        if not idx_data:
+            idx_path = st.session_state.get("selected_study_path")
+            if idx_path and Path(idx_path).exists():
+                try:
+                    idx_data = json.loads(Path(idx_path).read_text(encoding="utf-8"))
+                    st.info("Loaded study index from session.")
                 except Exception:
-                    m = None
-                # Convert to positive residual where 0 is pass.
-                if m is None or not (m == m):
-                    residuals[name] = 1.0
+                    idx_data = None
+    
+        if idx_data:
+            st.subheader("Study headline")
+            st.json({k: idx_data.get(k) for k in ["schema_version","n_cases","elapsed_s","created_unix"] if k in idx_data})
+            cases = idx_data.get("cases", [])
+            if isinstance(cases, list) and cases:
+                df = pd.DataFrame(cases)
+                if "ok" in df.columns:
+                    ok_frac = float(df["ok"].mean())
+                    st.metric("Feasible fraction", f"{ok_frac:.3f}")
+                for col in ["dominant_blocker","top_blocker","blocker"]:
+                    if col in df.columns:
+                        st.subheader("Dominant blocker distribution")
+                        hist = df[col].fillna("(none)").value_counts().reset_index()
+                        hist.columns=[col,"count"]
+                        st.dataframe(hist, use_container_width=True, hide_index=True)
+                        break
+                st.subheader("Cases table")
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No 'cases' list found in study index. (Older study output?)")
+    
+    with tab_maturity:
+        st.header("Engineering Maturity Heatmap")
+        st.caption("Visualize model maturity / validity info embedded in the artifact (model_set + model_registry).")
+    
+        art = _get_active_artifact("maturity")
+        if not art:
+            st.info("Load an artifact to view maturity info.")
+        else:
+            reg = art.get("model_registry", {})
+            ms = art.get("model_set", {})
+            rows=[]
+            if isinstance(reg, dict):
+                entries = reg.get("entries") if isinstance(reg.get("entries"), list) else None
+                if entries is None:
+                    if all(isinstance(v, dict) for v in reg.values()):
+                        entries=[{"model_id": k, **v} for k,v in reg.items()]
+                if entries:
+                    selected = set()
+                    if isinstance(ms, dict):
+                        sel = ms.get("selected")
+                        if isinstance(sel, dict):
+                            selected = set(sel.values()) | set(sel.keys())
+                        elif isinstance(sel, list):
+                            selected = set(sel)
+                    for e in entries:
+                        mid = e.get("model_id", e.get("id", ""))
+                        rows.append({
+                            "subsystem": e.get("subsystem", e.get("domain", "")),
+                            "model_id": mid,
+                            "maturity": e.get("maturity", e.get("maturity_tag", "")),
+                            "validity": e.get("validity", e.get("validity_range", "")),
+                            "selected": (mid in selected)
+                        })
+            if rows:
+                df=pd.DataFrame(rows, columns=["name","failed_A","failed_B","margin_A","margin_B","margin_delta"])
+                st.dataframe(df.sort_values(["subsystem","model_id"]), use_container_width=True, hide_index=True)
+                st.markdown("Tip: treat this as a policy gate (e.g., block decisions if maturity < required).")
+            else:
+                st.info("No model_registry entries found in artifact.")
+    
+    
+    with tab_maintenance:
+        st.header("Maintenance & Availability Authority")
+        st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
+    
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first (sets last_point_out).")
+        else:
+            enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
+            if not enabled:
+                st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in 🧭 Point Designer → Engineering & plant feasibility → 🗓️ Maintenance scheduling authority (v368.0).")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
+            c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
+            c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+            c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.3g}"))
+    
+            with st.expander("What this authority does", expanded=False):
+                st.markdown(
+                    "- Converts replacement cadences (FW/blanket from v367, plus HCD and tritium plant) and replacement durations into a bundled outage fraction.\n"
+                    "- Combines with planned/forced baselines (and optional trips proxy) to form total outage and availability.\n"
+                    "- Emits an explicit event table (maintenance_events_v368) for audit and reviewer use."
+                )
+            with st.expander("What this authority does not do", expanded=False):
+                st.markdown(
+                    "- Does not run a time-domain availability/RAMI simulation.\n"
+                    "- Does not optimize schedules or negotiate constraints.\n"
+                    "- Does not modify plasma truth or materials lifetime truth; it only post-processes into a schedule proxy."
+                )
+    
+            st.subheader("Outage decomposition")
+            rows = [
+                {"term": "planned", "outage_frac": out.get("planned_outage_frac_v368")},
+                {"term": "forced", "outage_frac": out.get("forced_outage_frac_v368")},
+                {"term": "replacement", "outage_frac": out.get("replacement_outage_frac_v368")},
+                {"term": "total", "outage_frac": out.get("outage_total_frac_v368")},
+            ]
+            try:
+                import pandas as _pd
+                df = _pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            except Exception:
+                st.write(rows)
+    
+            ev = out.get("maintenance_events_v368")
+            with st.expander("Maintenance event table (v368)", expanded=False):
+                if isinstance(ev, list) and ev:
+                    try:
+                        import pandas as _pd
+                        st.dataframe(_pd.DataFrame(ev), use_container_width=True, hide_index=True)
+                    except Exception:
+                        st.json(ev)
                 else:
-                    residuals[name] = max(0.0, -m)
-
-            st.subheader("Select knobs")
+                    st.info("No maintenance_events_v368 found (enable v368 and re-run).")
+    
+            with st.expander("Contract fingerprint", expanded=False):
+                st.code(str(out.get("maintenance_contract_sha256", "")))
+    
+    
+    with tab_profile_auth:
+        st.header("Profile Authority")
+        st.caption("1.5D algebraic profile diagnostics (non-iterative, conservative).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first (sets last_point_out).")
+        else:
+            rows=[
+                {"metric":"p_peaking", "value": out.get("profile_p_peaking")},
+                {"metric":"j_peaking", "value": out.get("profile_j_peaking")},
+                {"metric":"li_proxy", "value": out.get("profile_li_proxy")},
+                {"metric":"qmin_proxy", "value": out.get("profile_qmin_proxy")},
+                {"metric":"f_bootstrap_proxy", "value": out.get("profile_f_bootstrap_proxy")},
+                {"metric":"tag", "value": out.get("profile_assumption_tag")},
+            ]
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+            with st.expander("Validity flags", expanded=False):
+                st.json(out.get("profile_validity", {}))
+    
+    with tab_impurity:
+        st.header("Impurity & Radiation")
+        st.caption("v320 authority: impurity radiation partitions (core/edge/SOL/div) + detachment inversion (q_div target → required SOL+div radiation → implied f_z).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            rows=[
+                {"metric":"impurity_contract_species", "value": out.get("impurity_contract_species")},
+                {"metric":"impurity_contract_f_z", "value": out.get("impurity_contract_f_z")},
+                {"metric":"impurity_prad_total_MW", "value": out.get("impurity_prad_total_MW")},
+                {"metric":"impurity_prad_core_MW", "value": out.get("impurity_prad_core_MW")},
+                {"metric":"impurity_prad_edge_MW", "value": out.get("impurity_prad_edge_MW")},
+                {"metric":"impurity_prad_sol_MW", "value": out.get("impurity_prad_sol_MW")},
+                {"metric":"impurity_prad_div_MW", "value": out.get("impurity_prad_div_MW")},
+                {"metric":"impurity_zeff_proxy", "value": out.get("impurity_zeff_proxy")},
+                {"metric":"impurity_fuel_ion_fraction", "value": out.get("impurity_fuel_ion_fraction")},
+                {"metric":"detachment_f_sol_div_required", "value": out.get("detachment_f_sol_div_required")},
+                {"metric":"detachment_prad_sol_div_required_MW", "value": out.get("detachment_prad_sol_div_required_MW")},
+                {"metric":"detachment_f_z_required", "value": out.get("detachment_f_z_required")},
+            ]
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+            with st.expander("Validity flags", expanded=False):
+                st.json(out.get("impurity_validity", {}))
+    
+    with tab_disruption:
+        st.header("Disruption Risk")
+        st.caption("Conservative screening tier: LOW/MED/HIGH (diagnostic; not predictive).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            st.metric("Tier", str(out.get("disruption_risk_tier", "UNKNOWN")))
+            cols=st.columns(3)
+            with cols[0]:
+                st.metric("Risk index", f"{float(out.get('disruption_risk_index', float('nan'))):.3f}" if out.get('disruption_risk_index')==out.get('disruption_risk_index') else "nan")
+            with cols[1]:
+                st.metric("Dominant driver", str(out.get("disruption_dominant_driver", "unknown")))
+            with cols[2]:
+                st.metric("fG", f"{float(getattr(st.session_state.get('last_point_inp', None),'fG', float('nan'))):.3f}" if st.session_state.get('last_point_inp') is not None else "nan")
+            with st.expander("Components", expanded=False):
+                st.json(out.get("disruption_risk_components", {}))
+    
+    with tab_stability:
+        st.header("Stability Risk")
+        st.caption("Conservative screening tier: LOW/MED/HIGH for vertical stability + RWM/control budgets (diagnostic; not predictive).")
+        out = st.session_state.get("last_point_out")
+        if not isinstance(out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            st.metric("Tier", str(out.get("stability_risk_tier", "UNKNOWN")))
+            cols = st.columns(4)
+            with cols[0]:
+                st.metric(
+                    "Risk index",
+                    f"{float(out.get('stability_risk_index', float('nan'))):.3f}"
+                    if out.get("stability_risk_index") == out.get("stability_risk_index")
+                    else "nan",
+                )
+            with cols[1]:
+                st.metric("Dominant driver", str(out.get("stability_dominant_driver", "unknown")))
+            with cols[2]:
+                st.metric(
+                    "vs_margin",
+                    f"{float(out.get('vs_margin', float('nan'))):.3f}"
+                    if out.get("vs_margin") == out.get("vs_margin")
+                    else "nan",
+                )
+            with cols[3]:
+                st.metric("RWM ok", "yes" if bool(out.get("rwm_control_ok", True)) else "no")
+    
+            st.divider()
+            oc = st.columns(2)
+            with oc[0]:
+                st.metric("Operational tier", str(out.get("operational_risk_tier", "UNKNOWN")))
+            with oc[1]:
+                st.metric("Operational driver", str(out.get("operational_dominant_driver", "")) or "-")
+    
+            with st.expander("Components", expanded=False):
+                st.json(out.get("stability_risk_components", {}))
+            with st.expander("Control contract margins", expanded=False):
+                st.json(out.get("control_contract_margins", {}))
+    
+    with tab_cert_search:
+        st.header("Certified Search")
+        st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
+    
+        from dataclasses import replace
+        from solvers.budgeted_search import SearchVar
+        from solvers.certified_search_orchestrator import OrchestratorSpec, SearchStage, run_orchestrated_certified_search
+    
+        base = st.session_state.get("last_point_inp")
+        if base is None:
+            st.info("Run a point in Point Designer first so a base point exists.")
+        else:
+            st.subheader("Knobs")
             knob_options = [
                 ("Bt_T", 2.0, 25.0),
                 ("Ip_MA", 1.0, 25.0),
@@ -21670,592 +21564,880 @@ with tab_repair:
                 ("Ti_keV", 1.0, 40.0),
                 ("fG", 0.2, 1.2),
                 ("kappa", 1.0, 2.6),
+                ("a_m", 0.2, 3.0),
+                ("R0_m", 0.8, 12.0),
             ]
-            chosen = st.multiselect("Knobs used for repair", [k[0] for k in knob_options], default=["Bt_T","Ip_MA","Paux_MW"], max_selections=6)
-            knobs=[]
+            cols = st.columns(2)
+            with cols[0]:
+                chosen = st.multiselect("Select up to 4 knobs", [k[0] for k in knob_options], default=["Bt_T","Ip_MA"], max_selections=4)
+            with cols[1]:
+                objective = st.selectbox("Score objective (PASS-only)", ["Q_DT_eqv","P_fus_MW","P_net_MW"], index=0)
+    
+            vars_=[]
             for name,lo,hi in knob_options:
                 if name in chosen:
-                    lo_v=float(st.number_input(f"{name} lo", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_lo_{name}"))
-                    hi_v=float(st.number_input(f"{name} hi", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_hi_{name}"))
+                    c1,c2=st.columns(2)
+                    with c1:
+                        lo_v = st.number_input(f"{name} lo", value=float(getattr(base,name)), step=0.1, key=f"cs_lo_{name}")
+                    with c2:
+                        hi_v = st.number_input(f"{name} hi", value=float(getattr(base,name)), step=0.1, key=f"cs_hi_{name}")
                     if hi_v <= lo_v:
                         hi_v = lo_v + 1e-6
-                    knobs.append(RepairKnob(name=name, lo=lo_v, hi=hi_v))
-
-            # Finite-difference jacobian (deterministic): d(residual)/dvar
-            def _eval_res(inp_obj):
+                    vars_.append(SearchVar(name=name, lo=float(lo_v), hi=float(hi_v)))
+    
+            c1,c2,c3,c4=st.columns(4)
+            with c1:
+                budget = int(st.number_input("Budget", value=96, min_value=8, max_value=2048, step=8, key="cs_budget"))
+            with c2:
+                seed = int(st.number_input("Seed", value=0, min_value=0, max_value=10_000, step=1, key="cs_seed"))
+            with c3:
+                method = st.selectbox("Method", ["halton","lhs","grid"], index=0, key="cs_method")
+            with c4:
+                two_stage = bool(st.checkbox("Two-stage refine", value=True, key="cs_two_stage"))
+    
+            stage2_budget_frac = float(st.slider("Stage-2 budget fraction", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_frac")) if two_stage else 0.0
+            stage2_shrink = float(st.slider("Stage-2 local shrink", min_value=0.10, max_value=0.80, value=0.35, step=0.05, key="cs_stage2_shrink")) if two_stage else 0.0
+            stage2_method = st.selectbox("Stage-2 method", ["grid","halton","lhs"], index=0, key="cs_stage2_method") if two_stage else "grid"
+    
+            st.markdown("---")
+            insert_surr = bool(st.checkbox("Insert surrogate stage (feasible-first, non-authoritative)", value=False, key="cs_insert_surr"))
+            surr_frac = float(
+                st.slider(
+                    "Surrogate budget fraction",
+                    min_value=0.05,
+                    max_value=0.60,
+                    value=0.20,
+                    step=0.05,
+                    key="cs_surr_frac",
+                    disabled=(not insert_surr),
+                )
+            )
+            s1, s2, s3 = st.columns(3)
+            with s1:
+                surr_pool_mult = int(st.number_input("Surrogate pool multiplier", value=50, min_value=4, max_value=200, step=1, key="cs_surr_pool", disabled=(not insert_surr)))
+            with s2:
+                surr_kappa = float(st.slider("Surrogate kappa", min_value=0.0, max_value=2.0, value=0.5, step=0.1, key="cs_surr_kappa", disabled=(not insert_surr)))
+            with s3:
+                surr_ridge = float(st.number_input("Surrogate ridge alpha", value=1e-3, min_value=1e-6, max_value=1.0, format="%.6f", key="cs_surr_ridge", disabled=(not insert_surr)))
+    
+            def _builder(b, overrides):
+                return replace(b, **{k: float(v) for k,v in overrides.items()})
+    
+            def _verifier(inp_obj):
                 out = hot_ion_point(inp_obj)
-                cons2 = evaluate_constraints(out, point_inputs=inp_obj)
-                res={}
-                for c in cons2:
-                    name=str(c.get("name","(unnamed)"))
-                    m=c.get("margin")
-                    try:
-                        m=float(m)
-                    except Exception:
-                        continue
-                    res[name]=max(0.0, -m)
-                return res
-
-            if st.button("Compute repair candidates", use_container_width=True, key="run_repairs"):
-                base_res = _eval_res(base_inp)
-                jac={}
-                for c in base_res:
-                    jac[c]={}
-                for kb in knobs:
-                    span = kb.hi - kb.lo
-                    h = 0.02*span
-                    if h<=0: continue
-                    x0=float(getattr(base_inp,kb.name))
-                    x1=min(kb.hi, x0+h)
-                    x2=max(kb.lo, x0-h)
-                    # central difference when possible
-                    inp_p = replace(base_inp, **{kb.name: x1})
-                    inp_m = replace(base_inp, **{kb.name: x2})
-                    rp=_eval_res(inp_p)
-                    rm=_eval_res(inp_m)
-                    denom = (x1-x2) if (x1-x2)!=0 else 1e-12
-                    for c in base_res:
-                        jac[c][kb.name] = (float(rp.get(c,0.0))-float(rm.get(c,0.0)))/denom
-
-                cands = propose_repair_candidates(residuals=base_res, jacobian=jac, knobs=knobs, k=8)
-                st.session_state["v296_repair_last"] = {"base_res": base_res, "jac": jac, "cands": cands}
-
-            last = st.session_state.get("v296_repair_last")
-            if last:
-                with st.expander("Base residuals", expanded=False):
-                    st.dataframe(pd.DataFrame([{ "constraint": k, "residual": v } for k,v in sorted(last["base_res"].items(), key=lambda kv: kv[1], reverse=True)]), use_container_width=True, hide_index=True)
-                st.subheader("Candidates")
-                cands = last["cands"]
-                if cands:
-                    df = pd.DataFrame([{ "rationale": c.rationale, "est_reduction": c.estimated_residual_reduction, **c.deltas } for c in cands])
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                cons = evaluate_constraints(out, point_inputs=inp_obj)
+                try:
+                    from constraints.bookkeeping import summarize as _summarize_constraints
+                    _cs = _summarize_constraints(cons)
+                    _min_margin_frac = float(_cs.worst_hard_margin_frac) if _cs.worst_hard_margin_frac is not None else float("nan")
+                    _worst_hard = str(_cs.worst_hard or "")
+                except Exception:
+                    _min_margin_frac = float("nan")
+                    _worst_hard = ""
+                ok = all((not bool(c.get("failed"))) for c in cons)
+                score = float(out.get(objective, 0.0)) if ok else float("-inf")
+    
+                evidence={
+                    "objective": objective,
+                    "objective_value": float(out.get(objective, float("nan"))),
+                    "min_margin_frac": _min_margin_frac,
+                    "worst_hard": _worst_hard,
+                    "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
+                    "n_failed": int(sum(1 for c in cons if c.get("failed"))),
+                    "top_blocker": (next((c.get("name") for c in cons if c.get("failed")), None)),
+                }
+                return ("PASS" if ok else "FAIL"), score, evidence
+    
+            if st.button("Run certified search", use_container_width=True, key="run_cert_search"):
+                if not vars_:
+                    st.warning("Select at least one knob.")
                 else:
-                    st.info("No candidates produced (check knob selections).")
-
-                # v297: build + download a deterministic repair evidence pack
+                    b1 = int(max(1, round(float(budget) * (1.0 - float(stage2_budget_frac)))))
+                    b2 = int(max(0, round(float(budget) * float(stage2_budget_frac))))
+                    bs = int(max(0, round(float(budget) * float(surr_frac)))) if insert_surr else 0
+                    # cap budgets deterministically
+                    b2 = int(min(int(b2), int(max(0, budget - 1))))
+                    bs = int(min(int(bs), int(max(0, budget - 1 - b2))))
+                    b1 = int(max(1, int(budget) - int(b2) - int(bs)))
+    
+                    stages = [SearchStage(name="stage1", method=str(method), budget=int(b1), seed=int(seed), local_refine=False)]
+                    if insert_surr and bs > 0:
+                        stages.append(
+                            SearchStage(
+                                name="surrogate",
+                                method="surrogate",
+                                budget=int(bs),
+                                seed=int(seed + 1),
+                                local_refine=False,
+                                surrogate_pool_mult=int(surr_pool_mult),
+                                surrogate_kappa=float(surr_kappa),
+                                surrogate_ridge_alpha=float(surr_ridge),
+                                surrogate_feas_margin_key="min_margin_frac",
+                            )
+                        )
+                    if two_stage and b2 > 0:
+                        stages.append(
+                            SearchStage(
+                                name="stage2",
+                                method=str(stage2_method),
+                                budget=int(b2),
+                                seed=int(seed + (2 if (insert_surr and bs > 0) else 1)),
+                                local_refine=True,
+                                local_shrink=float(stage2_shrink),
+                            )
+                        )
+                    art = run_orchestrated_certified_search(
+                        base,
+                        OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
+                        verifier=_verifier,
+                        builder=_builder,
+                    )
+                    st.session_state["last_certified_search_artifact"] = art
+                    st.session_state["v340_cert_search_last"] = art
+                    try:
+                        _v98_record_run("certified_search_orchestrated", art, mode="SystemSuite/Chronicle")
+                    except Exception:
+                        pass
+    
+                    n_pass = 0
+                    n_tot = 0
+                    try:
+                        for stg in art.get("stages", []):
+                            recs = stg.get("records", [])
+                            n_tot += len(recs)
+                            n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
+                    except Exception:
+                        pass
+                    st.success(f"Done. Digest: {str(art.get('digest',''))[:12]} | PASS found: {n_pass}/{n_tot}")
+    
+            art = st.session_state.get("v340_cert_search_last")
+            if isinstance(art, dict) and art.get("schema_version"):
+                st.subheader("Results")
+                # Flatten across stages for display
+                rows = []
+                for stg in art.get("stages", []):
+                    for r in stg.get("records", []):
+                        rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
+                df = pd.DataFrame(rows)
+                with st.expander("Results table", expanded=False):
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
+                    with st.expander("Best PASS candidate", expanded=False):
+                        st.json(art.get("best"))
+    
+                # v297: export deterministic evidence pack
+                try:
+                    from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
+                    art2 = st.session_state.get("last_certified_search_artifact")
+                    if isinstance(art2, dict):
+                        if st.button("Build Certified Search evidence pack", use_container_width=True, key="cs_build_ev"):
+                            b = build_simple_evidence_zip_bytes(art2, basename=f"certified_search_{art2.get('digest','')[:12]}")
+                            st.session_state["certified_search_evidence_zip"] = b
+                            st.success("Evidence pack built.")
+                        b = st.session_state.get("certified_search_evidence_zip")
+                        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                            st.download_button(
+                                "Download certified_search_evidence.zip",
+                                data=b,
+                                file_name="certified_search_evidence.zip",
+                                mime="application/zip",
+                                use_container_width=True,
+                                key="cs_dl_ev",
+                            )
+                except Exception:
+                    pass
+    
+    with tab_repair:
+        st.header("Repair Suggestions")
+        st.caption("Explanatory-only: proposes bounded knob deltas to reduce dominant constraint residuals; every proposal must be verified by truth.")
+    
+        from dataclasses import replace
+        from solvers.repair_suggestions import RepairKnob, propose_repair_candidates
+    
+        base_inp = st.session_state.get("last_point_inp")
+        base_out = st.session_state.get("last_point_out")
+        if base_inp is None or not isinstance(base_out, dict):
+            st.info("Run a point in Point Designer first.")
+        else:
+            cons = evaluate_constraints(base_out, point_inputs=base_inp)
+            failed = [c for c in cons if c.get("failed")]
+            if not failed:
+                st.info("Base point is already feasible; repair suggestions are not needed.")
+            else:
+                # Residual proxy: use 'margin' if present else 1.0
+                residuals = {}
+                for c in failed:
+                    name = str(c.get("name", "(unnamed)"))
+                    m = c.get("margin")
+                    try:
+                        m = float(m)
+                    except Exception:
+                        m = None
+                    # Convert to positive residual where 0 is pass.
+                    if m is None or not (m == m):
+                        residuals[name] = 1.0
+                    else:
+                        residuals[name] = max(0.0, -m)
+    
+                st.subheader("Select knobs")
+                knob_options = [
+                    ("Bt_T", 2.0, 25.0),
+                    ("Ip_MA", 1.0, 25.0),
+                    ("Paux_MW", 0.0, 200.0),
+                    ("Ti_keV", 1.0, 40.0),
+                    ("fG", 0.2, 1.2),
+                    ("kappa", 1.0, 2.6),
+                ]
+                chosen = st.multiselect("Knobs used for repair", [k[0] for k in knob_options], default=["Bt_T","Ip_MA","Paux_MW"], max_selections=6)
+                knobs=[]
+                for name,lo,hi in knob_options:
+                    if name in chosen:
+                        lo_v=float(st.number_input(f"{name} lo", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_lo_{name}"))
+                        hi_v=float(st.number_input(f"{name} hi", value=float(getattr(base_inp,name)), step=0.1, key=f"rep_hi_{name}"))
+                        if hi_v <= lo_v:
+                            hi_v = lo_v + 1e-6
+                        knobs.append(RepairKnob(name=name, lo=lo_v, hi=hi_v))
+    
+                # Finite-difference jacobian (deterministic): d(residual)/dvar
+                def _eval_res(inp_obj):
+                    out = hot_ion_point(inp_obj)
+                    cons2 = evaluate_constraints(out, point_inputs=inp_obj)
+                    res={}
+                    for c in cons2:
+                        name=str(c.get("name","(unnamed)"))
+                        m=c.get("margin")
+                        try:
+                            m=float(m)
+                        except Exception:
+                            continue
+                        res[name]=max(0.0, -m)
+                    return res
+    
+                if st.button("Compute repair candidates", use_container_width=True, key="run_repairs"):
+                    base_res = _eval_res(base_inp)
+                    jac={}
+                    for c in base_res:
+                        jac[c]={}
+                    for kb in knobs:
+                        span = kb.hi - kb.lo
+                        h = 0.02*span
+                        if h<=0: continue
+                        x0=float(getattr(base_inp,kb.name))
+                        x1=min(kb.hi, x0+h)
+                        x2=max(kb.lo, x0-h)
+                        # central difference when possible
+                        inp_p = replace(base_inp, **{kb.name: x1})
+                        inp_m = replace(base_inp, **{kb.name: x2})
+                        rp=_eval_res(inp_p)
+                        rm=_eval_res(inp_m)
+                        denom = (x1-x2) if (x1-x2)!=0 else 1e-12
+                        for c in base_res:
+                            jac[c][kb.name] = (float(rp.get(c,0.0))-float(rm.get(c,0.0)))/denom
+    
+                    cands = propose_repair_candidates(residuals=base_res, jacobian=jac, knobs=knobs, k=8)
+                    st.session_state["v296_repair_last"] = {"base_res": base_res, "jac": jac, "cands": cands}
+    
+                last = st.session_state.get("v296_repair_last")
+                if last:
+                    with st.expander("Base residuals", expanded=False):
+                        st.dataframe(pd.DataFrame([{ "constraint": k, "residual": v } for k,v in sorted(last["base_res"].items(), key=lambda kv: kv[1], reverse=True)]), use_container_width=True, hide_index=True)
+                    st.subheader("Candidates")
+                    cands = last["cands"]
+                    if cands:
+                        df = pd.DataFrame([{ "rationale": c.rationale, "est_reduction": c.estimated_residual_reduction, **c.deltas } for c in cands])
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No candidates produced (check knob selections).")
+    
+                    # v297: build + download a deterministic repair evidence pack
+                    try:
+                        from dataclasses import asdict
+                        from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
+    
+                        repair_art = {
+                            "schema_version": "repair_evidence.v1",
+                            "base_inputs": asdict(base_inp),
+                            "base_failed_constraints": [str(c.get("name")) for c in failed][:50],
+                            "base_residuals": dict(last.get("base_res", {})),
+                            "knobs": [asdict(k) for k in knobs],
+                            "candidates": [
+                                {
+                                    "rationale": getattr(c, "rationale", ""),
+                                    "estimated_residual_reduction": float(getattr(c, "estimated_residual_reduction", 0.0)),
+                                    "deltas": dict(getattr(c, "deltas", {})),
+                                }
+                                for c in (cands or [])
+                            ],
+                        }
+                        st.session_state["last_repair_evidence_artifact"] = repair_art
+    
+                        if st.button("Build Repair evidence pack", use_container_width=True, key="rep_build_ev"):
+                            b = build_simple_evidence_zip_bytes(repair_art, basename="repair_evidence")
+                            st.session_state["repair_evidence_zip"] = b
+                            _v98_record_run("repair_evidence", repair_art, mode="SystemSuite/Chronicle")
+                            st.success("Repair evidence pack built.")
+    
+                        b = st.session_state.get("repair_evidence_zip")
+                        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                            st.download_button(
+                                "Download repair_evidence.zip",
+                                data=b,
+                                file_name="repair_evidence.zip",
+                                mime="application/zip",
+                                use_container_width=True,
+                                key="rep_dl_ev",
+                            )
+                    except Exception:
+                        pass
+    
+    with tab_refine:
+        st.header("Interval Refinement")
+        st.caption("Deterministic corner evaluation + contract refinement suggestions (explanatory-only).")
+    
+        from dataclasses import replace
+        from uq_contracts.refinement import suggest_interval_refinements
+    
+        base = st.session_state.get("last_point_inp")
+        if base is None:
+            st.info("Run a point in Point Designer first so a base point exists.")
+        else:
+            st.subheader("Select up to 3 uncertain variables")
+            var_options = ["Bt_T","Ip_MA","Paux_MW","Ti_keV","fG","kappa"]
+            chosen = st.multiselect("Variables", var_options, default=["fG"], max_selections=3, key="ref_vars")
+            intervals={}
+            for v in chosen:
+                c1,c2=st.columns(2)
+                with c1:
+                    lo = float(st.number_input(f"{v} lo", value=float(getattr(base,v))*0.95, step=0.1, key=f"ref_lo_{v}"))
+                with c2:
+                    hi = float(st.number_input(f"{v} hi", value=float(getattr(base,v))*1.05 + (0.01 if v=='fG' else 0.0), step=0.1, key=f"ref_hi_{v}"))
+                if hi <= lo:
+                    hi = lo + 1e-6
+                intervals[v]=(lo,hi)
+    
+            if st.button("Evaluate corners", use_container_width=True, key="run_ref_corners"):
+                # build corners
+                vs=list(intervals.items())
+                corners=[]
+                def rec(i,cur):
+                    if i==len(vs):
+                        corners.append(dict(cur)); return
+                    name,(lo,hi)=vs[i]
+                    cur[name]=lo; rec(i+1,cur)
+                    cur[name]=hi; rec(i+1,cur)
+                    cur.pop(name,None)
+                rec(0,{})
+    
+                results=[]
+                for c in corners:
+                    inp_obj=base
+                    inp_obj=replace(inp_obj, **{k: float(v) for k,v in c.items()})
+                    out = hot_ion_point(inp_obj)
+                    cons = evaluate_constraints(out, point_inputs=inp_obj)
+                    ok = all((not bool(cc.get("failed"))) for cc in cons)
+                    dom = next((cc.get("name") for cc in cons if cc.get("failed")), None)
+                    results.append({"corner": c, "verdict": "PASS" if ok else "FAIL", "dominant_mechanism": dom})
+    
+                st.session_state["v296_ref_corners"] = {"intervals": intervals, "results": results}
+    
+            last = st.session_state.get("v296_ref_corners")
+            if last:
+                res = last["results"]
+                df = pd.DataFrame([{**r["corner"], "verdict": r["verdict"], "dominant": r.get("dominant_mechanism")} for r in res])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                fails=sum(1 for r in res if r["verdict"]!='PASS')
+                st.metric("FAIL corners", f"{fails}/{len(res)}")
+                sugg = suggest_interval_refinements(last["intervals"], res)
+                if sugg:
+                    st.subheader("Refinement suggestions")
+                    sdf = pd.DataFrame([{"var": s.var, "current": s.current_interval, "suggested": s.suggested_interval, "rationale": s.rationale} for s in sugg])
+                    st.dataframe(sdf, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No refinement suggestions (either robust already or insufficient failure signal).")
+    
+                # v297: interval refinement evidence pack
                 try:
                     from dataclasses import asdict
                     from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
-
-                    repair_art = {
-                        "schema_version": "repair_evidence.v1",
-                        "base_inputs": asdict(base_inp),
-                        "base_failed_constraints": [str(c.get("name")) for c in failed][:50],
-                        "base_residuals": dict(last.get("base_res", {})),
-                        "knobs": [asdict(k) for k in knobs],
-                        "candidates": [
+    
+                    refine_art = {
+                        "schema_version": "interval_refinement_evidence.v1",
+                        "base_inputs": asdict(base),
+                        "intervals": {k: list(v) for k, v in (last.get("intervals") or {}).items()},
+                        "corner_results": list(res),
+                        "suggestions": [
                             {
-                                "rationale": getattr(c, "rationale", ""),
-                                "estimated_residual_reduction": float(getattr(c, "estimated_residual_reduction", 0.0)),
-                                "deltas": dict(getattr(c, "deltas", {})),
+                                "var": s.var,
+                                "current_interval": list(s.current_interval),
+                                "suggested_interval": list(s.suggested_interval),
+                                "rationale": s.rationale,
                             }
-                            for c in (cands or [])
+                            for s in (sugg or [])
                         ],
                     }
-                    st.session_state["last_repair_evidence_artifact"] = repair_art
-
-                    if st.button("Build Repair evidence pack", use_container_width=True, key="rep_build_ev"):
-                        b = build_simple_evidence_zip_bytes(repair_art, basename="repair_evidence")
-                        st.session_state["repair_evidence_zip"] = b
-                        _v98_record_run("repair_evidence", repair_art, mode="SystemSuite/Chronicle")
-                        st.success("Repair evidence pack built.")
-
-                    b = st.session_state.get("repair_evidence_zip")
+                    st.session_state["last_interval_refinement_artifact"] = refine_art
+    
+                    if st.button("Build Interval Refinement evidence pack", use_container_width=True, key="ref_build_ev"):
+                        b = build_simple_evidence_zip_bytes(refine_art, basename="interval_refinement")
+                        st.session_state["interval_refinement_zip"] = b
+                        _v98_record_run("interval_refinement", refine_art, mode="SystemSuite/Chronicle")
+                        st.success("Interval refinement evidence pack built.")
+    
+                    b = st.session_state.get("interval_refinement_zip")
                     if isinstance(b, (bytes, bytearray)) and len(b) > 0:
                         st.download_button(
-                            "Download repair_evidence.zip",
+                            "Download interval_refinement_evidence.zip",
                             data=b,
-                            file_name="repair_evidence.zip",
+                            file_name="interval_refinement_evidence.zip",
                             mime="application/zip",
                             use_container_width=True,
-                            key="rep_dl_ev",
+                            key="ref_dl_ev",
                         )
                 except Exception:
                     pass
-
-with tab_refine:
-    st.header("Interval Refinement")
-    st.caption("Deterministic corner evaluation + contract refinement suggestions (explanatory-only).")
-
-    from dataclasses import replace
-    from uq_contracts.refinement import suggest_interval_refinements
-
-    base = st.session_state.get("last_point_inp")
-    if base is None:
-        st.info("Run a point in Point Designer first so a base point exists.")
-    else:
-        st.subheader("Select up to 3 uncertain variables")
-        var_options = ["Bt_T","Ip_MA","Paux_MW","Ti_keV","fG","kappa"]
-        chosen = st.multiselect("Variables", var_options, default=["fG"], max_selections=3, key="ref_vars")
-        intervals={}
-        for v in chosen:
-            c1,c2=st.columns(2)
+    
+    with tab_narrowing:
+        st.header("Interval Narrowing")
+        st.caption(
+            "Advisory dead-region flags + interval narrowing proposals + repair contract export (no truth mutation)."
+        )
+        try:
+            from ui.interval_narrowing import render_interval_narrowing_panel
+            render_interval_narrowing_panel(st, pd, BASE_DIR, st.session_state)
+        except Exception as _e:
+            st.info("Panel unavailable in this build.")
+    
+    with tab_surrogate:
+        st.header("Surrogate Overlay")
+        st.caption("Non-authoritative ridge surrogate fitted to the latest Certified Search results.")
+    
+        from optimization.surrogates import fit_ridge_surrogate, predict_surrogate
+    
+        res = st.session_state.get("v296_cert_search_last")
+        if res is None:
+            st.info("Run Certified Search first (Chronicle → Certified Search) to generate training data.")
+        else:
+            # train on PASS points only
+            rows=[]
+            for r in res.records:
+                if r.verdict == "PASS":
+                    rows.append({"x": r.x, "y": r.score})
+            if len(rows) < 8:
+                st.warning(f"Need at least 8 PASS samples to fit a surrogate; currently have {len(rows)}.")
+            else:
+                feat = list(rows[0]["x"].keys())
+                samples=[rr["x"] for rr in rows]
+                targets=[rr["y"] for rr in rows]
+                ridge=float(st.number_input("Ridge", value=1e-6, format="%e"))
+                if st.button("Fit surrogate", use_container_width=True, key="fit_surr"):
+                    model = fit_ridge_surrogate(samples, targets, feat, ridge=ridge)
+                    st.session_state["v296_surrogate_model"] = model
+                    st.success("Surrogate fitted (non-authoritative).")
+    
+                model = st.session_state.get("v296_surrogate_model")
+                if model is not None:
+                    st.subheader("Query")
+                    q={}
+                    for f in model.feature_names:
+                        q[f]=float(st.number_input(f"{f}", value=float(st.session_state.get('last_point_inp').__dict__.get(f, 0.0)), step=0.1, key=f"surr_q_{f}"))
+                    yhat, unc = predict_surrogate(model, q)
+                    st.metric("Predicted score", f"{yhat:.6g}")
+                    st.metric("Uncertainty proxy", f"{unc:.3f}")
+                    with st.expander("Model details", expanded=False):
+                        st.write({"features": list(model.feature_names), "ridge": model.ridge})
+    
+    with tab_active_learning:
+        st.header("Active Learning")
+        st.caption("Propose new points where surrogate uncertainty is high (non-authoritative).")
+    
+        from optimization.active_learning import ALVar, propose_active_learning_points
+    
+        model = st.session_state.get("v296_surrogate_model")
+        res = st.session_state.get("v296_cert_search_last")
+        if model is None or res is None:
+            st.info("Fit a surrogate first (Chronicle → Surrogate Overlay).")
+        else:
+            vars_=[]
+            # derive bounds from SearchSpec
+            for v in res.spec.variables:
+                vars_.append(ALVar(name=v.name, lo=v.lo, hi=v.hi))
+            c1,c2,c3=st.columns(3)
             with c1:
-                lo = float(st.number_input(f"{v} lo", value=float(getattr(base,v))*0.95, step=0.1, key=f"ref_lo_{v}"))
+                n_candidates=int(st.number_input("Candidates", value=512, min_value=64, max_value=5000, step=64))
             with c2:
-                hi = float(st.number_input(f"{v} hi", value=float(getattr(base,v))*1.05 + (0.01 if v=='fG' else 0.0), step=0.1, key=f"ref_hi_{v}"))
-            if hi <= lo:
-                hi = lo + 1e-6
-            intervals[v]=(lo,hi)
-
-        if st.button("Evaluate corners", use_container_width=True, key="run_ref_corners"):
-            # build corners
-            vs=list(intervals.items())
-            corners=[]
-            def rec(i,cur):
-                if i==len(vs):
-                    corners.append(dict(cur)); return
-                name,(lo,hi)=vs[i]
-                cur[name]=lo; rec(i+1,cur)
-                cur[name]=hi; rec(i+1,cur)
-                cur.pop(name,None)
-            rec(0,{})
-
-            results=[]
-            for c in corners:
-                inp_obj=base
-                inp_obj=replace(inp_obj, **{k: float(v) for k,v in c.items()})
-                out = hot_ion_point(inp_obj)
-                cons = evaluate_constraints(out, point_inputs=inp_obj)
-                ok = all((not bool(cc.get("failed"))) for cc in cons)
-                dom = next((cc.get("name") for cc in cons if cc.get("failed")), None)
-                results.append({"corner": c, "verdict": "PASS" if ok else "FAIL", "dominant_mechanism": dom})
-
-            st.session_state["v296_ref_corners"] = {"intervals": intervals, "results": results}
-
-        last = st.session_state.get("v296_ref_corners")
-        if last:
-            res = last["results"]
-            df = pd.DataFrame([{**r["corner"], "verdict": r["verdict"], "dominant": r.get("dominant_mechanism")} for r in res])
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            fails=sum(1 for r in res if r["verdict"]!='PASS')
-            st.metric("FAIL corners", f"{fails}/{len(res)}")
-            sugg = suggest_interval_refinements(last["intervals"], res)
-            if sugg:
-                st.subheader("Refinement suggestions")
-                sdf = pd.DataFrame([{"var": s.var, "current": s.current_interval, "suggested": s.suggested_interval, "rationale": s.rationale} for s in sugg])
-                st.dataframe(sdf, use_container_width=True, hide_index=True)
+                n_select=int(st.number_input("Select", value=16, min_value=4, max_value=128, step=4))
+            with c3:
+                seed=int(st.number_input("Seed", value=int(res.spec.seed), min_value=0, max_value=10000, step=1))
+    
+            if st.button("Propose points", use_container_width=True, key="run_al"):
+                props = propose_active_learning_points(model, vars_, n_candidates=n_candidates, n_select=n_select, seed=seed)
+                st.session_state["v296_al_props"] = props
+    
+            props = st.session_state.get("v296_al_props")
+            if props:
+                df = pd.DataFrame([{**p.x, "y_pred": p.y_pred, "uncertainty": p.uncertainty} for p in props])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.caption("Verify proposals by setting last_point_inp to a row and running Point Designer. External harness integration can automate that next.")
+    
+    with tab_assumptions:
+        st.header("Assumption Toggle Bar")
+        st.caption("Fast scenario exploration by toggling common assumptions and re-evaluating the point (still feasibility-first; no optimization).")
+    
+        art = _get_active_artifact("assumptions")
+        base = _guess_point_inputs_from_artifact(art) if art else None
+        if base is None:
+            base = st.session_state.get("last_point_inp")
+        if base is None:
+            st.info("Load an artifact (or run Point Designer) to use assumption toggles.")
+        else:
+            col1,col2,col3=st.columns(3)
+            with col1:
+                fuel = st.selectbox("Fuel mode", ["DT","DD"], index=0 if getattr(base,"fuel_mode","DT")=="DT" else 1, key="ass_fuel")
+            with col2:
+                ti = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="ass_Ti")
+            with col3:
+                paux = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="ass_Paux")
+            tite = st.number_input("Ti/Te", value=float(getattr(base,"Ti_over_Te", 2.0)), step=0.1, key="ass_TiTe")
+            apply = st.button("Apply toggles and evaluate", use_container_width=True, key="ass_run")
+    
+            if apply:
+                pi = PointInputs(R0_m=float(base.R0_m), a_m=float(base.a_m), kappa=float(base.kappa),
+                                 Bt_T=float(base.Bt_T), Ip_MA=float(base.Ip_MA), Ti_keV=float(ti),
+                                 fG=float(base.fG), Paux_MW=float(paux), Ti_over_Te=float(tite),
+                                 fuel_mode=str(fuel))
+                out = hot_ion_point(pi)
+                cons = evaluate_constraints(out, point_inputs=pi)
+                ok = all((not bool(c.get("failed"))) for c in cons)
+                st.metric("Feasible", "YES " if ok else "NO ")
+                st.subheader("Key outputs")
+                st.json({k: out.get(k) for k in ["Q_DT_eqv","P_fus_MW","P_net_MW","betaN","q95","fG"] if k in out})
+                st.subheader("Top failed constraints")
+                failed=[c for c in cons if c.get("failed")]
+                if failed:
+                    st.dataframe(_safe_df(failed[:10]), use_container_width=True, hide_index=True)
+                else:
+                    st.write("No failed constraints.")
+    
+    with tab_export:
+        st.header("Export / Communication Panel")
+        st.caption("One-click export helpers (JSON, CSV, and a one-slide PNG-style summary) with provenance footer.")
+    
+        art = _get_active_artifact("export")
+        if not art:
+            st.info("Load an artifact to export.")
+        else:
+            _download_json_button("Download run artifact JSON", art, "shams_run_artifact.json", "dl_artifact")
+            tables = art.get("tables", {}) if isinstance(art.get("tables"), dict) else {}
+            if tables:
+                for name, obj in tables.items():
+                    try:
+                        df = _safe_df(obj)
+                        st.download_button(f"Download {name}.csv", data=df.to_csv(index=False).encode("utf-8"),
+                                           file_name=f"{name}.csv", mime="text/csv", key=f"dl_csv_{name}")
+                    except Exception:
+                        continue
             else:
-                st.info("No refinement suggestions (either robust already or insufficient failure signal).")
-
-            # v297: interval refinement evidence pack
+                st.info("No standardized tables found in artifact ('tables').")
+    
             try:
-                from dataclasses import asdict
-                from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
-
-                refine_art = {
-                    "schema_version": "interval_refinement_evidence.v1",
-                    "base_inputs": asdict(base),
-                    "intervals": {k: list(v) for k, v in (last.get("intervals") or {}).items()},
-                    "corner_results": list(res),
-                    "suggestions": [
-                        {
-                            "var": s.var,
-                            "current_interval": list(s.current_interval),
-                            "suggested_interval": list(s.suggested_interval),
-                            "rationale": s.rationale,
-                        }
-                        for s in (sugg or [])
-                    ],
-                }
-                st.session_state["last_interval_refinement_artifact"] = refine_art
-
-                if st.button("Build Interval Refinement evidence pack", use_container_width=True, key="ref_build_ev"):
-                    b = build_simple_evidence_zip_bytes(refine_art, basename="interval_refinement")
-                    st.session_state["interval_refinement_zip"] = b
-                    _v98_record_run("interval_refinement", refine_art, mode="SystemSuite/Chronicle")
-                    st.success("Interval refinement evidence pack built.")
-
-                b = st.session_state.get("interval_refinement_zip")
-                if isinstance(b, (bytes, bytearray)) and len(b) > 0:
-                    st.download_button(
-                        "Download interval_refinement_evidence.zip",
-                        data=b,
-                        file_name="interval_refinement_evidence.zip",
-                        mime="application/zip",
-                        use_container_width=True,
-                        key="ref_dl_ev",
-                    )
-            except Exception:
-                pass
-
-with tab_narrowing:
-    st.header("Interval Narrowing")
-    st.caption(
-        "Advisory dead-region flags + interval narrowing proposals + repair contract export (no truth mutation)."
-    )
-    try:
-        from ui.interval_narrowing import render_interval_narrowing_panel
-        render_interval_narrowing_panel(st, pd, BASE_DIR, st.session_state)
-    except Exception as _e:
-        st.info("Panel unavailable in this build.")
-
-with tab_surrogate:
-    st.header("Surrogate Overlay")
-    st.caption("Non-authoritative ridge surrogate fitted to the latest Certified Search results.")
-
-    from optimization.surrogates import fit_ridge_surrogate, predict_surrogate
-
-    res = st.session_state.get("v296_cert_search_last")
-    if res is None:
-        st.info("Run Certified Search first (Chronicle → Certified Search) to generate training data.")
-    else:
-        # train on PASS points only
-        rows=[]
-        for r in res.records:
-            if r.verdict == "PASS":
-                rows.append({"x": r.x, "y": r.score})
-        if len(rows) < 8:
-            st.warning(f"Need at least 8 PASS samples to fit a surrogate; currently have {len(rows)}.")
-        else:
-            feat = list(rows[0]["x"].keys())
-            samples=[rr["x"] for rr in rows]
-            targets=[rr["y"] for rr in rows]
-            ridge=float(st.number_input("Ridge", value=1e-6, format="%e"))
-            if st.button("Fit surrogate", use_container_width=True, key="fit_surr"):
-                model = fit_ridge_surrogate(samples, targets, feat, ridge=ridge)
-                st.session_state["v296_surrogate_model"] = model
-                st.success("Surrogate fitted (non-authoritative).")
-
-            model = st.session_state.get("v296_surrogate_model")
-            if model is not None:
-                st.subheader("Query")
-                q={}
-                for f in model.feature_names:
-                    q[f]=float(st.number_input(f"{f}", value=float(st.session_state.get('last_point_inp').__dict__.get(f, 0.0)), step=0.1, key=f"surr_q_{f}"))
-                yhat, unc = predict_surrogate(model, q)
-                st.metric("Predicted score", f"{yhat:.6g}")
-                st.metric("Uncertainty proxy", f"{unc:.3f}")
-                with st.expander("Model details", expanded=False):
-                    st.write({"features": list(model.feature_names), "ridge": model.ridge})
-
-with tab_active_learning:
-    st.header("Active Learning")
-    st.caption("Propose new points where surrogate uncertainty is high (non-authoritative).")
-
-    from optimization.active_learning import ALVar, propose_active_learning_points
-
-    model = st.session_state.get("v296_surrogate_model")
-    res = st.session_state.get("v296_cert_search_last")
-    if model is None or res is None:
-        st.info("Fit a surrogate first (Chronicle → Surrogate Overlay).")
-    else:
-        vars_=[]
-        # derive bounds from SearchSpec
-        for v in res.spec.variables:
-            vars_.append(ALVar(name=v.name, lo=v.lo, hi=v.hi))
-        c1,c2,c3=st.columns(3)
-        with c1:
-            n_candidates=int(st.number_input("Candidates", value=512, min_value=64, max_value=5000, step=64))
-        with c2:
-            n_select=int(st.number_input("Select", value=16, min_value=4, max_value=128, step=4))
-        with c3:
-            seed=int(st.number_input("Seed", value=int(res.spec.seed), min_value=0, max_value=10000, step=1))
-
-        if st.button("Propose points", use_container_width=True, key="run_al"):
-            props = propose_active_learning_points(model, vars_, n_candidates=n_candidates, n_select=n_select, seed=seed)
-            st.session_state["v296_al_props"] = props
-
-        props = st.session_state.get("v296_al_props")
-        if props:
-            df = pd.DataFrame([{**p.x, "y_pred": p.y_pred, "uncertainty": p.uncertainty} for p in props])
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            st.caption("Verify proposals by setting last_point_inp to a row and running Point Designer. External harness integration can automate that next.")
-
-with tab_assumptions:
-    st.header("Assumption Toggle Bar")
-    st.caption("Fast scenario exploration by toggling common assumptions and re-evaluating the point (still feasibility-first; no optimization).")
-
-    art = _get_active_artifact("assumptions")
-    base = _guess_point_inputs_from_artifact(art) if art else None
-    if base is None:
-        base = st.session_state.get("last_point_inp")
-    if base is None:
-        st.info("Load an artifact (or run Point Designer) to use assumption toggles.")
-    else:
-        col1,col2,col3=st.columns(3)
-        with col1:
-            fuel = st.selectbox("Fuel mode", ["DT","DD"], index=0 if getattr(base,"fuel_mode","DT")=="DT" else 1, key="ass_fuel")
-        with col2:
-            ti = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="ass_Ti")
-        with col3:
-            paux = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="ass_Paux")
-        tite = st.number_input("Ti/Te", value=float(getattr(base,"Ti_over_Te", 2.0)), step=0.1, key="ass_TiTe")
-        apply = st.button("Apply toggles and evaluate", use_container_width=True, key="ass_run")
-
-        if apply:
-            pi = PointInputs(R0_m=float(base.R0_m), a_m=float(base.a_m), kappa=float(base.kappa),
-                             Bt_T=float(base.Bt_T), Ip_MA=float(base.Ip_MA), Ti_keV=float(ti),
-                             fG=float(base.fG), Paux_MW=float(paux), Ti_over_Te=float(tite),
-                             fuel_mode=str(fuel))
-            out = hot_ion_point(pi)
-            cons = evaluate_constraints(out, point_inputs=pi)
-            ok = all((not bool(c.get("failed"))) for c in cons)
-            st.metric("Feasible", "YES " if ok else "NO ")
-            st.subheader("Key outputs")
-            st.json({k: out.get(k) for k in ["Q_DT_eqv","P_fus_MW","P_net_MW","betaN","q95","fG"] if k in out})
-            st.subheader("Top failed constraints")
-            failed=[c for c in cons if c.get("failed")]
-            if failed:
-                st.dataframe(_safe_df(failed[:10]), use_container_width=True, hide_index=True)
+                import io
+                import matplotlib.pyplot as plt
+                prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
+                d = _decision_summary_from_artifact(art)
+                fig = plt.figure(figsize=(10, 5))
+                ax = fig.add_subplot(111)
+                ax.axis("off")
+                title = "SHAMS Decision Summary"
+                verdict = "FEASIBLE" if d["feasible"] else "INFEASIBLE"
+                ax.text(0.02, 0.92, f"{title} - {verdict}", fontsize=16, weight="bold")
+                ax.text(0.02, 0.82, f"Q: {d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q','-'))}    Pfus(MW): {d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW','-'))}", fontsize=12)
+                ax.text(0.02, 0.72, "Top blockers:", fontsize=12, weight="bold")
+                y=0.66
+                for b in (d["top_blockers"] or [])[:6]:
+                    ax.text(0.04, y, f"- {b.get('group','')}: {b.get('name','')}", fontsize=11)
+                    y -= 0.06
+                footer = f"repo_version={prov.get('repo_version')}  git={prov.get('git_commit')}  python={prov.get('python')}"
+                ax.text(0.02, 0.03, footer, fontsize=9)
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+                plt.close(fig)
+                st.download_button("Download one-slide summary PNG", data=buf.getvalue(), file_name="shams_one_slide.png",
+                                   mime="image/png", key="dl_png_slide")
+            except Exception as e:
+                st.warning(f"PNG summary unavailable: {e}")
+    
+    with tab_solver:
+        st.header("Solver Introspection")
+        st.caption("Inspect solver trace/clamp/residual info from artifacts or the last Point Designer run.")
+    
+        art = st.session_state.get("selected_artifact")
+        if not isinstance(art, dict) or not art:
+            st.info("No session artifact loaded. Upload one below to inspect solver annotations.")
+            up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="solver_up")
+            art = _load_json_from_upload(up)
+    
+        if art:
+            trace = art.get("solver_trace") if isinstance(art.get("solver_trace"), dict) else None
+            if trace:
+                st.subheader("solver_trace (artifact)")
+                st.json(trace)
             else:
-                st.write("No failed constraints.")
-
-with tab_export:
-    st.header("Export / Communication Panel")
-    st.caption("One-click export helpers (JSON, CSV, and a one-slide PNG-style summary) with provenance footer.")
-
-    art = _get_active_artifact("export")
-    if not art:
-        st.info("Load an artifact to export.")
-    else:
-        _download_json_button("Download run artifact JSON", art, "shams_run_artifact.json", "dl_artifact")
-        tables = art.get("tables", {}) if isinstance(art.get("tables"), dict) else {}
-        if tables:
-            for name, obj in tables.items():
-                try:
-                    df = _safe_df(obj)
-                    st.download_button(f"Download {name}.csv", data=df.to_csv(index=False).encode("utf-8"),
-                                       file_name=f"{name}.csv", mime="text/csv", key=f"dl_csv_{name}")
-                except Exception:
-                    continue
-        else:
-            st.info("No standardized tables found in artifact ('tables').")
-
+                st.subheader("Solver annotations (best-effort)")
+                flat = {}
+                for k,v in art.items():
+                    if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
+                        flat[k]=v
+                kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
+                for k,v in kpis.items():
+                    if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
+                        flat[f"kpis.{k}"]=v
+                if flat:
+                    st.json(flat)
+                else:
+                    st.info("No solver trace fields found in artifact.")
+    
+            st.divider()
+            st.subheader("CCFS verifier (external solver firewall)")
+            st.caption("Verify an external candidate bundle against frozen truth. Runs do not modify SHAMS physics.")
+            up_ccfs = st.file_uploader("Upload ccfs_bundle.json", type=["json"], key="ccfs_up_v294")
+            b = _load_json_from_upload(up_ccfs)
+            if isinstance(b, dict):
+                req_cols = st.columns(2)
+                with req_cols[0]:
+                    do_phase = st.checkbox("Require phase envelope PASS", value=True, key="ccfs_req_phase_v294")
+                with req_cols[1]:
+                    do_uq = st.checkbox("Require UQ contract not FAIL", value=False, key="ccfs_req_uq_v294")
+    
+                if st.button("Verify CCFS bundle", use_container_width=True, key="ccfs_btn_v294"):
+                    try:
+                        from extopt.certified_solve import verify_ccfs_bundle
+                        res = verify_ccfs_bundle(b, default_request={"phase_envelope": bool(do_phase), "uq_contracts": bool(do_uq)})
+                        st.success("CCFS verification complete.")
+                        st.json(res, expanded=False)
+                        _v98_record_run("ccfs_verify", res, mode="ControlRoom/Diagnostics")
+                    except Exception as e:
+                        st.error(f"CCFS verification failed: {e}")
+    
+    
+    # --- Copyright notice
+    st.markdown('---')
+    st.caption('© 2026 Afshin Arjhangmehr - SHAMS–FUSION-X')
+    
+    
+    # =====================
+    # v88 UI helpers (append-only)
+    # =====================
+    def _v88_continuation_explorer(path):
+        import pandas as pd, streamlit as st
+        if not path:
+            st.info("No continuation path available.")
+            return
+        df = pd.DataFrame(path)
+        st.line_chart(df.select_dtypes("number"))
+    
+    def _v88_boundary_map(points):
+        import pandas as pd, streamlit as st
+        if not points:
+            st.info("No scan points available.")
+            return
+        df = pd.DataFrame(points)
+        if "x" in df.columns and "min_signed_margin" in df.columns:
+            st.scatter_chart(df, x="x", y="min_signed_margin", color="feasible")
+    
+    def _v88_export_svg(fig, name):
+        import io, streamlit as st
+        buf = io.BytesIO()
+        fig.savefig(buf, format="svg", bbox_inches="tight")
+        st.download_button(
+            f"Download {name}.svg",
+            data=buf.getvalue(),
+            file_name=f"{name}.svg",
+            mime="image/svg+xml",
+        )
+    
+    
+    # =====================
+    # v89 UI helpers (append-only)
+    # =====================
+    def _v89_margin_waterfall_fig(constraints):
+        import matplotlib.pyplot as plt
+        rows = []
+        for r in constraints or []:
+            name = r.get("name","")
+            sm = r.get("signed_margin", None)
+            if name and isinstance(sm, (int,float)):
+                rows.append((name, float(sm)))
+        if not rows:
+            return None
+        rows.sort(key=lambda x: x[1])
+        names = [n for n,_ in rows][:40]
+        vals = [v for _,v in rows][:40]
+        fig, ax = plt.subplots()
+        ax.barh(names, vals)
+        ax.axvline(0.0)
+        ax.set_xlabel("signed_margin")
+        ax.set_title("Constraint Margin Waterfall")
+        fig.tight_layout()
+        return fig
+    
+    def _v89_boundary_heatmap(points, xcol, ycol):
+        import numpy as np
+        import matplotlib.pyplot as plt
+        xs = [p.get(xcol) for p in points]
+        ys = [p.get(ycol) for p in points]
+        xs = [x for x in xs if isinstance(x,(int,float))]
+        ys = [y for y in ys if isinstance(y,(int,float))]
+        if not xs or not ys:
+            return None
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+        nx, ny = 40, 40
+        grid = np.full((ny, nx), np.nan)
+        counts = np.zeros((ny, nx), dtype=int)
+        hits = np.zeros((ny, nx), dtype=int)
+        for p in points:
+            x = p.get(xcol); y = p.get(ycol)
+            if not isinstance(x,(int,float)) or not isinstance(y,(int,float)):
+                continue
+            ix = int((x - x_min) / (x_max - x_min + 1e-12) * (nx-1))
+            iy = int((y - y_min) / (y_max - y_min + 1e-12) * (ny-1))
+            counts[iy, ix] += 1
+            hits[iy, ix] += 1 if p.get("feasible", False) else 0
+        mask = counts > 0
+        grid[mask] = hits[mask] / counts[mask]
+        fig, ax = plt.subplots()
+        im = ax.imshow(grid, origin="lower", extent=[x_min,x_max,y_min,y_max], aspect="auto")
+        ax.set_xlabel(xcol)
+        ax.set_ylabel(ycol)
+        ax.set_title("Feasibility Boundary Map (binned feasibility fraction)")
+        fig.colorbar(im, ax=ax, label="feasible fraction")
+        fig.tight_layout()
+        return fig
+    
+    def _v89_constraint_intersections(points, topn=10):
+        from collections import Counter
+        c = Counter()
+        for p in points:
+            if p.get("feasible", False):
+                continue
+            acts = p.get("active_constraints", [])
+            if not isinstance(acts, list):
+                continue
+            acts = [a for a in acts if isinstance(a,str) and a][:6]
+            for i in range(len(acts)):
+                for j in range(i+1, len(acts)):
+                    pair = tuple(sorted((acts[i], acts[j])))
+                    c[pair] += 1
+        return c.most_common(topn)
+    
+    
+    # =====================
+    # v89.1 UI state persistence helpers (append-only)
+    # =====================
+    def _v89_1_render_cached_point():
+        import streamlit as st
+        if "pd_last_outputs" not in st.session_state or "pd_last_artifact" not in st.session_state:
+            st.info("No cached Point Designer result yet. Click 'Evaluate Point' to compute one.")
+            return
+        st.info("Showing last Point Designer results (cached). Downloads should not clear results.")
+    
+        out = st.session_state["pd_last_outputs"]
+        artifact = st.session_state["pd_last_artifact"]
+    
+        # KPI summary (best effort)
         try:
-            import io
-            import matplotlib.pyplot as plt
-            prov = art.get("provenance", {}) if isinstance(art.get("provenance"), dict) else {}
-            d = _decision_summary_from_artifact(art)
-            fig = plt.figure(figsize=(10, 5))
-            ax = fig.add_subplot(111)
-            ax.axis("off")
-            title = "SHAMS Decision Summary"
-            verdict = "FEASIBLE" if d["feasible"] else "INFEASIBLE"
-            ax.text(0.02, 0.92, f"{title} - {verdict}", fontsize=16, weight="bold")
-            ax.text(0.02, 0.82, f"Q: {d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q','-'))}    Pfus(MW): {d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW','-'))}", fontsize=12)
-            ax.text(0.02, 0.72, "Top blockers:", fontsize=12, weight="bold")
-            y=0.66
-            for b in (d["top_blockers"] or [])[:6]:
-                ax.text(0.04, y, f"- {b.get('group','')}: {b.get('name','')}", fontsize=11)
-                y -= 0.06
-            footer = f"repo_version={prov.get('repo_version')}  git={prov.get('git_commit')}  python={prov.get('python')}"
-            ax.text(0.02, 0.03, footer, fontsize=9)
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
-            plt.close(fig)
-            st.download_button("Download one-slide summary PNG", data=buf.getvalue(), file_name="shams_one_slide.png",
-                               mime="image/png", key="dl_png_slide")
-        except Exception as e:
-            st.warning(f"PNG summary unavailable: {e}")
-
-with tab_solver:
-    st.header("Solver Introspection")
-    st.caption("Inspect solver trace/clamp/residual info from artifacts or the last Point Designer run.")
-
-    art = st.session_state.get("selected_artifact")
-    if not isinstance(art, dict) or not art:
-        st.info("No session artifact loaded. Upload one below to inspect solver annotations.")
-        up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="solver_up")
-        art = _load_json_from_upload(up)
-
-    if art:
-        trace = art.get("solver_trace") if isinstance(art.get("solver_trace"), dict) else None
-        if trace:
-            st.subheader("solver_trace (artifact)")
-            st.json(trace)
-        else:
-            st.subheader("Solver annotations (best-effort)")
-            flat = {}
-            for k,v in art.items():
-                if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
-                    flat[k]=v
-            kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
-            for k,v in kpis.items():
-                if isinstance(k,str) and (k.startswith("_solver") or k.startswith("_H98") or k.startswith("_Q")):
-                    flat[f"kpis.{k}"]=v
-            if flat:
-                st.json(flat)
-            else:
-                st.info("No solver trace fields found in artifact.")
-
-        st.divider()
-        st.subheader("CCFS verifier (external solver firewall)")
-        st.caption("Verify an external candidate bundle against frozen truth. Runs do not modify SHAMS physics.")
-        up_ccfs = st.file_uploader("Upload ccfs_bundle.json", type=["json"], key="ccfs_up_v294")
-        b = _load_json_from_upload(up_ccfs)
-        if isinstance(b, dict):
-            req_cols = st.columns(2)
-            with req_cols[0]:
-                do_phase = st.checkbox("Require phase envelope PASS", value=True, key="ccfs_req_phase_v294")
-            with req_cols[1]:
-                do_uq = st.checkbox("Require UQ contract not FAIL", value=False, key="ccfs_req_uq_v294")
-
-            if st.button("Verify CCFS bundle", use_container_width=True, key="ccfs_btn_v294"):
-                try:
-                    from extopt.certified_solve import verify_ccfs_bundle
-                    res = verify_ccfs_bundle(b, default_request={"phase_envelope": bool(do_phase), "uq_contracts": bool(do_uq)})
-                    st.success("CCFS verification complete.")
-                    st.json(res, expanded=False)
-                    _v98_record_run("ccfs_verify", res, mode="ControlRoom/Diagnostics")
-                except Exception as e:
-                    st.error(f"CCFS verification failed: {e}")
-
-
-# --- Copyright notice
-st.markdown('---')
-st.caption('© 2026 Afshin Arjhangmehr - SHAMS–FUSION-X')
-
-
-# =====================
-# v88 UI helpers (append-only)
-# =====================
-def _v88_continuation_explorer(path):
-    import pandas as pd, streamlit as st
-    if not path:
-        st.info("No continuation path available.")
-        return
-    df = pd.DataFrame(path)
-    st.line_chart(df.select_dtypes("number"))
-
-def _v88_boundary_map(points):
-    import pandas as pd, streamlit as st
-    if not points:
-        st.info("No scan points available.")
-        return
-    df = pd.DataFrame(points)
-    if "x" in df.columns and "min_signed_margin" in df.columns:
-        st.scatter_chart(df, x="x", y="min_signed_margin", color="feasible")
-
-def _v88_export_svg(fig, name):
-    import io, streamlit as st
-    buf = io.BytesIO()
-    fig.savefig(buf, format="svg", bbox_inches="tight")
-    st.download_button(
-        f"Download {name}.svg",
-        data=buf.getvalue(),
-        file_name=f"{name}.svg",
-        mime="image/svg+xml",
-    )
-
-
-# =====================
-# v89 UI helpers (append-only)
-# =====================
-def _v89_margin_waterfall_fig(constraints):
-    import matplotlib.pyplot as plt
-    rows = []
-    for r in constraints or []:
-        name = r.get("name","")
-        sm = r.get("signed_margin", None)
-        if name and isinstance(sm, (int,float)):
-            rows.append((name, float(sm)))
-    if not rows:
-        return None
-    rows.sort(key=lambda x: x[1])
-    names = [n for n,_ in rows][:40]
-    vals = [v for _,v in rows][:40]
-    fig, ax = plt.subplots()
-    ax.barh(names, vals)
-    ax.axvline(0.0)
-    ax.set_xlabel("signed_margin")
-    ax.set_title("Constraint Margin Waterfall")
-    fig.tight_layout()
-    return fig
-
-def _v89_boundary_heatmap(points, xcol, ycol):
-    import numpy as np
-    import matplotlib.pyplot as plt
-    xs = [p.get(xcol) for p in points]
-    ys = [p.get(ycol) for p in points]
-    xs = [x for x in xs if isinstance(x,(int,float))]
-    ys = [y for y in ys if isinstance(y,(int,float))]
-    if not xs or not ys:
-        return None
-    x_min, x_max = min(xs), max(xs)
-    y_min, y_max = min(ys), max(ys)
-    nx, ny = 40, 40
-    grid = np.full((ny, nx), np.nan)
-    counts = np.zeros((ny, nx), dtype=int)
-    hits = np.zeros((ny, nx), dtype=int)
-    for p in points:
-        x = p.get(xcol); y = p.get(ycol)
-        if not isinstance(x,(int,float)) or not isinstance(y,(int,float)):
-            continue
-        ix = int((x - x_min) / (x_max - x_min + 1e-12) * (nx-1))
-        iy = int((y - y_min) / (y_max - y_min + 1e-12) * (ny-1))
-        counts[iy, ix] += 1
-        hits[iy, ix] += 1 if p.get("feasible", False) else 0
-    mask = counts > 0
-    grid[mask] = hits[mask] / counts[mask]
-    fig, ax = plt.subplots()
-    im = ax.imshow(grid, origin="lower", extent=[x_min,x_max,y_min,y_max], aspect="auto")
-    ax.set_xlabel(xcol)
-    ax.set_ylabel(ycol)
-    ax.set_title("Feasibility Boundary Map (binned feasibility fraction)")
-    fig.colorbar(im, ax=ax, label="feasible fraction")
-    fig.tight_layout()
-    return fig
-
-def _v89_constraint_intersections(points, topn=10):
-    from collections import Counter
-    c = Counter()
-    for p in points:
-        if p.get("feasible", False):
-            continue
-        acts = p.get("active_constraints", [])
-        if not isinstance(acts, list):
-            continue
-        acts = [a for a in acts if isinstance(a,str) and a][:6]
-        for i in range(len(acts)):
-            for j in range(i+1, len(acts)):
-                pair = tuple(sorted((acts[i], acts[j])))
-                c[pair] += 1
-    return c.most_common(topn)
-
-
-# =====================
-# v89.1 UI state persistence helpers (append-only)
-# =====================
-def _v89_1_render_cached_point():
-    import streamlit as st
-    if "pd_last_outputs" not in st.session_state or "pd_last_artifact" not in st.session_state:
-        st.info("No cached Point Designer result yet. Click 'Evaluate Point' to compute one.")
-        return
-    st.info("Showing last Point Designer results (cached). Downloads should not clear results.")
-
-    out = st.session_state["pd_last_outputs"]
-    artifact = st.session_state["pd_last_artifact"]
-
-    # KPI summary (best effort)
-    try:
-        with st.expander("Point summary (cached)", expanded=False):
-            kpis = headline_kpis(out)
-            for i in range(0, len(kpis), 4):
-                kpi_row(kpis[i:i+4])
-    except Exception:
-        pass
-
-    # Exports (cached bytes if available)
-    with st.expander("Exports (external systems codes-style artifacts) - cached", expanded=False):
-        try:
-            st.download_button(
-                "Download run artifact JSON",
-                data=_shams_json_dumps(artifact, indent=2, sort_keys=True),
-                file_name="shams_run_artifact.json",
-                mime="application/json",
-                use_container_width=True,
-                key="pd_cached_artifact_json",
-            )
+            with st.expander("Point summary (cached)", expanded=False):
+                kpis = headline_kpis(out)
+                for i in range(0, len(kpis), 4):
+                    kpi_row(kpis[i:i+4])
         except Exception:
             pass
-
-        # Radial build PNG (prefer cached bytes)
+    
+        # Exports (cached bytes if available)
+        with st.expander("Exports (external systems codes-style artifacts) - cached", expanded=False):
+            try:
+                st.download_button(
+                    "Download run artifact JSON",
+                    data=_shams_json_dumps(artifact, indent=2, sort_keys=True),
+                    file_name="shams_run_artifact.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="pd_cached_artifact_json",
+                )
+            except Exception:
+                pass
+    
+            # Radial build PNG (prefer cached bytes)
+            state = st.session_state.get('shams_state', None)
+            rb = (
+                state.last_point_radial_png
+                if state and getattr(state, 'last_point_radial_png', None) is not None
+                else st.session_state.get("pd_last_radial_png_bytes", None)
+            )
+            if isinstance(rb, (bytes, bytearray)) and len(rb) > 0:
+                st.download_button(
+                    "Download radial build PNG",
+                    data=rb,
+                    file_name="shams_radial_build.png",
+                    mime="image/png",
+                    use_container_width=True,
+                    key="pd_cached_radial_png",
+                )
+            else:
+                # Generate on demand (still should not clear results since out/artifact is cached)
+                try:
+                    tmpdir = tempfile.mkdtemp(prefix="shams_export_")
+                    radial_path = os.path.join(tmpdir, "radial_build.png")
+                    plot_radial_build_from_artifact(artifact, radial_path)
+                    with open(radial_path, "rb") as f:
+                        st.download_button(
+                            "Download radial build PNG",
+                            data=f.read(),
+                            file_name="shams_radial_build.png",
+                            mime="image/png",
+                            use_container_width=True,
+                            key="pd_cached_radial_png_gen",
+                        )
+                except Exception:
+                    st.caption("Radial-build export unavailable for this point.")
+    
+    
+    # =====================
+    # v89.2 UI state persistence + controls (append-only)
+    # =====================
+    def _v89_2_point_cache_ui():
+        import streamlit as st
+        st.subheader("Cached Point Designer Result")
+        c1, c2 = st.columns([1,3])
+        with c1:
+            if st.button("Clear cached result", key="pd_clear_cache"):
+                for k in ["pd_last_outputs", "pd_last_artifact", "pd_last_radial_png_bytes"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.success("Cleared.")
+                st.stop()
+        with c2:
+            st.caption("Cached results persist across reruns (e.g., after downloads).")
+    
         state = st.session_state.get('shams_state', None)
-        rb = (
-            state.last_point_radial_png
-            if state and getattr(state, 'last_point_radial_png', None) is not None
-            else st.session_state.get("pd_last_radial_png_bytes", None)
+        art = (state.last_point_artifact if state and getattr(state,'last_point_artifact',None) is not None else st.session_state.get("pd_last_artifact", None))
+        out = (state.last_point_outputs if state and getattr(state,'last_point_outputs',None) is not None else st.session_state.get("pd_last_outputs", None))
+        if art is None or out is None:
+            st.info("No cached result yet. Run Point Designer once to populate this.")
+            return
+    
+        rb = (state.last_point_radial_png if state and getattr(state,'last_point_radial_png',None) is not None else st.session_state.get("pd_last_radial_png_bytes", None))
+        if isinstance(rb, (bytes, bytearray)) and len(rb) > 0:
+            st.image(rb, caption="Radial build (cached export preview)", use_container_width=True)
+    
+        import json as _json
+        st.download_button(
+            "Download run artifact JSON",
+            data=_json.dumps(art, indent=2, sort_keys=True),
+            file_name="shams_run_artifact.json",
+            mime="application/json",
+            use_container_width=True,
+            key="pd_dl_artifact_cached",
         )
         if isinstance(rb, (bytes, bytearray)) and len(rb) > 0:
             st.download_button(
@@ -22264,5301 +22446,5224 @@ def _v89_1_render_cached_point():
                 file_name="shams_radial_build.png",
                 mime="image/png",
                 use_container_width=True,
-                key="pd_cached_radial_png",
+                key="pd_dl_radial_cached",
             )
-        else:
-            # Generate on demand (still should not clear results since out/artifact is cached)
-            try:
-                tmpdir = tempfile.mkdtemp(prefix="shams_export_")
-                radial_path = os.path.join(tmpdir, "radial_build.png")
-                plot_radial_build_from_artifact(artifact, radial_path)
-                with open(radial_path, "rb") as f:
-                    st.download_button(
-                        "Download radial build PNG",
-                        data=f.read(),
-                        file_name="shams_radial_build.png",
-                        mime="image/png",
-                        use_container_width=True,
-                        key="pd_cached_radial_png_gen",
-                    )
-            except Exception:
-                st.caption("Radial-build export unavailable for this point.")
-
-
-# =====================
-# v89.2 UI state persistence + controls (append-only)
-# =====================
-def _v89_2_point_cache_ui():
-    import streamlit as st
-    st.subheader("Cached Point Designer Result")
-    c1, c2 = st.columns([1,3])
-    with c1:
-        if st.button("Clear cached result", key="pd_clear_cache"):
-            for k in ["pd_last_outputs", "pd_last_artifact", "pd_last_radial_png_bytes"]:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.success("Cleared.")
-            st.stop()
-    with c2:
-        st.caption("Cached results persist across reruns (e.g., after downloads).")
-
-    state = st.session_state.get('shams_state', None)
-    art = (state.last_point_artifact if state and getattr(state,'last_point_artifact',None) is not None else st.session_state.get("pd_last_artifact", None))
-    out = (state.last_point_outputs if state and getattr(state,'last_point_outputs',None) is not None else st.session_state.get("pd_last_outputs", None))
-    if art is None or out is None:
-        st.info("No cached result yet. Run Point Designer once to populate this.")
-        return
-
-    rb = (state.last_point_radial_png if state and getattr(state,'last_point_radial_png',None) is not None else st.session_state.get("pd_last_radial_png_bytes", None))
-    if isinstance(rb, (bytes, bytearray)) and len(rb) > 0:
-        st.image(rb, caption="Radial build (cached export preview)", use_container_width=True)
-
-    import json as _json
-    st.download_button(
-        "Download run artifact JSON",
-        data=_json.dumps(art, indent=2, sort_keys=True),
-        file_name="shams_run_artifact.json",
-        mime="application/json",
-        use_container_width=True,
-        key="pd_dl_artifact_cached",
-    )
-    if isinstance(rb, (bytes, bytearray)) and len(rb) > 0:
-        st.download_button(
-            "Download radial build PNG",
-            data=rb,
-            file_name="shams_radial_build.png",
-            mime="image/png",
-            use_container_width=True,
-            key="pd_dl_radial_cached",
+    
+    
+    
+    def _v92_state_clear_point():
+        import streamlit as st
+        s = _v92_state_get()
+        s.last_point_inputs = None
+        s.last_point_outputs = None
+        s.last_point_artifact = None
+        s.last_point_radial_png = None
+        for k in ["pd_last_outputs", "pd_last_artifact", "pd_last_radial_png_bytes"]:
+            if k in st.session_state:
+                del st.session_state[k]
+    
+    def _v92_schema_validate_ui():
+        import streamlit as st
+        from pathlib import Path
+        st.subheader("Artifact Schema Validation")
+        st.caption("Offline validator. Upload JSON + choose schema; SHAMS reports PASS/FAIL.")
+        up = st.file_uploader("Upload JSON to validate", type=["json"], key="v92_schema_json")
+        schema = st.selectbox(
+            "Schema",
+            [
+                "schemas/shams_run_artifact.schema.json",
+                "schemas/shams_feasible_set.schema.json",
+                "schemas/process_handoff.schema.json",
+            ],
+            key="v92_schema_pick",
         )
-
-
-# =====================
-# v92 UI state-machine helpers (append-only)
-# =====================
-def _v92_state_get():
-    import streamlit as st
-    st.session_state.setdefault("shams_state", SessionStateModel())
-    s = st.session_state["shams_state"]
-    if getattr(s, 'run_history', None) is None:
-        s.run_history = []
-    if getattr(s, 'pinned_run_ids', None) is None:
-        s.pinned_run_ids = []
-    return s
-
-def _v92_state_clear_point():
-    import streamlit as st
-    s = _v92_state_get()
-    s.last_point_inputs = None
-    s.last_point_outputs = None
-    s.last_point_artifact = None
-    s.last_point_radial_png = None
-    for k in ["pd_last_outputs", "pd_last_artifact", "pd_last_radial_png_bytes"]:
-        if k in st.session_state:
-            del st.session_state[k]
-
-def _v92_schema_validate_ui():
-    import streamlit as st
-    from pathlib import Path
-    st.subheader("Artifact Schema Validation")
-    st.caption("Offline validator. Upload JSON + choose schema; SHAMS reports PASS/FAIL.")
-    up = st.file_uploader("Upload JSON to validate", type=["json"], key="v92_schema_json")
-    schema = st.selectbox(
-        "Schema",
-        [
-            "schemas/shams_run_artifact.schema.json",
-            "schemas/shams_feasible_set.schema.json",
-            "schemas/process_handoff.schema.json",
-        ],
-        key="v92_schema_pick",
-    )
-    if up is None:
-        st.info("Upload a JSON file to validate.")
-        return
-    try:
-        obj = json.load(up)
-    except Exception as e:
-        st.error(f"Could not parse JSON: {e!r}")
-        return
-    try:
-        from tools.validate_schemas import _fallback_validate
-        sch = json.loads(Path(schema).read_text(encoding="utf-8"))
+        if up is None:
+            st.info("Upload a JSON file to validate.")
+            return
         try:
-            import jsonschema  # type: ignore
-            jsonschema.validate(instance=obj, schema=sch)
-            st.success("PASS (jsonschema)")
-        except ImportError:
-            errs = _fallback_validate(obj, sch)
-            if errs:
-                st.error("FAIL (fallback)")
-                for e in errs:
-                    st.write("- " + e)
-            else:
-                st.success("PASS (fallback)")
+            obj = json.load(up)
         except Exception as e:
-            st.error("FAIL (jsonschema)")
-            st.write(str(e))
-    except Exception as e:
-        st.error(f"Validator error: {e!r}")
-
-
-# =====================
-# v93 UI helpers (append-only)
-# =====================
-# -----------------------------
-# JSON safety helpers (cycle-safe) - required for export/download stability
-# -----------------------------
-def _v93_validate_before_download(obj, schema_path: str):
-    """Return (ok, errors). Uses jsonschema if available, else fallback."""
-    import json as _json
-    from pathlib import Path
-    try:
-        sch = _json.loads(Path(schema_path).read_text(encoding="utf-8"))
+            st.error(f"Could not parse JSON: {e!r}")
+            return
         try:
-            import jsonschema  # type: ignore
-            jsonschema.validate(instance=obj, schema=sch)
-            return True, []
-        except ImportError:
             from tools.validate_schemas import _fallback_validate
-            errs = _fallback_validate(obj, sch)
-            return (len(errs) == 0), errs
-    except Exception as e:
-        return False, [repr(e)]
-
-def _v93_paper_figures_pack_panel():
-    import streamlit as st
-    s = _v92_state_get()
-    st.subheader("Paper Figures Pack")
-    if not s.has_point():
-        st.info("Run Point Designer first; pack is built from cached Point artifact.")
-        return
-    try:
-        from tools.paper_figures_pack import build_figures_pack_bytes
-        if st.button("Build paper figures pack", key="v93_build_figpack"):
-            s.last_figures_pack_zip = build_figures_pack_bytes(s.last_point_artifact)
-            st.success("Figures pack built.")
-        b = getattr(s, "last_figures_pack_zip", None)
-        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
-            st.download_button(
-                "Download paper_figures_pack.zip",
-                data=b,
-                file_name="paper_figures_pack.zip",
-                mime="application/zip",
-                use_container_width=True,
-                key="v93_dl_figpack",
-            )
-    except Exception:
-        st.caption("Figures pack unavailable.")
-
-
-def _v93_stateful_scan_panel():
-    import streamlit as st
-    s = _v92_state_get()
-    st.subheader("Scan Ledger (cached artifact)")
-    if s.last_scan_points is None:
-        st.info("No cached scan yet.")
-        return
-    scan_obj = {"kind":"shams_feasible_set","meta": s.last_scan_meta or {}, "points": s.last_scan_points}
-    ok, errs = _v93_validate_before_download(scan_obj, "schemas/shams_feasible_set.schema.json")
-    if ok: st.success("Schema: PASS")
-    else:
-        st.warning("Schema: FAIL")
-        for e in errs[:10]: st.write("- " + str(e))
-    st.download_button("Download feasible_scan.json (stateful)",
-                       data=_json.dumps(scan_obj, indent=2, sort_keys=True),
-                       file_name="feasible_scan.json", mime="application/json",
-                       use_container_width=True, key="v93_dl_scan_stateful")
-
-def _v93_stateful_systems_panel():
-    import streamlit as st
-    s = _v92_state_get()
-    st.subheader("Run Ledger (cached artifacts)")
-    if s.last_systems_result is None:
-        if s.has_point():
-            st.info("No cached systems yet (no successful Systems solve). Point artifact is available - run a Systems solve to generate a Systems artifact.")
-        else:
-            st.info("No cached systems yet.")
-        return
-    ok, errs = _v93_validate_before_download(s.last_systems_result, "schemas/shams_run_artifact.schema.json")
-    if ok: st.success("Schema: PASS")
-    else:
-        st.warning("Schema: FAIL")
-        for e in errs[:10]: st.write("- " + str(e))
-    st.download_button("Download systems_artifact.json (stateful)",
-                       data=_shams_json_dumps(s.last_systems_result, indent=2, sort_keys=True),
-                       file_name="systems_artifact.json", mime="application/json",
-                       use_container_width=True, key="v93_dl_systems_stateful")
-
-
-def _v182_render_latest_systems_solve_results(*, artifact: dict, point_artifact: dict | None = None, key_prefix: str = "v182_latest"):
-    """Render the latest Systems *solve* results from a cached run artifact.
-
-    This MUST be safe across Streamlit reruns (e.g., download_button triggers rerun).
-    Therefore it takes a fully self-contained artifact and does not rely on locals.
-    """
-    import streamlit as st
-    import json
-
-    # Schema hardening: upgrade + validate (non-fatal; never blocks UI)
-    try:
-        try:
-            from src.systems.schema import upgrade_systems_artifact, validate_systems_artifact
-        except Exception:  # pragma: no cover
-            from systems.schema import upgrade_systems_artifact, validate_systems_artifact
-        artifact = upgrade_systems_artifact(artifact or {})
-        _issues = validate_systems_artifact(artifact)
-        if _issues:
-            with st.expander("Schema warnings (non-fatal)", expanded=False):
-                for msg in _issues:
-                    st.warning(msg)
-    except Exception:
-        pass
-    try:
-        outs = (artifact or {}).get('headline') or (artifact or {}).get('outputs') or {}
-    except Exception:
-        outs = {}
-
-    st.markdown("### Latest Systems solve results")
-    # Unique suffix so this function can be called multiple times in the same Streamlit run
-    try:
-        _rid = (artifact or {}).get("rid") or (artifact or {}).get("run_id") or (artifact or {}).get("metadata", {}).get("rid")
-    except Exception:
-        _rid = None
-    try:
-        _suffix = str(_rid) if _rid else __import__("hashlib").sha1(__import__("json").dumps(artifact, sort_keys=True).encode("utf-8")).hexdigest()[:10]
-    except Exception:
-        _suffix = "na"
-    _k_art = f"{key_prefix}_dl_systems_artifact_{_suffix}"
-    _k_zip = f"{key_prefix}_dl_systems_bundle_{_suffix}"
-
-    # Always-available downloads (do not depend on a button-click run path)
-    st.download_button(
-        "Download systems-mode run artifact JSON",
-        data=_shams_json_dumps(artifact, indent=2, sort_keys=True),
-        file_name="shams_run_artifact_systems.json",
-        mime="application/json",
-        use_container_width=True,
-        key=_k_art,
-    )
-
-    # Optional export bundle (safe; uses cached artifacts)
-    try:
-        from tools.export.bundle import build_export_bundle_bytes
-        bundle_bytes = build_export_bundle_bytes(
-            repo_root=BASE_DIR,
-            point_artifact=point_artifact,
-            systems_artifact=artifact,
-            scan_artifact=None,
-            pareto_artifact=None,
-            opt_artifact=None,
-            feasible_search_artifact=None,
-            include_readme=True,
-        )
-        st.download_button(
-            "Download export bundle ZIP",
-            data=bundle_bytes,
-            file_name="shams_export_bundle_systems.zip",
-            mime="application/zip",
-            use_container_width=True,
-            key=_k_zip,
-        )
-    except Exception as _e:
-        st.caption(f"Export bundle unavailable: {_e}")
-
-    # Key results
-    kcols = st.columns(4)
-    def _k(col, key, fmt="{:.3g}"):
-        try:
-            v = float(outs.get(key, float('nan')))
-        except Exception:
-            v = float('nan')
-        with col:
-            st.metric(key, fmt.format(v) if v == v else "NaN")
-
-    _k(kcols[0], "Q_DT_eqv")
-    _k(kcols[1], "H98")
-    _k(kcols[2], "P_e_net_MW")
-    _k(kcols[3], "q_div_MW_m2")
-
-    # Constraints table (if present)
-    try:
-        rows = (artifact or {}).get('constraints')
-        if isinstance(rows, list) and rows:
-            with st.expander("Constraints & margins (cached)", expanded=False):
-                import pandas as pd
-                st.dataframe(pd.DataFrame(rows), use_container_width=True)
-    except Exception:
-        pass
-
-def _v184_render_latest_feasible_search_results(*, report: dict, key_prefix: str = "v184_fs_latest") -> None:
-    """Rerun-safe renderer for Feasible Design Search results.
-
-    The search is easy to 'lose' in Streamlit after a button click because the app reruns and
-    the workflow step may change. This renderer provides a stable, cached view.
-    """
-    import streamlit as st
-    try:
-        import pandas as pd
-    except Exception:
-        pd = None  # type: ignore
-
-    if not isinstance(report, dict) or not report:
-        st.info("No cached feasible-search results yet.")
-        return
-
-    ok = bool(report.get('ok'))
-    reason = str(report.get('reason', ''))
-    obj = str(report.get('objective', ''))
-    ts_unix = report.get('ts_unix')
-    try:
-        ts_str = datetime.datetime.fromtimestamp(float(ts_unix)).strftime('%Y-%m-%d %H:%M:%S') if ts_unix else ''
-    except Exception:
-        ts_str = ''
-
-    if ok:
-        st.success(f"Feasible Search: **OK** - {reason} - best objective: {report.get('best_obj')}  {('(' + ts_str + ')') if ts_str else ''}")
-    else:
-        st.warning(f"Feasible Search: **NO RESULT** - {reason}  {('(' + ts_str + ')') if ts_str else ''}")
-
-    # Compact summary
-    st.json({k: report.get(k) for k in ['ok','reason','objective','budget','topk','multi_seed_runs','radius','seed','vars','start_feasible','best_obj','best_V'] if k in report})
-
-    # Download JSON (stable key prefix avoids duplicates)
-    try:
-        st.download_button(
-            label="Download feasible-search artifact JSON",
-            data=_shams_json_dumps(report, indent=2, sort_keys=True),
-            file_name="feasible_search_artifact.json",
-            mime="application/json",
-            key=f"{key_prefix}_dl_fs_artifact",
-            use_container_width=True,
-        )
-    except Exception:
-        pass
-
-    # Candidates table
-    try:
-        cands = list(report.get('candidates', []) or [])
-        if cands and pd is not None:
-            rows = []
-            for i, c in enumerate(cands):
-                x = c.get('x', {}) or {}
-                m = c.get('margins', {}) or {}
-                row = {'rank': i+1, 'obj': c.get('obj'), 'V': c.get('V'), 'feasible': c.get('feasible')}
-                # Common margins (if present)
-                for nm in ['q95','q_div','P_SOL/R','B_peak','sigma_vm','HTS margin','TBR','NWL']:
-                    if nm in m:
-                        row[f'm_{nm}'] = m.get(nm)
-                # Variables
-                for k in (report.get('vars', []) or []):
-                    row[k] = x.get(k)
-                rows.append(row)
-            if rows:
-                st.dataframe(pd.DataFrame(rows), use_container_width=True)
-    except Exception:
-        pass
-
-def _v93_stateful_sandbox_panel():
-    import streamlit as st
-    s = _v92_state_get()
-    st.subheader("📌 Forge Cache (stateful sandbox)")
-    if s.last_sandbox_run is None:
-        st.info("No cached sandbox yet.")
-        return
-    st.download_button("Download sandbox_run.json (stateful)",
-                       data=_json.dumps(s.last_sandbox_run, indent=2, sort_keys=True),
-                       file_name="sandbox_run.json", mime="application/json",
-                       use_container_width=True, key="v93_dl_sandbox_stateful")
-
-
-# =====================
-# v94 Run Records + Unified Export (append-only)
-# =====================
-def _v94_record_run(kind: str, payload: dict):
-    import time
-    s = _v92_state_get()
-    try:
-        s.run_history.append({
-            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "kind": kind,
-            "summary": {
-                "feasible": payload.get("meta", {}).get("feasible", payload.get("feasible", None)),
-                "version": payload.get("version", None),
-            },
-        })
-    except Exception:
-        pass
-
-def _v94_run_records_page():
-    import streamlit as st
-    s = _v92_state_get()
-    st.subheader("Run Records")
-    st.caption("Timeline of actions in this session.")
-    if not s.run_history:
-        st.info("No run records yet.")
-        return
-    for i, r in enumerate(reversed(s.run_history[-50:]), 1):
-        st.write(f"{i}. {r.get('ts','?')} - {r.get('kind','?')} - {r.get('summary',{})}")
-
-def _v94_unified_export_bundle_panel():
-    import streamlit as st
-    from pathlib import Path
-    s = _v92_state_get()
-    st.subheader("Unified Export Bundle")
-    st.caption("One zip: artifacts + capsule + schemas + figures pack. Best-effort.")
-    if not (s.has_point() or s.last_systems_result or s.last_scan_points or s.last_sandbox_run):
-        st.info("Nothing cached yet. Run at least one mode first.")
-        return
-
-    scan_obj = None
-    if s.last_scan_points is not None:
-        scan_obj = {"kind":"shams_feasible_set","meta": s.last_scan_meta or {}, "points": s.last_scan_points}
-
-    # Validation summary (best-effort)
-    if s.has_point():
-        ok, errs = _v93_validate_before_download(s.last_point_artifact, "schemas/shams_run_artifact.schema.json")
-        if ok: st.success("Point artifact schema: PASS")
-        else:
-            st.warning("Point artifact schema: FAIL")
-            for e in errs[:8]: st.write("- " + str(e))
-    if scan_obj is not None:
-        ok, errs = _v93_validate_before_download(scan_obj, "schemas/shams_feasible_set.schema.json")
-        if ok: st.success("Scan feasible set schema: PASS")
-        else:
-            st.warning("Scan feasible set schema: FAIL")
-            for e in errs[:8]: st.write("- " + str(e))
-
-    try:
-        from tools.export.bundle import build_export_bundle_bytes
-        if st.button("Build unified export bundle", key="v94_build_bundle"):
-            b = build_export_bundle_bytes(
-                repo_root=Path("."),
-                point_artifact=s.last_point_artifact if s.has_point() else None,
-                systems_artifact=s.last_systems_result,
-                feasible_search_artifact=getattr(s, "last_feasible_search_artifact", None),
-                certified_search_artifact=st.session_state.get("last_certified_search_artifact", None),
-                repair_evidence_artifact=st.session_state.get("last_repair_evidence_artifact", None),
-                interval_refinement_artifact=st.session_state.get("last_interval_refinement_artifact", None),
-                scan_artifact=scan_obj,
-                pareto_artifact=getattr(s, "last_pareto_artifact", None),
-                opt_artifact=getattr(s, "last_opt_artifact", None),
-                sandbox_run=s.last_sandbox_run,
-                figures_pack_zip=getattr(s, "last_figures_pack_zip", None),
-            )
-            st.session_state["v94_bundle_bytes"] = b
-            st.success("Bundle built.")
-        b = st.session_state.get("v94_bundle_bytes", None)
-        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
-            st.download_button("Download shams_export_bundle.zip", data=b,
-                               file_name="shams_export_bundle.zip", mime="application/zip",
-                               use_container_width=True, key="v94_dl_bundle")
-    except Exception as e:
-        st.error(f"Bundle builder unavailable: {e!r}")
-
-
-if _deck == "🎛️ Control Room":
-    try:
-        _v94_run_records_page()
-    except Exception:
-        pass
-
-
-# =====================
-# v98 validation gate (append-only)
-# =====================
-def _v98_validation_gate_ui(title: str, ok: bool, errs):
-    import streamlit as st
-    if ok:
-        st.success(f"{title}: schema PASS")
-        return True
-    st.error(f"{title}: schema FAIL (download allowed, but NOT publishable)")
-    for e in (errs or [])[:12]:
-        st.write("- " + str(e))
-    return False
-
-
-# =====================
-
-# =====================
-# v98 Run Ledger (append-only)
-# =====================
-def _v98_state_init_runlists():
-    import streamlit as st
-    s = _v92_state_get()
-    if getattr(s, "run_history", None) is None: s.run_history = []
-    if getattr(s, "pinned_run_ids", None) is None: s.pinned_run_ids = []
-    # v130: persistent run vault (opt-in, default ON)
-    if 'vault_enabled' not in st.session_state:
-        st.session_state['vault_enabled'] = True
-    if 'vault_limit' not in st.session_state:
-        st.session_state['vault_limit'] = 50
-    return s
-
-def _v98_make_run_id(prefix: str) -> str:
-    import time, random
-    return f"{prefix}_{int(time.time())}_{random.randint(1000,9999)}"
-
-def _v98_record_run(kind: str, payload, mode: str = "") -> str:
-    import streamlit as st
-    from tools import run_vault
-    from pathlib import Path
-    import time
-    s = _v98_state_init_runlists()
-    rid = _v98_make_run_id(kind)
-    s.run_history.append({"id": rid, "ts": time.strftime("%Y-%m-%d %H:%M:%S"), "kind": kind, "mode": mode, "payload": payload})
-    try:
-        _alog(mode or kind, 'RecordRun', {'rid': rid, 'kind': kind})
-    except Exception:
-        pass  # ActivityLogRecordRun
-
-    # v130: persist to vault (storage only) - must never break UI
-    try:
-        if bool(st.session_state.get("vault_enabled", True)):
-            root = Path(__file__).resolve().parents[1]
-            run_vault.write_entry(root=root, kind=kind, payload=payload, mode=mode, tags={"rid": rid})
-    except Exception:
-        pass
-
-    return rid
-
-
-def _v98_json_diff(a, b, path=""):
-    diffs = []
-    if type(a) != type(b):
-        diffs.append(path or "<root>"); return diffs
-    if isinstance(a, dict):
-        keys = set(a.keys()) | set(b.keys())
-        for k in sorted(keys):
-            diffs += _v98_json_diff(a.get(k, "<missing>"), b.get(k, "<missing>"), (path + "/" + str(k)) if path else "/" + str(k))
-        return diffs
-    if isinstance(a, list):
-        n = max(len(a), len(b))
-        for i in range(n):
-            diffs += _v98_json_diff(a[i] if i < len(a) else "<missing>", b[i] if i < len(b) else "<missing>", f"{path}[{i}]")
-        return diffs
-    if a != b: diffs.append(path or "<root>")
-    return diffs
-
-def _v98_run_ledger_page():
-    import streamlit as st
-    s = _v98_state_init_runlists()
-    st.subheader("Run Ledger")
-    st.caption("Session-persistent run artifacts with pin/compare.")
-    if not s.run_history:
-        st.info("No recorded runs yet.")
-        return
-    for r in reversed(s.run_history[-100:]):
-        rid = r.get("id")
-        c1,c2,c3 = st.columns([3,1,1])
-        with c1: st.write(f"**{rid}** - {r.get('ts')} - {r.get('kind')} ({r.get('mode')})")
-        with c2:
-            pinned = rid in s.pinned_run_ids
-            if st.button("Unpin" if pinned else "Pin", key=f"pin_{rid}"):
-                if pinned: s.pinned_run_ids.remove(rid)
-                else: s.pinned_run_ids.append(rid)
-                st.rerun()
-        with c3:
-            st.download_button("JSON", data=_json.dumps(r.get("payload", {}), indent=2, sort_keys=True), file_name=f"{rid}.json", mime="application/json", key=f"dl_{rid}")
-    st.divider()
-    st.subheader("Compare two pinned runs")
-    pins = list(s.pinned_run_ids)
-    if len(pins) < 2:
-        st.info("Pin at least two runs to compare.")
-        return
-    a_id = st.selectbox("Run A", pins, key="cmp_a")
-    b_id = st.selectbox("Run B", pins, index=1, key="cmp_b")
-    A = next((x for x in s.run_history if x.get("id")==a_id), None)
-    B = next((x for x in s.run_history if x.get("id")==b_id), None)
-    if A and B:
-        diffs = _v98_json_diff(A.get("payload",{}), B.get("payload",{}))
-        st.write(f"Changed fields: {len(diffs)}")
-        for d in diffs[:200]: st.write("- " + d)
-
-
-def _v98_process_handoff_panel():
-    import streamlit as st
-    s = _v92_state_get()
-    st.subheader("external systems codes Handoff")
-    st.caption("Exports a external systems codes-oriented handoff JSON (SHAMS upstream feasibility auditor).")
-    if not s.has_point():
-        st.info("Run Point Designer first.")
-        return
-    from tools.interoperability.process_handoff import make_process_handoff
-    ho = make_process_handoff(s.last_point_artifact)
-    ok, errs = _v93_validate_before_download(ho, "schemas/process_handoff.schema.json")
-    _v98_validation_gate_ui("external systems codes handoff", ok, errs)
-    st.download_button("Download process_handoff.json", data=_json.dumps(ho, indent=2, sort_keys=True),
-                       file_name="process_handoff.json", mime="application/json", use_container_width=True, key="v98_dl_process_handoff")
-
-
-# =====================
-# v99 Session Report Export (append-only)
-# =====================
-def _v99_session_report_panel():
-    import streamlit as st
-    s = _v98_state_init_runlists()
-    st.subheader("Session Report Export")
-    st.caption("Exports a single zip: run ledger + pinned runs + diffs. Optional: include unified export bundle if built.")
-    if not s.run_history:
-        st.info("No runs recorded yet.")
-        return
-
-    include_bundle = st.checkbox("Include unified export bundle (if already built)", value=True, key="v99_inc_bundle")
-    if st.button("Build session report zip", key="v99_build_report"):
-        try:
-            from tools.export.session_report import build_session_report_zip
-            bundle = st.session_state.get("v94_bundle_bytes", None) if include_bundle else None
-            b = build_session_report_zip(
-                version=str(getattr(s, "version", None) or "v99"),
-                run_history=list(s.run_history),
-                pinned_ids=list(s.pinned_run_ids or []),
-                unified_export_bundle_bytes=bundle if isinstance(bundle, (bytes, bytearray)) else None,
-            )
-            st.session_state["v99_session_report_zip"] = b
-            st.success("Session report built.")
-        except Exception as e:
-            st.error(f"Failed to build session report: {e!r}")
-
-    b = st.session_state.get("v99_session_report_zip", None)
-    if isinstance(b, (bytes, bytearray)) and len(b) > 0:
-        st.download_button(
-            "Download shams_session_report.zip",
-            data=b,
-            file_name="shams_session_report.zip",
-            mime="application/zip",
-            use_container_width=True,
-            key="v99_dl_report",
-        )
-
-
-# =====================
-# v103 Audit Pack + Atlas + Sandbox Plus panels (append-only)
-# =====================
-def _v103_audit_pack_panel():
-    import streamlit as st
-    s = _v98_state_init_runlists()
-    st.subheader("Audit Pack")
-    st.caption("Single zip: selected artifacts + schemas + environment + manifest (journal/regulator-ready).")
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    picked = st.multiselect("Include runs", options=ids, default=list(s.pinned_run_ids or []), key="v103_audit_pick")
-    include_pf = st.checkbox("Include pip freeze (best-effort)", value=True, key="v103_audit_pf")
-    if st.button("Build audit pack zip", key="v103_build_audit"):
-        try:
-            from tools.audit_pack import build_audit_pack_zip
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            arts = []
-            for rid in picked:
-                r = run_map.get(rid)
-                if r and isinstance(r.get("payload"), dict):
-                    arts.append(r["payload"])
-            b = build_audit_pack_zip(version="v103", artifacts=arts, schema_dir="schemas", include_pip_freeze=include_pf)
-            st.session_state["v103_audit_zip"] = b
-            st.success("Audit pack built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-    b = st.session_state.get("v103_audit_zip")
-    if isinstance(b, (bytes, bytearray)) and len(b) > 0:
-        st.download_button("Download shams_audit_pack.zip", data=b, file_name="shams_audit_pack.zip", mime="application/zip", use_container_width=True, key="v103_dl_audit")
-
-def _v103_atlas_panel():
-    import streamlit as st
-    st.subheader("Feasibility Boundary Atlas")
-    st.caption("Deterministic nearest-feasible sweeps using SHAMS frontier search (audit-ready).")
-    s = _v92_state_get()
-    if not getattr(s, "last_point_inp", None):
-        st.info("Run Point Designer first (uses last point inputs).")
-        return
-    base = s.last_point_inp
-    # Default lever bounds (conservative, user-editable)
-    levers = {
-        "R0_m": (max(0.5, float(getattr(base, "R0_m", 2.0))*0.7), float(getattr(base, "R0_m", 2.0))*1.3),
-        "a_m": (max(0.2, float(getattr(base, "a_m", 0.6))*0.7), float(getattr(base, "a_m", 0.6))*1.3),
-        "Bt_T": (max(1.0, float(getattr(base, "Bt_T", 12.0))*0.7), float(getattr(base, "Bt_T", 12.0))*1.3),
-        "Ip_MA": (max(0.1, float(getattr(base, "Ip_MA", 8.0))*0.7), float(getattr(base, "Ip_MA", 8.0))*1.3),
-        "fG": (max(0.1, float(getattr(base, "fG", 0.8))*0.7), min(1.2, float(getattr(base, "fG", 0.8))*1.3)),
-    }
-    n_random = st.slider("Random samples", 20, 300, 80, 10, key="v103_atlas_n")
-    seed = st.number_input("Seed", value=0, step=1, key="v103_atlas_seed")
-    if st.button("Build Atlas", key="v103_build_atlas"):
-        try:
-            from tools.frontier_atlas import build_feasibility_atlas
-            atlas = build_feasibility_atlas(base, levers=levers, targets=None, n_random=int(n_random), seed=int(seed), n_slices=5)
-            st.session_state["v103_atlas"] = atlas
-            _v98_record_run("atlas", atlas, mode="feasibility_atlas")
-            st.success("Atlas built and recorded in Run Ledger.")
-        except Exception as e:
-            st.error(f"Atlas failed: {e!r}")
-    atlas = st.session_state.get("v103_atlas")
-    if isinstance(atlas, dict):
-        st.write("Reports:", int(atlas.get("n_reports", 0)))
-        st.download_button("Download feasibility_atlas.json", data=_json.dumps(atlas, indent=2, sort_keys=True),
-                           file_name="feasibility_atlas.json", mime="application/json", use_container_width=True, key="v103_dl_atlas")
-
-def _v103_sandbox_plus_panel():
-    import streamlit as st
-    st.subheader("Optimizer Sandbox Plus")
-    st.caption("Safe orchestration layer: random/LHS exploration with feasibility-first behavior and full logs.")
-    s = _v92_state_get()
-    if not getattr(s, "last_point_inp", None):
-        st.info("Run Point Designer first (uses last point inputs as baseline).")
-        return
-    base = s.last_point_inp
-    strat = st.selectbox("Strategy", ["random", "lhs"], index=0, key="v103_sb_strat")
-    obj = st.selectbox("Objective", ["min_R0", "min_Bpeak", "max_Pnet", "min_recirc"], index=0, key="v103_sb_obj")
-    max_evals = st.slider("Max evals", 20, 1000, 200, 20, key="v103_sb_evals")
-    seed = st.number_input("Seed", value=0, step=1, key="v103_sb_seed")
-    levers = {
-        "R0_m": (max(0.5, float(getattr(base, "R0_m", 2.0))*0.7), float(getattr(base, "R0_m", 2.0))*1.3),
-        "a_m": (max(0.2, float(getattr(base, "a_m", 0.6))*0.7), float(getattr(base, "a_m", 0.6))*1.3),
-        "Bt_T": (max(1.0, float(getattr(base, "Bt_T", 12.0))*0.7), float(getattr(base, "Bt_T", 12.0))*1.3),
-        "Ip_MA": (max(0.1, float(getattr(base, "Ip_MA", 8.0))*0.7), float(getattr(base, "Ip_MA", 8.0))*1.3),
-        "fG": (max(0.1, float(getattr(base, "fG", 0.8))*0.7), min(1.2, float(getattr(base, "fG", 0.8))*1.3)),
-    }
-    if st.button("Run Sandbox Plus", key="v103_run_sandbox_plus"):
-        try:
-            from tools.sandbox_plus import run_sandbox
-            run = run_sandbox(base, levers=levers, objective=obj, max_evals=int(max_evals), seed=int(seed), strategy=strat)
-            st.session_state["v103_sandbox_plus"] = run
-            _v98_record_run("sandbox_plus", run, mode="optimizer_sandbox_plus")
-            st.success("Sandbox run complete and recorded.")
-        except Exception as e:
-            st.error(f"Sandbox failed: {e!r}")
-    run = st.session_state.get("v103_sandbox_plus")
-    if isinstance(run, dict):
-        st.download_button("Download sandbox_plus.json", data=_json.dumps(run, indent=2, sort_keys=True),
-                           file_name="sandbox_plus.json", mime="application/json", use_container_width=True, key="v103_dl_sandbox_plus")
-
-
-# =====================
-# v104 Feasible Space Topology (append-only)
-# =====================
-def _v104_topology_panel():
-    import streamlit as st
-    from tools.topology import build_feasible_topology, extract_feasible_points_from_payload
-
-    st.subheader("Feasible Space Topology")
-    st.caption("Builds a connectivity graph of feasible designs (components = design 'islands').")
-
-    s = _v98_state_init_runlists()
-    if not s.run_history:
-        st.info("No runs recorded yet.")
-        return
-
-    # pick source runs (default pinned)
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Source runs", options=ids, default=default_ids, key="v104_topology_pick")
-    eps = st.slider("Connectivity threshold (scaled distance)", 0.05, 0.50, 0.18, 0.01, key="v104_topology_eps")
-    max_pts = st.slider("Max points (cap)", 50, 600, 300, 10, key="v104_topology_cap")
-
-    if st.button("Build topology", key="v104_build_topology"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            pts = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict):
-                    pts += extract_feasible_points_from_payload(payload)
-            topo = build_feasible_topology(pts, eps=float(eps), max_points=int(max_pts))
-            st.session_state["v104_topology"] = topo
-            _v98_record_run("topology", topo, mode="feasible_topology")
-            st.success(f"Topology built: {topo.get('n_points',0)} points, {len(topo.get('components',[]))} components.")
-        except Exception as e:
-            st.error(f"Topology build failed: {e!r}")
-
-    topo = st.session_state.get("v104_topology")
-    if isinstance(topo, dict):
-        comps = topo.get("components", [])
-        st.write({
-            "points": int(topo.get("n_points", 0)),
-            "edges": int(topo.get("n_edges", 0)),
-            "components": int(len(comps) if isinstance(comps, list) else 0),
-            "largest_component": int(len(comps[0]) if isinstance(comps, list) and comps else 0),
-        })
-        if isinstance(comps, list) and comps:
-            st.write("Component sizes:", [len(c) for c in comps[:10]])
-        st.download_button("Download feasible_topology.json",
-                           data=_json.dumps(topo, indent=2, sort_keys=True),
-                           file_name="feasible_topology.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v104_dl_topology")
-
-
-# =====================
-# v105 Constraint Dominance & Sensitivity (append-only)
-# =====================
-def _v105_constraint_dominance_panel():
-    import streamlit as st
-    from tools.constraint_dominance import build_constraint_dominance_report
-
-    st.subheader("Constraint Dominance")
-    st.caption("Ranks which constraints most strongly limit feasibility (failures + near-boundary).")
-
-    s = _v98_state_init_runlists()
-    if not s.run_history:
-        st.info("No runs recorded yet.")
-        return
-
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Source runs (run artifacts only)", options=ids, default=default_ids, key="v105_dom_pick")
-    near = st.slider("Near-boundary threshold (margin_frac)", 0.00, 0.25, 0.05, 0.01, key="v105_dom_near")
-    fail_w = st.slider("Failure weight", 1.0, 10.0, 4.0, 0.5, key="v105_dom_failw")
-
-    if st.button("Build dominance report", key="v105_build_dom"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            payloads = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
-                    payloads.append(payload)
-            rep = build_constraint_dominance_report(payloads, near_threshold=float(near), fail_weight=float(fail_w))
-            st.session_state["v105_dom"] = rep
-            _v98_record_run("dominance", rep, mode="constraint_dominance")
-            st.success(f"Built dominance report for {rep.get('n_rows',0)} constraint rows.")
-        except Exception as e:
-            st.error(f"Dominance failed: {e!r}")
-
-    rep = st.session_state.get("v105_dom")
-    if isinstance(rep, dict):
-        ranked = rep.get("constraints_ranked", [])
-        if isinstance(ranked, list) and ranked:
-            top = ranked[:8]
-            st.write([{"name": r.get("name"), "score": r.get("dominance_score"), "fail_rate": r.get("fail_rate"), "near_rate": r.get("near_boundary_rate")} for r in top])
-        st.download_button("Download constraint_dominance_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="constraint_dominance_report.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v105_dl_dom")
-
-
-# =====================
-# v106 Failure Mode Taxonomy (append-only)
-# =====================
-def _v106_failure_taxonomy_panel():
-    import streamlit as st
-    from tools.failure_taxonomy import build_failure_taxonomy_report
-
-    st.subheader("Failure Mode Taxonomy")
-    st.caption("Classifies infeasible run artifacts by dominant failing constraint and aggregates failure modes.")
-
-    s = _v98_state_init_runlists()
-    if not s.run_history:
-        st.info("No runs recorded yet.")
-        return
-
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Source runs (run artifacts only)", options=ids, default=default_ids, key="v106_fail_pick")
-
-    if st.button("Build failure taxonomy", key="v106_build_fail"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            payloads = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
-                    payloads.append(payload)
-            rep = build_failure_taxonomy_report(payloads)
-            st.session_state["v106_fail"] = rep
-            _v98_record_run("failures", rep, mode="failure_taxonomy")
-            st.success(f"Built failure taxonomy for {rep.get('n_failures',0)} failing runs.")
-        except Exception as e:
-            st.error(f"Failure taxonomy failed: {e!r}")
-
-    rep = st.session_state.get("v106_fail")
-    if isinstance(rep, dict):
-        st.write({"failures": rep.get("n_failures"), "modes": len(rep.get("counts_by_mode",{}))})
-        top = list(rep.get("counts_by_mode", {}).items())[:10]
-        if top:
-            st.write([{"mode": k, "count": v} for k,v in top])
-        st.download_button("Download failure_taxonomy_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="failure_taxonomy_report.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v106_dl_fail")
-
-
-# =====================
-# v107 Feasibility Science Pack (append-only)
-# =====================
-def _v107_science_pack_panel():
-    import streamlit as st
-    from tools.science_pack import build_feasibility_science_pack
-
-    st.subheader("Feasibility Science Pack")
-    st.caption("One-click export: topology + dominance + failures + publishable report + zip.")
-
-    s = _v98_state_init_runlists()
-    if not s.run_history:
-        st.info("No runs recorded yet.")
-        return
-
-    # Pull latest artifacts from session state if present, else try to find from run history
-    topo = st.session_state.get("v104_topology")
-    dom = st.session_state.get("v105_dom")
-    fail = st.session_state.get("v106_fail")
-
-    # fallback: scan run history for latest by mode
-    def _latest_by_mode(mode_name: str):
-        for r in reversed(s.run_history or []):
-            if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
-                return r.get("payload")
-        return None
-
-    if topo is None:
-        topo = _latest_by_mode("feasible_topology")
-    if dom is None:
-        dom = _latest_by_mode("constraint_dominance")
-    if fail is None:
-        fail = _latest_by_mode("failure_taxonomy")
-
-    ready = isinstance(topo, dict) and isinstance(dom, dict) and isinstance(fail, dict)
-    st.write({
-        "topology_loaded": isinstance(topo, dict),
-        "dominance_loaded": isinstance(dom, dict),
-        "failures_loaded": isinstance(fail, dict),
-        "ready": ready,
-    })
-    if not ready:
-        st.info("Build topology, dominance, and failure taxonomy first.")
-        return
-
-    version = st.text_input("Pack version label", value="v107", key="v107_pack_version")
-    if st.button("Build Feasibility Science Pack", key="v107_build_pack"):
-        try:
-            pack = build_feasibility_science_pack(
-                topology=topo,
-                dominance=dom,
-                failures=fail,
-                source_run_ids=list(s.pinned_run_ids or []),
-                version=str(version),
-            )
-            st.session_state["v107_pack"] = pack
-            # record summary only (zip bytes excluded from run ledger)
-            _v98_record_run("science_pack", {"kind": "shams_feasibility_science_pack_summary", "summary": pack.get("summary")}, mode="feasibility_science_pack")
-            st.success("Science pack built.")
-        except Exception as e:
-            st.error(f"Science pack failed: {e!r}")
-
-    pack = st.session_state.get("v107_pack")
-    if isinstance(pack, dict):
-        st.write(pack.get("summary", {}))
-        zip_bytes = pack.get("zip_bytes")
-        if isinstance(zip_bytes, (bytes, bytearray)):
-            st.download_button(
-                "Download feasibility_science_pack.zip",
-                data=bytes(zip_bytes),
-                file_name="feasibility_science_pack.zip",
-                mime="application/zip",
-                use_container_width=True,
-                key="v107_dl_pack_zip",
-            )
-        manifest = dict(pack)
-        manifest.pop("zip_bytes", None)
-        st.download_button(
-            "Download science_pack_manifest.json",
-            data=_json.dumps(manifest, indent=2, sort_keys=True),
-            file_name="science_pack_manifest.json",
-            mime="application/json",
-            use_container_width=True,
-            key="v107_dl_pack_manifest",
-        )
-
-
-# =====================
-# v108 external systems codes Downstream Export (append-only)
-# =====================
-def _v108_process_downstream_panel():
-    import streamlit as st
-    from tools.process_downstream import build_process_downstream_bundle
-
-    st.subheader("external systems codes Downstream Export")
-    st.caption("Exports SHAMS run artifacts to a transparent (systems-code-inspired) table so external systems codes becomes downstream.")
-
-    s = _v98_state_init_runlists()
-    if not s.run_history:
-        st.info("No runs recorded yet.")
-        return
-
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Run artifacts to export", options=ids, default=default_ids, key="v108_proc_pick")
-    version = st.text_input("Export version label", value="v108", key="v108_proc_version")
-
-    if st.button("Build external systems codes downstream bundle", key="v108_proc_build"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            payloads = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
-                    payloads.append(payload)
-            pack = build_process_downstream_bundle(payloads, version=str(version), source_run_ids=list(picked))
-            st.session_state["v108_proc_pack"] = pack
-            # record summary only
-            _v98_record_run("process_downstream", {"kind":"shams_process_downstream_summary","summary":pack.get("summary")}, mode="process_downstream")
-            st.success("external systems codes downstream bundle built.")
-        except Exception as e:
-            st.error(f"Export failed: {e!r}")
-
-    pack = st.session_state.get("v108_proc_pack")
-    if isinstance(pack, dict):
-        st.write(pack.get("summary", {}))
-        zip_bytes = pack.get("zip_bytes")
-        if isinstance(zip_bytes, (bytes, bytearray)):
-            st.download_button(
-                "Download process_downstream_bundle.zip",
-                data=bytes(zip_bytes),
-                file_name="process_downstream_bundle.zip",
-                mime="application/zip",
-                use_container_width=True,
-                key="v108_proc_dl_zip",
-            )
-        manifest = dict(pack)
-        manifest.pop("zip_bytes", None)
-        st.download_button(
-            "Download process_downstream_manifest.json",
-            data=_json.dumps(manifest, indent=2, sort_keys=True),
-            file_name="process_downstream_manifest.json",
-            mime="application/json",
-            use_container_width=True,
-            key="v108_proc_dl_manifest",
-        )
-
-
-# =====================
-# v109 Island Inspector (append-only)
-# =====================
-def _v109_island_inspector_panel():
-    import streamlit as st
-    from tools.component_dominance import build_component_dominance_report
-
-    st.subheader("Island Inspector")
-    st.caption("Per-feasible-island dominance + boundary-near failure modes.")
-
-    s = _v98_state_init_runlists()
-    # Get topology + failure taxonomy from session/run ledger
-    topo = st.session_state.get("v104_topology")
-    dom = st.session_state.get("v105_dom")  # not required, but should exist for prior steps
-    fail = st.session_state.get("v106_fail")
-
-    def _latest_by_mode(mode_name: str):
-        for r in reversed(s.run_history or []):
-            if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
-                return r.get("payload")
-        return None
-
-    if topo is None:
-        topo = _latest_by_mode("feasible_topology")
-    if fail is None:
-        fail = _latest_by_mode("failure_taxonomy")
-
-    st.write({"topology_loaded": isinstance(topo, dict), "failures_loaded": isinstance(fail, dict)})
-    if not isinstance(topo, dict):
-        st.info("Build topology first.")
-        return
-
-    # choose run artifacts to assign
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Run artifacts to use (feasible ones define islands)", options=ids, default=default_ids, key="v109_pick_runs")
-    near = st.slider("Near-boundary threshold (margin_frac)", 0.00, 0.25, 0.05, 0.01, key="v109_near")
-    fail_w = st.slider("Failure weight", 1.0, 10.0, 4.0, 0.5, key="v109_failw")
-
-    if st.button("Build component dominance report", key="v109_build"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            payloads = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
-                    payloads.append(payload)
-            rep = build_component_dominance_report(topology=topo, run_artifacts=payloads, failure_taxonomy=fail, near_threshold=float(near), fail_weight=float(fail_w))
-            st.session_state["v109_components"] = rep
-            _v98_record_run("islands", rep, mode="component_dominance")
-            st.success(f"Built component report for {rep.get('n_components',0)} components.")
-        except Exception as e:
-            st.error(f"v109 failed: {e!r}")
-
-    rep = st.session_state.get("v109_components")
-    if isinstance(rep, dict):
-        comps = rep.get("components", [])
-        if isinstance(comps, list) and comps:
-            st.write("Top components (by size):")
-            st.write([{
-                "component": c.get("component_index"),
-                "size_pts": c.get("component_size_points"),
-                "runs": c.get("n_feasible_runs_assigned"),
-                "top_constraint": (c.get("dominance_top_constraints") or [{}])[0].get("name") if isinstance(c.get("dominance_top_constraints"), list) and c.get("dominance_top_constraints") else None,
-                "top_failure_mode": (c.get("top_failure_modes_near_component") or [{}])[0].get("mode") if isinstance(c.get("top_failure_modes_near_component"), list) and c.get("top_failure_modes_near_component") else None,
-            } for c in comps[:12]])
-        st.download_button("Download component_dominance_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="component_dominance_report.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v109_dl_report")
-
-
-# =====================
-# v110 Boundary Atlas v2 (append-only)
-# =====================
-def _v110_boundary_atlas_panel():
-    import streamlit as st
-    from tools.boundary_atlas_v2 import build_boundary_atlas_v2
-    from tools.plot_boundary_atlas_v2 import main as _plot_cli  # not used directly
-
-    st.subheader("Feasibility Boundary Atlas v2")
-    st.caption("Extracts explicit feasible/infeasible boundaries for lever-pair slices, with failure-mode labels (best-effort).")
-
-    s = _v98_state_init_runlists()
-    topo = st.session_state.get("v104_topology")
-    fail = st.session_state.get("v106_fail")
-
-    def _latest_by_mode(mode_name: str):
-        for r in reversed(s.run_history or []):
-            if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
-                return r.get("payload")
-        return None
-
-    if fail is None:
-        fail = _latest_by_mode("failure_taxonomy")
-
-    # Use pinned runs as sources; include atlas/sandbox/topology artifacts if present in history
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Source run artifacts (infeasible + feasible)", options=ids, default=default_ids, key="v110_pick_runs")
-    q = st.slider("Boundary proximity quantile (lower = tighter)", 0.05, 0.80, 0.25, 0.05, key="v110_q")
-    maxpairs = st.slider("Max lever pairs", 1, 8, 6, 1, key="v110_maxpairs")
-
-    if st.button("Build Boundary Atlas v2", key="v110_build"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            payloads = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
-                    payloads.append(payload)
-            rep = build_boundary_atlas_v2(payloads, failure_taxonomy=fail, max_pairs=int(maxpairs), proximity_quantile=float(q))
-            st.session_state["v110_boundary_atlas"] = rep
-            _v98_record_run("atlas_v2", rep, mode="boundary_atlas_v2")
-            st.success(f"Built atlas slices: {len(rep.get('slices', []))}")
-        except Exception as e:
-            st.error(f"v110 failed: {e!r}")
-
-    rep = st.session_state.get("v110_boundary_atlas")
-    if isinstance(rep, dict):
-        st.write({"slices": len(rep.get("slices", [])), "lever_pairs": rep.get("lever_pairs")})
-        st.download_button("Download boundary_atlas_v2.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="boundary_atlas_v2.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v110_dl_json")
-
-
-# =====================
-# v111 Design Family Explorer (append-only)
-# =====================
-def _v111_design_family_panel():
-    import streamlit as st
-    from tools.design_family import build_design_family_report
-
-    st.subheader("Design Family Explorer")
-    st.caption("Safe local exploration within a feasible island (no optimization).")
-
-    s = _v98_state_init_runlists()
-    topo = st.session_state.get("v104_topology")
-    def _latest_by_mode(mode_name: str):
-        for r in reversed(s.run_history or []):
-            if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
-                return r.get("payload")
-        return None
-    if topo is None:
-        topo = _latest_by_mode("feasible_topology")
-
-    if not isinstance(topo, dict):
-        st.info("Build topology first.")
-        return
-
-    comps = topo.get("components", [])
-    ncomp = len(comps) if isinstance(comps, list) else 0
-    st.write({"n_components": ncomp})
-
-    # choose baseline run (for full PointInputs)
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_id = (list(s.pinned_run_ids or [])[:1] or [ids[0] if ids else None])[0]
-    baseline_id = st.selectbox("Baseline run artifact (provides full inputs)", options=[None] + ids, index=(1 if default_id in ids else 0), key="v111_base_id")
-    comp_idx = st.number_input("Component index", min_value=0, max_value=max(0, ncomp-1), value=0, step=1, key="v111_comp_idx")
-    n_samples = st.slider("Samples", 10, 240, 120, 10, key="v111_ns")
-    radius = st.slider("Local radius (fraction of lever span)", 0.01, 0.25, 0.08, 0.01, key="v111_rad")
-    seed = st.number_input("Seed", min_value=0, max_value=10_000_000, value=0, step=1, key="v111_seed")
-
-    if st.button("Run Design Family Explorer", key="v111_run"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            payload = (run_map.get(baseline_id) or {}).get("payload") if baseline_id else None
-            if not (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact"):
-                st.error("Baseline run artifact not found. Pin/select a valid run artifact first.")
-                return
-            base_inputs = payload.get("inputs", {})
-            if not isinstance(base_inputs, dict):
-                st.error("Baseline inputs invalid.")
-                return
-
-            rep = build_design_family_report(
-                topology=topo,
-                component_index=int(comp_idx),
-                baseline_inputs=base_inputs,
-                n_samples=int(n_samples),
-                radius_frac=float(radius),
-                seed=int(seed),
-            )
-            st.session_state["v111_family"] = rep
-            _v98_record_run("design_family", rep, mode="design_family")
-            st.success("Design family report built.")
-        except Exception as e:
-            st.error(f"v111 failed: {e!r}")
-
-    rep = st.session_state.get("v111_family")
-    if isinstance(rep, dict):
-        st.write({
-            "component_index": rep.get("component_index"),
-            "n_samples": rep.get("n_samples"),
-            "feasible_fraction": rep.get("feasible_fraction"),
-            "top_worst_hard": (rep.get("worst_hard_ranked") or [{}])[0],
-        })
-        st.download_button("Download design_family_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="design_family_report.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v111_dl_json")
-
-
-# =====================
-# v112 Literature Overlay (append-only)
-# =====================
-def _v112_literature_overlay_panel():
-    import streamlit as st
-    from tools.literature_overlay import template_payload, validate_literature_points
-    from tools.literature_overlay import extract_xy_points
-
-    st.subheader("Literature Overlay")
-    st.caption("Upload a JSON of reference points (ITER/ARC/SPARC/etc.) and overlay on Boundary Atlas slices. SHAMS ships only a template.")
-
-    if "v112_overlay" not in st.session_state:
-        st.session_state["v112_overlay"] = template_payload(version="v112")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.download_button(
-            "Download overlay template JSON",
-            data=_json.dumps(template_payload(version="v112"), indent=2, sort_keys=True),
-            file_name="literature_points_template.json",
-            mime="application/json",
-            use_container_width=True,
-            key="v112_dl_template",
-        )
-    with c2:
-        up = st.file_uploader("Upload literature_points.json", type=["json"], key="v112_upload")
-        if up is not None:
+            sch = json.loads(Path(schema).read_text(encoding="utf-8"))
             try:
-                payload = _json.loads(up.getvalue().decode("utf-8"))
-                errs = validate_literature_points(payload)
-                st.session_state["v112_overlay"] = payload
+                import jsonschema  # type: ignore
+                jsonschema.validate(instance=obj, schema=sch)
+                st.success("PASS (jsonschema)")
+            except ImportError:
+                errs = _fallback_validate(obj, sch)
                 if errs:
-                    st.warning(f"Loaded with warnings: {errs[:8]}")
+                    st.error("FAIL (fallback)")
+                    for e in errs:
+                        st.write("- " + e)
                 else:
-                    st.success("Overlay loaded.")
+                    st.success("PASS (fallback)")
             except Exception as e:
-                st.error(f"Failed to parse JSON: {e!r}")
-
-    overlay = st.session_state.get("v112_overlay")
-    st.write({"n_points": len((overlay or {}).get("points", [])) if isinstance(overlay, dict) else None})
-
-    atlas = st.session_state.get("v110_boundary_atlas")
-    if isinstance(atlas, dict) and isinstance(overlay, dict):
-        slices = atlas.get("slices", [])
-        if isinstance(slices, list) and slices:
-            st.write("Preview overlay-able slices (first 6):")
-            prev = []
-            for sl in slices[:6]:
-                if not isinstance(sl, dict):
-                    continue
-                kx = sl.get("lever_x"); ky = sl.get("lever_y")
-                if isinstance(kx, str) and isinstance(ky, str):
-                    prev.append({"x": kx, "y": ky, "points_available": len(extract_xy_points(overlay, kx, ky))})
-            st.write(prev)
-
-
-# =====================
-# v113 Design Decision Layer (append-only)
-# =====================
-def _v113_design_decision_panel():
-    import streamlit as st
-    from tools.design_decision_layer import build_design_candidates, build_design_decision_pack
-
-    st.subheader("Design Decision Layer")
-    st.caption("Build defensible design candidates + comparison table + exportable decision pack (no optimization).")
-
-    s = _v98_state_init_runlists()
-
-    topo = st.session_state.get("v104_topology")
-    comp = st.session_state.get("v109_components")
-    atlas = st.session_state.get("v110_boundary_atlas")
-    fam = st.session_state.get("v111_family")
-    overlay = st.session_state.get("v112_overlay")
-
-    # pick candidate artifacts from pinned runs (feasible only)
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    default_ids = list(s.pinned_run_ids or [])
-    picked = st.multiselect("Candidate source run artifacts (feasible ones)", options=ids, default=default_ids, key="v113_pick")
-    maxc = st.slider("Max candidates", 1, 20, 12, 1, key="v113_maxc")
-
-    if st.button("Build candidates + decision pack", key="v113_build"):
-        try:
-            run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-            artifacts = []
-            for rid in picked:
-                payload = (run_map.get(rid) or {}).get("payload")
-                if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
-                    artifacts.append(payload)
-
-            candidates = build_design_candidates(
-                artifacts=artifacts,
-                topology=topo if isinstance(topo, dict) else None,
-                component_dominance=comp if isinstance(comp, dict) else None,
-                boundary_atlas_v2=atlas if isinstance(atlas, dict) else None,
-                design_family_report=fam if isinstance(fam, dict) else None,
-                literature_overlay=overlay if isinstance(overlay, dict) else None,
-                max_candidates=int(maxc),
-            )
-            pack = build_design_decision_pack(candidates=candidates, version="v113")
-            st.session_state["v113_candidates"] = candidates
-            st.session_state["v113_pack"] = pack
-            _v98_record_run("design_decision_pack", {"candidates": candidates, "manifest": pack.get("manifest")}, mode="design_decision_pack")
-            st.success(f"Built {len(candidates)} candidates.")
+                st.error("FAIL (jsonschema)")
+                st.write(str(e))
         except Exception as e:
-            st.error(f"v113 failed: {e!r}")
-
-    candidates = st.session_state.get("v113_candidates")
-    pack = st.session_state.get("v113_pack")
-    if isinstance(candidates, list) and candidates:
-        st.write("Candidate preview (first 5):")
-        st.write([{
-            "id": c.get("source_artifact_id"),
-            "component": c.get("component_index"),
-            "worst": (c.get("feasibility") or {}).get("worst_hard"),
-            "margin": (c.get("feasibility") or {}).get("worst_hard_margin_frac"),
-            "family_feas": (c.get("robustness") or {}).get("family_feasible_fraction"),
-        } for c in candidates[:5]])
-        st.download_button("Download candidates.json",
-                           data=_json.dumps({"candidates": candidates}, indent=2, sort_keys=True),
-                           file_name="candidates.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v113_dl_candidates")
-
-    if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download design_decision_pack.zip",
-                           data=pack["zip_bytes"],
-                           file_name="design_decision_pack.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v113_dl_pack")
-
-
-# =====================
-# v114 Preference-Aware Decision Layer (append-only)
-# =====================
-def _v114_preference_panel():
-    import streamlit as st
-    from tools.preference_layer import template_preferences, annotate_candidates_with_preferences, pareto_sets_from_annotations
-    from tools.design_decision_layer import build_design_decision_pack
-
-    st.subheader("Preference-Aware Decision Layer")
-    st.caption("Preference sliders annotate candidates (scores + Pareto sets). No optimization; no auto-selection.")
-
-    # candidates from v113
-    candidates = st.session_state.get("v113_candidates")
-    if not (isinstance(candidates, list) and candidates):
-        st.info("Build v113 candidates first (Design Decision Layer).")
-        return
-
-    if "v114_prefs" not in st.session_state:
-        st.session_state["v114_prefs"] = template_preferences()
-
-    prefs = st.session_state["v114_prefs"]
-    weights = (prefs.get("weights") if isinstance(prefs, dict) else None)
-    if not isinstance(weights, dict):
-        weights = {}
-
-    st.write("Weights (0 disables a metric).")
-    c1, c2 = st.columns(2)
-    with c1:
-        weights["margin"] = st.slider("margin (worst constraint margin)", 0.0, 2.0, float(weights.get("margin", 1.0)), 0.1, key="v114_w_margin")
-        weights["robustness"] = st.slider("robustness (family feasible fraction)", 0.0, 2.0, float(weights.get("robustness", 1.0)), 0.1, key="v114_w_rob")
-        weights["boundary_clearance"] = st.slider("boundary clearance (2D proxy)", 0.0, 2.0, float(weights.get("boundary_clearance", 0.7)), 0.1, key="v114_w_bd")
-    with c2:
-        weights["compactness"] = st.slider("compactness (smaller R0)", 0.0, 2.0, float(weights.get("compactness", 0.3)), 0.1, key="v114_w_comp")
-        weights["low_aux_power"] = st.slider("low aux power (smaller Paux)", 0.0, 2.0, float(weights.get("low_aux_power", 0.2)), 0.1, key="v114_w_paux")
-
-    prefs["weights"] = weights
-    st.session_state["v114_prefs"] = prefs
-
-    metrics = st.multiselect("Pareto metrics (normalized)", options=["margin","robustness","boundary_clearance","compactness","low_aux_power"],
-                             default=["margin","robustness","boundary_clearance"], key="v114_metrics")
-
-    if st.button("Annotate + compute Pareto sets", key="v114_run"):
+            st.error(f"Validator error: {e!r}")
+    
+    
+    # =====================
+    # v93 UI helpers (append-only)
+    # =====================
+    # -----------------------------
+    # JSON safety helpers (cycle-safe) - required for export/download stability
+    # -----------------------------
+    def _v93_validate_before_download(obj, schema_path: str):
+        """Return (ok, errors). Uses jsonschema if available, else fallback."""
+        import json as _json
+        from pathlib import Path
         try:
-            ann = annotate_candidates_with_preferences(candidates, prefs)
-            pareto = pareto_sets_from_annotations(ann, metrics=metrics, max_fronts=3)
-            st.session_state["v114_ann"] = ann
-            st.session_state["v114_pareto"] = pareto
-            st.success("v114 annotations + Pareto computed.")
+            sch = _json.loads(Path(schema_path).read_text(encoding="utf-8"))
+            try:
+                import jsonschema  # type: ignore
+                jsonschema.validate(instance=obj, schema=sch)
+                return True, []
+            except ImportError:
+                from tools.validate_schemas import _fallback_validate
+                errs = _fallback_validate(obj, sch)
+                return (len(errs) == 0), errs
         except Exception as e:
-            st.error(f"v114 failed: {e!r}")
-
-    ann = st.session_state.get("v114_ann")
-    pareto = st.session_state.get("v114_pareto")
-
-    if isinstance(ann, dict):
-        # show top composite scores (best-effort)
-        cands = ann.get("candidates", [])
-        preview = []
-        if isinstance(cands, list):
-            for c in cands:
-                if not isinstance(c, dict):
-                    continue
-                pa = c.get("preference_annotation_v114", {})
-                comp = pa.get("composite_score") if isinstance(pa, dict) else None
-                preview.append({
-                    "id": c.get("source_artifact_id"),
-                    "composite_score": comp,
-                    "worst": (c.get("feasibility") or {}).get("worst_hard"),
-                    "margin": (c.get("feasibility") or {}).get("worst_hard_margin_frac"),
-                })
-            preview.sort(key=lambda r: (r.get("composite_score") is None, -(r.get("composite_score") or -1e9)))
-        st.write("Preview (top 8 by composite score; annotation only):")
-        st.write(preview[:8])
-
-        st.download_button("Download preference_annotation_bundle.json",
-                           data=_json.dumps(ann, indent=2, sort_keys=True),
-                           file_name="preference_annotation_bundle_v114.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v114_dl_ann")
-
-    if isinstance(pareto, dict):
-        st.write({"pareto_metrics": pareto.get("metrics"), "n_points": pareto.get("n_points"), "front_sizes": [len(f) for f in (pareto.get("fronts") or []) if isinstance(f, list)]})
-        st.download_button("Download pareto_sets.json",
-                           data=_json.dumps(pareto, indent=2, sort_keys=True),
-                           file_name="pareto_sets_v114.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v114_dl_pareto")
-
-    if isinstance(ann, dict) and isinstance(pareto, dict):
-        # build a justification + pack (adds decision_justification.json inside zip)
-        justification = {
-            "kind": "shams_decision_justification_v114",
-            "created_utc": ann.get("created_utc"),
-            "preferences": prefs,
-            "pareto_sets": pareto,
-            "n_candidates": len((ann.get("candidates") or [])) if isinstance(ann.get("candidates"), list) else None,
-            "disclaimer": "Annotations only. No optimization. No auto-selected best design.",
-        }
-        pack = build_design_decision_pack(candidates=candidates, version="v114", decision_justification=justification)
-        st.download_button("Download v114 design_decision_pack.zip (with justification)",
-                           data=pack["zip_bytes"],
-                           file_name="design_decision_pack_v114.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v114_dl_pack")
-
-
-# =====================
-# v115 External Optimizer Sandbox (append-only)
-# =====================
-def _v115_optimizer_sandbox_panel():
-    import streamlit as st
-    from tools.optimizer_interface import template_request, template_response, evaluate_optimizer_proposal, build_optimizer_import_pack
-
-    st.subheader("External Optimizer Sandbox")
-    st.caption("Import external optimizer proposals as *read-only* candidates. SHAMS re-evaluates physics+constraints and records a run artifact.")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.download_button(
-            "Download optimizer_request_template.json",
-            data=_json.dumps(template_request(version="v115"), indent=2, sort_keys=True),
-            file_name="optimizer_request_template.json",
-            mime="application/json",
-            use_container_width=True,
-            key="v115_dl_req",
-        )
-    with c2:
-        st.download_button(
-            "Download optimizer_response_template.json",
-            data=_json.dumps(template_response(version="v115"), indent=2, sort_keys=True),
-            file_name="optimizer_response_template.json",
-            mime="application/json",
-            use_container_width=True,
-            key="v115_dl_resp_tpl",
-        )
-
-    up = st.file_uploader("Upload optimizer_response.json (proposal)", type=["json"], key="v115_upload_resp")
-    if up is None:
-        st.info("Upload a proposal response to evaluate it inside SHAMS.")
-        return
-
-    try:
-        payload = _json.loads(up.getvalue().decode("utf-8"))
-    except Exception as e:
-        st.error(f"Failed to parse JSON: {e!r}")
-        return
-
-    if payload.get("kind") != "shams_optimizer_response":
-        st.error("JSON kind must be 'shams_optimizer_response'.")
-        return
-
-    if st.button("Evaluate proposal in SHAMS (frozen physics)", key="v115_eval"):
+            return False, [repr(e)]
+    
+    def _v93_paper_figures_pack_panel():
+        import streamlit as st
+        s = _v92_state_get()
+        st.subheader("Paper Figures Pack")
+        if not s.has_point():
+            st.info("Run Point Designer first; pack is built from cached Point artifact.")
+            return
         try:
-            out = evaluate_optimizer_proposal(payload)
-            art = out["artifact"]
-            ctx = out["context"]
-            st.session_state["v115_last_artifact"] = art
-            st.session_state["v115_last_context"] = ctx
-            # record in ledger
-            _v98_record_run("optimizer_proposal", {"artifact": art, "context": ctx}, mode="optimizer_import_v115")
-            st.success("Proposal evaluated and recorded in Run Ledger.")
-        except Exception as e:
-            st.error(f"Evaluation failed: {e!r}")
-
-    art = st.session_state.get("v115_last_artifact")
-    ctx = st.session_state.get("v115_last_context")
-
-    if isinstance(ctx, dict):
-        st.write("Import context:")
-        st.write({k: ctx.get(k) for k in ["result", "disclaimer"]})
-
-    if isinstance(art, dict) and art.get("kind") == "shams_run_artifact":
-        st.write("Evaluated artifact summary:")
-        cs = art.get("constraints_summary", {})
-        st.write({
-            "id": art.get("id"),
-            "feasible": (cs.get("feasible") if isinstance(cs, dict) else None),
-            "worst_hard": (cs.get("worst_hard") if isinstance(cs, dict) else None),
-            "worst_margin": (cs.get("worst_hard_margin_frac") if isinstance(cs, dict) else None),
-        })
-        st.download_button("Download evaluated_run_artifact.json",
-                           data=_json.dumps(art, indent=2, sort_keys=True),
-                           file_name="evaluated_run_artifact.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v115_dl_eval_art")
-
-        pack = build_optimizer_import_pack(
-            request_template=template_request(version="v115"),
-            response_template=template_response(version="v115"),
-            evaluated_artifact=art,
-            import_context=ctx if isinstance(ctx, dict) else None,
-            version="v115",
-        )
-        st.download_button("Download optimizer_import_pack.zip",
-                           data=pack["zip_bytes"],
-                           file_name="optimizer_import_pack.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v115_dl_pack")
-
-
-# =====================
-# v116 Design Handoff Pack (append-only)
-# =====================
-def _v116_handoff_pack_panel():
-    import streamlit as st
-    from tools.handoff_pack import build_handoff_pack
-
-    st.subheader("Design Handoff Pack")
-    st.caption("Export an engineering-ready handoff bundle for any run artifact (inputs YAML, constraints CSV, figures, manifest).")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v116_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-
-    if art is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    if st.button("Build handoff pack", key="v116_build"):
-        try:
-            pack = build_handoff_pack(artifact=art, version="v116")
-            st.session_state["v116_pack"] = pack
-            _v98_record_run("handoff_pack", {"manifest": pack.get("manifest"), "source_artifact_id": art.get("id")}, mode="handoff_pack_v116")
-            st.success("Handoff pack built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    pack = st.session_state.get("v116_pack")
-    if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download handoff_pack.zip",
-                           data=pack["zip_bytes"],
-                           file_name=f"handoff_pack_{rid}.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v116_dl_pack")
-        st.download_button("Download handoff manifest.json",
-                           data=_json.dumps(pack.get("manifest", {}), indent=2, sort_keys=True),
-                           file_name="handoff_pack_manifest.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v116_dl_manifest")
-
-
-# =====================
-# v117 Tolerance Envelope (append-only)
-# =====================
-def _v117_tolerance_envelope_panel():
-    import streamlit as st
-    from tools.tolerance_envelope import template_tolerance_spec, evaluate_tolerance_envelope, envelope_summary_csv
-
-    st.subheader("Tolerance Envelope")
-    st.caption("Deterministic tolerance envelope around a selected run artifact. No Monte Carlo, no optimization.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v117_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if art is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    if "v117_spec" not in st.session_state:
-        st.session_state["v117_spec"] = template_tolerance_spec()
-
-    spec = st.session_state["v117_spec"]
-    tmap = spec.get("tolerances") if isinstance(spec, dict) else {}
-    if not isinstance(tmap, dict):
-        tmap = {}
-
-    mode = st.selectbox("Tolerance mode", options=["relative","absolute"], index=0 if spec.get("mode","relative")=="relative" else 1, key="v117_mode")
-    include_mid = st.checkbox("Include edge midpoints", value=bool(spec.get("include_edge_midpoints", True)), key="v117_mid")
-    max_samples = st.number_input("Max samples", min_value=10, max_value=500, value=200, step=10, key="v117_max")
-
-    st.write("Tolerances (per lever):")
-    cols = st.columns(3)
-    keys = ["Bt_T","Ip_MA","R0_m","a_m","fG","Ti_keV","Paux_MW","kappa"]
-    for i,k in enumerate(keys):
-        with cols[i % 3]:
-            default = float(tmap.get(k, 0.0) or 0.0)
-            tmap[k] = st.number_input(f"{k} tol", min_value=0.0, max_value=1e6, value=default, step=0.005 if mode=="relative" else 0.5, key=f"v117_tol_{k}")
-
-    spec["mode"] = mode
-    spec["include_edge_midpoints"] = include_mid
-    spec["tolerances"] = tmap
-    st.session_state["v117_spec"] = spec
-
-    st.download_button("Download tolerance_spec.json",
-                       data=_json.dumps(spec, indent=2, sort_keys=True),
-                       file_name="tolerance_spec_v117.json",
-                       mime="application/json",
-                       use_container_width=True,
-                       key="v117_dl_spec")
-
-    if st.button("Run tolerance envelope", key="v117_run"):
-        try:
-            rep = evaluate_tolerance_envelope(baseline_artifact=art, tolerance_spec=spec, version="v117", max_samples=int(max_samples))
-            st.session_state["v117_report"] = rep
-            _v98_record_run("tolerance_envelope", {"summary": rep.get("summary"), "source_artifact_id": rid}, mode="tolerance_envelope_v117")
-            st.success("Tolerance envelope computed.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rep = st.session_state.get("v117_report")
-    if isinstance(rep, dict) and rep.get("kind") == "shams_tolerance_envelope_report":
-        st.write("Summary:")
-        st.write(rep.get("summary", {}))
-        st.download_button("Download tolerance_envelope_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="tolerance_envelope_report_v117.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v117_dl_report")
-        st.download_button("Download tolerance_envelope_summary.csv",
-                           data=envelope_summary_csv(rep),
-                           file_name="tolerance_envelope_summary_v117.csv",
-                           mime="text/csv",
-                           use_container_width=True,
-                           key="v117_dl_csv")
-
-
-# =====================
-# v118 Optimizer Downstream Workflow (append-only)
-# =====================
-def _v118_optimizer_downstream_panel():
-    import streamlit as st
-    from tools.optimizer_downstream import template_batch_response, evaluate_optimizer_batch, build_downstream_report_zip
-    from tools.preference_layer import template_preferences
-    from tools.tolerance_envelope import template_tolerance_spec
-
-    st.subheader("Optimizer Downstream Workflow")
-    st.caption("Upload a batch of optimizer proposals; SHAMS evaluates, filters feasible, runs tolerance envelopes, builds candidates, applies preferences+Pareto, and exports one bundle.")
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.download_button("Download optimizer_batch_template.json",
-                           data=_json.dumps(template_batch_response(), indent=2, sort_keys=True),
-                           file_name="optimizer_batch_template.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v118_dl_batch_tpl")
-    with c2:
-        st.download_button("Download preferences_template.json",
-                           data=_json.dumps(template_preferences(), indent=2, sort_keys=True),
-                           file_name="preferences_template.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v118_dl_prefs_tpl")
-    with c3:
-        st.download_button("Download tolerance_spec_template.json",
-                           data=_json.dumps(template_tolerance_spec(), indent=2, sort_keys=True),
-                           file_name="tolerance_spec_template.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v118_dl_tol_tpl")
-
-    up = st.file_uploader("Upload optimizer_batch.json", type=["json"], key="v118_up_batch")
-    if up is None:
-        st.info("Upload a batch proposal JSON to run v118.")
-        return
-
-    try:
-        batch = _json.loads(up.getvalue().decode("utf-8"))
-    except Exception as e:
-        st.error(f"Failed to parse JSON: {e!r}")
-        return
-
-    if batch.get("kind") != "shams_optimizer_batch_response":
-        st.error("JSON kind must be 'shams_optimizer_batch_response'.")
-        return
-
-    max_env = st.number_input("Max envelope samples per feasible point", min_value=8, max_value=80, value=24, step=4, key="v118_max_env")
-    max_cand = st.number_input("Max candidates", min_value=1, max_value=50, value=12, step=1, key="v118_max_cand")
-
-    # Optional: use current v114 prefs if present, else template
-    prefs = st.session_state.get("v114_prefs")
-    if not isinstance(prefs, dict):
-        prefs = template_preferences()
-    spec = st.session_state.get("v117_spec")
-    if not isinstance(spec, dict):
-        spec = template_tolerance_spec()
-
-    if st.button("Run v118 downstream report", key="v118_run"):
-        try:
-            out = evaluate_optimizer_batch(batch_payload=batch, tolerance_spec=spec, max_envelope_samples=int(max_env), max_candidates=int(max_cand), preferences=prefs)
-            rep = out["report"]
-            pack_bytes = out["decision_pack_zip_bytes"]
-            st.session_state["v118_report"] = rep
-            st.session_state["v118_pack_bytes"] = pack_bytes
-            bundle = build_downstream_report_zip(report_obj=rep, decision_pack_zip_bytes=pack_bytes)
-            st.session_state["v118_bundle"] = bundle
-            _v98_record_run("optimizer_downstream", {"summary": rep.get("batch_meta"), "decision_pack_manifest": rep.get("decision_pack_manifest")}, mode="optimizer_downstream_v118")
-            st.success("v118 downstream report built.")
-        except Exception as e:
-            st.error(f"v118 failed: {e!r}")
-
-    rep = st.session_state.get("v118_report")
-    bundle = st.session_state.get("v118_bundle")
-    if isinstance(rep, dict):
-        st.write("Batch meta:")
-        st.write(rep.get("batch_meta", {}))
-        st.write("Decision justification summary:")
-        dj = rep.get("decision_justification", {}) if isinstance(rep.get("decision_justification"), dict) else {}
-        st.write({k: dj.get(k) for k in ["n_proposals","n_feasible","n_candidates","n_envelopes"]})
-        st.download_button("Download optimizer_downstream_report_v118.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="optimizer_downstream_report_v118.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v118_dl_report")
-
-    pack_bytes = st.session_state.get("v118_pack_bytes")
-    if isinstance(pack_bytes, (bytes, bytearray)):
-        st.download_button("Download design_decision_pack_v118.zip",
-                           data=pack_bytes,
-                           file_name="design_decision_pack_v118.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v118_dl_pack")
-
-    if isinstance(bundle, dict) and isinstance(bundle.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download optimizer_downstream_bundle_v118.zip",
-                           data=bundle["zip_bytes"],
-                           file_name="optimizer_downstream_bundle_v118.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v118_dl_bundle")
-
-
-# =====================
-# v119 Authority Pack (append-only)
-# =====================
-def _v119_authority_pack_panel():
-    import streamlit as st
-    from tools.authority_pack import build_authority_pack
-
-    st.subheader("Authority Pack")
-    st.caption("Build a single publishable evidence bundle: version, patch notes, requirements freeze (best-effort), command log, methods appendix, and selected artifacts.")
-
-    # try to find latest generated artifacts from self-test run folder if present in session state
-    audit_zip = st.session_state.get("last_audit_pack_zip_bytes")
-    downstream_zip = None
-    handoff_zip = None
-
-    # If users ran v118/v116 panels in-session, these may exist:
-    bundle = st.session_state.get("v118_bundle")
-    if isinstance(bundle, dict) and isinstance(bundle.get("zip_bytes"), (bytes, bytearray)):
-        downstream_zip = bytes(bundle["zip_bytes"])
-    hp = st.session_state.get("v116_pack")
-    if isinstance(hp, dict) and isinstance(hp.get("zip_bytes"), (bytes, bytearray)):
-        handoff_zip = bytes(hp["zip_bytes"])
-
-    cmdlog = st.text_area("Command log (editable)", value="\n".join([
-        "python -m tools.ui_self_test --outdir out_ui_self_test",
-        "python -m tools.verify_package",
-        "python -m tools.verify_figures",
-        "python -m tools.tests.test_plot_layout",
-        "python -m tools.regression_suite",
-    ]), height=140, key="v119_cmdlog")
-
-    if st.button("Build Authority Pack", key="v119_build"):
-        try:
-            pack = build_authority_pack(
-                repo_root=".",
-                version="v119",
-                audit_pack_zip=audit_zip,
-                downstream_bundle_zip=downstream_zip,
-                handoff_pack_zip=handoff_zip,
-                command_log=[l for l in cmdlog.splitlines() if l.strip()],
-            )
-            st.session_state["v119_pack"] = pack
-            _v98_record_run("authority_pack", {"manifest": pack.get("manifest")}, mode="authority_pack_v119")
-            st.success("Authority pack built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    pack = st.session_state.get("v119_pack")
-    if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download authority_pack_v119.zip",
-                           data=pack["zip_bytes"],
-                           file_name="authority_pack_v119.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v119_dl_zip")
-        st.download_button("Download authority manifest.json",
-                           data=_json.dumps(pack.get("manifest", {}), indent=2, sort_keys=True),
-                           file_name="authority_pack_manifest_v119.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v119_dl_manifest")
-
-
-# =====================
-# v120 Constitutional panels (append-only)
-# =====================
-def _v120_constitution_panel():
-    import streamlit as st
-    from tools.constitution import build_constitution_manifest
-    from ui.layer_registry import get_layers
-
-    st.subheader("Constitution & Layer Registry")
-    st.caption("This panel exposes governance + architecture documents and a cryptographic integrity manifest (SHA256).")
-
-    # Documents
-    docs = [
-        ("ARCHITECTURE.md", "Architecture (Constitution)"),
-        ("GOVERNANCE.md", "Governance & Release Policy"),
-        ("LAYER_MODEL.md", "Layer Model"),
-        ("NON_OPTIMIZER_MANIFESTO.md", "Non-Optimizer Manifesto"),
-        ("CITATION.cff", "Citation (CFF)"),
-    ]
-    for fn, label in docs:
-        try:
-            b = open(fn, "rb").read()
-            st.download_button(f"Download {label}", data=b, file_name=fn, use_container_width=True, key=f"v120_dl_{fn}")
+            from tools.paper_figures_pack import build_figures_pack_bytes
+            if st.button("Build paper figures pack", key="v93_build_figpack"):
+                s.last_figures_pack_zip = build_figures_pack_bytes(s.last_point_artifact)
+                st.success("Figures pack built.")
+            b = getattr(s, "last_figures_pack_zip", None)
+            if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                st.download_button(
+                    "Download paper_figures_pack.zip",
+                    data=b,
+                    file_name="paper_figures_pack.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                    key="v93_dl_figpack",
+                )
         except Exception:
-            st.warning(f"Missing {fn}")
-
-    st.write("Registered higher layers (UI-accessible):")
-    st.table([{"layer": e.layer, "title": e.title, "description": e.description, "panel": e.panel_fn_name} for e in get_layers()])
-
-    man = build_constitution_manifest(repo_root=".", version="v120")
-    st.download_button("Download constitution_manifest.json",
-                       data=_json.dumps(man, indent=2, sort_keys=True),
-                       file_name="constitution_manifest_v120.json",
-                       mime="application/json",
-                       use_container_width=True,
-                       key="v120_dl_manifest")
-    st.write("Manifest preview:")
-    st.json(man)
-
-def _v120_mission_placeholder_panel():
-    import streamlit as st
-    st.subheader("Mission Context (v120 placeholder)")
-    st.info("Mission contexts are schema-first and will be added as additive layer panels without changing physics.")
-
-def _v120_explainability_placeholder_panel():
-    import streamlit as st
-    st.subheader("Explainability (v120 placeholder)")
-    st.info("Explainability narratives will be added as additive post-processing panels consuming run artifacts.")
-
-
-
-# =====================
-# v121 Mission Context Layer (L3) - additive UI panel
-# =====================
-def _v121_mission_context_panel():
-    import streamlit as st
-    from tools.mission_context import list_builtin_missions, load_mission, apply_mission_overlays, mission_report_csv
-
-    st.subheader("Mission Context")
-    st.caption("Advisory mission overlay: evaluates alignment to mission targets and reports gaps. No physics/constraints are changed.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v121_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if art is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    missions = list_builtin_missions("missions")
-    if not missions:
-        st.error("No missions found in missions/ directory.")
-        return
-
-    mfile = st.selectbox("Mission", options=missions, index=0, key="v121_mission_file")
-    mission = load_mission(str(Path("missions") / mfile))
-
-    if st.button("Generate mission report", key="v121_run"):
+            st.caption("Figures pack unavailable.")
+    
+    
+    def _v93_stateful_scan_panel():
+        import streamlit as st
+        s = _v92_state_get()
+        st.subheader("Scan Ledger (cached artifact)")
+        if s.last_scan_points is None:
+            st.info("No cached scan yet.")
+            return
+        scan_obj = {"kind":"shams_feasible_set","meta": s.last_scan_meta or {}, "points": s.last_scan_points}
+        ok, errs = _v93_validate_before_download(scan_obj, "schemas/shams_feasible_set.schema.json")
+        if ok: st.success("Schema: PASS")
+        else:
+            st.warning("Schema: FAIL")
+            for e in errs[:10]: st.write("- " + str(e))
+        st.download_button("Download feasible_scan.json (stateful)",
+                           data=_json.dumps(scan_obj, indent=2, sort_keys=True),
+                           file_name="feasible_scan.json", mime="application/json",
+                           use_container_width=True, key="v93_dl_scan_stateful")
+    
+    def _v93_stateful_systems_panel():
+        import streamlit as st
+        s = _v92_state_get()
+        st.subheader("Run Ledger (cached artifacts)")
+        if s.last_systems_result is None:
+            if s.has_point():
+                st.info("No cached systems yet (no successful Systems solve). Point artifact is available - run a Systems solve to generate a Systems artifact.")
+            else:
+                st.info("No cached systems yet.")
+            return
+        ok, errs = _v93_validate_before_download(s.last_systems_result, "schemas/shams_run_artifact.schema.json")
+        if ok: st.success("Schema: PASS")
+        else:
+            st.warning("Schema: FAIL")
+            for e in errs[:10]: st.write("- " + str(e))
+        st.download_button("Download systems_artifact.json (stateful)",
+                           data=_shams_json_dumps(s.last_systems_result, indent=2, sort_keys=True),
+                           file_name="systems_artifact.json", mime="application/json",
+                           use_container_width=True, key="v93_dl_systems_stateful")
+    
+    
+    def _v182_render_latest_systems_solve_results(*, artifact: dict, point_artifact: dict | None = None, key_prefix: str = "v182_latest"):
+        """Render the latest Systems *solve* results from a cached run artifact.
+    
+        This MUST be safe across Streamlit reruns (e.g., download_button triggers rerun).
+        Therefore it takes a fully self-contained artifact and does not rely on locals.
+        """
+        import streamlit as st
+        import json
+    
+        # Schema hardening: upgrade + validate (non-fatal; never blocks UI)
         try:
-            rep = apply_mission_overlays(run_artifact=art, mission=mission, version="v121")
-            st.session_state["v121_mission_report"] = rep
-            _v98_record_run("mission_context", {"mission": mission.get("name"), "gaps_n": len(rep.get("gaps", []))}, mode="mission_context_v121")
-            st.success("Mission report generated.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rep = st.session_state.get("v121_mission_report")
-    if isinstance(rep, dict) and rep.get("kind") == "shams_mission_report":
-        st.write("Alignment:")
-        st.write(rep.get("alignment", {}))
-        st.write("Gaps:")
-        st.write(rep.get("gaps", []))
-        st.download_button("Download mission_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name=f"mission_report_{mission.get('name','mission')}_v121.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v121_dl_json")
-        st.download_button("Download mission_gaps.csv",
-                           data=mission_report_csv(rep),
-                           file_name=f"mission_gaps_{mission.get('name','mission')}_v121.csv",
-                           mime="text/csv",
-                           use_container_width=True,
-                           key="v121_dl_csv")
-
-
-# =====================
-# v122 Explainability Layer (L4) - additive UI panel
-# =====================
-def _v122_explainability_panel():
-    import streamlit as st
-    from tools.explainability import build_explainability_report
-
-    st.subheader("Explainability")
-    st.caption("Post-processing narrative: why a design fails/succeeds, limiting constraints, robustness and mission context (if available).")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v122_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if art is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    # Optional inputs: use latest in-session mission report / envelope report if present
-    mission_rep = st.session_state.get("v121_mission_report")
-    env_rep = st.session_state.get("v117_report")
-
-    use_mission = st.checkbox("Use latest in-session mission report (if available)", value=isinstance(mission_rep, dict), key="v122_use_mission")
-    use_env = st.checkbox("Use latest in-session tolerance envelope (if available)", value=isinstance(env_rep, dict), key="v122_use_env")
-
-    if st.button("Generate explainability report", key="v122_run"):
+            try:
+                from src.systems.schema import upgrade_systems_artifact, validate_systems_artifact
+            except Exception:  # pragma: no cover
+                from systems.schema import upgrade_systems_artifact, validate_systems_artifact
+            artifact = upgrade_systems_artifact(artifact or {})
+            _issues = validate_systems_artifact(artifact)
+            if _issues:
+                with st.expander("Schema warnings (non-fatal)", expanded=False):
+                    for msg in _issues:
+                        st.warning(msg)
+        except Exception:
+            pass
         try:
-            rep = build_explainability_report(
-                run_artifact=art,
-                mission_report=mission_rep if use_mission else None,
-                tolerance_envelope_report=env_rep if use_env else None,
-                version="v122",
+            outs = (artifact or {}).get('headline') or (artifact or {}).get('outputs') or {}
+        except Exception:
+            outs = {}
+    
+        st.markdown("### Latest Systems solve results")
+        # Unique suffix so this function can be called multiple times in the same Streamlit run
+        try:
+            _rid = (artifact or {}).get("rid") or (artifact or {}).get("run_id") or (artifact or {}).get("metadata", {}).get("rid")
+        except Exception:
+            _rid = None
+        try:
+            _suffix = str(_rid) if _rid else __import__("hashlib").sha1(__import__("json").dumps(artifact, sort_keys=True).encode("utf-8")).hexdigest()[:10]
+        except Exception:
+            _suffix = "na"
+        _k_art = f"{key_prefix}_dl_systems_artifact_{_suffix}"
+        _k_zip = f"{key_prefix}_dl_systems_bundle_{_suffix}"
+    
+        # Always-available downloads (do not depend on a button-click run path)
+        st.download_button(
+            "Download systems-mode run artifact JSON",
+            data=_shams_json_dumps(artifact, indent=2, sort_keys=True),
+            file_name="shams_run_artifact_systems.json",
+            mime="application/json",
+            use_container_width=True,
+            key=_k_art,
+        )
+    
+        # Optional export bundle (safe; uses cached artifacts)
+        try:
+            from tools.export.bundle import build_export_bundle_bytes
+            bundle_bytes = build_export_bundle_bytes(
+                repo_root=BASE_DIR,
+                point_artifact=point_artifact,
+                systems_artifact=artifact,
+                scan_artifact=None,
+                pareto_artifact=None,
+                opt_artifact=None,
+                feasible_search_artifact=None,
+                include_readme=True,
             )
-            st.session_state["v122_explainability_report"] = rep
-            _v98_record_run("explainability", {"summary": rep.get("summary")}, mode="explainability_v122")
-            st.success("Explainability report generated.")
+            st.download_button(
+                "Download export bundle ZIP",
+                data=bundle_bytes,
+                file_name="shams_export_bundle_systems.zip",
+                mime="application/zip",
+                use_container_width=True,
+                key=_k_zip,
+            )
+        except Exception as _e:
+            st.caption(f"Export bundle unavailable: {_e}")
+    
+        # Key results
+        kcols = st.columns(4)
+        def _k(col, key, fmt="{:.3g}"):
+            try:
+                v = float(outs.get(key, float('nan')))
+            except Exception:
+                v = float('nan')
+            with col:
+                st.metric(key, fmt.format(v) if v == v else "NaN")
+    
+        _k(kcols[0], "Q_DT_eqv")
+        _k(kcols[1], "H98")
+        _k(kcols[2], "P_e_net_MW")
+        _k(kcols[3], "q_div_MW_m2")
+    
+        # Constraints table (if present)
+        try:
+            rows = (artifact or {}).get('constraints')
+            if isinstance(rows, list) and rows:
+                with st.expander("Constraints & margins (cached)", expanded=False):
+                    import pandas as pd
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        except Exception:
+            pass
+    
+    def _v184_render_latest_feasible_search_results(*, report: dict, key_prefix: str = "v184_fs_latest") -> None:
+        """Rerun-safe renderer for Feasible Design Search results.
+    
+        The search is easy to 'lose' in Streamlit after a button click because the app reruns and
+        the workflow step may change. This renderer provides a stable, cached view.
+        """
+        import streamlit as st
+        try:
+            import pandas as pd
+        except Exception:
+            pd = None  # type: ignore
+    
+        if not isinstance(report, dict) or not report:
+            st.info("No cached feasible-search results yet.")
+            return
+    
+        ok = bool(report.get('ok'))
+        reason = str(report.get('reason', ''))
+        obj = str(report.get('objective', ''))
+        ts_unix = report.get('ts_unix')
+        try:
+            ts_str = datetime.datetime.fromtimestamp(float(ts_unix)).strftime('%Y-%m-%d %H:%M:%S') if ts_unix else ''
+        except Exception:
+            ts_str = ''
+    
+        if ok:
+            st.success(f"Feasible Search: **OK** - {reason} - best objective: {report.get('best_obj')}  {('(' + ts_str + ')') if ts_str else ''}")
+        else:
+            st.warning(f"Feasible Search: **NO RESULT** - {reason}  {('(' + ts_str + ')') if ts_str else ''}")
+    
+        # Compact summary
+        st.json({k: report.get(k) for k in ['ok','reason','objective','budget','topk','multi_seed_runs','radius','seed','vars','start_feasible','best_obj','best_V'] if k in report})
+    
+        # Download JSON (stable key prefix avoids duplicates)
+        try:
+            st.download_button(
+                label="Download feasible-search artifact JSON",
+                data=_shams_json_dumps(report, indent=2, sort_keys=True),
+                file_name="feasible_search_artifact.json",
+                mime="application/json",
+                key=f"{key_prefix}_dl_fs_artifact",
+                use_container_width=True,
+            )
+        except Exception:
+            pass
+    
+        # Candidates table
+        try:
+            cands = list(report.get('candidates', []) or [])
+            if cands and pd is not None:
+                rows = []
+                for i, c in enumerate(cands):
+                    x = c.get('x', {}) or {}
+                    m = c.get('margins', {}) or {}
+                    row = {'rank': i+1, 'obj': c.get('obj'), 'V': c.get('V'), 'feasible': c.get('feasible')}
+                    # Common margins (if present)
+                    for nm in ['q95','q_div','P_SOL/R','B_peak','sigma_vm','HTS margin','TBR','NWL']:
+                        if nm in m:
+                            row[f'm_{nm}'] = m.get(nm)
+                    # Variables
+                    for k in (report.get('vars', []) or []):
+                        row[k] = x.get(k)
+                    rows.append(row)
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        except Exception:
+            pass
+    
+    def _v93_stateful_sandbox_panel():
+        import streamlit as st
+        s = _v92_state_get()
+        st.subheader("📌 Forge Cache (stateful sandbox)")
+        if s.last_sandbox_run is None:
+            st.info("No cached sandbox yet.")
+            return
+        st.download_button("Download sandbox_run.json (stateful)",
+                           data=_json.dumps(s.last_sandbox_run, indent=2, sort_keys=True),
+                           file_name="sandbox_run.json", mime="application/json",
+                           use_container_width=True, key="v93_dl_sandbox_stateful")
+    
+    
+    # =====================
+    # v94 Run Records + Unified Export (append-only)
+    # =====================
+    def _v94_record_run(kind: str, payload: dict):
+        import time
+        s = _v92_state_get()
+        try:
+            s.run_history.append({
+                "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "kind": kind,
+                "summary": {
+                    "feasible": payload.get("meta", {}).get("feasible", payload.get("feasible", None)),
+                    "version": payload.get("version", None),
+                },
+            })
+        except Exception:
+            pass
+    
+    def _v94_run_records_page():
+        import streamlit as st
+        s = _v92_state_get()
+        st.subheader("Run Records")
+        st.caption("Timeline of actions in this session.")
+        if not s.run_history:
+            st.info("No run records yet.")
+            return
+        for i, r in enumerate(reversed(s.run_history[-50:]), 1):
+            st.write(f"{i}. {r.get('ts','?')} - {r.get('kind','?')} - {r.get('summary',{})}")
+    
+    def _v94_unified_export_bundle_panel():
+        import streamlit as st
+        from pathlib import Path
+        s = _v92_state_get()
+        st.subheader("Unified Export Bundle")
+        st.caption("One zip: artifacts + capsule + schemas + figures pack. Best-effort.")
+        if not (s.has_point() or s.last_systems_result or s.last_scan_points or s.last_sandbox_run):
+            st.info("Nothing cached yet. Run at least one mode first.")
+            return
+    
+        scan_obj = None
+        if s.last_scan_points is not None:
+            scan_obj = {"kind":"shams_feasible_set","meta": s.last_scan_meta or {}, "points": s.last_scan_points}
+    
+        # Validation summary (best-effort)
+        if s.has_point():
+            ok, errs = _v93_validate_before_download(s.last_point_artifact, "schemas/shams_run_artifact.schema.json")
+            if ok: st.success("Point artifact schema: PASS")
+            else:
+                st.warning("Point artifact schema: FAIL")
+                for e in errs[:8]: st.write("- " + str(e))
+        if scan_obj is not None:
+            ok, errs = _v93_validate_before_download(scan_obj, "schemas/shams_feasible_set.schema.json")
+            if ok: st.success("Scan feasible set schema: PASS")
+            else:
+                st.warning("Scan feasible set schema: FAIL")
+                for e in errs[:8]: st.write("- " + str(e))
+    
+        try:
+            from tools.export.bundle import build_export_bundle_bytes
+            if st.button("Build unified export bundle", key="v94_build_bundle"):
+                b = build_export_bundle_bytes(
+                    repo_root=Path("."),
+                    point_artifact=s.last_point_artifact if s.has_point() else None,
+                    systems_artifact=s.last_systems_result,
+                    feasible_search_artifact=getattr(s, "last_feasible_search_artifact", None),
+                    certified_search_artifact=st.session_state.get("last_certified_search_artifact", None),
+                    repair_evidence_artifact=st.session_state.get("last_repair_evidence_artifact", None),
+                    interval_refinement_artifact=st.session_state.get("last_interval_refinement_artifact", None),
+                    scan_artifact=scan_obj,
+                    pareto_artifact=getattr(s, "last_pareto_artifact", None),
+                    opt_artifact=getattr(s, "last_opt_artifact", None),
+                    sandbox_run=s.last_sandbox_run,
+                    figures_pack_zip=getattr(s, "last_figures_pack_zip", None),
+                )
+                st.session_state["v94_bundle_bytes"] = b
+                st.success("Bundle built.")
+            b = st.session_state.get("v94_bundle_bytes", None)
+            if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                st.download_button("Download shams_export_bundle.zip", data=b,
+                                   file_name="shams_export_bundle.zip", mime="application/zip",
+                                   use_container_width=True, key="v94_dl_bundle")
         except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rep = st.session_state.get("v122_explainability_report")
-    if isinstance(rep, dict) and rep.get("kind") == "shams_explainability_report":
-        st.write("Summary:")
-        st.write(rep.get("summary", {}))
-        st.text_area("Narrative", value=rep.get("narrative",""), height=260, key="v122_narr_view")
-        st.download_button("Download explainability_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="explainability_report_v122.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v122_dl_json")
-        st.download_button("Download explainability_report.txt",
-                           data=(rep.get("narrative","") or "").encode("utf-8"),
-                           file_name="explainability_report_v122.txt",
-                           mime="text/plain",
-                           use_container_width=True,
-                           key="v122_dl_txt")
-
-
-# =====================
-# v123 Evidence Graph + v123B Study Kit - additive UI panel
-# =====================
-def _v123_evidence_and_studykit_panel():
-    import streamlit as st
-    from tools.evidence_graph import build_evidence_graph, build_traceability_table, traceability_csv
-    from tools.study_kit import build_study_kit_zip
-
-    st.subheader("Evidence Graph & Design Study Kit (v123 / v123B)")
-    st.caption("Build provenance graph + traceability table, and export a full publishable study kit zip (manifested with SHA256).")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v123_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if art is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    # Optional context from session state
-    mission_rep = st.session_state.get("v121_mission_report")
-    env_rep = st.session_state.get("v117_report")
-    expl_rep = st.session_state.get("v122_explainability_report")
-
-    v118_bundle = st.session_state.get("v118_bundle")
-    downstream_manifest = None
-    downstream_zip = None
-    if isinstance(v118_bundle, dict):
-        downstream_manifest = v118_bundle.get("manifest")
-        if isinstance(v118_bundle.get("zip_bytes"), (bytes, bytearray)):
-            downstream_zip = bytes(v118_bundle["zip_bytes"])
-
-    v119_pack = st.session_state.get("v119_pack")
-    authority_manifest = None
-    authority_zip = None
-    if isinstance(v119_pack, dict):
-        authority_manifest = v119_pack.get("manifest")
-        if isinstance(v119_pack.get("zip_bytes"), (bytes, bytearray)):
-            authority_zip = bytes(v119_pack["zip_bytes"])
-
-    decision_manifest = None
-    decision_zip = None
-    pack_bytes = st.session_state.get("v118_pack_bytes")
-    if isinstance(pack_bytes, (bytes, bytearray)):
-        decision_zip = bytes(pack_bytes)
-        # best-effort manifest from report if present
-        rep = st.session_state.get("v118_report")
+            st.error(f"Bundle builder unavailable: {e!r}")
+    
+    
+    if _deck == "🎛️ Control Room":
+        try:
+            _v94_run_records_page()
+        except Exception:
+            pass
+    
+    
+    # =====================
+    # v98 validation gate (append-only)
+    # =====================
+    def _v98_validation_gate_ui(title: str, ok: bool, errs):
+        import streamlit as st
+        if ok:
+            st.success(f"{title}: schema PASS")
+            return True
+        st.error(f"{title}: schema FAIL (download allowed, but NOT publishable)")
+        for e in (errs or [])[:12]:
+            st.write("- " + str(e))
+        return False
+    
+    
+    # =====================
+    
+    # =====================
+    # v98 Run Ledger (append-only)
+    # =====================
+    def _v98_state_init_runlists():
+        import streamlit as st
+        s = _v92_state_get()
+        if getattr(s, "run_history", None) is None: s.run_history = []
+        if getattr(s, "pinned_run_ids", None) is None: s.pinned_run_ids = []
+        # v130: persistent run vault (opt-in, default ON)
+        if 'vault_enabled' not in st.session_state:
+            st.session_state['vault_enabled'] = True
+        if 'vault_limit' not in st.session_state:
+            st.session_state['vault_limit'] = 50
+        return s
+    
+    def _v98_make_run_id(prefix: str) -> str:
+        import time, random
+        return f"{prefix}_{int(time.time())}_{random.randint(1000,9999)}"
+    
+    def _v98_record_run(kind: str, payload, mode: str = "") -> str:
+        import streamlit as st
+        from tools import run_vault
+        from pathlib import Path
+        import time
+        s = _v98_state_init_runlists()
+        rid = _v98_make_run_id(kind)
+        s.run_history.append({"id": rid, "ts": time.strftime("%Y-%m-%d %H:%M:%S"), "kind": kind, "mode": mode, "payload": payload})
+        try:
+            _alog(mode or kind, 'RecordRun', {'rid': rid, 'kind': kind})
+        except Exception:
+            pass  # ActivityLogRecordRun
+    
+        # v130: persist to vault (storage only) - must never break UI
+        try:
+            if bool(st.session_state.get("vault_enabled", True)):
+                root = Path(__file__).resolve().parents[1]
+                run_vault.write_entry(root=root, kind=kind, payload=payload, mode=mode, tags={"rid": rid})
+        except Exception:
+            pass
+    
+        return rid
+    
+    
+    def _v98_json_diff(a, b, path=""):
+        diffs = []
+        if type(a) != type(b):
+            diffs.append(path or "<root>"); return diffs
+        if isinstance(a, dict):
+            keys = set(a.keys()) | set(b.keys())
+            for k in sorted(keys):
+                diffs += _v98_json_diff(a.get(k, "<missing>"), b.get(k, "<missing>"), (path + "/" + str(k)) if path else "/" + str(k))
+            return diffs
+        if isinstance(a, list):
+            n = max(len(a), len(b))
+            for i in range(n):
+                diffs += _v98_json_diff(a[i] if i < len(a) else "<missing>", b[i] if i < len(b) else "<missing>", f"{path}[{i}]")
+            return diffs
+        if a != b: diffs.append(path or "<root>")
+        return diffs
+    
+    def _v98_run_ledger_page():
+        import streamlit as st
+        s = _v98_state_init_runlists()
+        st.subheader("Run Ledger")
+        st.caption("Session-persistent run artifacts with pin/compare.")
+        if not s.run_history:
+            st.info("No recorded runs yet.")
+            return
+        for r in reversed(s.run_history[-100:]):
+            rid = r.get("id")
+            c1,c2,c3 = st.columns([3,1,1])
+            with c1: st.write(f"**{rid}** - {r.get('ts')} - {r.get('kind')} ({r.get('mode')})")
+            with c2:
+                pinned = rid in s.pinned_run_ids
+                if st.button("Unpin" if pinned else "Pin", key=f"pin_{rid}"):
+                    if pinned: s.pinned_run_ids.remove(rid)
+                    else: s.pinned_run_ids.append(rid)
+                    st.rerun()
+            with c3:
+                st.download_button("JSON", data=_json.dumps(r.get("payload", {}), indent=2, sort_keys=True), file_name=f"{rid}.json", mime="application/json", key=f"dl_{rid}")
+        st.divider()
+        st.subheader("Compare two pinned runs")
+        pins = list(s.pinned_run_ids)
+        if len(pins) < 2:
+            st.info("Pin at least two runs to compare.")
+            return
+        a_id = st.selectbox("Run A", pins, key="cmp_a")
+        b_id = st.selectbox("Run B", pins, index=1, key="cmp_b")
+        A = next((x for x in s.run_history if x.get("id")==a_id), None)
+        B = next((x for x in s.run_history if x.get("id")==b_id), None)
+        if A and B:
+            diffs = _v98_json_diff(A.get("payload",{}), B.get("payload",{}))
+            st.write(f"Changed fields: {len(diffs)}")
+            for d in diffs[:200]: st.write("- " + d)
+    
+    
+    def _v98_process_handoff_panel():
+        import streamlit as st
+        s = _v92_state_get()
+        st.subheader("external systems codes Handoff")
+        st.caption("Exports a external systems codes-oriented handoff JSON (SHAMS upstream feasibility auditor).")
+        if not s.has_point():
+            st.info("Run Point Designer first.")
+            return
+        from tools.interoperability.process_handoff import make_process_handoff
+        ho = make_process_handoff(s.last_point_artifact)
+        ok, errs = _v93_validate_before_download(ho, "schemas/process_handoff.schema.json")
+        _v98_validation_gate_ui("external systems codes handoff", ok, errs)
+        st.download_button("Download process_handoff.json", data=_json.dumps(ho, indent=2, sort_keys=True),
+                           file_name="process_handoff.json", mime="application/json", use_container_width=True, key="v98_dl_process_handoff")
+    
+    
+    # =====================
+    # v99 Session Report Export (append-only)
+    # =====================
+    def _v99_session_report_panel():
+        import streamlit as st
+        s = _v98_state_init_runlists()
+        st.subheader("Session Report Export")
+        st.caption("Exports a single zip: run ledger + pinned runs + diffs. Optional: include unified export bundle if built.")
+        if not s.run_history:
+            st.info("No runs recorded yet.")
+            return
+    
+        include_bundle = st.checkbox("Include unified export bundle (if already built)", value=True, key="v99_inc_bundle")
+        if st.button("Build session report zip", key="v99_build_report"):
+            try:
+                from tools.export.session_report import build_session_report_zip
+                bundle = st.session_state.get("v94_bundle_bytes", None) if include_bundle else None
+                b = build_session_report_zip(
+                    version=str(getattr(s, "version", None) or "v99"),
+                    run_history=list(s.run_history),
+                    pinned_ids=list(s.pinned_run_ids or []),
+                    unified_export_bundle_bytes=bundle if isinstance(bundle, (bytes, bytearray)) else None,
+                )
+                st.session_state["v99_session_report_zip"] = b
+                st.success("Session report built.")
+            except Exception as e:
+                st.error(f"Failed to build session report: {e!r}")
+    
+        b = st.session_state.get("v99_session_report_zip", None)
+        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+            st.download_button(
+                "Download shams_session_report.zip",
+                data=b,
+                file_name="shams_session_report.zip",
+                mime="application/zip",
+                use_container_width=True,
+                key="v99_dl_report",
+            )
+    
+    
+    # =====================
+    # v103 Audit Pack + Atlas + Sandbox Plus panels (append-only)
+    # =====================
+    def _v103_audit_pack_panel():
+        import streamlit as st
+        s = _v98_state_init_runlists()
+        st.subheader("Audit Pack")
+        st.caption("Single zip: selected artifacts + schemas + environment + manifest (journal/regulator-ready).")
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        picked = st.multiselect("Include runs", options=ids, default=list(s.pinned_run_ids or []), key="v103_audit_pick")
+        include_pf = st.checkbox("Include pip freeze (best-effort)", value=True, key="v103_audit_pf")
+        if st.button("Build audit pack zip", key="v103_build_audit"):
+            try:
+                from tools.audit_pack import build_audit_pack_zip
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                arts = []
+                for rid in picked:
+                    r = run_map.get(rid)
+                    if r and isinstance(r.get("payload"), dict):
+                        arts.append(r["payload"])
+                b = build_audit_pack_zip(version="v103", artifacts=arts, schema_dir="schemas", include_pip_freeze=include_pf)
+                st.session_state["v103_audit_zip"] = b
+                st.success("Audit pack built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+        b = st.session_state.get("v103_audit_zip")
+        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+            st.download_button("Download shams_audit_pack.zip", data=b, file_name="shams_audit_pack.zip", mime="application/zip", use_container_width=True, key="v103_dl_audit")
+    
+    def _v103_atlas_panel():
+        import streamlit as st
+        st.subheader("Feasibility Boundary Atlas")
+        st.caption("Deterministic nearest-feasible sweeps using SHAMS frontier search (audit-ready).")
+        s = _v92_state_get()
+        if not getattr(s, "last_point_inp", None):
+            st.info("Run Point Designer first (uses last point inputs).")
+            return
+        base = s.last_point_inp
+        # Default lever bounds (conservative, user-editable)
+        levers = {
+            "R0_m": (max(0.5, float(getattr(base, "R0_m", 2.0))*0.7), float(getattr(base, "R0_m", 2.0))*1.3),
+            "a_m": (max(0.2, float(getattr(base, "a_m", 0.6))*0.7), float(getattr(base, "a_m", 0.6))*1.3),
+            "Bt_T": (max(1.0, float(getattr(base, "Bt_T", 12.0))*0.7), float(getattr(base, "Bt_T", 12.0))*1.3),
+            "Ip_MA": (max(0.1, float(getattr(base, "Ip_MA", 8.0))*0.7), float(getattr(base, "Ip_MA", 8.0))*1.3),
+            "fG": (max(0.1, float(getattr(base, "fG", 0.8))*0.7), min(1.2, float(getattr(base, "fG", 0.8))*1.3)),
+        }
+        n_random = st.slider("Random samples", 20, 300, 80, 10, key="v103_atlas_n")
+        seed = st.number_input("Seed", value=0, step=1, key="v103_atlas_seed")
+        if st.button("Build Atlas", key="v103_build_atlas"):
+            try:
+                from tools.frontier_atlas import build_feasibility_atlas
+                atlas = build_feasibility_atlas(base, levers=levers, targets=None, n_random=int(n_random), seed=int(seed), n_slices=5)
+                st.session_state["v103_atlas"] = atlas
+                _v98_record_run("atlas", atlas, mode="feasibility_atlas")
+                st.success("Atlas built and recorded in Run Ledger.")
+            except Exception as e:
+                st.error(f"Atlas failed: {e!r}")
+        atlas = st.session_state.get("v103_atlas")
+        if isinstance(atlas, dict):
+            st.write("Reports:", int(atlas.get("n_reports", 0)))
+            st.download_button("Download feasibility_atlas.json", data=_json.dumps(atlas, indent=2, sort_keys=True),
+                               file_name="feasibility_atlas.json", mime="application/json", use_container_width=True, key="v103_dl_atlas")
+    
+    def _v103_sandbox_plus_panel():
+        import streamlit as st
+        st.subheader("Optimizer Sandbox Plus")
+        st.caption("Safe orchestration layer: random/LHS exploration with feasibility-first behavior and full logs.")
+        s = _v92_state_get()
+        if not getattr(s, "last_point_inp", None):
+            st.info("Run Point Designer first (uses last point inputs as baseline).")
+            return
+        base = s.last_point_inp
+        strat = st.selectbox("Strategy", ["random", "lhs"], index=0, key="v103_sb_strat")
+        obj = st.selectbox("Objective", ["min_R0", "min_Bpeak", "max_Pnet", "min_recirc"], index=0, key="v103_sb_obj")
+        max_evals = st.slider("Max evals", 20, 1000, 200, 20, key="v103_sb_evals")
+        seed = st.number_input("Seed", value=0, step=1, key="v103_sb_seed")
+        levers = {
+            "R0_m": (max(0.5, float(getattr(base, "R0_m", 2.0))*0.7), float(getattr(base, "R0_m", 2.0))*1.3),
+            "a_m": (max(0.2, float(getattr(base, "a_m", 0.6))*0.7), float(getattr(base, "a_m", 0.6))*1.3),
+            "Bt_T": (max(1.0, float(getattr(base, "Bt_T", 12.0))*0.7), float(getattr(base, "Bt_T", 12.0))*1.3),
+            "Ip_MA": (max(0.1, float(getattr(base, "Ip_MA", 8.0))*0.7), float(getattr(base, "Ip_MA", 8.0))*1.3),
+            "fG": (max(0.1, float(getattr(base, "fG", 0.8))*0.7), min(1.2, float(getattr(base, "fG", 0.8))*1.3)),
+        }
+        if st.button("Run Sandbox Plus", key="v103_run_sandbox_plus"):
+            try:
+                from tools.sandbox_plus import run_sandbox
+                run = run_sandbox(base, levers=levers, objective=obj, max_evals=int(max_evals), seed=int(seed), strategy=strat)
+                st.session_state["v103_sandbox_plus"] = run
+                _v98_record_run("sandbox_plus", run, mode="optimizer_sandbox_plus")
+                st.success("Sandbox run complete and recorded.")
+            except Exception as e:
+                st.error(f"Sandbox failed: {e!r}")
+        run = st.session_state.get("v103_sandbox_plus")
+        if isinstance(run, dict):
+            st.download_button("Download sandbox_plus.json", data=_json.dumps(run, indent=2, sort_keys=True),
+                               file_name="sandbox_plus.json", mime="application/json", use_container_width=True, key="v103_dl_sandbox_plus")
+    
+    
+    # =====================
+    # v104 Feasible Space Topology (append-only)
+    # =====================
+    def _v104_topology_panel():
+        import streamlit as st
+        from tools.topology import build_feasible_topology, extract_feasible_points_from_payload
+    
+        st.subheader("Feasible Space Topology")
+        st.caption("Builds a connectivity graph of feasible designs (components = design 'islands').")
+    
+        s = _v98_state_init_runlists()
+        if not s.run_history:
+            st.info("No runs recorded yet.")
+            return
+    
+        # pick source runs (default pinned)
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Source runs", options=ids, default=default_ids, key="v104_topology_pick")
+        eps = st.slider("Connectivity threshold (scaled distance)", 0.05, 0.50, 0.18, 0.01, key="v104_topology_eps")
+        max_pts = st.slider("Max points (cap)", 50, 600, 300, 10, key="v104_topology_cap")
+    
+        if st.button("Build topology", key="v104_build_topology"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                pts = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict):
+                        pts += extract_feasible_points_from_payload(payload)
+                topo = build_feasible_topology(pts, eps=float(eps), max_points=int(max_pts))
+                st.session_state["v104_topology"] = topo
+                _v98_record_run("topology", topo, mode="feasible_topology")
+                st.success(f"Topology built: {topo.get('n_points',0)} points, {len(topo.get('components',[]))} components.")
+            except Exception as e:
+                st.error(f"Topology build failed: {e!r}")
+    
+        topo = st.session_state.get("v104_topology")
+        if isinstance(topo, dict):
+            comps = topo.get("components", [])
+            st.write({
+                "points": int(topo.get("n_points", 0)),
+                "edges": int(topo.get("n_edges", 0)),
+                "components": int(len(comps) if isinstance(comps, list) else 0),
+                "largest_component": int(len(comps[0]) if isinstance(comps, list) and comps else 0),
+            })
+            if isinstance(comps, list) and comps:
+                st.write("Component sizes:", [len(c) for c in comps[:10]])
+            st.download_button("Download feasible_topology.json",
+                               data=_json.dumps(topo, indent=2, sort_keys=True),
+                               file_name="feasible_topology.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v104_dl_topology")
+    
+    
+    # =====================
+    # v105 Constraint Dominance & Sensitivity (append-only)
+    # =====================
+    def _v105_constraint_dominance_panel():
+        import streamlit as st
+        from tools.constraint_dominance import build_constraint_dominance_report
+    
+        st.subheader("Constraint Dominance")
+        st.caption("Ranks which constraints most strongly limit feasibility (failures + near-boundary).")
+    
+        s = _v98_state_init_runlists()
+        if not s.run_history:
+            st.info("No runs recorded yet.")
+            return
+    
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Source runs (run artifacts only)", options=ids, default=default_ids, key="v105_dom_pick")
+        near = st.slider("Near-boundary threshold (margin_frac)", 0.00, 0.25, 0.05, 0.01, key="v105_dom_near")
+        fail_w = st.slider("Failure weight", 1.0, 10.0, 4.0, 0.5, key="v105_dom_failw")
+    
+        if st.button("Build dominance report", key="v105_build_dom"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                payloads = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
+                        payloads.append(payload)
+                rep = build_constraint_dominance_report(payloads, near_threshold=float(near), fail_weight=float(fail_w))
+                st.session_state["v105_dom"] = rep
+                _v98_record_run("dominance", rep, mode="constraint_dominance")
+                st.success(f"Built dominance report for {rep.get('n_rows',0)} constraint rows.")
+            except Exception as e:
+                st.error(f"Dominance failed: {e!r}")
+    
+        rep = st.session_state.get("v105_dom")
         if isinstance(rep, dict):
-            decision_manifest = rep.get("decision_pack_manifest")
-
-    use_mission = st.checkbox("Use latest in-session mission report", value=isinstance(mission_rep, dict), key="v123_use_mission")
-    use_env = st.checkbox("Use latest in-session tolerance envelope", value=isinstance(env_rep, dict), key="v123_use_env")
-    use_expl = st.checkbox("Use latest in-session explainability report", value=isinstance(expl_rep, dict), key="v123_use_expl")
-
-    if st.button("Build evidence graph + traceability", key="v123_build_ev"):
+            ranked = rep.get("constraints_ranked", [])
+            if isinstance(ranked, list) and ranked:
+                top = ranked[:8]
+                st.write([{"name": r.get("name"), "score": r.get("dominance_score"), "fail_rate": r.get("fail_rate"), "near_rate": r.get("near_boundary_rate")} for r in top])
+            st.download_button("Download constraint_dominance_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="constraint_dominance_report.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v105_dl_dom")
+    
+    
+    # =====================
+    # v106 Failure Mode Taxonomy (append-only)
+    # =====================
+    def _v106_failure_taxonomy_panel():
+        import streamlit as st
+        from tools.failure_taxonomy import build_failure_taxonomy_report
+    
+        st.subheader("Failure Mode Taxonomy")
+        st.caption("Classifies infeasible run artifacts by dominant failing constraint and aggregates failure modes.")
+    
+        s = _v98_state_init_runlists()
+        if not s.run_history:
+            st.info("No runs recorded yet.")
+            return
+    
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Source runs (run artifacts only)", options=ids, default=default_ids, key="v106_fail_pick")
+    
+        if st.button("Build failure taxonomy", key="v106_build_fail"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                payloads = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
+                        payloads.append(payload)
+                rep = build_failure_taxonomy_report(payloads)
+                st.session_state["v106_fail"] = rep
+                _v98_record_run("failures", rep, mode="failure_taxonomy")
+                st.success(f"Built failure taxonomy for {rep.get('n_failures',0)} failing runs.")
+            except Exception as e:
+                st.error(f"Failure taxonomy failed: {e!r}")
+    
+        rep = st.session_state.get("v106_fail")
+        if isinstance(rep, dict):
+            st.write({"failures": rep.get("n_failures"), "modes": len(rep.get("counts_by_mode",{}))})
+            top = list(rep.get("counts_by_mode", {}).items())[:10]
+            if top:
+                st.write([{"mode": k, "count": v} for k,v in top])
+            st.download_button("Download failure_taxonomy_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="failure_taxonomy_report.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v106_dl_fail")
+    
+    
+    # =====================
+    # v107 Feasibility Science Pack (append-only)
+    # =====================
+    def _v107_science_pack_panel():
+        import streamlit as st
+        from tools.science_pack import build_feasibility_science_pack
+    
+        st.subheader("Feasibility Science Pack")
+        st.caption("One-click export: topology + dominance + failures + publishable report + zip.")
+    
+        s = _v98_state_init_runlists()
+        if not s.run_history:
+            st.info("No runs recorded yet.")
+            return
+    
+        # Pull latest artifacts from session state if present, else try to find from run history
+        topo = st.session_state.get("v104_topology")
+        dom = st.session_state.get("v105_dom")
+        fail = st.session_state.get("v106_fail")
+    
+        # fallback: scan run history for latest by mode
+        def _latest_by_mode(mode_name: str):
+            for r in reversed(s.run_history or []):
+                if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
+                    return r.get("payload")
+            return None
+    
+        if topo is None:
+            topo = _latest_by_mode("feasible_topology")
+        if dom is None:
+            dom = _latest_by_mode("constraint_dominance")
+        if fail is None:
+            fail = _latest_by_mode("failure_taxonomy")
+    
+        ready = isinstance(topo, dict) and isinstance(dom, dict) and isinstance(fail, dict)
+        st.write({
+            "topology_loaded": isinstance(topo, dict),
+            "dominance_loaded": isinstance(dom, dict),
+            "failures_loaded": isinstance(fail, dict),
+            "ready": ready,
+        })
+        if not ready:
+            st.info("Build topology, dominance, and failure taxonomy first.")
+            return
+    
+        version = st.text_input("Pack version label", value="v107", key="v107_pack_version")
+        if st.button("Build Feasibility Science Pack", key="v107_build_pack"):
+            try:
+                pack = build_feasibility_science_pack(
+                    topology=topo,
+                    dominance=dom,
+                    failures=fail,
+                    source_run_ids=list(s.pinned_run_ids or []),
+                    version=str(version),
+                )
+                st.session_state["v107_pack"] = pack
+                # record summary only (zip bytes excluded from run ledger)
+                _v98_record_run("science_pack", {"kind": "shams_feasibility_science_pack_summary", "summary": pack.get("summary")}, mode="feasibility_science_pack")
+                st.success("Science pack built.")
+            except Exception as e:
+                st.error(f"Science pack failed: {e!r}")
+    
+        pack = st.session_state.get("v107_pack")
+        if isinstance(pack, dict):
+            st.write(pack.get("summary", {}))
+            zip_bytes = pack.get("zip_bytes")
+            if isinstance(zip_bytes, (bytes, bytearray)):
+                st.download_button(
+                    "Download feasibility_science_pack.zip",
+                    data=bytes(zip_bytes),
+                    file_name="feasibility_science_pack.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                    key="v107_dl_pack_zip",
+                )
+            manifest = dict(pack)
+            manifest.pop("zip_bytes", None)
+            st.download_button(
+                "Download science_pack_manifest.json",
+                data=_json.dumps(manifest, indent=2, sort_keys=True),
+                file_name="science_pack_manifest.json",
+                mime="application/json",
+                use_container_width=True,
+                key="v107_dl_pack_manifest",
+            )
+    
+    
+    # =====================
+    # v108 external systems codes Downstream Export (append-only)
+    # =====================
+    def _v108_process_downstream_panel():
+        import streamlit as st
+        from tools.process_downstream import build_process_downstream_bundle
+    
+        st.subheader("external systems codes Downstream Export")
+        st.caption("Exports SHAMS run artifacts to a transparent (systems-code-inspired) table so external systems codes becomes downstream.")
+    
+        s = _v98_state_init_runlists()
+        if not s.run_history:
+            st.info("No runs recorded yet.")
+            return
+    
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Run artifacts to export", options=ids, default=default_ids, key="v108_proc_pick")
+        version = st.text_input("Export version label", value="v108", key="v108_proc_version")
+    
+        if st.button("Build external systems codes downstream bundle", key="v108_proc_build"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                payloads = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
+                        payloads.append(payload)
+                pack = build_process_downstream_bundle(payloads, version=str(version), source_run_ids=list(picked))
+                st.session_state["v108_proc_pack"] = pack
+                # record summary only
+                _v98_record_run("process_downstream", {"kind":"shams_process_downstream_summary","summary":pack.get("summary")}, mode="process_downstream")
+                st.success("external systems codes downstream bundle built.")
+            except Exception as e:
+                st.error(f"Export failed: {e!r}")
+    
+        pack = st.session_state.get("v108_proc_pack")
+        if isinstance(pack, dict):
+            st.write(pack.get("summary", {}))
+            zip_bytes = pack.get("zip_bytes")
+            if isinstance(zip_bytes, (bytes, bytearray)):
+                st.download_button(
+                    "Download process_downstream_bundle.zip",
+                    data=bytes(zip_bytes),
+                    file_name="process_downstream_bundle.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                    key="v108_proc_dl_zip",
+                )
+            manifest = dict(pack)
+            manifest.pop("zip_bytes", None)
+            st.download_button(
+                "Download process_downstream_manifest.json",
+                data=_json.dumps(manifest, indent=2, sort_keys=True),
+                file_name="process_downstream_manifest.json",
+                mime="application/json",
+                use_container_width=True,
+                key="v108_proc_dl_manifest",
+            )
+    
+    
+    # =====================
+    # v109 Island Inspector (append-only)
+    # =====================
+    def _v109_island_inspector_panel():
+        import streamlit as st
+        from tools.component_dominance import build_component_dominance_report
+    
+        st.subheader("Island Inspector")
+        st.caption("Per-feasible-island dominance + boundary-near failure modes.")
+    
+        s = _v98_state_init_runlists()
+        # Get topology + failure taxonomy from session/run ledger
+        topo = st.session_state.get("v104_topology")
+        dom = st.session_state.get("v105_dom")  # not required, but should exist for prior steps
+        fail = st.session_state.get("v106_fail")
+    
+        def _latest_by_mode(mode_name: str):
+            for r in reversed(s.run_history or []):
+                if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
+                    return r.get("payload")
+            return None
+    
+        if topo is None:
+            topo = _latest_by_mode("feasible_topology")
+        if fail is None:
+            fail = _latest_by_mode("failure_taxonomy")
+    
+        st.write({"topology_loaded": isinstance(topo, dict), "failures_loaded": isinstance(fail, dict)})
+        if not isinstance(topo, dict):
+            st.info("Build topology first.")
+            return
+    
+        # choose run artifacts to assign
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Run artifacts to use (feasible ones define islands)", options=ids, default=default_ids, key="v109_pick_runs")
+        near = st.slider("Near-boundary threshold (margin_frac)", 0.00, 0.25, 0.05, 0.01, key="v109_near")
+        fail_w = st.slider("Failure weight", 1.0, 10.0, 4.0, 0.5, key="v109_failw")
+    
+        if st.button("Build component dominance report", key="v109_build"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                payloads = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
+                        payloads.append(payload)
+                rep = build_component_dominance_report(topology=topo, run_artifacts=payloads, failure_taxonomy=fail, near_threshold=float(near), fail_weight=float(fail_w))
+                st.session_state["v109_components"] = rep
+                _v98_record_run("islands", rep, mode="component_dominance")
+                st.success(f"Built component report for {rep.get('n_components',0)} components.")
+            except Exception as e:
+                st.error(f"v109 failed: {e!r}")
+    
+        rep = st.session_state.get("v109_components")
+        if isinstance(rep, dict):
+            comps = rep.get("components", [])
+            if isinstance(comps, list) and comps:
+                st.write("Top components (by size):")
+                st.write([{
+                    "component": c.get("component_index"),
+                    "size_pts": c.get("component_size_points"),
+                    "runs": c.get("n_feasible_runs_assigned"),
+                    "top_constraint": (c.get("dominance_top_constraints") or [{}])[0].get("name") if isinstance(c.get("dominance_top_constraints"), list) and c.get("dominance_top_constraints") else None,
+                    "top_failure_mode": (c.get("top_failure_modes_near_component") or [{}])[0].get("mode") if isinstance(c.get("top_failure_modes_near_component"), list) and c.get("top_failure_modes_near_component") else None,
+                } for c in comps[:12]])
+            st.download_button("Download component_dominance_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="component_dominance_report.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v109_dl_report")
+    
+    
+    # =====================
+    # v110 Boundary Atlas v2 (append-only)
+    # =====================
+    def _v110_boundary_atlas_panel():
+        import streamlit as st
+        from tools.boundary_atlas_v2 import build_boundary_atlas_v2
+        from tools.plot_boundary_atlas_v2 import main as _plot_cli  # not used directly
+    
+        st.subheader("Feasibility Boundary Atlas v2")
+        st.caption("Extracts explicit feasible/infeasible boundaries for lever-pair slices, with failure-mode labels (best-effort).")
+    
+        s = _v98_state_init_runlists()
+        topo = st.session_state.get("v104_topology")
+        fail = st.session_state.get("v106_fail")
+    
+        def _latest_by_mode(mode_name: str):
+            for r in reversed(s.run_history or []):
+                if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
+                    return r.get("payload")
+            return None
+    
+        if fail is None:
+            fail = _latest_by_mode("failure_taxonomy")
+    
+        # Use pinned runs as sources; include atlas/sandbox/topology artifacts if present in history
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Source run artifacts (infeasible + feasible)", options=ids, default=default_ids, key="v110_pick_runs")
+        q = st.slider("Boundary proximity quantile (lower = tighter)", 0.05, 0.80, 0.25, 0.05, key="v110_q")
+        maxpairs = st.slider("Max lever pairs", 1, 8, 6, 1, key="v110_maxpairs")
+    
+        if st.button("Build Boundary Atlas v2", key="v110_build"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                payloads = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
+                        payloads.append(payload)
+                rep = build_boundary_atlas_v2(payloads, failure_taxonomy=fail, max_pairs=int(maxpairs), proximity_quantile=float(q))
+                st.session_state["v110_boundary_atlas"] = rep
+                _v98_record_run("atlas_v2", rep, mode="boundary_atlas_v2")
+                st.success(f"Built atlas slices: {len(rep.get('slices', []))}")
+            except Exception as e:
+                st.error(f"v110 failed: {e!r}")
+    
+        rep = st.session_state.get("v110_boundary_atlas")
+        if isinstance(rep, dict):
+            st.write({"slices": len(rep.get("slices", [])), "lever_pairs": rep.get("lever_pairs")})
+            st.download_button("Download boundary_atlas_v2.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="boundary_atlas_v2.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v110_dl_json")
+    
+    
+    # =====================
+    # v111 Design Family Explorer (append-only)
+    # =====================
+    def _v111_design_family_panel():
+        import streamlit as st
+        from tools.design_family import build_design_family_report
+    
+        st.subheader("Design Family Explorer")
+        st.caption("Safe local exploration within a feasible island (no optimization).")
+    
+        s = _v98_state_init_runlists()
+        topo = st.session_state.get("v104_topology")
+        def _latest_by_mode(mode_name: str):
+            for r in reversed(s.run_history or []):
+                if (r.get("mode") == mode_name) and isinstance(r.get("payload"), dict):
+                    return r.get("payload")
+            return None
+        if topo is None:
+            topo = _latest_by_mode("feasible_topology")
+    
+        if not isinstance(topo, dict):
+            st.info("Build topology first.")
+            return
+    
+        comps = topo.get("components", [])
+        ncomp = len(comps) if isinstance(comps, list) else 0
+        st.write({"n_components": ncomp})
+    
+        # choose baseline run (for full PointInputs)
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_id = (list(s.pinned_run_ids or [])[:1] or [ids[0] if ids else None])[0]
+        baseline_id = st.selectbox("Baseline run artifact (provides full inputs)", options=[None] + ids, index=(1 if default_id in ids else 0), key="v111_base_id")
+        comp_idx = st.number_input("Component index", min_value=0, max_value=max(0, ncomp-1), value=0, step=1, key="v111_comp_idx")
+        n_samples = st.slider("Samples", 10, 240, 120, 10, key="v111_ns")
+        radius = st.slider("Local radius (fraction of lever span)", 0.01, 0.25, 0.08, 0.01, key="v111_rad")
+        seed = st.number_input("Seed", min_value=0, max_value=10_000_000, value=0, step=1, key="v111_seed")
+    
+        if st.button("Run Design Family Explorer", key="v111_run"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                payload = (run_map.get(baseline_id) or {}).get("payload") if baseline_id else None
+                if not (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact"):
+                    st.error("Baseline run artifact not found. Pin/select a valid run artifact first.")
+                    return
+                base_inputs = payload.get("inputs", {})
+                if not isinstance(base_inputs, dict):
+                    st.error("Baseline inputs invalid.")
+                    return
+    
+                rep = build_design_family_report(
+                    topology=topo,
+                    component_index=int(comp_idx),
+                    baseline_inputs=base_inputs,
+                    n_samples=int(n_samples),
+                    radius_frac=float(radius),
+                    seed=int(seed),
+                )
+                st.session_state["v111_family"] = rep
+                _v98_record_run("design_family", rep, mode="design_family")
+                st.success("Design family report built.")
+            except Exception as e:
+                st.error(f"v111 failed: {e!r}")
+    
+        rep = st.session_state.get("v111_family")
+        if isinstance(rep, dict):
+            st.write({
+                "component_index": rep.get("component_index"),
+                "n_samples": rep.get("n_samples"),
+                "feasible_fraction": rep.get("feasible_fraction"),
+                "top_worst_hard": (rep.get("worst_hard_ranked") or [{}])[0],
+            })
+            st.download_button("Download design_family_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="design_family_report.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v111_dl_json")
+    
+    
+    # =====================
+    # v112 Literature Overlay (append-only)
+    # =====================
+    def _v112_literature_overlay_panel():
+        import streamlit as st
+        from tools.literature_overlay import template_payload, validate_literature_points
+        from tools.literature_overlay import extract_xy_points
+    
+        st.subheader("Literature Overlay")
+        st.caption("Upload a JSON of reference points (ITER/ARC/SPARC/etc.) and overlay on Boundary Atlas slices. SHAMS ships only a template.")
+    
+        if "v112_overlay" not in st.session_state:
+            st.session_state["v112_overlay"] = template_payload(version="v112")
+    
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "Download overlay template JSON",
+                data=_json.dumps(template_payload(version="v112"), indent=2, sort_keys=True),
+                file_name="literature_points_template.json",
+                mime="application/json",
+                use_container_width=True,
+                key="v112_dl_template",
+            )
+        with c2:
+            up = st.file_uploader("Upload literature_points.json", type=["json"], key="v112_upload")
+            if up is not None:
+                try:
+                    payload = _json.loads(up.getvalue().decode("utf-8"))
+                    errs = validate_literature_points(payload)
+                    st.session_state["v112_overlay"] = payload
+                    if errs:
+                        st.warning(f"Loaded with warnings: {errs[:8]}")
+                    else:
+                        st.success("Overlay loaded.")
+                except Exception as e:
+                    st.error(f"Failed to parse JSON: {e!r}")
+    
+        overlay = st.session_state.get("v112_overlay")
+        st.write({"n_points": len((overlay or {}).get("points", [])) if isinstance(overlay, dict) else None})
+    
+        atlas = st.session_state.get("v110_boundary_atlas")
+        if isinstance(atlas, dict) and isinstance(overlay, dict):
+            slices = atlas.get("slices", [])
+            if isinstance(slices, list) and slices:
+                st.write("Preview overlay-able slices (first 6):")
+                prev = []
+                for sl in slices[:6]:
+                    if not isinstance(sl, dict):
+                        continue
+                    kx = sl.get("lever_x"); ky = sl.get("lever_y")
+                    if isinstance(kx, str) and isinstance(ky, str):
+                        prev.append({"x": kx, "y": ky, "points_available": len(extract_xy_points(overlay, kx, ky))})
+                st.write(prev)
+    
+    
+    # =====================
+    # v113 Design Decision Layer (append-only)
+    # =====================
+    def _v113_design_decision_panel():
+        import streamlit as st
+        from tools.design_decision_layer import build_design_candidates, build_design_decision_pack
+    
+        st.subheader("Design Decision Layer")
+        st.caption("Build defensible design candidates + comparison table + exportable decision pack (no optimization).")
+    
+        s = _v98_state_init_runlists()
+    
+        topo = st.session_state.get("v104_topology")
+        comp = st.session_state.get("v109_components")
+        atlas = st.session_state.get("v110_boundary_atlas")
+        fam = st.session_state.get("v111_family")
+        overlay = st.session_state.get("v112_overlay")
+    
+        # pick candidate artifacts from pinned runs (feasible only)
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        default_ids = list(s.pinned_run_ids or [])
+        picked = st.multiselect("Candidate source run artifacts (feasible ones)", options=ids, default=default_ids, key="v113_pick")
+        maxc = st.slider("Max candidates", 1, 20, 12, 1, key="v113_maxc")
+    
+        if st.button("Build candidates + decision pack", key="v113_build"):
+            try:
+                run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+                artifacts = []
+                for rid in picked:
+                    payload = (run_map.get(rid) or {}).get("payload")
+                    if isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact":
+                        artifacts.append(payload)
+    
+                candidates = build_design_candidates(
+                    artifacts=artifacts,
+                    topology=topo if isinstance(topo, dict) else None,
+                    component_dominance=comp if isinstance(comp, dict) else None,
+                    boundary_atlas_v2=atlas if isinstance(atlas, dict) else None,
+                    design_family_report=fam if isinstance(fam, dict) else None,
+                    literature_overlay=overlay if isinstance(overlay, dict) else None,
+                    max_candidates=int(maxc),
+                )
+                pack = build_design_decision_pack(candidates=candidates, version="v113")
+                st.session_state["v113_candidates"] = candidates
+                st.session_state["v113_pack"] = pack
+                _v98_record_run("design_decision_pack", {"candidates": candidates, "manifest": pack.get("manifest")}, mode="design_decision_pack")
+                st.success(f"Built {len(candidates)} candidates.")
+            except Exception as e:
+                st.error(f"v113 failed: {e!r}")
+    
+        candidates = st.session_state.get("v113_candidates")
+        pack = st.session_state.get("v113_pack")
+        if isinstance(candidates, list) and candidates:
+            st.write("Candidate preview (first 5):")
+            st.write([{
+                "id": c.get("source_artifact_id"),
+                "component": c.get("component_index"),
+                "worst": (c.get("feasibility") or {}).get("worst_hard"),
+                "margin": (c.get("feasibility") or {}).get("worst_hard_margin_frac"),
+                "family_feas": (c.get("robustness") or {}).get("family_feasible_fraction"),
+            } for c in candidates[:5]])
+            st.download_button("Download candidates.json",
+                               data=_json.dumps({"candidates": candidates}, indent=2, sort_keys=True),
+                               file_name="candidates.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v113_dl_candidates")
+    
+        if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download design_decision_pack.zip",
+                               data=pack["zip_bytes"],
+                               file_name="design_decision_pack.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v113_dl_pack")
+    
+    
+    # =====================
+    # v114 Preference-Aware Decision Layer (append-only)
+    # =====================
+    def _v114_preference_panel():
+        import streamlit as st
+        from tools.preference_layer import template_preferences, annotate_candidates_with_preferences, pareto_sets_from_annotations
+        from tools.design_decision_layer import build_design_decision_pack
+    
+        st.subheader("Preference-Aware Decision Layer")
+        st.caption("Preference sliders annotate candidates (scores + Pareto sets). No optimization; no auto-selection.")
+    
+        # candidates from v113
+        candidates = st.session_state.get("v113_candidates")
+        if not (isinstance(candidates, list) and candidates):
+            st.info("Build v113 candidates first (Design Decision Layer).")
+            return
+    
+        if "v114_prefs" not in st.session_state:
+            st.session_state["v114_prefs"] = template_preferences()
+    
+        prefs = st.session_state["v114_prefs"]
+        weights = (prefs.get("weights") if isinstance(prefs, dict) else None)
+        if not isinstance(weights, dict):
+            weights = {}
+    
+        st.write("Weights (0 disables a metric).")
+        c1, c2 = st.columns(2)
+        with c1:
+            weights["margin"] = st.slider("margin (worst constraint margin)", 0.0, 2.0, float(weights.get("margin", 1.0)), 0.1, key="v114_w_margin")
+            weights["robustness"] = st.slider("robustness (family feasible fraction)", 0.0, 2.0, float(weights.get("robustness", 1.0)), 0.1, key="v114_w_rob")
+            weights["boundary_clearance"] = st.slider("boundary clearance (2D proxy)", 0.0, 2.0, float(weights.get("boundary_clearance", 0.7)), 0.1, key="v114_w_bd")
+        with c2:
+            weights["compactness"] = st.slider("compactness (smaller R0)", 0.0, 2.0, float(weights.get("compactness", 0.3)), 0.1, key="v114_w_comp")
+            weights["low_aux_power"] = st.slider("low aux power (smaller Paux)", 0.0, 2.0, float(weights.get("low_aux_power", 0.2)), 0.1, key="v114_w_paux")
+    
+        prefs["weights"] = weights
+        st.session_state["v114_prefs"] = prefs
+    
+        metrics = st.multiselect("Pareto metrics (normalized)", options=["margin","robustness","boundary_clearance","compactness","low_aux_power"],
+                                 default=["margin","robustness","boundary_clearance"], key="v114_metrics")
+    
+        if st.button("Annotate + compute Pareto sets", key="v114_run"):
+            try:
+                ann = annotate_candidates_with_preferences(candidates, prefs)
+                pareto = pareto_sets_from_annotations(ann, metrics=metrics, max_fronts=3)
+                st.session_state["v114_ann"] = ann
+                st.session_state["v114_pareto"] = pareto
+                st.success("v114 annotations + Pareto computed.")
+            except Exception as e:
+                st.error(f"v114 failed: {e!r}")
+    
+        ann = st.session_state.get("v114_ann")
+        pareto = st.session_state.get("v114_pareto")
+    
+        if isinstance(ann, dict):
+            # show top composite scores (best-effort)
+            cands = ann.get("candidates", [])
+            preview = []
+            if isinstance(cands, list):
+                for c in cands:
+                    if not isinstance(c, dict):
+                        continue
+                    pa = c.get("preference_annotation_v114", {})
+                    comp = pa.get("composite_score") if isinstance(pa, dict) else None
+                    preview.append({
+                        "id": c.get("source_artifact_id"),
+                        "composite_score": comp,
+                        "worst": (c.get("feasibility") or {}).get("worst_hard"),
+                        "margin": (c.get("feasibility") or {}).get("worst_hard_margin_frac"),
+                    })
+                preview.sort(key=lambda r: (r.get("composite_score") is None, -(r.get("composite_score") or -1e9)))
+            st.write("Preview (top 8 by composite score; annotation only):")
+            st.write(preview[:8])
+    
+            st.download_button("Download preference_annotation_bundle.json",
+                               data=_json.dumps(ann, indent=2, sort_keys=True),
+                               file_name="preference_annotation_bundle_v114.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v114_dl_ann")
+    
+        if isinstance(pareto, dict):
+            st.write({"pareto_metrics": pareto.get("metrics"), "n_points": pareto.get("n_points"), "front_sizes": [len(f) for f in (pareto.get("fronts") or []) if isinstance(f, list)]})
+            st.download_button("Download pareto_sets.json",
+                               data=_json.dumps(pareto, indent=2, sort_keys=True),
+                               file_name="pareto_sets_v114.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v114_dl_pareto")
+    
+        if isinstance(ann, dict) and isinstance(pareto, dict):
+            # build a justification + pack (adds decision_justification.json inside zip)
+            justification = {
+                "kind": "shams_decision_justification_v114",
+                "created_utc": ann.get("created_utc"),
+                "preferences": prefs,
+                "pareto_sets": pareto,
+                "n_candidates": len((ann.get("candidates") or [])) if isinstance(ann.get("candidates"), list) else None,
+                "disclaimer": "Annotations only. No optimization. No auto-selected best design.",
+            }
+            pack = build_design_decision_pack(candidates=candidates, version="v114", decision_justification=justification)
+            st.download_button("Download v114 design_decision_pack.zip (with justification)",
+                               data=pack["zip_bytes"],
+                               file_name="design_decision_pack_v114.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v114_dl_pack")
+    
+    
+    # =====================
+    # v115 External Optimizer Sandbox (append-only)
+    # =====================
+    def _v115_optimizer_sandbox_panel():
+        import streamlit as st
+        from tools.optimizer_interface import template_request, template_response, evaluate_optimizer_proposal, build_optimizer_import_pack
+    
+        st.subheader("External Optimizer Sandbox")
+        st.caption("Import external optimizer proposals as *read-only* candidates. SHAMS re-evaluates physics+constraints and records a run artifact.")
+    
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "Download optimizer_request_template.json",
+                data=_json.dumps(template_request(version="v115"), indent=2, sort_keys=True),
+                file_name="optimizer_request_template.json",
+                mime="application/json",
+                use_container_width=True,
+                key="v115_dl_req",
+            )
+        with c2:
+            st.download_button(
+                "Download optimizer_response_template.json",
+                data=_json.dumps(template_response(version="v115"), indent=2, sort_keys=True),
+                file_name="optimizer_response_template.json",
+                mime="application/json",
+                use_container_width=True,
+                key="v115_dl_resp_tpl",
+            )
+    
+        up = st.file_uploader("Upload optimizer_response.json (proposal)", type=["json"], key="v115_upload_resp")
+        if up is None:
+            st.info("Upload a proposal response to evaluate it inside SHAMS.")
+            return
+    
         try:
-            graph = build_evidence_graph(
-                run_artifact=art,
-                mission_report=mission_rep if use_mission else None,
-                tolerance_envelope_report=env_rep if use_env else None,
-                explainability_report=expl_rep if use_expl else None,
-                decision_pack_manifest=decision_manifest,
-                downstream_bundle_manifest=downstream_manifest,
-                authority_pack_manifest=authority_manifest,
-                version="v123",
-            )
-            tab = build_traceability_table(
-                run_artifact=art,
-                mission_report=mission_rep if use_mission else None,
-                tolerance_envelope_report=env_rep if use_env else None,
-                explainability_report=expl_rep if use_expl else None,
-                version="v123",
-            )
-            st.session_state["v123_graph"] = graph
-            st.session_state["v123_trace_table"] = tab
-            _v98_record_run("evidence_graph", {"nodes": len(graph.get("nodes",[])), "edges": len(graph.get("edges",[]))}, mode="evidence_graph_v123")
-            st.success("Evidence graph and traceability built.")
+            payload = _json.loads(up.getvalue().decode("utf-8"))
         except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    graph = st.session_state.get("v123_graph")
-    tab = st.session_state.get("v123_trace_table")
-    if isinstance(graph, dict) and graph.get("kind") == "shams_evidence_graph":
-        st.download_button("Download evidence_graph.json", data=_json.dumps(graph, indent=2, sort_keys=True),
-                           file_name="evidence_graph_v123.json", mime="application/json", use_container_width=True, key="v123_dl_graph")
-        st.json({"nodes": len(graph.get("nodes",[])), "edges": len(graph.get("edges",[]))})
-
-    if isinstance(tab, dict) and tab.get("kind") == "shams_traceability_table":
-        st.download_button("Download traceability_table.json", data=_json.dumps(tab, indent=2, sort_keys=True),
-                           file_name="traceability_table_v123.json", mime="application/json", use_container_width=True, key="v123_dl_tab")
-        st.download_button("Download traceability.csv", data=traceability_csv(tab),
-                           file_name="traceability_v123.csv", mime="text/csv", use_container_width=True, key="v123_dl_csv")
-        st.write("Traceability rows:", len(tab.get("rows",[])))
-
-    st.divider()
-    st.write("Design Study Kit export (v123B): bundles run artifact + optional context + evidence graph + manifest.")
-    if st.button("Build study kit zip", key="v123_build_kit"):
+            st.error(f"Failed to parse JSON: {e!r}")
+            return
+    
+        if payload.get("kind") != "shams_optimizer_response":
+            st.error("JSON kind must be 'shams_optimizer_response'.")
+            return
+    
+        if st.button("Evaluate proposal in SHAMS (frozen physics)", key="v115_eval"):
+            try:
+                out = evaluate_optimizer_proposal(payload)
+                art = out["artifact"]
+                ctx = out["context"]
+                st.session_state["v115_last_artifact"] = art
+                st.session_state["v115_last_context"] = ctx
+                # record in ledger
+                _v98_record_run("optimizer_proposal", {"artifact": art, "context": ctx}, mode="optimizer_import_v115")
+                st.success("Proposal evaluated and recorded in Run Ledger.")
+            except Exception as e:
+                st.error(f"Evaluation failed: {e!r}")
+    
+        art = st.session_state.get("v115_last_artifact")
+        ctx = st.session_state.get("v115_last_context")
+    
+        if isinstance(ctx, dict):
+            st.write("Import context:")
+            st.write({k: ctx.get(k) for k in ["result", "disclaimer"]})
+    
+        if isinstance(art, dict) and art.get("kind") == "shams_run_artifact":
+            st.write("Evaluated artifact summary:")
+            cs = art.get("constraints_summary", {})
+            st.write({
+                "id": art.get("id"),
+                "feasible": (cs.get("feasible") if isinstance(cs, dict) else None),
+                "worst_hard": (cs.get("worst_hard") if isinstance(cs, dict) else None),
+                "worst_margin": (cs.get("worst_hard_margin_frac") if isinstance(cs, dict) else None),
+            })
+            st.download_button("Download evaluated_run_artifact.json",
+                               data=_json.dumps(art, indent=2, sort_keys=True),
+                               file_name="evaluated_run_artifact.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v115_dl_eval_art")
+    
+            pack = build_optimizer_import_pack(
+                request_template=template_request(version="v115"),
+                response_template=template_response(version="v115"),
+                evaluated_artifact=art,
+                import_context=ctx if isinstance(ctx, dict) else None,
+                version="v115",
+            )
+            st.download_button("Download optimizer_import_pack.zip",
+                               data=pack["zip_bytes"],
+                               file_name="optimizer_import_pack.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v115_dl_pack")
+    
+    
+    # =====================
+    # v116 Design Handoff Pack (append-only)
+    # =====================
+    def _v116_handoff_pack_panel():
+        import streamlit as st
+        from tools.handoff_pack import build_handoff_pack
+    
+        st.subheader("Design Handoff Pack")
+        st.caption("Export an engineering-ready handoff bundle for any run artifact (inputs YAML, constraints CSV, figures, manifest).")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v116_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+    
+        if art is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        if st.button("Build handoff pack", key="v116_build"):
+            try:
+                pack = build_handoff_pack(artifact=art, version="v116")
+                st.session_state["v116_pack"] = pack
+                _v98_record_run("handoff_pack", {"manifest": pack.get("manifest"), "source_artifact_id": art.get("id")}, mode="handoff_pack_v116")
+                st.success("Handoff pack built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        pack = st.session_state.get("v116_pack")
+        if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download handoff_pack.zip",
+                               data=pack["zip_bytes"],
+                               file_name=f"handoff_pack_{rid}.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v116_dl_pack")
+            st.download_button("Download handoff manifest.json",
+                               data=_json.dumps(pack.get("manifest", {}), indent=2, sort_keys=True),
+                               file_name="handoff_pack_manifest.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v116_dl_manifest")
+    
+    
+    # =====================
+    # v117 Tolerance Envelope (append-only)
+    # =====================
+    def _v117_tolerance_envelope_panel():
+        import streamlit as st
+        from tools.tolerance_envelope import template_tolerance_spec, evaluate_tolerance_envelope, envelope_summary_csv
+    
+        st.subheader("Tolerance Envelope")
+        st.caption("Deterministic tolerance envelope around a selected run artifact. No Monte Carlo, no optimization.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v117_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if art is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        if "v117_spec" not in st.session_state:
+            st.session_state["v117_spec"] = template_tolerance_spec()
+    
+        spec = st.session_state["v117_spec"]
+        tmap = spec.get("tolerances") if isinstance(spec, dict) else {}
+        if not isinstance(tmap, dict):
+            tmap = {}
+    
+        mode = st.selectbox("Tolerance mode", options=["relative","absolute"], index=0 if spec.get("mode","relative")=="relative" else 1, key="v117_mode")
+        include_mid = st.checkbox("Include edge midpoints", value=bool(spec.get("include_edge_midpoints", True)), key="v117_mid")
+        max_samples = st.number_input("Max samples", min_value=10, max_value=500, value=200, step=10, key="v117_max")
+    
+        st.write("Tolerances (per lever):")
+        cols = st.columns(3)
+        keys = ["Bt_T","Ip_MA","R0_m","a_m","fG","Ti_keV","Paux_MW","kappa"]
+        for i,k in enumerate(keys):
+            with cols[i % 3]:
+                default = float(tmap.get(k, 0.0) or 0.0)
+                tmap[k] = st.number_input(f"{k} tol", min_value=0.0, max_value=1e6, value=default, step=0.005 if mode=="relative" else 0.5, key=f"v117_tol_{k}")
+    
+        spec["mode"] = mode
+        spec["include_edge_midpoints"] = include_mid
+        spec["tolerances"] = tmap
+        st.session_state["v117_spec"] = spec
+    
+        st.download_button("Download tolerance_spec.json",
+                           data=_json.dumps(spec, indent=2, sort_keys=True),
+                           file_name="tolerance_spec_v117.json",
+                           mime="application/json",
+                           use_container_width=True,
+                           key="v117_dl_spec")
+    
+        if st.button("Run tolerance envelope", key="v117_run"):
+            try:
+                rep = evaluate_tolerance_envelope(baseline_artifact=art, tolerance_spec=spec, version="v117", max_samples=int(max_samples))
+                st.session_state["v117_report"] = rep
+                _v98_record_run("tolerance_envelope", {"summary": rep.get("summary"), "source_artifact_id": rid}, mode="tolerance_envelope_v117")
+                st.success("Tolerance envelope computed.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        rep = st.session_state.get("v117_report")
+        if isinstance(rep, dict) and rep.get("kind") == "shams_tolerance_envelope_report":
+            st.write("Summary:")
+            st.write(rep.get("summary", {}))
+            st.download_button("Download tolerance_envelope_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="tolerance_envelope_report_v117.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v117_dl_report")
+            st.download_button("Download tolerance_envelope_summary.csv",
+                               data=envelope_summary_csv(rep),
+                               file_name="tolerance_envelope_summary_v117.csv",
+                               mime="text/csv",
+                               use_container_width=True,
+                               key="v117_dl_csv")
+    
+    
+    # =====================
+    # v118 Optimizer Downstream Workflow (append-only)
+    # =====================
+    def _v118_optimizer_downstream_panel():
+        import streamlit as st
+        from tools.optimizer_downstream import template_batch_response, evaluate_optimizer_batch, build_downstream_report_zip
+        from tools.preference_layer import template_preferences
+        from tools.tolerance_envelope import template_tolerance_spec
+    
+        st.subheader("Optimizer Downstream Workflow")
+        st.caption("Upload a batch of optimizer proposals; SHAMS evaluates, filters feasible, runs tolerance envelopes, builds candidates, applies preferences+Pareto, and exports one bundle.")
+    
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.download_button("Download optimizer_batch_template.json",
+                               data=_json.dumps(template_batch_response(), indent=2, sort_keys=True),
+                               file_name="optimizer_batch_template.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v118_dl_batch_tpl")
+        with c2:
+            st.download_button("Download preferences_template.json",
+                               data=_json.dumps(template_preferences(), indent=2, sort_keys=True),
+                               file_name="preferences_template.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v118_dl_prefs_tpl")
+        with c3:
+            st.download_button("Download tolerance_spec_template.json",
+                               data=_json.dumps(template_tolerance_spec(), indent=2, sort_keys=True),
+                               file_name="tolerance_spec_template.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v118_dl_tol_tpl")
+    
+        up = st.file_uploader("Upload optimizer_batch.json", type=["json"], key="v118_up_batch")
+        if up is None:
+            st.info("Upload a batch proposal JSON to run v118.")
+            return
+    
         try:
-            if not (isinstance(graph, dict) and isinstance(tab, dict)):
-                graph = build_evidence_graph(run_artifact=art, mission_report=mission_rep if use_mission else None,
-                                             tolerance_envelope_report=env_rep if use_env else None,
-                                             explainability_report=expl_rep if use_expl else None,
-                                             decision_pack_manifest=decision_manifest,
-                                             downstream_bundle_manifest=downstream_manifest,
-                                             authority_pack_manifest=authority_manifest,
-                                             version="v123")
-                tab = build_traceability_table(run_artifact=art, mission_report=mission_rep if use_mission else None,
-                                               tolerance_envelope_report=env_rep if use_env else None,
-                                               explainability_report=expl_rep if use_expl else None,
-                                               version="v123")
+            batch = _json.loads(up.getvalue().decode("utf-8"))
+        except Exception as e:
+            st.error(f"Failed to parse JSON: {e!r}")
+            return
+    
+        if batch.get("kind") != "shams_optimizer_batch_response":
+            st.error("JSON kind must be 'shams_optimizer_batch_response'.")
+            return
+    
+        max_env = st.number_input("Max envelope samples per feasible point", min_value=8, max_value=80, value=24, step=4, key="v118_max_env")
+        max_cand = st.number_input("Max candidates", min_value=1, max_value=50, value=12, step=1, key="v118_max_cand")
+    
+        # Optional: use current v114 prefs if present, else template
+        prefs = st.session_state.get("v114_prefs")
+        if not isinstance(prefs, dict):
+            prefs = template_preferences()
+        spec = st.session_state.get("v117_spec")
+        if not isinstance(spec, dict):
+            spec = template_tolerance_spec()
+    
+        if st.button("Run v118 downstream report", key="v118_run"):
+            try:
+                out = evaluate_optimizer_batch(batch_payload=batch, tolerance_spec=spec, max_envelope_samples=int(max_env), max_candidates=int(max_cand), preferences=prefs)
+                rep = out["report"]
+                pack_bytes = out["decision_pack_zip_bytes"]
+                st.session_state["v118_report"] = rep
+                st.session_state["v118_pack_bytes"] = pack_bytes
+                bundle = build_downstream_report_zip(report_obj=rep, decision_pack_zip_bytes=pack_bytes)
+                st.session_state["v118_bundle"] = bundle
+                _v98_record_run("optimizer_downstream", {"summary": rep.get("batch_meta"), "decision_pack_manifest": rep.get("decision_pack_manifest")}, mode="optimizer_downstream_v118")
+                st.success("v118 downstream report built.")
+            except Exception as e:
+                st.error(f"v118 failed: {e!r}")
+    
+        rep = st.session_state.get("v118_report")
+        bundle = st.session_state.get("v118_bundle")
+        if isinstance(rep, dict):
+            st.write("Batch meta:")
+            st.write(rep.get("batch_meta", {}))
+            st.write("Decision justification summary:")
+            dj = rep.get("decision_justification", {}) if isinstance(rep.get("decision_justification"), dict) else {}
+            st.write({k: dj.get(k) for k in ["n_proposals","n_feasible","n_candidates","n_envelopes"]})
+            st.download_button("Download optimizer_downstream_report_v118.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="optimizer_downstream_report_v118.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v118_dl_report")
+    
+        pack_bytes = st.session_state.get("v118_pack_bytes")
+        if isinstance(pack_bytes, (bytes, bytearray)):
+            st.download_button("Download design_decision_pack_v118.zip",
+                               data=pack_bytes,
+                               file_name="design_decision_pack_v118.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v118_dl_pack")
+    
+        if isinstance(bundle, dict) and isinstance(bundle.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download optimizer_downstream_bundle_v118.zip",
+                               data=bundle["zip_bytes"],
+                               file_name="optimizer_downstream_bundle_v118.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v118_dl_bundle")
+    
+    
+    # =====================
+    # v119 Authority Pack (append-only)
+    # =====================
+    def _v119_authority_pack_panel():
+        import streamlit as st
+        from tools.authority_pack import build_authority_pack
+    
+        st.subheader("Authority Pack")
+        st.caption("Build a single publishable evidence bundle: version, patch notes, requirements freeze (best-effort), command log, methods appendix, and selected artifacts.")
+    
+        # try to find latest generated artifacts from self-test run folder if present in session state
+        audit_zip = st.session_state.get("last_audit_pack_zip_bytes")
+        downstream_zip = None
+        handoff_zip = None
+    
+        # If users ran v118/v116 panels in-session, these may exist:
+        bundle = st.session_state.get("v118_bundle")
+        if isinstance(bundle, dict) and isinstance(bundle.get("zip_bytes"), (bytes, bytearray)):
+            downstream_zip = bytes(bundle["zip_bytes"])
+        hp = st.session_state.get("v116_pack")
+        if isinstance(hp, dict) and isinstance(hp.get("zip_bytes"), (bytes, bytearray)):
+            handoff_zip = bytes(hp["zip_bytes"])
+    
+        cmdlog = st.text_area("Command log (editable)", value="\n".join([
+            "python -m tools.ui_self_test --outdir out_ui_self_test",
+            "python -m tools.verify_package",
+            "python -m tools.verify_figures",
+            "python -m tools.tests.test_plot_layout",
+            "python -m tools.regression_suite",
+        ]), height=140, key="v119_cmdlog")
+    
+        if st.button("Build Authority Pack", key="v119_build"):
+            try:
+                pack = build_authority_pack(
+                    repo_root=".",
+                    version="v119",
+                    audit_pack_zip=audit_zip,
+                    downstream_bundle_zip=downstream_zip,
+                    handoff_pack_zip=handoff_zip,
+                    command_log=[l for l in cmdlog.splitlines() if l.strip()],
+                )
+                st.session_state["v119_pack"] = pack
+                _v98_record_run("authority_pack", {"manifest": pack.get("manifest")}, mode="authority_pack_v119")
+                st.success("Authority pack built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        pack = st.session_state.get("v119_pack")
+        if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download authority_pack_v119.zip",
+                               data=pack["zip_bytes"],
+                               file_name="authority_pack_v119.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v119_dl_zip")
+            st.download_button("Download authority manifest.json",
+                               data=_json.dumps(pack.get("manifest", {}), indent=2, sort_keys=True),
+                               file_name="authority_pack_manifest_v119.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v119_dl_manifest")
+    
+    
+    # =====================
+    # v120 Constitutional panels (append-only)
+    # =====================
+    def _v120_constitution_panel():
+        import streamlit as st
+        from tools.constitution import build_constitution_manifest
+        from ui.layer_registry import get_layers
+    
+        st.subheader("Constitution & Layer Registry")
+        st.caption("This panel exposes governance + architecture documents and a cryptographic integrity manifest (SHA256).")
+    
+        # Documents
+        docs = [
+            ("ARCHITECTURE.md", "Architecture (Constitution)"),
+            ("GOVERNANCE.md", "Governance & Release Policy"),
+            ("LAYER_MODEL.md", "Layer Model"),
+            ("NON_OPTIMIZER_MANIFESTO.md", "Non-Optimizer Manifesto"),
+            ("CITATION.cff", "Citation (CFF)"),
+        ]
+        for fn, label in docs:
+            try:
+                b = open(fn, "rb").read()
+                st.download_button(f"Download {label}", data=b, file_name=fn, use_container_width=True, key=f"v120_dl_{fn}")
+            except Exception:
+                st.warning(f"Missing {fn}")
+    
+        st.write("Registered higher layers (UI-accessible):")
+        st.table([{"layer": e.layer, "title": e.title, "description": e.description, "panel": e.panel_fn_name} for e in get_layers()])
+    
+        man = build_constitution_manifest(repo_root=".", version="v120")
+        st.download_button("Download constitution_manifest.json",
+                           data=_json.dumps(man, indent=2, sort_keys=True),
+                           file_name="constitution_manifest_v120.json",
+                           mime="application/json",
+                           use_container_width=True,
+                           key="v120_dl_manifest")
+        st.write("Manifest preview:")
+        st.json(man)
+    
+    def _v120_mission_placeholder_panel():
+        import streamlit as st
+        st.subheader("Mission Context (v120 placeholder)")
+        st.info("Mission contexts are schema-first and will be added as additive layer panels without changing physics.")
+    
+    def _v120_explainability_placeholder_panel():
+        import streamlit as st
+        st.subheader("Explainability (v120 placeholder)")
+        st.info("Explainability narratives will be added as additive post-processing panels consuming run artifacts.")
+    
+    
+    
+    # =====================
+    # v121 Mission Context Layer (L3) - additive UI panel
+    # =====================
+    def _v121_mission_context_panel():
+        import streamlit as st
+        from tools.mission_context import list_builtin_missions, load_mission, apply_mission_overlays, mission_report_csv
+    
+        st.subheader("Mission Context")
+        st.caption("Advisory mission overlay: evaluates alignment to mission targets and reports gaps. No physics/constraints are changed.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v121_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if art is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        missions = list_builtin_missions("missions")
+        if not missions:
+            st.error("No missions found in missions/ directory.")
+            return
+    
+        mfile = st.selectbox("Mission", options=missions, index=0, key="v121_mission_file")
+        mission = load_mission(str(Path("missions") / mfile))
+    
+        if st.button("Generate mission report", key="v121_run"):
+            try:
+                rep = apply_mission_overlays(run_artifact=art, mission=mission, version="v121")
+                st.session_state["v121_mission_report"] = rep
+                _v98_record_run("mission_context", {"mission": mission.get("name"), "gaps_n": len(rep.get("gaps", []))}, mode="mission_context_v121")
+                st.success("Mission report generated.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        rep = st.session_state.get("v121_mission_report")
+        if isinstance(rep, dict) and rep.get("kind") == "shams_mission_report":
+            st.write("Alignment:")
+            st.write(rep.get("alignment", {}))
+            st.write("Gaps:")
+            st.write(rep.get("gaps", []))
+            st.download_button("Download mission_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name=f"mission_report_{mission.get('name','mission')}_v121.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v121_dl_json")
+            st.download_button("Download mission_gaps.csv",
+                               data=mission_report_csv(rep),
+                               file_name=f"mission_gaps_{mission.get('name','mission')}_v121.csv",
+                               mime="text/csv",
+                               use_container_width=True,
+                               key="v121_dl_csv")
+    
+    
+    # =====================
+    # v122 Explainability Layer (L4) - additive UI panel
+    # =====================
+    def _v122_explainability_panel():
+        import streamlit as st
+        from tools.explainability import build_explainability_report
+    
+        st.subheader("Explainability")
+        st.caption("Post-processing narrative: why a design fails/succeeds, limiting constraints, robustness and mission context (if available).")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v122_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if art is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        # Optional inputs: use latest in-session mission report / envelope report if present
+        mission_rep = st.session_state.get("v121_mission_report")
+        env_rep = st.session_state.get("v117_report")
+    
+        use_mission = st.checkbox("Use latest in-session mission report (if available)", value=isinstance(mission_rep, dict), key="v122_use_mission")
+        use_env = st.checkbox("Use latest in-session tolerance envelope (if available)", value=isinstance(env_rep, dict), key="v122_use_env")
+    
+        if st.button("Generate explainability report", key="v122_run"):
+            try:
+                rep = build_explainability_report(
+                    run_artifact=art,
+                    mission_report=mission_rep if use_mission else None,
+                    tolerance_envelope_report=env_rep if use_env else None,
+                    version="v122",
+                )
+                st.session_state["v122_explainability_report"] = rep
+                _v98_record_run("explainability", {"summary": rep.get("summary")}, mode="explainability_v122")
+                st.success("Explainability report generated.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        rep = st.session_state.get("v122_explainability_report")
+        if isinstance(rep, dict) and rep.get("kind") == "shams_explainability_report":
+            st.write("Summary:")
+            st.write(rep.get("summary", {}))
+            st.text_area("Narrative", value=rep.get("narrative",""), height=260, key="v122_narr_view")
+            st.download_button("Download explainability_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="explainability_report_v122.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v122_dl_json")
+            st.download_button("Download explainability_report.txt",
+                               data=(rep.get("narrative","") or "").encode("utf-8"),
+                               file_name="explainability_report_v122.txt",
+                               mime="text/plain",
+                               use_container_width=True,
+                               key="v122_dl_txt")
+    
+    
+    # =====================
+    # v123 Evidence Graph + v123B Study Kit - additive UI panel
+    # =====================
+    def _v123_evidence_and_studykit_panel():
+        import streamlit as st
+        from tools.evidence_graph import build_evidence_graph, build_traceability_table, traceability_csv
+        from tools.study_kit import build_study_kit_zip
+    
+        st.subheader("Evidence Graph & Design Study Kit (v123 / v123B)")
+        st.caption("Build provenance graph + traceability table, and export a full publishable study kit zip (manifested with SHA256).")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v123_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if art is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        # Optional context from session state
+        mission_rep = st.session_state.get("v121_mission_report")
+        env_rep = st.session_state.get("v117_report")
+        expl_rep = st.session_state.get("v122_explainability_report")
+    
+        v118_bundle = st.session_state.get("v118_bundle")
+        downstream_manifest = None
+        downstream_zip = None
+        if isinstance(v118_bundle, dict):
+            downstream_manifest = v118_bundle.get("manifest")
+            if isinstance(v118_bundle.get("zip_bytes"), (bytes, bytearray)):
+                downstream_zip = bytes(v118_bundle["zip_bytes"])
+    
+        v119_pack = st.session_state.get("v119_pack")
+        authority_manifest = None
+        authority_zip = None
+        if isinstance(v119_pack, dict):
+            authority_manifest = v119_pack.get("manifest")
+            if isinstance(v119_pack.get("zip_bytes"), (bytes, bytearray)):
+                authority_zip = bytes(v119_pack["zip_bytes"])
+    
+        decision_manifest = None
+        decision_zip = None
+        pack_bytes = st.session_state.get("v118_pack_bytes")
+        if isinstance(pack_bytes, (bytes, bytearray)):
+            decision_zip = bytes(pack_bytes)
+            # best-effort manifest from report if present
+            rep = st.session_state.get("v118_report")
+            if isinstance(rep, dict):
+                decision_manifest = rep.get("decision_pack_manifest")
+    
+        use_mission = st.checkbox("Use latest in-session mission report", value=isinstance(mission_rep, dict), key="v123_use_mission")
+        use_env = st.checkbox("Use latest in-session tolerance envelope", value=isinstance(env_rep, dict), key="v123_use_env")
+        use_expl = st.checkbox("Use latest in-session explainability report", value=isinstance(expl_rep, dict), key="v123_use_expl")
+    
+        if st.button("Build evidence graph + traceability", key="v123_build_ev"):
+            try:
+                graph = build_evidence_graph(
+                    run_artifact=art,
+                    mission_report=mission_rep if use_mission else None,
+                    tolerance_envelope_report=env_rep if use_env else None,
+                    explainability_report=expl_rep if use_expl else None,
+                    decision_pack_manifest=decision_manifest,
+                    downstream_bundle_manifest=downstream_manifest,
+                    authority_pack_manifest=authority_manifest,
+                    version="v123",
+                )
+                tab = build_traceability_table(
+                    run_artifact=art,
+                    mission_report=mission_rep if use_mission else None,
+                    tolerance_envelope_report=env_rep if use_env else None,
+                    explainability_report=expl_rep if use_expl else None,
+                    version="v123",
+                )
                 st.session_state["v123_graph"] = graph
                 st.session_state["v123_trace_table"] = tab
-
-            kit = build_study_kit_zip(
-                run_artifact=art,
-                mission_report=mission_rep if use_mission else None,
-                tolerance_envelope_report=env_rep if use_env else None,
-                explainability_report=expl_rep if use_expl else None,
-                evidence_graph=graph,
-                traceability_table=tab,
-                authority_pack_zip=authority_zip,
-                optimizer_downstream_bundle_zip=downstream_zip,
-                decision_pack_zip=decision_zip,
-                version="v123B",
-            )
-            st.session_state["v123_study_kit"] = kit
-            _v98_record_run("study_kit", {"files": len((kit.get("manifest") or {}).get("files", {}))}, mode="study_kit_v123B")
-            st.success("Study kit built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    kit = st.session_state.get("v123_study_kit")
-    if isinstance(kit, dict) and isinstance(kit.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download study_kit_v123B.zip",
-                           data=kit["zip_bytes"], file_name="study_kit_v123B.zip",
-                           mime="application/zip", use_container_width=True, key="v123_dl_kit")
-        st.download_button("Download study_kit_manifest_v123B.json",
-                           data=_json.dumps(kit.get("manifest", {}), indent=2, sort_keys=True),
-                           file_name="study_kit_manifest_v123B.json", mime="application/json",
-                           use_container_width=True, key="v123_dl_kitman")
-
-
-# =====================
-# v124 Feasibility Boundary Atlas - additive UI panel
-# =====================
-def _v124_feasibility_atlas_panel():
-    import streamlit as st
-    from tools.feasibility_atlas import build_feasibility_atlas_bundle, available_numeric_levers
-
-    st.subheader("Feasibility Boundary Atlas")
-    st.caption("Runs a 2D grid scan around a baseline run, extracts feasibility boundary, and exports a publishable atlas bundle. Additive only (no physics/solver changes).")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v124_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-    levers = available_numeric_levers(base_inputs)
-    if len(levers) < 2:
-        st.error("Baseline inputs do not contain enough numeric levers for an atlas.")
-        return
-
-    col1, col2 = st.columns(2)
-    with col1:
-        kx = st.selectbox("Lever X", options=levers, index=0, key="v124_kx")
-    with col2:
-        ky = st.selectbox("Lever Y", options=levers, index=1 if len(levers)>1 else 0, key="v124_ky")
-
-    def _default_range(v):
-        try:
-            v=float(v)
-        except Exception:
-            return (0.0, 1.0)
-        if abs(v) < 1e-9:
-            return (-1.0, 1.0)
-        # ±20% around baseline
-        return (v*0.8, v*1.2)
-
-    x0 = base_inputs.get(kx)
-    y0 = base_inputs.get(ky)
-    xlo_def, xhi_def = _default_range(x0)
-    ylo_def, yhi_def = _default_range(y0)
-
-    st.write("Ranges (default ±20% around baseline):")
-    r1, r2 = st.columns(2)
-    with r1:
-        xlo = st.number_input("X min", value=float(xlo_def), key="v124_xlo")
-        xhi = st.number_input("X max", value=float(xhi_def), key="v124_xhi")
-    with r2:
-        ylo = st.number_input("Y min", value=float(ylo_def), key="v124_ylo")
-        yhi = st.number_input("Y max", value=float(yhi_def), key="v124_yhi")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        nx = st.slider("Grid NX", min_value=9, max_value=61, value=25, step=2, key="v124_nx")
-    with c2:
-        ny = st.slider("Grid NY", min_value=9, max_value=61, value=25, step=2, key="v124_ny")
-
-    max_evals = int(nx) * int(ny)
-    st.caption(f"Total evaluations: {max_evals} (pure point evaluations + constraints).")
-
-    if st.button("Generate atlas bundle", key="v124_run"):
-        try:
-            outdir = "out_feasibility_atlas_v124"
-            bundle = build_feasibility_atlas_bundle(
-                baseline_run_artifact=base,
-                lever_x=kx,
-                lever_y=ky,
-                x_range=(float(xlo), float(xhi)),
-                y_range=(float(ylo), float(yhi)),
-                nx=int(nx),
-                ny=int(ny),
-                outdir=outdir,
-                version="v124",
-            )
-            st.session_state["v124_bundle"] = bundle
-            _v98_record_run("feasibility_atlas", {"lever_x": kx, "lever_y": ky, "nx": int(nx), "ny": int(ny)}, mode="feasibility_atlas_v124")
-            st.success("Atlas generated.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    bundle = st.session_state.get("v124_bundle")
-    if isinstance(bundle, dict) and isinstance(bundle.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download atlas_bundle_v124.zip",
-                           data=bundle["zip_bytes"],
-                           file_name="atlas_bundle_v124.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v124_dl_zip")
-        st.download_button("Download feasibility_atlas_v124.json",
-                           data=_json.dumps(bundle, indent=2, sort_keys=True),
-                           file_name="feasibility_atlas_v124.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v124_dl_json")
-        st.write("Atlas summary:")
-        st.json({"baseline_run_id": bundle.get("baseline_run_id"),
-                 "lever_x": bundle.get("lever_x"), "lever_y": bundle.get("lever_y"),
-                 "grid": bundle.get("grid"),
-                 "n_slices": len((bundle.get("atlas_v2") or {}).get("slices", [])) if isinstance(bundle.get("atlas_v2"), dict) else None})
-
-
-# =====================
-# v125 One-Click Paper Pack - additive UI panel
-# =====================
-def _v125_paper_pack_panel():
-    import streamlit as st
-    from tools.mission_context import load_mission, apply_mission_overlays
-    from tools.explainability import build_explainability_report
-    from tools.evidence_graph import build_evidence_graph, build_traceability_table, traceability_csv
-    from tools.feasibility_atlas import build_feasibility_atlas_bundle, available_numeric_levers
-    from tools.study_kit import build_study_kit_zip
-    from tools.study_orchestrator import build_paper_pack_zip
-
-    st.subheader("One-Click Paper Pack")
-    st.caption("Runs post-processing pipeline (mission → explainability → evidence/traceability → atlas → study kit) and exports a single publishable zip + manifest. No physics/solver changes.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v125_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    st.write("Pipeline options:")
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        do_mission = st.checkbox("Mission overlay", value=True, key="v125_do_mission")
-        do_expl = st.checkbox("Explainability", value=True, key="v125_do_expl")
-    with c2:
-        do_ev = st.checkbox("Evidence+Traceability (v123)", value=True, key="v125_do_ev")
-        do_atlas = st.checkbox("Feasibility Atlas (v124)", value=False, key="v125_do_atlas")
-    with c3:
-        do_kit = st.checkbox("Study Kit (v123B)", value=True, key="v125_do_kit")
-
-    mission_name = None
-    mission_rep = None
-    if do_mission:
-        missions = ["pilot","demo","powerplant"]
-        msel = st.selectbox("Mission", options=missions, index=0, key="v125_mission")
-        mission_name = msel
-
-    atlas_cfg = None
-    if do_atlas:
+                _v98_record_run("evidence_graph", {"nodes": len(graph.get("nodes",[])), "edges": len(graph.get("edges",[]))}, mode="evidence_graph_v123")
+                st.success("Evidence graph and traceability built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        graph = st.session_state.get("v123_graph")
+        tab = st.session_state.get("v123_trace_table")
+        if isinstance(graph, dict) and graph.get("kind") == "shams_evidence_graph":
+            st.download_button("Download evidence_graph.json", data=_json.dumps(graph, indent=2, sort_keys=True),
+                               file_name="evidence_graph_v123.json", mime="application/json", use_container_width=True, key="v123_dl_graph")
+            st.json({"nodes": len(graph.get("nodes",[])), "edges": len(graph.get("edges",[]))})
+    
+        if isinstance(tab, dict) and tab.get("kind") == "shams_traceability_table":
+            st.download_button("Download traceability_table.json", data=_json.dumps(tab, indent=2, sort_keys=True),
+                               file_name="traceability_table_v123.json", mime="application/json", use_container_width=True, key="v123_dl_tab")
+            st.download_button("Download traceability.csv", data=traceability_csv(tab),
+                               file_name="traceability_v123.csv", mime="text/csv", use_container_width=True, key="v123_dl_csv")
+            st.write("Traceability rows:", len(tab.get("rows",[])))
+    
+        st.divider()
+        st.write("Design Study Kit export (v123B): bundles run artifact + optional context + evidence graph + manifest.")
+        if st.button("Build study kit zip", key="v123_build_kit"):
+            try:
+                if not (isinstance(graph, dict) and isinstance(tab, dict)):
+                    graph = build_evidence_graph(run_artifact=art, mission_report=mission_rep if use_mission else None,
+                                                 tolerance_envelope_report=env_rep if use_env else None,
+                                                 explainability_report=expl_rep if use_expl else None,
+                                                 decision_pack_manifest=decision_manifest,
+                                                 downstream_bundle_manifest=downstream_manifest,
+                                                 authority_pack_manifest=authority_manifest,
+                                                 version="v123")
+                    tab = build_traceability_table(run_artifact=art, mission_report=mission_rep if use_mission else None,
+                                                   tolerance_envelope_report=env_rep if use_env else None,
+                                                   explainability_report=expl_rep if use_expl else None,
+                                                   version="v123")
+                    st.session_state["v123_graph"] = graph
+                    st.session_state["v123_trace_table"] = tab
+    
+                kit = build_study_kit_zip(
+                    run_artifact=art,
+                    mission_report=mission_rep if use_mission else None,
+                    tolerance_envelope_report=env_rep if use_env else None,
+                    explainability_report=expl_rep if use_expl else None,
+                    evidence_graph=graph,
+                    traceability_table=tab,
+                    authority_pack_zip=authority_zip,
+                    optimizer_downstream_bundle_zip=downstream_zip,
+                    decision_pack_zip=decision_zip,
+                    version="v123B",
+                )
+                st.session_state["v123_study_kit"] = kit
+                _v98_record_run("study_kit", {"files": len((kit.get("manifest") or {}).get("files", {}))}, mode="study_kit_v123B")
+                st.success("Study kit built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        kit = st.session_state.get("v123_study_kit")
+        if isinstance(kit, dict) and isinstance(kit.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download study_kit_v123B.zip",
+                               data=kit["zip_bytes"], file_name="study_kit_v123B.zip",
+                               mime="application/zip", use_container_width=True, key="v123_dl_kit")
+            st.download_button("Download study_kit_manifest_v123B.json",
+                               data=_json.dumps(kit.get("manifest", {}), indent=2, sort_keys=True),
+                               file_name="study_kit_manifest_v123B.json", mime="application/json",
+                               use_container_width=True, key="v123_dl_kitman")
+    
+    
+    # =====================
+    # v124 Feasibility Boundary Atlas - additive UI panel
+    # =====================
+    def _v124_feasibility_atlas_panel():
+        import streamlit as st
+        from tools.feasibility_atlas import build_feasibility_atlas_bundle, available_numeric_levers
+    
+        st.subheader("Feasibility Boundary Atlas")
+        st.caption("Runs a 2D grid scan around a baseline run, extracts feasibility boundary, and exports a publishable atlas bundle. Additive only (no physics/solver changes).")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v124_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
         base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
         levers = available_numeric_levers(base_inputs)
-        if len(levers) >= 2:
-            kx = st.selectbox("Atlas lever X", options=levers, index=0, key="v125_kx")
-            ky = st.selectbox("Atlas lever Y", options=levers, index=1, key="v125_ky")
-
-            def _default_range(v):
-                try: v=float(v)
-                except Exception: return (0.0, 1.0)
-                if abs(v) < 1e-9: return (-1.0, 1.0)
-                return (v*0.9, v*1.1)  # narrower defaults for v125
-            x0 = base_inputs.get(kx); y0 = base_inputs.get(ky)
-            xlo_def,xhi_def=_default_range(x0); ylo_def,yhi_def=_default_range(y0)
-            r1,r2=st.columns(2)
-            with r1:
-                xlo = st.number_input("X min", value=float(xlo_def), key="v125_xlo")
-                xhi = st.number_input("X max", value=float(xhi_def), key="v125_xhi")
-            with r2:
-                ylo = st.number_input("Y min", value=float(ylo_def), key="v125_ylo")
-                yhi = st.number_input("Y max", value=float(yhi_def), key="v125_yhi")
-            nx = st.slider("Atlas NX", min_value=9, max_value=41, value=15, step=2, key="v125_nx")
-            ny = st.slider("Atlas NY", min_value=9, max_value=41, value=15, step=2, key="v125_ny")
-            atlas_cfg = {"lever_x": kx, "lever_y": ky, "x_range": (float(xlo), float(xhi)), "y_range": (float(ylo), float(yhi)), "nx": int(nx), "ny": int(ny)}
-        else:
-            st.warning("Not enough numeric inputs to run atlas from this baseline.")
-            do_atlas = False
-
-    if st.button("Build Paper Pack", key="v125_run"):
-        try:
-            # Mission report (post-processing)
-            if do_mission and mission_name:
-                mspec = load_mission(mission_name)
-                # apply overlay to baseline; function returns report dict
-                mission_rep = apply_mission_overlays(run_artifact=base, mission=mspec, version="v121")
-                st.session_state["v121_mission_report"] = mission_rep
-            else:
-                mission_rep = None
-
-            # Explainability
-            expl_rep = None
-            if do_expl:
-                env_rep = st.session_state.get("v117_report")  # optional
-                expl_rep = build_explainability_report(run_artifact=base, mission_report=mission_rep, tolerance_envelope_report=env_rep if isinstance(env_rep, dict) else None, version="v122")
-                st.session_state["v122_explainability_report"] = expl_rep
-
-            # Evidence + traceability
-            graph = None
-            tab = None
-            tcsv = None
-            if do_ev:
-                env_rep = st.session_state.get("v117_report")
-                graph = build_evidence_graph(run_artifact=base, mission_report=mission_rep, tolerance_envelope_report=env_rep if isinstance(env_rep, dict) else None, explainability_report=expl_rep, version="v123")
-                tab = build_traceability_table(run_artifact=base, mission_report=mission_rep, tolerance_envelope_report=env_rep if isinstance(env_rep, dict) else None, explainability_report=expl_rep, version="v123")
-                tcsv = traceability_csv(tab)
-                st.session_state["v123_graph"] = graph
-                st.session_state["v123_trace_table"] = tab
-
-            # Atlas
-            atlas_meta = None
-            atlas_zip = None
-            if do_atlas and atlas_cfg:
+        if len(levers) < 2:
+            st.error("Baseline inputs do not contain enough numeric levers for an atlas.")
+            return
+    
+        col1, col2 = st.columns(2)
+        with col1:
+            kx = st.selectbox("Lever X", options=levers, index=0, key="v124_kx")
+        with col2:
+            ky = st.selectbox("Lever Y", options=levers, index=1 if len(levers)>1 else 0, key="v124_ky")
+    
+        def _default_range(v):
+            try:
+                v=float(v)
+            except Exception:
+                return (0.0, 1.0)
+            if abs(v) < 1e-9:
+                return (-1.0, 1.0)
+            # ±20% around baseline
+            return (v*0.8, v*1.2)
+    
+        x0 = base_inputs.get(kx)
+        y0 = base_inputs.get(ky)
+        xlo_def, xhi_def = _default_range(x0)
+        ylo_def, yhi_def = _default_range(y0)
+    
+        st.write("Ranges (default ±20% around baseline):")
+        r1, r2 = st.columns(2)
+        with r1:
+            xlo = st.number_input("X min", value=float(xlo_def), key="v124_xlo")
+            xhi = st.number_input("X max", value=float(xhi_def), key="v124_xhi")
+        with r2:
+            ylo = st.number_input("Y min", value=float(ylo_def), key="v124_ylo")
+            yhi = st.number_input("Y max", value=float(yhi_def), key="v124_yhi")
+    
+        c1, c2 = st.columns(2)
+        with c1:
+            nx = st.slider("Grid NX", min_value=9, max_value=61, value=25, step=2, key="v124_nx")
+        with c2:
+            ny = st.slider("Grid NY", min_value=9, max_value=61, value=25, step=2, key="v124_ny")
+    
+        max_evals = int(nx) * int(ny)
+        st.caption(f"Total evaluations: {max_evals} (pure point evaluations + constraints).")
+    
+        if st.button("Generate atlas bundle", key="v124_run"):
+            try:
+                outdir = "out_feasibility_atlas_v124"
                 bundle = build_feasibility_atlas_bundle(
                     baseline_run_artifact=base,
-                    lever_x=atlas_cfg["lever_x"],
-                    lever_y=atlas_cfg["lever_y"],
-                    x_range=atlas_cfg["x_range"],
-                    y_range=atlas_cfg["y_range"],
-                    nx=atlas_cfg["nx"],
-                    ny=atlas_cfg["ny"],
-                    outdir="out_feasibility_atlas_v125",
+                    lever_x=kx,
+                    lever_y=ky,
+                    x_range=(float(xlo), float(xhi)),
+                    y_range=(float(ylo), float(yhi)),
+                    nx=int(nx),
+                    ny=int(ny),
+                    outdir=outdir,
                     version="v124",
                 )
-                atlas_zip = bundle.get("zip_bytes")
-                atlas_meta = dict(bundle)
-                atlas_meta.pop("zip_bytes", None)
                 st.session_state["v124_bundle"] = bundle
-
-            # Study kit
-            kit_zip = None
-            if do_kit:
-                kit = build_study_kit_zip(
-                    run_artifact=base,
+                _v98_record_run("feasibility_atlas", {"lever_x": kx, "lever_y": ky, "nx": int(nx), "ny": int(ny)}, mode="feasibility_atlas_v124")
+                st.success("Atlas generated.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        bundle = st.session_state.get("v124_bundle")
+        if isinstance(bundle, dict) and isinstance(bundle.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download atlas_bundle_v124.zip",
+                               data=bundle["zip_bytes"],
+                               file_name="atlas_bundle_v124.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v124_dl_zip")
+            st.download_button("Download feasibility_atlas_v124.json",
+                               data=_json.dumps(bundle, indent=2, sort_keys=True),
+                               file_name="feasibility_atlas_v124.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v124_dl_json")
+            st.write("Atlas summary:")
+            st.json({"baseline_run_id": bundle.get("baseline_run_id"),
+                     "lever_x": bundle.get("lever_x"), "lever_y": bundle.get("lever_y"),
+                     "grid": bundle.get("grid"),
+                     "n_slices": len((bundle.get("atlas_v2") or {}).get("slices", [])) if isinstance(bundle.get("atlas_v2"), dict) else None})
+    
+    
+    # =====================
+    # v125 One-Click Paper Pack - additive UI panel
+    # =====================
+    def _v125_paper_pack_panel():
+        import streamlit as st
+        from tools.mission_context import load_mission, apply_mission_overlays
+        from tools.explainability import build_explainability_report
+        from tools.evidence_graph import build_evidence_graph, build_traceability_table, traceability_csv
+        from tools.feasibility_atlas import build_feasibility_atlas_bundle, available_numeric_levers
+        from tools.study_kit import build_study_kit_zip
+        from tools.study_orchestrator import build_paper_pack_zip
+    
+        st.subheader("One-Click Paper Pack")
+        st.caption("Runs post-processing pipeline (mission → explainability → evidence/traceability → atlas → study kit) and exports a single publishable zip + manifest. No physics/solver changes.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v125_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        st.write("Pipeline options:")
+        c1,c2,c3 = st.columns(3)
+        with c1:
+            do_mission = st.checkbox("Mission overlay", value=True, key="v125_do_mission")
+            do_expl = st.checkbox("Explainability", value=True, key="v125_do_expl")
+        with c2:
+            do_ev = st.checkbox("Evidence+Traceability (v123)", value=True, key="v125_do_ev")
+            do_atlas = st.checkbox("Feasibility Atlas (v124)", value=False, key="v125_do_atlas")
+        with c3:
+            do_kit = st.checkbox("Study Kit (v123B)", value=True, key="v125_do_kit")
+    
+        mission_name = None
+        mission_rep = None
+        if do_mission:
+            missions = ["pilot","demo","powerplant"]
+            msel = st.selectbox("Mission", options=missions, index=0, key="v125_mission")
+            mission_name = msel
+    
+        atlas_cfg = None
+        if do_atlas:
+            base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+            levers = available_numeric_levers(base_inputs)
+            if len(levers) >= 2:
+                kx = st.selectbox("Atlas lever X", options=levers, index=0, key="v125_kx")
+                ky = st.selectbox("Atlas lever Y", options=levers, index=1, key="v125_ky")
+    
+                def _default_range(v):
+                    try: v=float(v)
+                    except Exception: return (0.0, 1.0)
+                    if abs(v) < 1e-9: return (-1.0, 1.0)
+                    return (v*0.9, v*1.1)  # narrower defaults for v125
+                x0 = base_inputs.get(kx); y0 = base_inputs.get(ky)
+                xlo_def,xhi_def=_default_range(x0); ylo_def,yhi_def=_default_range(y0)
+                r1,r2=st.columns(2)
+                with r1:
+                    xlo = st.number_input("X min", value=float(xlo_def), key="v125_xlo")
+                    xhi = st.number_input("X max", value=float(xhi_def), key="v125_xhi")
+                with r2:
+                    ylo = st.number_input("Y min", value=float(ylo_def), key="v125_ylo")
+                    yhi = st.number_input("Y max", value=float(yhi_def), key="v125_yhi")
+                nx = st.slider("Atlas NX", min_value=9, max_value=41, value=15, step=2, key="v125_nx")
+                ny = st.slider("Atlas NY", min_value=9, max_value=41, value=15, step=2, key="v125_ny")
+                atlas_cfg = {"lever_x": kx, "lever_y": ky, "x_range": (float(xlo), float(xhi)), "y_range": (float(ylo), float(yhi)), "nx": int(nx), "ny": int(ny)}
+            else:
+                st.warning("Not enough numeric inputs to run atlas from this baseline.")
+                do_atlas = False
+    
+        if st.button("Build Paper Pack", key="v125_run"):
+            try:
+                # Mission report (post-processing)
+                if do_mission and mission_name:
+                    mspec = load_mission(mission_name)
+                    # apply overlay to baseline; function returns report dict
+                    mission_rep = apply_mission_overlays(run_artifact=base, mission=mspec, version="v121")
+                    st.session_state["v121_mission_report"] = mission_rep
+                else:
+                    mission_rep = None
+    
+                # Explainability
+                expl_rep = None
+                if do_expl:
+                    env_rep = st.session_state.get("v117_report")  # optional
+                    expl_rep = build_explainability_report(run_artifact=base, mission_report=mission_rep, tolerance_envelope_report=env_rep if isinstance(env_rep, dict) else None, version="v122")
+                    st.session_state["v122_explainability_report"] = expl_rep
+    
+                # Evidence + traceability
+                graph = None
+                tab = None
+                tcsv = None
+                if do_ev:
+                    env_rep = st.session_state.get("v117_report")
+                    graph = build_evidence_graph(run_artifact=base, mission_report=mission_rep, tolerance_envelope_report=env_rep if isinstance(env_rep, dict) else None, explainability_report=expl_rep, version="v123")
+                    tab = build_traceability_table(run_artifact=base, mission_report=mission_rep, tolerance_envelope_report=env_rep if isinstance(env_rep, dict) else None, explainability_report=expl_rep, version="v123")
+                    tcsv = traceability_csv(tab)
+                    st.session_state["v123_graph"] = graph
+                    st.session_state["v123_trace_table"] = tab
+    
+                # Atlas
+                atlas_meta = None
+                atlas_zip = None
+                if do_atlas and atlas_cfg:
+                    bundle = build_feasibility_atlas_bundle(
+                        baseline_run_artifact=base,
+                        lever_x=atlas_cfg["lever_x"],
+                        lever_y=atlas_cfg["lever_y"],
+                        x_range=atlas_cfg["x_range"],
+                        y_range=atlas_cfg["y_range"],
+                        nx=atlas_cfg["nx"],
+                        ny=atlas_cfg["ny"],
+                        outdir="out_feasibility_atlas_v125",
+                        version="v124",
+                    )
+                    atlas_zip = bundle.get("zip_bytes")
+                    atlas_meta = dict(bundle)
+                    atlas_meta.pop("zip_bytes", None)
+                    st.session_state["v124_bundle"] = bundle
+    
+                # Study kit
+                kit_zip = None
+                if do_kit:
+                    kit = build_study_kit_zip(
+                        run_artifact=base,
+                        mission_report=mission_rep,
+                        tolerance_envelope_report=st.session_state.get("v117_report") if isinstance(st.session_state.get("v117_report"), dict) else None,
+                        explainability_report=expl_rep,
+                        evidence_graph=graph,
+                        traceability_table=tab,
+                        authority_pack_zip=(st.session_state.get("v119_pack") or {}).get("zip_bytes") if isinstance(st.session_state.get("v119_pack"), dict) else None,
+                        optimizer_downstream_bundle_zip=(st.session_state.get("v118_bundle") or {}).get("zip_bytes") if isinstance(st.session_state.get("v118_bundle"), dict) else None,
+                        decision_pack_zip=st.session_state.get("v118_pack_bytes") if isinstance(st.session_state.get("v118_pack_bytes"), (bytes, bytearray)) else None,
+                        version="v123B",
+                    )
+                    kit_zip = kit.get("zip_bytes")
+                    st.session_state["v123_study_kit"] = kit
+    
+                # Final pack
+                pack = build_paper_pack_zip(
+                    baseline_run_artifact=base,
                     mission_report=mission_rep,
-                    tolerance_envelope_report=st.session_state.get("v117_report") if isinstance(st.session_state.get("v117_report"), dict) else None,
                     explainability_report=expl_rep,
                     evidence_graph=graph,
                     traceability_table=tab,
-                    authority_pack_zip=(st.session_state.get("v119_pack") or {}).get("zip_bytes") if isinstance(st.session_state.get("v119_pack"), dict) else None,
-                    optimizer_downstream_bundle_zip=(st.session_state.get("v118_bundle") or {}).get("zip_bytes") if isinstance(st.session_state.get("v118_bundle"), dict) else None,
-                    decision_pack_zip=st.session_state.get("v118_pack_bytes") if isinstance(st.session_state.get("v118_pack_bytes"), (bytes, bytearray)) else None,
-                    version="v123B",
+                    traceability_csv=tcsv,
+                    feasibility_atlas_meta=atlas_meta,
+                    atlas_bundle_zip=atlas_zip,
+                    study_kit_zip=kit_zip,
+                    version="v125",
                 )
-                kit_zip = kit.get("zip_bytes")
-                st.session_state["v123_study_kit"] = kit
-
-            # Final pack
-            pack = build_paper_pack_zip(
-                baseline_run_artifact=base,
-                mission_report=mission_rep,
-                explainability_report=expl_rep,
-                evidence_graph=graph,
-                traceability_table=tab,
-                traceability_csv=tcsv,
-                feasibility_atlas_meta=atlas_meta,
-                atlas_bundle_zip=atlas_zip,
-                study_kit_zip=kit_zip,
-                version="v125",
-            )
-            st.session_state["v125_paper_pack"] = pack
-            _v98_record_run("paper_pack", {"files": len((pack.get("manifest") or {}).get("files", {}))}, mode="paper_pack_v125")
-            st.success("Paper pack built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    pack = st.session_state.get("v125_paper_pack")
-    if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download paper_pack_v125.zip",
-                           data=pack["zip_bytes"],
-                           file_name="paper_pack_v125.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v125_dl_zip")
-        st.download_button("Download paper_pack_manifest_v125.json",
-                           data=_json.dumps(pack.get("manifest", {}), indent=2, sort_keys=True),
-                           file_name="paper_pack_manifest_v125.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v125_dl_manifest")
-        st.write("Pack summary:")
-        st.json({"files": len((pack.get("manifest") or {}).get("files", {})),
-                 "created_utc": pack.get("created_utc")})
-
-
-# =====================
-# v126 UI Smoke & Diagnostics - additive UI panel
-# =====================
-def _v126_ui_smoke_panel():
-    import streamlit as st
-    from pathlib import Path as _Path
-
-    st.subheader("UI Smoke & Diagnostics")
-    st.caption("Runs lightweight UI smoke checks and produces a report. This does not change physics/solvers.")
-
-    scenarios = st.multiselect("Scenarios", options=["render_all", "paper_pack"], default=["render_all"], key="v126_scenarios")
-    outdir = st.text_input("Output directory", value="out_ui_smoke_v126", key="v126_outdir")
-
-    if st.button("Run UI smoke checks", key="v126_run"):
+                st.session_state["v125_paper_pack"] = pack
+                _v98_record_run("paper_pack", {"files": len((pack.get("manifest") or {}).get("files", {}))}, mode="paper_pack_v125")
+                st.success("Paper pack built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        pack = st.session_state.get("v125_paper_pack")
+        if isinstance(pack, dict) and isinstance(pack.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download paper_pack_v125.zip",
+                               data=pack["zip_bytes"],
+                               file_name="paper_pack_v125.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v125_dl_zip")
+            st.download_button("Download paper_pack_manifest_v125.json",
+                               data=_json.dumps(pack.get("manifest", {}), indent=2, sort_keys=True),
+                               file_name="paper_pack_manifest_v125.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v125_dl_manifest")
+            st.write("Pack summary:")
+            st.json({"files": len((pack.get("manifest") or {}).get("files", {})),
+                     "created_utc": pack.get("created_utc")})
+    
+    
+    # =====================
+    # v126 UI Smoke & Diagnostics - additive UI panel
+    # =====================
+    def _v126_ui_smoke_panel():
+        import streamlit as st
+        from pathlib import Path as _Path
+    
+        st.subheader("UI Smoke & Diagnostics")
+        st.caption("Runs lightweight UI smoke checks and produces a report. This does not change physics/solvers.")
+    
+        scenarios = st.multiselect("Scenarios", options=["render_all", "paper_pack"], default=["render_all"], key="v126_scenarios")
+        outdir = st.text_input("Output directory", value="out_ui_smoke_v126", key="v126_outdir")
+    
+        if st.button("Run UI smoke checks", key="v126_run"):
+            try:
+                cmd = [_sys.executable, "-m", "tools.cli_ui_smoke", "--outdir", outdir] + [ "--scenarios"] + list(scenarios)
+                # note: argparse expects --scenarios then list; we pass that
+                p = _subprocess.run(cmd, cwd=str(_Path(__file__).resolve().parents[1]), stdout=_subprocess.PIPE, stderr=_subprocess.STDOUT, text=True, timeout=300)
+                st.text_area("Runner output", value=p.stdout, height=180, key="v126_out")
+                rep_path = _Path(__file__).resolve().parents[1] / outdir / "ui_smoke_report.json"
+                if rep_path.exists():
+                    rep = _json.loads(rep_path.read_text(encoding="utf-8"))
+                    st.session_state["v126_smoke_report"] = rep
+                    st.success("Smoke report generated.")
+                else:
+                    st.warning("Report file not found after run.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        rep = st.session_state.get("v126_smoke_report")
+        if isinstance(rep, dict):
+            st.write("Summary:")
+            st.json(rep.get("summary", {}))
+            st.download_button("Download ui_smoke_report.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="ui_smoke_report_v126.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v126_dl_json")
+    
+    
+    # =====================
+    # v127 Study Matrix - Batch Paper Packs (single UI)
+    # =====================
+    def _v127_study_matrix_panel():
+        import streamlit as st
+        from tools.study_matrix import build_cases_1d_sweep, build_study_matrix_bundle
+        from tools.feasibility_atlas import available_numeric_levers
+    
+        st.subheader("Study Matrix + Batch Paper Packs")
+        st.caption("Build multiple cases from a baseline and export a single study zip with per-case paper packs + index. Additive; no solver behavior changes.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v127_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+        levers = available_numeric_levers(base_inputs)
+        if not levers:
+            st.warning("No numeric levers detected in baseline inputs.")
+            return
+    
+        st.write("1D sweep builder (safe defaults):")
+        c1,c2,c3 = st.columns(3)
+        with c1:
+            lever = st.selectbox("Sweep lever", options=levers, index=0, key="v127_lever")
+        with c2:
+            v0 = float(base_inputs.get(lever, 0.0) or 0.0)
+            vmin = st.number_input("Min", value=(v0*0.95 if abs>1e-9 else -1.0), key="v127_vmin")
+            vmax = st.number_input("Max", value=(v0*1.05 if abs>1e-9 else 1.0), key="v127_vmax")
+        with c3:
+            n = st.slider("N cases", min_value=3, max_value=15, value=5, step=1, key="v127_n")
+    
+        missions = st.multiselect("Missions (optional)", options=["pilot","demo","powerplant"], default=["pilot"], key="v127_missions")
+        include_expl = st.checkbox("Include explainability (v122)", value=True, key="v127_expl")
+        include_ev = st.checkbox("Include evidence/traceability (v123)", value=True, key="v127_ev")
+        include_kit = st.checkbox("Include study kit (v123B)", value=True, key="v127_kit")
+    
+        if st.button("Build Study Matrix Zip", key="v127_run"):
+            try:
+                if int(n) < 2:
+                    raise ValueError("N must be >= 2")
+                # linspace
+                vals = [float(vmin) + (float(vmax)-float(vmin))*i/(int(n)-1) for i in range(int(n))]
+                cases = build_cases_1d_sweep(baseline_run_artifact=base, lever=str(lever), values=vals, missions=(missions or None))
+                bundle = build_study_matrix_bundle(
+                    baseline_run_artifact=base,
+                    cases=cases,
+                    outdir="out_study_matrix_v127",
+                    version="v127",
+                    include_explainability=bool(include_expl),
+                    include_evidence=bool(include_ev),
+                    include_study_kit=bool(include_kit),
+                )
+                st.session_state["v127_bundle"] = bundle
+                _v98_record_run("study_matrix", {"cases": bundle.get("cases")}, mode="study_matrix_v127")
+                st.success(f"Study matrix built: {bundle.get('cases')} cases.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        bun = st.session_state.get("v127_bundle")
+        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download study_matrix_v127.zip",
+                               data=bun["zip_bytes"],
+                               file_name="study_matrix_v127.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v127_dl_zip")
+            st.download_button("Download study_matrix_manifest_v127.json",
+                               data=_json.dumps(bun.get("manifest", {}), indent=2, sort_keys=True),
+                               file_name="study_matrix_manifest_v127.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v127_dl_manifest")
+            st.json({"cases": bun.get("cases"), "created_utc": bun.get("created_utc")})
+    
+    
+    # =====================
+    # v128 Study Explorer + Comparator (single UI)
+    # =====================
+    def _v128_study_explorer_panel():
+        import streamlit as st
+        from tools.study_explorer import load_study_zip, parse_study_index, filter_cases, load_case_run_artifact, compare_two_runs
+    
+        st.subheader("Study Explorer + Comparator")
+        st.caption("Load a study_matrix zip and browse/filter cases, compare two cases, and export comparison JSON. Downstream-only.")
+    
+        up = st.file_uploader("Upload study_matrix zip", type=["zip"], key="v128_upl")
+        if not up:
+            st.info("Upload a v127 study_matrix zip (study_matrix_v127.zip).")
+            return
+    
         try:
-            cmd = [_sys.executable, "-m", "tools.cli_ui_smoke", "--outdir", outdir] + [ "--scenarios"] + list(scenarios)
-            # note: argparse expects --scenarios then list; we pass that
-            p = _subprocess.run(cmd, cwd=str(_Path(__file__).resolve().parents[1]), stdout=_subprocess.PIPE, stderr=_subprocess.STDOUT, text=True, timeout=300)
-            st.text_area("Runner output", value=p.stdout, height=180, key="v126_out")
-            rep_path = _Path(__file__).resolve().parents[1] / outdir / "ui_smoke_report.json"
-            if rep_path.exists():
-                rep = _json.loads(rep_path.read_text(encoding="utf-8"))
-                st.session_state["v126_smoke_report"] = rep
-                st.success("Smoke report generated.")
-            else:
-                st.warning("Report file not found after run.")
+            # write to temp bytes map
+            import tempfile, os
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+            tmp.write(up.getvalue()); tmp.flush(); tmp.close()
+            files = load_study_zip(tmp.name)
+            idx = parse_study_index(files)
+            st.session_state["v128_files"] = files
+            st.session_state["v128_index"] = {"created_utc": idx.created_utc, "rows": idx.rows}
+            os.unlink(tmp.name)
         except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rep = st.session_state.get("v126_smoke_report")
-    if isinstance(rep, dict):
-        st.write("Summary:")
-        st.json(rep.get("summary", {}))
-        st.download_button("Download ui_smoke_report.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="ui_smoke_report_v126.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v126_dl_json")
-
-
-# =====================
-# v127 Study Matrix - Batch Paper Packs (single UI)
-# =====================
-def _v127_study_matrix_panel():
-    import streamlit as st
-    from tools.study_matrix import build_cases_1d_sweep, build_study_matrix_bundle
-    from tools.feasibility_atlas import available_numeric_levers
-
-    st.subheader("Study Matrix + Batch Paper Packs")
-    st.caption("Build multiple cases from a baseline and export a single study zip with per-case paper packs + index. Additive; no solver behavior changes.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v127_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-    levers = available_numeric_levers(base_inputs)
-    if not levers:
-        st.warning("No numeric levers detected in baseline inputs.")
-        return
-
-    st.write("1D sweep builder (safe defaults):")
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        lever = st.selectbox("Sweep lever", options=levers, index=0, key="v127_lever")
-    with c2:
-        v0 = float(base_inputs.get(lever, 0.0) or 0.0)
-        vmin = st.number_input("Min", value=(v0*0.95 if abs>1e-9 else -1.0), key="v127_vmin")
-        vmax = st.number_input("Max", value=(v0*1.05 if abs>1e-9 else 1.0), key="v127_vmax")
-    with c3:
-        n = st.slider("N cases", min_value=3, max_value=15, value=5, step=1, key="v127_n")
-
-    missions = st.multiselect("Missions (optional)", options=["pilot","demo","powerplant"], default=["pilot"], key="v127_missions")
-    include_expl = st.checkbox("Include explainability (v122)", value=True, key="v127_expl")
-    include_ev = st.checkbox("Include evidence/traceability (v123)", value=True, key="v127_ev")
-    include_kit = st.checkbox("Include study kit (v123B)", value=True, key="v127_kit")
-
-    if st.button("Build Study Matrix Zip", key="v127_run"):
-        try:
-            if int(n) < 2:
-                raise ValueError("N must be >= 2")
-            # linspace
-            vals = [float(vmin) + (float(vmax)-float(vmin))*i/(int(n)-1) for i in range(int(n))]
-            cases = build_cases_1d_sweep(baseline_run_artifact=base, lever=str(lever), values=vals, missions=(missions or None))
-            bundle = build_study_matrix_bundle(
-                baseline_run_artifact=base,
-                cases=cases,
-                outdir="out_study_matrix_v127",
-                version="v127",
-                include_explainability=bool(include_expl),
-                include_evidence=bool(include_ev),
-                include_study_kit=bool(include_kit),
-            )
-            st.session_state["v127_bundle"] = bundle
-            _v98_record_run("study_matrix", {"cases": bundle.get("cases")}, mode="study_matrix_v127")
-            st.success(f"Study matrix built: {bundle.get('cases')} cases.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    bun = st.session_state.get("v127_bundle")
-    if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download study_matrix_v127.zip",
-                           data=bun["zip_bytes"],
-                           file_name="study_matrix_v127.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v127_dl_zip")
-        st.download_button("Download study_matrix_manifest_v127.json",
-                           data=_json.dumps(bun.get("manifest", {}), indent=2, sort_keys=True),
-                           file_name="study_matrix_manifest_v127.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v127_dl_manifest")
-        st.json({"cases": bun.get("cases"), "created_utc": bun.get("created_utc")})
-
-
-# =====================
-# v128 Study Explorer + Comparator (single UI)
-# =====================
-def _v128_study_explorer_panel():
-    import streamlit as st
-    from tools.study_explorer import load_study_zip, parse_study_index, filter_cases, load_case_run_artifact, compare_two_runs
-
-    st.subheader("Study Explorer + Comparator")
-    st.caption("Load a study_matrix zip and browse/filter cases, compare two cases, and export comparison JSON. Downstream-only.")
-
-    up = st.file_uploader("Upload study_matrix zip", type=["zip"], key="v128_upl")
-    if not up:
-        st.info("Upload a v127 study_matrix zip (study_matrix_v127.zip).")
-        return
-
-    try:
-        # write to temp bytes map
+            st.error(f"Failed to load: {e!r}")
+            return
+    
+        idxd = st.session_state.get("v128_index") or {}
+        rows = list(idxd.get("rows") or [])
+        if not rows:
+            st.warning("No rows found in study index.")
+            return
+    
+        missions = sorted({str(r.get("mission","")) for r in rows if str(r.get("mission",""))})
+        feasible_only = st.checkbox("Feasible only", value=False, key="v128_feas")
+        mission = st.selectbox("Mission filter", options=["(any)"] + missions, index=0, key="v128_msel")
+    
+        # simple KPI filters
+        kf = {}
+        with st.expander("KPI filters (optional)"):
+            c1,c2,c3 = st.columns(3)
+            with c1:
+                qlo = st.number_input("Q min", value=0.0, key="v128_qlo")
+                kf["Q"] = (float(qlo), None)
+            with c2:
+                pnlo = st.number_input("Pnet_MW min", value=-1e9, key="v128_pnlo")
+                kf["Pnet_MW"] = (float(pnlo), None)
+            with c3:
+                pflo = st.number_input("Pfus_MW min", value=0.0, key="v128_pflo")
+                kf["Pfus_MW"] = (float(pflo), None)
+    
+        idx_obj = parse_study_index(st.session_state["v128_files"])
+        fr = filter_cases(idx_obj, feasible_only=feasible_only, mission=None if mission=="(any)" else mission, kpi_filters=kf)
+    
+        st.write(f"Filtered cases: {len(fr)} / {len(rows)}")
+        show = fr[:200]  # avoid UI overload
+        st.dataframe(show, use_container_width=True)
+    
+        case_ids = [str(r.get("case_id")) for r in fr if r.get("case_id") is not None]
+        if len(case_ids) < 2:
+            st.info("Need at least 2 filtered cases to compare.")
+            return
+    
+        a_id = st.selectbox("Case A", options=case_ids, index=0, key="v128_a")
+        b_id = st.selectbox("Case B", options=case_ids, index=1 if len(case_ids)>1 else 0, key="v128_b")
+    
+        if st.button("🆚 Compare", key="v128_compare"):
+            try:
+                files = st.session_state["v128_files"]
+                a_row = next(r for r in fr if str(r.get("case_id"))==a_id)
+                b_row = next(r for r in fr if str(r.get("case_id"))==b_id)
+                a_art = load_case_run_artifact(files, a_row)
+                b_art = load_case_run_artifact(files, b_row)
+                comp = compare_two_runs(a_art, b_art)
+                st.session_state["v128_comp"] = comp
+                st.success("Comparison built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        comp = st.session_state.get("v128_comp")
+        if isinstance(comp, dict):
+            st.write("Comparison summary:")
+            st.json(comp)
+            st.download_button("Download comparison_v128.json",
+                               data=_json.dumps(comp, indent=2, sort_keys=True),
+                               file_name="comparison_v128.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v128_dl_comp")
+    
+    
+    # =====================
+    # v129 Pareto from Study (single UI)
+    # =====================
+    def _v129_pareto_panel():
+        import streamlit as st
+        from tools.pareto_from_study import build_pareto, pareto_bundle_zip
+    
+        st.subheader("Pareto from Study")
+        st.caption("Compute Pareto fronts from a study_matrix zip. No optimizer. Downstream-only, publishable.")
+    
+        up = st.file_uploader("Upload study_matrix zip", type=["zip"], key="v129_upl")
+        if not up:
+            st.info("Upload a v127 study_matrix zip (study_matrix_v127.zip).")
+            return
+    
+        # Save upload to temp file for existing loaders
         import tempfile, os
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
         tmp.write(up.getvalue()); tmp.flush(); tmp.close()
-        files = load_study_zip(tmp.name)
-        idx = parse_study_index(files)
-        st.session_state["v128_files"] = files
-        st.session_state["v128_index"] = {"created_utc": idx.created_utc, "rows": idx.rows}
-        os.unlink(tmp.name)
-    except Exception as e:
-        st.error(f"Failed to load: {e!r}")
-        return
-
-    idxd = st.session_state.get("v128_index") or {}
-    rows = list(idxd.get("rows") or [])
-    if not rows:
-        st.warning("No rows found in study index.")
-        return
-
-    missions = sorted({str(r.get("mission","")) for r in rows if str(r.get("mission",""))})
-    feasible_only = st.checkbox("Feasible only", value=False, key="v128_feas")
-    mission = st.selectbox("Mission filter", options=["(any)"] + missions, index=0, key="v128_msel")
-
-    # simple KPI filters
-    kf = {}
-    with st.expander("KPI filters (optional)"):
+        study_path = tmp.name
+    
+        st.write("Objectives (choose senses):")
         c1,c2,c3 = st.columns(3)
         with c1:
-            qlo = st.number_input("Q min", value=0.0, key="v128_qlo")
-            kf["Q"] = (float(qlo), None)
+            obj1 = st.text_input("Objective 1 column", value="Q", key="v129_o1")
+            s1 = st.selectbox("Sense 1", options=["max","min"], index=0, key="v129_s1")
         with c2:
-            pnlo = st.number_input("Pnet_MW min", value=-1e9, key="v128_pnlo")
-            kf["Pnet_MW"] = (float(pnlo), None)
+            obj2 = st.text_input("Objective 2 column", value="Pnet_MW", key="v129_o2")
+            s2 = st.selectbox("Sense 2", options=["max","min"], index=0, key="v129_s2")
         with c3:
-            pflo = st.number_input("Pfus_MW min", value=0.0, key="v128_pflo")
-            kf["Pfus_MW"] = (float(pflo), None)
-
-    idx_obj = parse_study_index(st.session_state["v128_files"])
-    fr = filter_cases(idx_obj, feasible_only=feasible_only, mission=None if mission=="(any)" else mission, kpi_filters=kf)
-
-    st.write(f"Filtered cases: {len(fr)} / {len(rows)}")
-    show = fr[:200]  # avoid UI overload
-    st.dataframe(show, use_container_width=True)
-
-    case_ids = [str(r.get("case_id")) for r in fr if r.get("case_id") is not None]
-    if len(case_ids) < 2:
-        st.info("Need at least 2 filtered cases to compare.")
-        return
-
-    a_id = st.selectbox("Case A", options=case_ids, index=0, key="v128_a")
-    b_id = st.selectbox("Case B", options=case_ids, index=1 if len(case_ids)>1 else 0, key="v128_b")
-
-    if st.button("🆚 Compare", key="v128_compare"):
-        try:
-            files = st.session_state["v128_files"]
-            a_row = next(r for r in fr if str(r.get("case_id"))==a_id)
-            b_row = next(r for r in fr if str(r.get("case_id"))==b_id)
-            a_art = load_case_run_artifact(files, a_row)
-            b_art = load_case_run_artifact(files, b_row)
-            comp = compare_two_runs(a_art, b_art)
-            st.session_state["v128_comp"] = comp
-            st.success("Comparison built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    comp = st.session_state.get("v128_comp")
-    if isinstance(comp, dict):
-        st.write("Comparison summary:")
-        st.json(comp)
-        st.download_button("Download comparison_v128.json",
-                           data=_json.dumps(comp, indent=2, sort_keys=True),
-                           file_name="comparison_v128.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v128_dl_comp")
-
-
-# =====================
-# v129 Pareto from Study (single UI)
-# =====================
-def _v129_pareto_panel():
-    import streamlit as st
-    from tools.pareto_from_study import build_pareto, pareto_bundle_zip
-
-    st.subheader("Pareto from Study")
-    st.caption("Compute Pareto fronts from a study_matrix zip. No optimizer. Downstream-only, publishable.")
-
-    up = st.file_uploader("Upload study_matrix zip", type=["zip"], key="v129_upl")
-    if not up:
-        st.info("Upload a v127 study_matrix zip (study_matrix_v127.zip).")
-        return
-
-    # Save upload to temp file for existing loaders
-    import tempfile, os
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-    tmp.write(up.getvalue()); tmp.flush(); tmp.close()
-    study_path = tmp.name
-
-    st.write("Objectives (choose senses):")
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        obj1 = st.text_input("Objective 1 column", value="Q", key="v129_o1")
-        s1 = st.selectbox("Sense 1", options=["max","min"], index=0, key="v129_s1")
-    with c2:
-        obj2 = st.text_input("Objective 2 column", value="Pnet_MW", key="v129_o2")
-        s2 = st.selectbox("Sense 2", options=["max","min"], index=0, key="v129_s2")
-    with c3:
-        obj3 = st.text_input("Objective 3 column (optional)", value="R0_m", key="v129_o3")
-        s3 = st.selectbox("Sense 3", options=["min","max"], index=0, key="v129_s3")
-
-    feasible_only = st.checkbox("Feasible only", value=True, key="v129_feas")
-    mission = st.selectbox("Mission filter", options=["(any)","pilot","demo","powerplant"], index=0, key="v129_mis")
-
-    objs=[{"k": obj1.strip(), "sense": s1}]
-    if obj2.strip():
-        objs.append({"k": obj2.strip(), "sense": s2})
-    if obj3.strip():
-        objs.append({"k": obj3.strip(), "sense": s3})
-
-    if st.button("Compute Pareto", key="v129_run"):
-        try:
-            rep = build_pareto(study_path=study_path, objectives=objs, feasible_only=bool(feasible_only), mission=None if mission=="(any)" else mission, version="v129")
-            bun = pareto_bundle_zip(rep)
-            st.session_state["v129_rep"]=rep
-            st.session_state["v129_bun"]=bun
-            st.success(f"Computed Pareto: {rep.get('n_filtered')} rows, layers: {len(rep.get('layer_counts') or {})}")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-        finally:
-            try: os.unlink(study_path)
-            except Exception: pass
-
-    rep = st.session_state.get("v129_rep")
-    bun = st.session_state.get("v129_bun")
-    if isinstance(rep, dict):
-        st.write("Summary:")
-        st.json({"n_filtered": rep.get("n_filtered"), "layer_counts": rep.get("layer_counts"), "objectives": rep.get("objectives")})
-        st.dataframe((rep.get("rows") or [])[:200], use_container_width=True)
-        st.download_button("Download pareto_report_v129.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="pareto_report_v129.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v129_dl_rep")
-    if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes,bytearray)):
-        st.download_button("Download pareto_bundle_v129.zip",
-                           data=bun["zip_bytes"],
-                           file_name="pareto_bundle_v129.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v129_dl_zip")
-
-
-# =====================
-# v130 Persistent Run Vault (single UI)
-# =====================
-def _v130_run_vault_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.run_vault import list_entries
-
-    st.subheader("Persistent Run Vault")
-    st.caption("Append-only, local vault of run artifacts and bundles. Prevents loss due to reruns/downloads. Storage-only; never changes physics/solvers.")
-
-    c1,c2 = st.columns(2)
-    with c1:
-        enabled = st.toggle("Enable vault persistence", value=bool(st.session_state.get("vault_enabled", True)), key="vault_enabled")
-    with c2:
-        limit = st.slider("Show last N entries", min_value=10, max_value=200, value=int(st.session_state.get("vault_limit", 50)), step=10, key="vault_limit")
-
-    root = Path(__file__).resolve().parents[1]
-    entries = list_entries(root, limit=int(limit))
-    st.write(f"Vault entries: showing last {len(entries)}")
-    if entries:
-        st.dataframe(entries, use_container_width=True)
-
-        # allow downloading index file
-        idx_path = root / "out_run_vault" / "INDEX.jsonl"
-        if idx_path.exists():
-            st.download_button("Download vault INDEX.jsonl",
-                               data=idx_path.read_bytes(),
-                               file_name="INDEX.jsonl",
-                               mime="text/plain",
+            obj3 = st.text_input("Objective 3 column (optional)", value="R0_m", key="v129_o3")
+            s3 = st.selectbox("Sense 3", options=["min","max"], index=0, key="v129_s3")
+    
+        feasible_only = st.checkbox("Feasible only", value=True, key="v129_feas")
+        mission = st.selectbox("Mission filter", options=["(any)","pilot","demo","powerplant"], index=0, key="v129_mis")
+    
+        objs=[{"k": obj1.strip(), "sense": s1}]
+        if obj2.strip():
+            objs.append({"k": obj2.strip(), "sense": s2})
+        if obj3.strip():
+            objs.append({"k": obj3.strip(), "sense": s3})
+    
+        if st.button("Compute Pareto", key="v129_run"):
+            try:
+                rep = build_pareto(study_path=study_path, objectives=objs, feasible_only=bool(feasible_only), mission=None if mission=="(any)" else mission, version="v129")
+                bun = pareto_bundle_zip(rep)
+                st.session_state["v129_rep"]=rep
+                st.session_state["v129_bun"]=bun
+                st.success(f"Computed Pareto: {rep.get('n_filtered')} rows, layers: {len(rep.get('layer_counts') or {})}")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+            finally:
+                try: os.unlink(study_path)
+                except Exception: pass
+    
+        rep = st.session_state.get("v129_rep")
+        bun = st.session_state.get("v129_bun")
+        if isinstance(rep, dict):
+            st.write("Summary:")
+            st.json({"n_filtered": rep.get("n_filtered"), "layer_counts": rep.get("layer_counts"), "objectives": rep.get("objectives")})
+            st.dataframe((rep.get("rows") or [])[:200], use_container_width=True)
+            st.download_button("Download pareto_report_v129.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="pareto_report_v129.json",
+                               mime="application/json",
                                use_container_width=True,
-                               key="v130_dl_index")
-    else:
-        st.info("No entries yet. Run a point evaluation or generate a bundle; entries will appear here.")
-
-
-# =====================
-# v131 Vault Restore + Session Replay (single UI)
-# =====================
-def _v131_vault_restore_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.vault_restore import list_entries, load_entry_payload, list_entry_files, read_entry_file
-
-    st.subheader("Vault Restore + Session Replay")
-    st.caption("Restore runs and bundles from the persistent vault back into the UI ledger. Downstream-only; no evaluation is performed.")
-
-    root = Path(__file__).resolve().parents[1]
-    entries = list_entries(root, limit=int(st.session_state.get("vault_limit", 50)))
-    if not entries:
-        st.info("No vault entries found yet. Enable the vault and run evaluations/bundles first.")
-        return
-
-    # select entry
-    labels = []
-    for e in entries:
-        labels.append(f"{e.get('created_utc','')} | {e.get('record_kind','')} | {e.get('mode','')} | {str(e.get('sha256',''))[:10]}")
-    idx = st.selectbox("Select vault entry", options=list(range(len(entries))), format_func=lambda i: labels[i], key="v131_pick")
-    meta = entries[int(idx)]
-
-    st.write("Entry meta:")
-    st.json(meta)
-
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        if st.button("Restore payload to Run Ledger", key="v131_restore"):
-            try:
-                payload = load_entry_payload(root, meta)
-                kind = str(meta.get("record_kind") or "vault_restore")
-                mode = str(meta.get("mode") or "vault_restore_v131")
-                _v98_record_run(kind, payload, mode=mode)
-                st.success("Restored into run ledger.")
-            except Exception as e:
-                st.error(f"Restore failed: {e!r}")
-
-    with c2:
-        if st.button("Load payload into viewer (no restore)", key="v131_load"):
-            try:
-                payload = load_entry_payload(root, meta)
-                st.session_state["v131_loaded_payload"] = payload
-                st.success("Loaded.")
-            except Exception as e:
-                st.error(f"Load failed: {e!r}")
-
-    with c3:
-        show_files = st.toggle("Show attached files", value=False, key="v131_show_files")
-
-    payload = st.session_state.get("v131_loaded_payload")
-    if payload is not None:
-        st.write("Loaded payload preview:")
-        if isinstance(payload, (bytes, bytearray)):
-            st.write(f"Binary payload: {len(payload)} bytes")
-        else:
-            try:
-                st.json(payload)
-            except Exception:
-                st.write(repr(payload)[:2000])
-
-    if show_files:
-        fnames = list_entry_files(root, meta)
-        if not fnames:
-            st.info("No attached files for this entry.")
-        else:
-            st.write("Attached files:")
-            for fn in fnames:
-                b = read_entry_file(root, meta, fn)
-                st.download_button(f"Download {fn}", data=b, file_name=fn, use_container_width=True, key=f"v131_dl_{fn}")
-
-
-# =====================
-# v132 Study Matrix Builder v2 (multi-lever sweep) (single UI)
-# =====================
-def _v132_study_matrix_v2_panel():
-    import streamlit as st
-    from tools.study_matrix_v2 import build_cases_multi_sweep, build_study_matrix_bundle_v2
-    from tools.feasibility_atlas import available_numeric_levers
-
-    st.subheader("Study Matrix Builder v2")
-    st.caption("Multi-lever sweeps (2D/3D) with derived columns. Produces a study zip compatible with Study Explorer and Pareto.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("No runs in ledger yet. Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v132_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected run does not contain a run artifact payload.")
-        return
-
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-    levers = available_numeric_levers(base_inputs)
-    if not levers:
-        st.warning("No numeric levers detected in baseline inputs.")
-        return
-
-    st.write("Define up to 3 sweeps (leave lever blank to disable a sweep):")
-    sweeps=[]
-    cols = st.columns(3)
-    for i in range(3):
-        with cols[i]:
-            lever = st.selectbox(f"Sweep {i+1} lever", options=["(none)"]+levers, index=0, key=f"v132_lev_{i}")
-            if lever != "(none)":
-                v0 = float(base_inputs.get(lever, 0.0) or 0.0)
-                vmin = st.number_input(f"Min {i+1}", value=(v0*0.95 if abs>1e-9 else -1.0), key=f"v132_min_{i}")
-                vmax = st.number_input(f"Max {i+1}", value=(v0*1.05 if abs>1e-9 else 1.0), key=f"v132_max_{i}")
-                n = st.slider(f"N {i+1}", min_value=2, max_value=10, value=4, step=1, key=f"v132_n_{i}")
-                sweeps.append({"lever": str(lever), "min": float(vmin), "max": float(vmax), "n": int(n)})
-
-    if not sweeps:
-        st.info("Choose at least one sweep lever.")
-        return
-
-    missions = st.multiselect("Missions (optional)", options=["pilot","demo","powerplant"], default=["pilot"], key="v132_missions")
-    derived = st.multiselect("Derived columns", options=["Pnet_per_R0","Q_per_Bt","margin_penalty"], default=["Pnet_per_R0","Q_per_Bt","margin_penalty"], key="v132_derived")
-
-    include_expl = st.checkbox("Include explainability", value=True, key="v132_expl")
-    include_ev = st.checkbox("Include evidence/traceability (v123)", value=True, key="v132_ev")
-    include_kit = st.checkbox("Include study kit (v123B)", value=True, key="v132_kit")
-
-    est = 1
-    for sw in sweeps:
-        est *= int(sw.get("n",1))
-    est *= max(1, len(missions) if missions else 1)
-    st.warning(f"Estimated cases: {est}. Keep it small for local runs.")
-
-    if st.button("Build Study Matrix v132 Zip", key="v132_run"):
-        try:
-            cases = build_cases_multi_sweep(baseline_run_artifact=base, sweeps=sweeps, missions=(missions or None))
-            bundle = build_study_matrix_bundle_v2(
-                baseline_run_artifact=base,
-                cases=cases,
-                outdir="out_study_matrix_v132",
-                version="v132",
-                include_explainability=bool(include_expl),
-                include_evidence=bool(include_ev),
-                include_study_kit=bool(include_kit),
-                derived=list(derived or []),
-            )
-            st.session_state["v132_bundle"] = bundle
-            _v98_record_run("study_matrix_v2", {"cases": bundle.get("cases")}, mode="study_matrix_v132")
-            st.success(f"Study matrix built: {bundle.get('cases')} cases.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    bun = st.session_state.get("v132_bundle")
-    if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download study_matrix_v132.zip",
-                           data=bun["zip_bytes"],
-                           file_name="study_matrix_v132.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v132_dl_zip")
-        st.download_button("Download study_matrix_manifest_v132.json",
-                           data=_json.dumps(bun.get("manifest", {}), indent=2, sort_keys=True),
-                           file_name="study_matrix_manifest_v132.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v132_dl_manifest")
-        st.json({"cases": bun.get("cases"), "created_utc": bun.get("created_utc"), "version": bun.get("version")})
-
-
-# =====================
-# v133 Feasibility Completion (Partial Design Inference) (single UI)
-# =====================
-def _v133_fc_panel():
-    import streamlit as st
-    from tools.feasibility_completion import FCConfig, run_feasibility_completion, build_fc_bundle_zip
-    from tools.feasibility_atlas import available_numeric_levers
-    from tools import run_vault
-    from pathlib import Path
-
-    st.subheader("Feasibility Completion")
-    st.caption("Partial design inference: fix a few major parameters, mark others as FREE/UNCERTAIN within bounds, and search for any feasible completions. Not an optimizer.")
-
-    # baseline for lever discovery + default values
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first so SHAMS has a baseline inputs dictionary to start from.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Baseline run (for defaults)", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v133_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected baseline does not contain a run artifact payload.")
-        return
-
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-    levers = available_numeric_levers(base_inputs)
-    if not levers:
-        st.warning("No numeric levers detected.")
-        return
-
-    st.write("1) Choose FIXED parameters (set values).")
-    fixed_choices = st.multiselect("Fixed parameters", options=levers, default=[x for x in ["R0_m","Bt_T","Ip_MA"] if x in levers], key="v133_fixed_list")
-    fixed = {}
-    if fixed_choices:
-        cols = st.columns(min(3, len(fixed_choices)))
-        for i,k in enumerate(fixed_choices):
-            with cols[i % len(cols)]:
-                v0 = float(base_inputs.get(k, 0.0) or 0.0)
-                fixed[k] = st.number_input(f"Fixed {k}", value=v0, key=f"v133_fix_{k}")
-
-    st.write("2) Choose FREE parameters (SHAMS searches within bounds). Up to 3 recommended.")
-    free_choices = st.multiselect("Free parameters", options=[x for x in levers if x not in fixed_choices], default=[x for x in ["kappa","q95"] if x in levers and x not in fixed_choices], key="v133_free_list")
-
-    st.write("3) Choose UNCERTAIN parameters (sampled within bounds). Optional.")
-    uncertain_choices = st.multiselect("Uncertain parameters", options=[x for x in levers if x not in fixed_choices and x not in free_choices], default=[], key="v133_unc_list")
-
-    vars_all = list(dict.fromkeys(list(free_choices) + list(uncertain_choices)))
-    if not vars_all:
-        st.info("Select at least one FREE or UNCERTAIN parameter.")
-        return
-
-    bounds = {}
-    st.write("4) Bounds for FREE/UNCERTAIN parameters:")
-    for k in vars_all:
-        v0 = float(base_inputs.get(k, 0.0) or 0.0)
-        c1,c2,c3 = st.columns([1,1,1])
+                               key="v129_dl_rep")
+        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes,bytearray)):
+            st.download_button("Download pareto_bundle_v129.zip",
+                               data=bun["zip_bytes"],
+                               file_name="pareto_bundle_v129.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v129_dl_zip")
+    
+    
+    # =====================
+    # v130 Persistent Run Vault (single UI)
+    # =====================
+    def _v130_run_vault_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.run_vault import list_entries
+    
+        st.subheader("Persistent Run Vault")
+        st.caption("Append-only, local vault of run artifacts and bundles. Prevents loss due to reruns/downloads. Storage-only; never changes physics/solvers.")
+    
+        c1,c2 = st.columns(2)
         with c1:
-            lo = st.number_input(f"{k} min", value=(v0*0.95 if abs>1e-9 else -1.0), key=f"v133_lo_{k}")
+            enabled = st.toggle("Enable vault persistence", value=bool(st.session_state.get("vault_enabled", True)), key="vault_enabled")
         with c2:
-            hi = st.number_input(f"{k} max", value=(v0*1.05 if abs>1e-9 else 1.0), key=f"v133_hi_{k}")
+            limit = st.slider("Show last N entries", min_value=10, max_value=200, value=int(st.session_state.get("vault_limit", 50)), step=10, key="vault_limit")
+    
+        root = Path(__file__).resolve().parents[1]
+        entries = list_entries(root, limit=int(limit))
+        st.write(f"Vault entries: showing last {len(entries)}")
+        if entries:
+            st.dataframe(entries, use_container_width=True)
+    
+            # allow downloading index file
+            idx_path = root / "out_run_vault" / "INDEX.jsonl"
+            if idx_path.exists():
+                st.download_button("Download vault INDEX.jsonl",
+                                   data=idx_path.read_bytes(),
+                                   file_name="INDEX.jsonl",
+                                   mime="text/plain",
+                                   use_container_width=True,
+                                   key="v130_dl_index")
+        else:
+            st.info("No entries yet. Run a point evaluation or generate a bundle; entries will appear here.")
+    
+    
+    # =====================
+    # v131 Vault Restore + Session Replay (single UI)
+    # =====================
+    def _v131_vault_restore_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.vault_restore import list_entries, load_entry_payload, list_entry_files, read_entry_file
+    
+        st.subheader("Vault Restore + Session Replay")
+        st.caption("Restore runs and bundles from the persistent vault back into the UI ledger. Downstream-only; no evaluation is performed.")
+    
+        root = Path(__file__).resolve().parents[1]
+        entries = list_entries(root, limit=int(st.session_state.get("vault_limit", 50)))
+        if not entries:
+            st.info("No vault entries found yet. Enable the vault and run evaluations/bundles first.")
+            return
+    
+        # select entry
+        labels = []
+        for e in entries:
+            labels.append(f"{e.get('created_utc','')} | {e.get('record_kind','')} | {e.get('mode','')} | {str(e.get('sha256',''))[:10]}")
+        idx = st.selectbox("Select vault entry", options=list(range(len(entries))), format_func=lambda i: labels[i], key="v131_pick")
+        meta = entries[int(idx)]
+    
+        st.write("Entry meta:")
+        st.json(meta)
+    
+        c1,c2,c3 = st.columns(3)
+        with c1:
+            if st.button("Restore payload to Run Ledger", key="v131_restore"):
+                try:
+                    payload = load_entry_payload(root, meta)
+                    kind = str(meta.get("record_kind") or "vault_restore")
+                    mode = str(meta.get("mode") or "vault_restore_v131")
+                    _v98_record_run(kind, payload, mode=mode)
+                    st.success("Restored into run ledger.")
+                except Exception as e:
+                    st.error(f"Restore failed: {e!r}")
+    
+        with c2:
+            if st.button("Load payload into viewer (no restore)", key="v131_load"):
+                try:
+                    payload = load_entry_payload(root, meta)
+                    st.session_state["v131_loaded_payload"] = payload
+                    st.success("Loaded.")
+                except Exception as e:
+                    st.error(f"Load failed: {e!r}")
+    
         with c3:
-            st.caption(f"baseline={v0:g}")
-        bounds[k] = (float(lo), float(hi))
-
-    st.write("5) Search method and budget:")
-    method = st.selectbox("Method", options=["grid","random"], index=0, key="v133_method")
-    if method == "grid":
-        n_per_dim = st.slider("Grid points per dimension", min_value=2, max_value=10, value=4, step=1, key="v133_npd")
+            show_files = st.toggle("Show attached files", value=False, key="v131_show_files")
+    
+        payload = st.session_state.get("v131_loaded_payload")
+        if payload is not None:
+            st.write("Loaded payload preview:")
+            if isinstance(payload, (bytes, bytearray)):
+                st.write(f"Binary payload: {len(payload)} bytes")
+            else:
+                try:
+                    st.json(payload)
+                except Exception:
+                    st.write(repr(payload)[:2000])
+    
+        if show_files:
+            fnames = list_entry_files(root, meta)
+            if not fnames:
+                st.info("No attached files for this entry.")
+            else:
+                st.write("Attached files:")
+                for fn in fnames:
+                    b = read_entry_file(root, meta, fn)
+                    st.download_button(f"Download {fn}", data=b, file_name=fn, use_container_width=True, key=f"v131_dl_{fn}")
+    
+    
+    # =====================
+    # v132 Study Matrix Builder v2 (multi-lever sweep) (single UI)
+    # =====================
+    def _v132_study_matrix_v2_panel():
+        import streamlit as st
+        from tools.study_matrix_v2 import build_cases_multi_sweep, build_study_matrix_bundle_v2
+        from tools.feasibility_atlas import available_numeric_levers
+    
+        st.subheader("Study Matrix Builder v2")
+        st.caption("Multi-lever sweeps (2D/3D) with derived columns. Produces a study zip compatible with Study Explorer and Pareto.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("No runs in ledger yet. Run a point evaluation first.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Select baseline run artifact", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v132_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected run does not contain a run artifact payload.")
+            return
+    
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+        levers = available_numeric_levers(base_inputs)
+        if not levers:
+            st.warning("No numeric levers detected in baseline inputs.")
+            return
+    
+        st.write("Define up to 3 sweeps (leave lever blank to disable a sweep):")
+        sweeps=[]
+        cols = st.columns(3)
+        for i in range(3):
+            with cols[i]:
+                lever = st.selectbox(f"Sweep {i+1} lever", options=["(none)"]+levers, index=0, key=f"v132_lev_{i}")
+                if lever != "(none)":
+                    v0 = float(base_inputs.get(lever, 0.0) or 0.0)
+                    vmin = st.number_input(f"Min {i+1}", value=(v0*0.95 if abs>1e-9 else -1.0), key=f"v132_min_{i}")
+                    vmax = st.number_input(f"Max {i+1}", value=(v0*1.05 if abs>1e-9 else 1.0), key=f"v132_max_{i}")
+                    n = st.slider(f"N {i+1}", min_value=2, max_value=10, value=4, step=1, key=f"v132_n_{i}")
+                    sweeps.append({"lever": str(lever), "min": float(vmin), "max": float(vmax), "n": int(n)})
+    
+        if not sweeps:
+            st.info("Choose at least one sweep lever.")
+            return
+    
+        missions = st.multiselect("Missions (optional)", options=["pilot","demo","powerplant"], default=["pilot"], key="v132_missions")
+        derived = st.multiselect("Derived columns", options=["Pnet_per_R0","Q_per_Bt","margin_penalty"], default=["Pnet_per_R0","Q_per_Bt","margin_penalty"], key="v132_derived")
+    
+        include_expl = st.checkbox("Include explainability", value=True, key="v132_expl")
+        include_ev = st.checkbox("Include evidence/traceability (v123)", value=True, key="v132_ev")
+        include_kit = st.checkbox("Include study kit (v123B)", value=True, key="v132_kit")
+    
         est = 1
-        for _ in vars_all: est *= int(n_per_dim)
-        st.warning(f"Estimated evaluations: {est}")
-        n_random = 0
-    else:
-        n_random = st.slider("Random samples", min_value=50, max_value=2000, value=300, step=50, key="v133_nr")
-        n_per_dim = 0
-        st.warning(f"Estimated evaluations: {n_random}")
-
-    seed = st.number_input("Seed (determinism)", value=0, step=1, key="v133_seed")
-    feasible_only_export = st.checkbox("Export only feasible evaluations", value=True, key="v133_fe_only")
-
-    if st.button("Run Feasibility Completion", key="v133_run"):
-        try:
-            cfg = FCConfig(
-                baseline_inputs=dict(base_inputs),
-                fixed=dict(fixed),
-                bounds=dict(bounds),
-                free=list(free_choices),
-                uncertain=list(uncertain_choices),
-                method=str(method),
-                n_per_dim=int(n_per_dim) if method=="grid" else 0,
-                n_random=int(n_random) if method=="random" else 0,
-                seed=int(seed),
-                feasible_only_export=bool(feasible_only_export),
-            )
-            rep = run_feasibility_completion(cfg)
-            bun = build_fc_bundle_zip(rep)
-            st.session_state["v133_rep"] = rep
-            st.session_state["v133_bun"] = bun
-            _v98_record_run("feasibility_completion", {"exists_feasible": rep.get("exists_feasible"), "n_evals": rep.get("n_evals"), "n_feasible": rep.get("n_feasible")}, mode="fc_v133")
-            st.success(f"Done. Feasible: {rep.get('exists_feasible')} (feasible points: {rep.get('n_feasible')}/{rep.get('n_evals')})")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rep = st.session_state.get("v133_rep")
-    bun = st.session_state.get("v133_bun")
-    if isinstance(rep, dict):
-        st.write("Report summary:")
-        st.json({"exists_feasible": rep.get("exists_feasible"),
-                 "n_evals": rep.get("n_evals"),
-                 "n_feasible": rep.get("n_feasible"),
-                 "envelope": rep.get("envelope"),
-                 "dominant_constraint_counts": rep.get("dominant_constraint_counts")})
-        st.dataframe((rep.get("evaluations") or [])[:200], use_container_width=True)
-        st.download_button("Download fc_report_v133.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True),
-                           file_name="fc_report_v133.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v133_dl_rep")
-
-    if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download fc_bundle_v133.zip",
-                           data=bun["zip_bytes"],
-                           file_name="fc_bundle_v133.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v133_dl_zip")
-
-        if st.button("Save FC bundle to Vault (attach zip)", key="v133_save_vault"):
+        for sw in sweeps:
+            est *= int(sw.get("n",1))
+        est *= max(1, len(missions) if missions else 1)
+        st.warning(f"Estimated cases: {est}. Keep it small for local runs.")
+    
+        if st.button("Build Study Matrix v132 Zip", key="v132_run"):
             try:
-                root = Path(__file__).resolve().parents[1]
-                meta = run_vault.write_entry(root=root, kind="fc_bundle", payload=rep or {}, mode="v133", files={"fc_bundle_v133.zip": bun["zip_bytes"]})
-                st.success(f"Saved to vault: {meta.get('entry_dir')}")
+                cases = build_cases_multi_sweep(baseline_run_artifact=base, sweeps=sweeps, missions=(missions or None))
+                bundle = build_study_matrix_bundle_v2(
+                    baseline_run_artifact=base,
+                    cases=cases,
+                    outdir="out_study_matrix_v132",
+                    version="v132",
+                    include_explainability=bool(include_expl),
+                    include_evidence=bool(include_ev),
+                    include_study_kit=bool(include_kit),
+                    derived=list(derived or []),
+                )
+                st.session_state["v132_bundle"] = bundle
+                _v98_record_run("study_matrix_v2", {"cases": bundle.get("cases")}, mode="study_matrix_v132")
+                st.success(f"Study matrix built: {bundle.get('cases')} cases.")
             except Exception as e:
-                st.error(f"Vault save failed: {e!r}")
-
-
-# =====================
-# v134–v138 FC Superpanel (single UI)
-# =====================
-def _v138_fc_superpanel():
-    import streamlit as st
-    from pathlib import Path
-    from tools import run_vault
-    from tools.param_guidance import suggest_free_vars, suggest_bounds, sanity_check_bounds
-    from tools.feasibility_completion import FCConfig, run_feasibility_completion, build_fc_bundle_zip
-    from tools.fc_advanced import build_fc_atlas_bundle, repair_to_feasibility, RepairConfig, compress_feasible_set, completion_to_run_artifact
-
-    st.subheader("Feasibility Completion Advanced (v134–v138)")
-    st.caption("Atlas + guided setup + bounded repair + compression + handoff to study tools. All downstream/orchestration only.")
-
-    # baseline for defaults
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first to populate the run ledger.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Baseline run (defaults)", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v138_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected baseline does not contain a run artifact.")
-        return
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-
-    # Use the v133 panel state if present
-    rep = st.session_state.get("v133_rep")
-    bun = st.session_state.get("v133_bun")
-
-    tabs = st.tabs(["Guided Setup", "Run FC", "Atlas", "Repair (v136)", "Compress (v137)", "Handoff (v138)"])
-
-    # ---------------- v135 ----------------
-    with tabs[0]:
-        st.write("Suggested FREE variables (heuristics):")
-        avail = list(available_numeric_levers(base_inputs))
-        fixed_guess = [x for x in ["R0_m","Bt_T"] if x in avail]
-        suggested = suggest_free_vars(avail, fixed=fixed_guess, max_k=3)
-        st.json({"suggested_free": suggested})
-        st.write("Suggested bounds (editable):")
-        b = {}
-        for v in suggested:
-            lo,hi = suggest_bounds(base_inputs, v)
-            b[v] = [lo,hi]
-            msgs = sanity_check_bounds(v, lo, hi)
-            st.write(f"- {v}: [{lo:g}, {hi:g}]" + (f" ⚠ {', '.join(msgs)}" if msgs else ""))
-        st.caption("You can copy these into the FC run tab.")
-
-    # ---------------- v133 run ----------------
-    with tabs[1]:
-        st.write("Run Feasibility Completion using baseline defaults + your fixed/free/uncertain selections.")
-        levers = list(available_numeric_levers(base_inputs))
-        fixed_choices = st.multiselect("Fixed parameters", options=levers, default=[x for x in ["R0_m","Bt_T"] if x in levers], key="v138_fixed_list")
+                st.error(f"Failed: {e!r}")
+    
+        bun = st.session_state.get("v132_bundle")
+        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download study_matrix_v132.zip",
+                               data=bun["zip_bytes"],
+                               file_name="study_matrix_v132.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v132_dl_zip")
+            st.download_button("Download study_matrix_manifest_v132.json",
+                               data=_json.dumps(bun.get("manifest", {}), indent=2, sort_keys=True),
+                               file_name="study_matrix_manifest_v132.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v132_dl_manifest")
+            st.json({"cases": bun.get("cases"), "created_utc": bun.get("created_utc"), "version": bun.get("version")})
+    
+    
+    # =====================
+    # v133 Feasibility Completion (Partial Design Inference) (single UI)
+    # =====================
+    def _v133_fc_panel():
+        import streamlit as st
+        from tools.feasibility_completion import FCConfig, run_feasibility_completion, build_fc_bundle_zip
+        from tools.feasibility_atlas import available_numeric_levers
+        from tools import run_vault
+        from pathlib import Path
+    
+        st.subheader("Feasibility Completion")
+        st.caption("Partial design inference: fix a few major parameters, mark others as FREE/UNCERTAIN within bounds, and search for any feasible completions. Not an optimizer.")
+    
+        # baseline for lever discovery + default values
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first so SHAMS has a baseline inputs dictionary to start from.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Baseline run (for defaults)", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v133_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected baseline does not contain a run artifact payload.")
+            return
+    
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+        levers = available_numeric_levers(base_inputs)
+        if not levers:
+            st.warning("No numeric levers detected.")
+            return
+    
+        st.write("1) Choose FIXED parameters (set values).")
+        fixed_choices = st.multiselect("Fixed parameters", options=levers, default=[x for x in ["R0_m","Bt_T","Ip_MA"] if x in levers], key="v133_fixed_list")
         fixed = {}
-        for k in fixed_choices:
-            v0 = float(base_inputs.get(k, 0.0) or 0.0)
-            fixed[k] = st.number_input(f"Fixed {k}", value=v0, key=f"v138_fix_{k}")
-
-        free_choices = st.multiselect("Free parameters", options=[x for x in levers if x not in fixed_choices], default=[x for x in ["Ip_MA","kappa","q95"] if x in levers and x not in fixed_choices], key="v138_free_list")
-        uncertain_choices = st.multiselect("Uncertain parameters", options=[x for x in levers if x not in fixed_choices and x not in free_choices], default=[], key="v138_unc_list")
-        vars_all = list(dict.fromkeys(list(free_choices)+list(uncertain_choices)))
-        if vars_all:
-            st.write("Bounds:")
-        bounds={}
+        if fixed_choices:
+            cols = st.columns(min(3, len(fixed_choices)))
+            for i,k in enumerate(fixed_choices):
+                with cols[i % len(cols)]:
+                    v0 = float(base_inputs.get(k, 0.0) or 0.0)
+                    fixed[k] = st.number_input(f"Fixed {k}", value=v0, key=f"v133_fix_{k}")
+    
+        st.write("2) Choose FREE parameters (SHAMS searches within bounds). Up to 3 recommended.")
+        free_choices = st.multiselect("Free parameters", options=[x for x in levers if x not in fixed_choices], default=[x for x in ["kappa","q95"] if x in levers and x not in fixed_choices], key="v133_free_list")
+    
+        st.write("3) Choose UNCERTAIN parameters (sampled within bounds). Optional.")
+        uncertain_choices = st.multiselect("Uncertain parameters", options=[x for x in levers if x not in fixed_choices and x not in free_choices], default=[], key="v133_unc_list")
+    
+        vars_all = list(dict.fromkeys(list(free_choices) + list(uncertain_choices)))
+        if not vars_all:
+            st.info("Select at least one FREE or UNCERTAIN parameter.")
+            return
+    
+        bounds = {}
+        st.write("4) Bounds for FREE/UNCERTAIN parameters:")
         for k in vars_all:
-            lo0,hi0 = suggest_bounds(base_inputs, k)
-            c1,c2 = st.columns(2)
+            v0 = float(base_inputs.get(k, 0.0) or 0.0)
+            c1,c2,c3 = st.columns([1,1,1])
             with c1:
-                lo = st.number_input(f"{k} min", value=float(lo0), key=f"v138_lo_{k}")
+                lo = st.number_input(f"{k} min", value=(v0*0.95 if abs>1e-9 else -1.0), key=f"v133_lo_{k}")
             with c2:
-                hi = st.number_input(f"{k} max", value=float(hi0), key=f"v138_hi_{k}")
-            bounds[k]=(float(lo), float(hi))
-            msgs = sanity_check_bounds(k, float(lo), float(hi))
-            if msgs:
-                st.warning(f"{k}: {', '.join(msgs)}")
-
-        method = st.selectbox("Method", options=["grid","random"], index=0, key="v138_method")
-        if method=="grid":
-            n_per_dim = st.slider("Grid points per dimension", 2, 10, 4, 1, key="v138_npd")
+                hi = st.number_input(f"{k} max", value=(v0*1.05 if abs>1e-9 else 1.0), key=f"v133_hi_{k}")
+            with c3:
+                st.caption(f"baseline={v0:g}")
+            bounds[k] = (float(lo), float(hi))
+    
+        st.write("5) Search method and budget:")
+        method = st.selectbox("Method", options=["grid","random"], index=0, key="v133_method")
+        if method == "grid":
+            n_per_dim = st.slider("Grid points per dimension", min_value=2, max_value=10, value=4, step=1, key="v133_npd")
+            est = 1
+            for _ in vars_all: est *= int(n_per_dim)
+            st.warning(f"Estimated evaluations: {est}")
             n_random = 0
         else:
-            n_random = st.slider("Random samples", 50, 2000, 300, 50, key="v138_nr")
+            n_random = st.slider("Random samples", min_value=50, max_value=2000, value=300, step=50, key="v133_nr")
             n_per_dim = 0
-        seed = st.number_input("Seed", value=0, step=1, key="v138_seed")
-        feasible_only = st.checkbox("Export only feasible points", value=True, key="v138_fe_only")
-
-        if st.button("Run FC", key="v138_run_fc"):
-            cfg = FCConfig(
-                baseline_inputs=dict(base_inputs),
-                fixed=dict(fixed),
-                bounds=dict(bounds),
-                free=list(free_choices),
-                uncertain=list(uncertain_choices),
-                method=str(method),
-                n_per_dim=int(n_per_dim) if method=="grid" else 0,
-                n_random=int(n_random) if method=="random" else 0,
-                seed=int(seed),
-                feasible_only_export=bool(feasible_only),
-            )
-            rep = run_feasibility_completion(cfg)
-            bun = build_fc_bundle_zip(rep)
-            st.session_state["v133_rep"] = rep
-            st.session_state["v133_bun"] = bun
-            _v98_record_run("feasibility_completion", {"exists_feasible": rep.get("exists_feasible"), "n_evals": rep.get("n_evals"), "n_feasible": rep.get("n_feasible")}, mode="fc_v133")
-            st.success(f"Feasible: {rep.get('exists_feasible')} (feasible points: {rep.get('n_feasible')}/{rep.get('n_evals')})")
-
+            st.warning(f"Estimated evaluations: {n_random}")
+    
+        seed = st.number_input("Seed (determinism)", value=0, step=1, key="v133_seed")
+        feasible_only_export = st.checkbox("Export only feasible evaluations", value=True, key="v133_fe_only")
+    
+        if st.button("Run Feasibility Completion", key="v133_run"):
+            try:
+                cfg = FCConfig(
+                    baseline_inputs=dict(base_inputs),
+                    fixed=dict(fixed),
+                    bounds=dict(bounds),
+                    free=list(free_choices),
+                    uncertain=list(uncertain_choices),
+                    method=str(method),
+                    n_per_dim=int(n_per_dim) if method=="grid" else 0,
+                    n_random=int(n_random) if method=="random" else 0,
+                    seed=int(seed),
+                    feasible_only_export=bool(feasible_only_export),
+                )
+                rep = run_feasibility_completion(cfg)
+                bun = build_fc_bundle_zip(rep)
+                st.session_state["v133_rep"] = rep
+                st.session_state["v133_bun"] = bun
+                _v98_record_run("feasibility_completion", {"exists_feasible": rep.get("exists_feasible"), "n_evals": rep.get("n_evals"), "n_feasible": rep.get("n_feasible")}, mode="fc_v133")
+                st.success(f"Done. Feasible: {rep.get('exists_feasible')} (feasible points: {rep.get('n_feasible')}/{rep.get('n_evals')})")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
         rep = st.session_state.get("v133_rep")
         bun = st.session_state.get("v133_bun")
         if isinstance(rep, dict):
-            st.json({"exists_feasible": rep.get("exists_feasible"), "n_evals": rep.get("n_evals"), "n_feasible": rep.get("n_feasible"), "envelope": rep.get("envelope")})
-            st.download_button("Download fc_report_v133.json", data=_json.dumps(rep, indent=2, sort_keys=True), file_name="fc_report_v133.json", mime="application/json", use_container_width=True)
+            st.write("Report summary:")
+            st.json({"exists_feasible": rep.get("exists_feasible"),
+                     "n_evals": rep.get("n_evals"),
+                     "n_feasible": rep.get("n_feasible"),
+                     "envelope": rep.get("envelope"),
+                     "dominant_constraint_counts": rep.get("dominant_constraint_counts")})
+            st.dataframe((rep.get("evaluations") or [])[:200], use_container_width=True)
+            st.download_button("Download fc_report_v133.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True),
+                               file_name="fc_report_v133.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v133_dl_rep")
+    
         if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-            st.download_button("Download fc_bundle_v133.zip", data=bun["zip_bytes"], file_name="fc_bundle_v133.zip", mime="application/zip", use_container_width=True)
-            if st.button("Save FC bundle to Vault", key="v138_save_fc_vault"):
-                root = Path(__file__).resolve().parents[1]
-                run_vault.write_entry(root=root, kind="fc_bundle", payload=rep or {}, mode="v138", files={"fc_bundle_v133.zip": bun["zip_bytes"]})
-                st.success("Saved.")
-
-    # ---------------- v134 atlas ----------------
-    with tabs[2]:
-        rep = st.session_state.get("v133_rep")
-        if not isinstance(rep, dict):
-            st.info("Run FC first (Run FC tab).")
-        else:
-            bounds = rep.get("config", {}).get("bounds", {}) if isinstance(rep.get("config"), dict) else {}
-            vars_ = list(bounds.keys())
-            if len(vars_) < 2:
-                st.info("Need at least two bounded variables in FC config to build an atlas.")
-            else:
-                x = st.selectbox("X axis", options=vars_, index=0, key="v138_atlas_x")
-                y = st.selectbox("Y axis", options=[v for v in vars_ if v != x], index=0, key="v138_atlas_y")
-                if st.button("Build FC Atlas", key="v138_build_atlas"):
-                    try:
-                        bun_at = build_fc_atlas_bundle(rep, x_var=str(x), y_var=str(y))
-                        st.session_state["v134_atlas"] = bun_at
-                        _v98_record_run("fc_atlas", {"x": x, "y": y, "n": bun_at.get("manifest", {}).get("files", {}).get("atlas_points.csv", {}).get("bytes")}, mode="v134")
-                        st.success("Atlas built.")
-                    except Exception as e:
-                        st.error(f"Atlas failed: {e!r}")
-
-                bun_at = st.session_state.get("v134_atlas")
-                if isinstance(bun_at, dict) and isinstance(bun_at.get("zip_bytes"), (bytes, bytearray)):
-                    st.download_button("Download fc_atlas_v134.zip", data=bun_at["zip_bytes"], file_name="fc_atlas_v134.zip", mime="application/zip", use_container_width=True, key="v138_dl_atlas")
-                    st.json(bun_at.get("manifest", {}))
-
-    # ---------------- v136 repair ----------------
-    with tabs[3]:
-        rep = st.session_state.get("v133_rep")
-        if not isinstance(rep, dict):
-            st.info("Run FC first (Run FC tab).")
-        else:
-            evals = list(rep.get("evaluations") or [])
-            infeas = [r for r in evals if r.get("feasible") is not True]
-            cfg0 = rep.get("config", {}) if isinstance(rep.get("config"), dict) else {}
-            bounds = cfg0.get("bounds", {}) if isinstance(cfg0.get("bounds"), dict) else {}
-            free = list(cfg0.get("free") or [])
-            if not free or not bounds:
-                st.info("Repair requires FREE variables with bounds.")
-            elif not infeas:
-                st.success("No infeasible points in current export. Disable 'feasible-only export' if you want to repair infeasible samples.")
-            else:
-                st.write(f"Infeasible points available: {len(infeas)}")
-                idx = st.slider("Pick infeasible sample index", 0, len(infeas)-1, 0, 1, key="v138_rep_idx")
-                start = infeas[int(idx)].get("inputs", {}) if isinstance(infeas[int(idx)].get("inputs"), dict) else {}
-                max_steps = st.slider("Max steps", 5, 30, 12, 1, key="v138_rep_steps")
-                step_frac = st.slider("Step fraction", 0.05, 0.50, 0.15, 0.05, key="v138_rep_frac")
-                seed = st.number_input("Repair seed", value=0, step=1, key="v138_rep_seed")
-                if st.button("Run bounded repair", key="v138_run_repair"):
-                    try:
-                        bnd = {k: (float(v[0]), float(v[1])) for k,v in bounds.items()}
-                        cfg = RepairConfig(bounds=bnd, free=list(free), max_steps=int(max_steps), step_frac=float(step_frac), seed=int(seed))
-                        tr = repair_to_feasibility(baseline_inputs=dict(base_inputs), start_inputs=dict(start), cfg=cfg)
-                        st.session_state["v136_trace"] = tr
-                        st.success(f"Repair done. Feasible={tr.get('final',{}).get('feasible')}")
-                    except Exception as e:
-                        st.error(f"Repair failed: {e!r}")
-                tr = st.session_state.get("v136_trace")
-                if isinstance(tr, dict):
-                    st.json({"final": tr.get("final"), "final_inputs": tr.get("final_inputs")})
-                    st.dataframe(tr.get("trace", [])[:200], use_container_width=True)
-                    st.download_button("Download repair_trace_v136.json", data=_json.dumps(tr, indent=2, sort_keys=True), file_name="repair_trace_v136.json", mime="application/json", use_container_width=True)
-
-    # ---------------- v137 compress ----------------
-    with tabs[4]:
-        rep = st.session_state.get("v133_rep")
-        if not isinstance(rep, dict):
-            st.info("Run FC first.")
-        else:
-            k = st.slider("Representatives K", 5, 200, 25, 5, key="v138_k")
-            if st.button("Compress feasible set", key="v138_compress"):
-                comp = compress_feasible_set(rep, k=int(k))
-                st.session_state["v137_comp"] = comp
-                st.success("Compressed.")
-            comp = st.session_state.get("v137_comp")
-            if isinstance(comp, dict):
-                st.json({"k": comp.get("k"), "n_feasible": comp.get("n_feasible")})
-                st.dataframe(comp.get("representatives", [])[:200], use_container_width=True)
-                st.download_button("Download fc_compressed_v137.json", data=_json.dumps(comp, indent=2, sort_keys=True), file_name="fc_compressed_v137.json", mime="application/json", use_container_width=True)
-
-    # ---------------- v138 handoff ----------------
-    with tabs[5]:
-        comp = st.session_state.get("v137_comp")
-        rep = st.session_state.get("v133_rep")
-        if not isinstance(rep, dict):
-            st.info("Run FC first.")
-        else:
-            # pick best feasible from compressed or report
-            best_inputs = None
-            if isinstance(comp, dict) and (comp.get("representatives")):
-                best_inputs = (comp["representatives"][0].get("inputs") if isinstance(comp["representatives"][0], dict) else None)
-            if best_inputs is None:
-                feas = [r for r in (rep.get("evaluations") or []) if isinstance(r, dict) and r.get("feasible") is True]
-                if feas:
-                    best_inputs = feas[0].get("inputs")
-            if not isinstance(best_inputs, dict):
-                st.info("No feasible point available to hand off. Try expanding bounds or budget.")
-            else:
-                st.write("Best feasible completion inputs (preview):")
-                st.json({k: best_inputs.get(k) for k in list(best_inputs.keys())[:40]})
-                if st.button("Evaluate completion as new run + pin", key="v138_handoff_eval"):
-                    try:
-                        art = completion_to_run_artifact(baseline_inputs=dict(base_inputs), completion_inputs=dict(best_inputs))
-                        rid2 = _v98_record_run("handoff_run_artifact", art, mode="fc_handoff_v138")
-                        s.pinned_run_ids.append(rid2)
-                        st.success(f"Created new run artifact in ledger: {rid2} (pinned)")
-                    except Exception as e:
-                        st.error(f"Handoff failed: {e!r}")
-                st.caption("After creating the pinned run, go to Study Matrix Builder v2 and select the pinned baseline.")
-
-
-# =====================
-# v139 Feasibility Certificate
-# =====================
-def _v139_feasibility_certificate_panel():
-    import streamlit as st
-    import json as _json
-    from pathlib import Path
-    from tools import run_vault
-    from tools.feasibility_certificate import generate_feasibility_certificate
-
-    st.subheader("Feasibility Certificate")
-    st.caption("Generate an immutable, audit-ready certificate for a specific run artifact.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first to populate the run ledger.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids) > 0) else ids[-1])
-    rid = st.selectbox("Select run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids) - 1, key="v139_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if art is None:
-        st.error("Selected entry does not contain a run artifact.")
-        return
-
-    origin = st.selectbox("Origin label", options=["point","fc_handoff","study_matrix",""], index=0, key="v139_origin")
-
-    if st.button("Generate certificate", key="v139_gen"):
-        root = Path(__file__).resolve().parents[1]
-        cert = generate_feasibility_certificate(run_artifact=art, repo_root=root, run_id=str(rid), origin=str(origin))
-        st.session_state["v139_cert"] = cert
-        _v98_record_run("feasibility_certificate", {"certificate_id": cert.get("certificate_id"), "worst": cert.get("dominance",{}).get("worst_constraint"), "worst_margin_frac": cert.get("dominance",{}).get("worst_margin_frac")}, mode="v139")
-        st.success("Certificate generated.")
-
-    cert = st.session_state.get("v139_cert")
-    if isinstance(cert, dict):
-        st.json({
-            "certificate_id": cert.get("certificate_id"),
-            "issued_utc": cert.get("issued_utc"),
-            "worst_constraint": (cert.get("dominance") or {}).get("worst_constraint"),
-            "worst_margin_frac": (cert.get("dominance") or {}).get("worst_margin_frac"),
-            "n_hard": len((cert.get("constraints") or {}).get("hard") or {}),
-        })
-        st.download_button(
-            "Download feasibility_certificate_v139.json",
-            data=_json.dumps(cert, indent=2, sort_keys=True),
-            file_name="feasibility_certificate_v139.json",
-            mime="application/json",
-            use_container_width=True,
-        )
-        if st.button("Save certificate to Vault", key="v139_save_vault"):
-            root = Path(__file__).resolve().parents[1]
-            run_vault.write_entry(root=root, kind="feasibility_certificate", payload=cert, mode="v139", files={"feasibility_certificate_v139.json": _json.dumps(cert, indent=2, sort_keys=True).encode("utf-8")})
-            st.success("Saved.")
-
-
-# =====================
-# v140 Sensitivity Maps (certificate -> fragility envelopes)
-# =====================
-def _v140_sensitivity_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.sensitivity_maps import SensitivityConfig, run_sensitivity, build_sensitivity_bundle
-    from tools.feasibility_atlas import available_numeric_levers
-    from tools import run_vault
-
-    st.subheader("Constraint Sensitivity Maps")
-    st.caption("Finite perturbation sensitivity: how much each variable can vary (+/-) before feasibility breaks. Auditable, no gradients/optimizers.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first.")
-        return
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Baseline run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v140_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected baseline does not contain a run artifact.")
-        return
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-
-    levers = list(available_numeric_levers(base_inputs))
-    default_vars = [v for v in ["Ip_MA","kappa","q95","a_m","beta_N","f_GW"] if v in levers]
-    vars_sel = st.multiselect("Variables to probe", options=levers, default=(default_vars or levers[:4]), key="v140_vars")
-    max_rel = st.slider("Max relative change (+/-)", 0.05, 1.0, 0.40, 0.05, key="v140_max_rel")
-    n_expand = st.slider("Expansion steps", 3, 20, 8, 1, key="v140_nexp")
-    n_bisect = st.slider("Bisection steps", 3, 20, 10, 1, key="v140_nbis")
-    require_feas = st.checkbox("Require baseline feasible", value=True, key="v140_req_feas")
-
-    if st.button("Run sensitivity", key="v140_run"):
-        try:
-            cfg = SensitivityConfig(
-                baseline_inputs=dict(base_inputs),
-                fixed_overrides={},
-                vars=list(vars_sel),
-                bounds={},  # intentionally empty by default; user can constrain later if needed
-                max_rel=float(max_rel),
-                max_abs=0.0,
-                n_expand=int(n_expand),
-                n_bisect=int(n_bisect),
-                require_baseline_feasible=bool(require_feas),
-            )
-            rep = run_sensitivity(cfg)
-            bun = build_sensitivity_bundle(rep)
-            st.session_state["v140_rep"] = rep
-            st.session_state["v140_bun"] = bun
-            _v98_record_run("sensitivity_maps", {"n_vars": len(vars_sel), "max_rel": max_rel}, mode="v140")
-            st.success("Sensitivity run complete.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rep = st.session_state.get("v140_rep")
-    bun = st.session_state.get("v140_bun")
-    if isinstance(rep, dict):
-        st.json({"baseline": rep.get("baseline"), "n_vars": len(rep.get("results") or [])})
-        st.dataframe(rep.get("results", [])[:200], use_container_width=True)
-        st.download_button("Download sensitivity_report_v140.json", data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
-                           file_name="sensitivity_report_v140.json", mime="application/json", use_container_width=True, key="v140_dl_rep")
-
-    if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download sensitivity_bundle_v140.zip", data=bun["zip_bytes"], file_name="sensitivity_bundle_v140.zip",
-                           mime="application/zip", use_container_width=True, key="v140_dl_zip")
-        if st.button("Save sensitivity bundle to Vault", key="v140_save_vault"):
-            try:
-                root = Path(__file__).resolve().parents[1]
-                run_vault.write_entry(root=root, kind="sensitivity_bundle", payload=rep or {}, mode="v140",
-                                      files={"sensitivity_bundle_v140.zip": bun["zip_bytes"]})
-                st.success("Saved to vault.")
-            except Exception as e:
-                st.error(f"Vault save failed: {e!r}")
-
-
-# =====================
-# v141 Robustness Certificate
-# =====================
-def _v141_robustness_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.feasibility_certificate import generate_feasibility_certificate
-    from tools.sensitivity_maps import SensitivityConfig, run_sensitivity
-    from tools.robustness_certificate import generate_robustness_certificate
-    from tools.feasibility_atlas import available_numeric_levers
-    from tools import run_vault
-
-    st.subheader("Robustness Certificate")
-    st.caption("Derives a robustness certificate from v139 Feasibility Certificate + v140 Sensitivity Report. No optimizers/gradients.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first.")
-        return
-
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Baseline run (for certificate + sensitivity)", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v141_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected baseline does not contain a run artifact.")
-        return
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-
-    # v140 settings (re-run sensitivity here for coherence)
-    levers = list(available_numeric_levers(base_inputs))
-    default_vars = [v for v in ["Ip_MA","kappa","q95","a_m","beta_N","f_GW"] if v in levers]
-    vars_sel = st.multiselect("Variables for robustness probing", options=levers, default=(default_vars or levers[:4]), key="v141_vars")
-    max_rel = st.slider("Max relative change (+/-) for sensitivity", 0.05, 1.0, 0.40, 0.05, key="v141_max_rel")
-    n_expand = st.slider("Expansion steps", 3, 20, 8, 1, key="v141_nexp")
-    n_bisect = st.slider("Bisection steps", 3, 20, 10, 1, key="v141_nbis")
-    require_feas = st.checkbox("Require baseline feasible", value=True, key="v141_req_feas")
-
-    policy_json = st.text_area("Policy JSON (optional)", value="{}", height=120, key="v141_policy")
-
-    if st.button("Generate Robustness Certificate", key="v141_run"):
-        try:
-            # v139 cert from current artifact (source of truth)
-            fc = generate_feasibility_certificate(base)
-
-            # v140 report (computed here for coherence; also available via v140 panel)
-            cfg = SensitivityConfig(
-                baseline_inputs=dict(base_inputs),
-                fixed_overrides={},
-                vars=list(vars_sel),
-                bounds={},
-                max_rel=float(max_rel),
-                max_abs=0.0,
-                n_expand=int(n_expand),
-                n_bisect=int(n_bisect),
-                require_baseline_feasible=bool(require_feas),
-            )
-            sr = run_sensitivity(cfg)
-
-            policy = _json.loads(policy_json) if policy_json.strip() else {}
-            rc = generate_robustness_certificate(fc, sr, policy=policy)
-
-            st.session_state["v141_fc"] = fc
-            st.session_state["v141_sr"] = sr
-            st.session_state["v141_rc"] = rc
-            _v98_record_run("robustness_certificate", {"n_vars": len(vars_sel), "max_rel": max_rel, "index": rc.get("robustness", {}).get("index_min_bounded_rel")}, mode="v141")
-            st.success("Robustness certificate generated.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    rc = st.session_state.get("v141_rc")
-    fc = st.session_state.get("v141_fc")
-    sr = st.session_state.get("v141_sr")
-
-    if isinstance(rc, dict):
-        st.json({
-            "robustness_index_min_bounded_rel": (rc.get("robustness", {}) or {}).get("index_min_bounded_rel"),
-            "fragility_top": ((rc.get("robustness", {}) or {}).get("fragility_ranking") or [])[:5],
-        })
-        st.download_button("Download robustness_certificate_v141.json",
-                           data=_json.dumps(rc, indent=2, sort_keys=True, default=str),
-                           file_name="robustness_certificate_v141.json", mime="application/json", use_container_width=True, key="v141_dl_rc")
-        with st.expander("See underlying v139 feasibility certificate"):
-            st.download_button("Download feasibility_certificate_v139.json",
-                               data=_json.dumps(fc or {}, indent=2, sort_keys=True, default=str),
-                               file_name="feasibility_certificate_v139.json", mime="application/json", use_container_width=True, key="v141_dl_fc")
-        with st.expander("See underlying v140 sensitivity report"):
-            st.download_button("Download sensitivity_report_v140.json",
-                               data=_json.dumps(sr or {}, indent=2, sort_keys=True, default=str),
-                               file_name="sensitivity_report_v140.json", mime="application/json", use_container_width=True, key="v141_dl_sr")
-
-        if st.button("Save robustness certificate to Vault", key="v141_save_vault"):
-            try:
-                root = Path(__file__).resolve().parents[1]
-                run_vault.write_entry(root=root, kind="robustness_certificate", payload=rc, mode="v141",
-                                      files={"robustness_certificate_v141.json": _json.dumps(rc, indent=2, sort_keys=True, default=str).encode("utf-8")})
-                st.success("Saved to vault.")
-            except Exception as e:
-                st.error(f"Vault save failed: {e!r}")
-
-
-# =====================
-# v142–v144 Feasibility Deep Dive
-# =====================
-def _v144_deepdive_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.feasibility_atlas import available_numeric_levers
-    from tools.feasibility_deepdive import (
-        SampleConfig, sample_and_evaluate, topology_from_dataset, bundle_topology,
-        interactions_from_dataset, bundle_interactions,
-        IntervalConfig, interval_certificate, bundle_interval_certificate,
-    )
-    from tools import run_vault
-
-    st.subheader("Feasibility Deep Dive (v142–v144)")
-    st.caption("Topology maps + constraint interaction structure + interval feasibility certificates. Downstream analysis only.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first.")
-        return
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Baseline run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v144_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected baseline does not contain a run artifact.")
-        return
-    base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
-
-    levers = list(available_numeric_levers(base_inputs))
-    tabs = st.tabs(["Topology Maps", "Constraint Interactions", "Interval Certificates"])
-
-    # -------- v142
-    with tabs[0]:
-        st.write("Build feasible topology (islands) by sampling within bounds for selected variables.")
-        vars_sel = st.multiselect("Variables (2–6 recommended)", options=levers, default=[v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2], key="v142_vars")
-        n_samples = st.slider("Samples", 100, 2000, 300, 50, key="v142_ns")
-        seed = st.number_input("Seed", value=0, step=1, key="v142_seed")
-        k = st.slider("kNN neighbors", 2, 20, 6, 1, key="v142_k")
-        eps = st.number_input("Distance cutoff eps (0 = no cutoff)", value=0.0, key="v142_eps")
-
-        bounds = {}
-        for v in vars_sel:
-            v0 = float(base_inputs.get(v, 0.0) or 0.0)
-            lo = st.number_input(f"{v} min", value=(v0*0.9 if v0 else 0.0), key=f"v142_lo_{v}")
-            hi = st.number_input(f"{v} max", value=(v0*1.1 if v0 else 1.0), key=f"v142_hi_{v}")
-            bounds[v] = (float(lo), float(hi))
-
-        if st.button("Run topology", key="v142_run"):
-            try:
-                cfg = SampleConfig(baseline_inputs=dict(base_inputs), vars=list(vars_sel), bounds=dict(bounds), n_samples=int(n_samples), seed=int(seed))
-                ds = sample_and_evaluate(cfg)
-                topo = topology_from_dataset(ds, k=int(k), eps=float(eps))
-                bun = bundle_topology(ds, topo)
-                st.session_state["v142_ds"] = ds
-                st.session_state["v142_topo"] = topo
-                st.session_state["v142_bun"] = bun
-                _v98_record_run("feasible_topology", {"n_samples": n_samples, "n_feasible": topo.get("n_feasible_points"), "n_islands": len(topo.get("islands") or [])}, mode="v142")
-                st.success(f"Topology built: feasible={topo.get('n_feasible_points')} islands={len(topo.get('islands') or [])}")
-            except Exception as e:
-                st.error(f"Topology failed: {e!r}")
-
-        topo = st.session_state.get("v142_topo")
-        bun = st.session_state.get("v142_bun")
-        if isinstance(topo, dict):
-            st.json({"n_feasible_points": topo.get("n_feasible_points"), "islands": topo.get("islands")[:10]})
-        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-            st.download_button("Download topology_bundle_v142.zip", data=bun["zip_bytes"], file_name="topology_bundle_v142.zip", mime="application/zip", use_container_width=True, key="v142_dl")
-            if st.button("Save topology bundle to Vault", key="v142_save_vault"):
-                root = Path(__file__).resolve().parents[1]
-                run_vault.write_entry(root=root, kind="topology_bundle", payload=topo or {}, mode="v142", files={"topology_bundle_v142.zip": bun["zip_bytes"]})
-                st.success("Saved.")
-
-    # -------- v143
-    with tabs[1]:
-        st.write("Compute constraint co-failure and dominance statistics from the last deep-dive dataset.")
-        ds = st.session_state.get("v142_ds")
-        if not isinstance(ds, dict):
-            st.info("Run topology sampling first (v142 tab) to generate a dataset.")
-        else:
-            if st.button("Compute interactions", key="v143_run"):
+            st.download_button("Download fc_bundle_v133.zip",
+                               data=bun["zip_bytes"],
+                               file_name="fc_bundle_v133.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v133_dl_zip")
+    
+            if st.button("Save FC bundle to Vault (attach zip)", key="v133_save_vault"):
                 try:
-                    inter = interactions_from_dataset(ds, top_n=20)
-                    bun2 = bundle_interactions(inter)
-                    st.session_state["v143_inter"] = inter
-                    st.session_state["v143_bun"] = bun2
-                    _v98_record_run("constraint_interactions", {"top_constraints": len(inter.get("top_constraints") or [])}, mode="v143")
-                    st.success("Interactions computed.")
-                except Exception as e:
-                    st.error(f"Interactions failed: {e!r}")
-            inter = st.session_state.get("v143_inter")
-            bun2 = st.session_state.get("v143_bun")
-            if isinstance(inter, dict):
-                st.json({"top_constraints": inter.get("top_constraints")[:12], "dominance_top": sorted((inter.get("dominance_counts") or {}).items(), key=lambda kv: kv[1], reverse=True)[:10]})
-            if isinstance(bun2, dict) and isinstance(bun2.get("zip_bytes"), (bytes, bytearray)):
-                st.download_button("Download interactions_bundle_v143.zip", data=bun2["zip_bytes"], file_name="interactions_bundle_v143.zip", mime="application/zip", use_container_width=True, key="v143_dl")
-                if st.button("Save interactions bundle to Vault", key="v143_save_vault"):
                     root = Path(__file__).resolve().parents[1]
-                    run_vault.write_entry(root=root, kind="interactions_bundle", payload=inter or {}, mode="v143", files={"interactions_bundle_v143.zip": bun2["zip_bytes"]})
-                    st.success("Saved.")
-
-    # -------- v144
-    with tabs[2]:
-        st.write("Certify a hyper-rectangle interval (conservative): checks all corners + random interior probes.")
-        vars_sel = st.multiselect("Interval variables", options=levers, default=[v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2], key="v144_ivars")
-        bounds = {}
-        for v in vars_sel:
-            v0 = float(base_inputs.get(v, 0.0) or 0.0)
-            lo = st.number_input(f"{v} min", value=(v0*0.95 if v0 else 0.0), key=f"v144_lo_{v}")
-            hi = st.number_input(f"{v} max", value=(v0*1.05 if v0 else 1.0), key=f"v144_hi_{v}")
-            bounds[v] = (float(lo), float(hi))
-        n_random = st.slider("Random interior probes", 0, 500, 60, 10, key="v144_nr")
-        seed = st.number_input("Seed", value=0, step=1, key="v144_seed")
-        if st.button("Generate interval certificate (v144)", key="v144_run"):
-            try:
-                cert = interval_certificate(IntervalConfig(baseline_inputs=dict(base_inputs), bounds=dict(bounds), n_random=int(n_random), seed=int(seed)))
-                bun = bundle_interval_certificate(cert)
-                st.session_state["v144_cert"] = cert
-                st.session_state["v144_bun"] = bun
-                _v98_record_run("interval_certificate", {"interval_certified": cert.get("verdict",{}).get("interval_certified"), "n_vars": len(bounds)}, mode="v144")
-                st.success(f"Interval certified = {cert.get('verdict',{}).get('interval_certified')}")
-            except Exception as e:
-                st.error(f"Interval certificate failed: {e!r}")
-
-        cert = st.session_state.get("v144_cert")
-        bun = st.session_state.get("v144_bun")
-        if isinstance(cert, dict):
-            st.json(cert.get("verdict", {}))
-            st.download_button("Download interval_certificate_v144.json", data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
-                               file_name="interval_certificate_v144.json", mime="application/json", use_container_width=True, key="v144_dl_json")
-        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-            st.download_button("Download interval_bundle_v144.zip", data=bun["zip_bytes"], file_name="interval_bundle_v144.zip", mime="application/zip", use_container_width=True, key="v144_dl_zip")
-            if st.button("Save interval bundle to Vault", key="v144_save_vault"):
-                root = Path(__file__).resolve().parents[1]
-                run_vault.write_entry(root=root, kind="interval_bundle", payload=cert or {}, mode="v144", files={"interval_bundle_v144.zip": bun["zip_bytes"]})
-                st.success("Saved.")
-
-
-# =====================
-# v145 Topology Certificate
-# =====================
-def _v145_topology_certificate_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.topology_certificate import generate_topology_certificate
-    from tools import run_vault
-
-    st.subheader("Topology Certificate")
-    st.caption("Citable certificate summarizing feasible-set topology (islands) for a declared domain and sampling protocol.")
-
-    s = _v98_state_init_runlists()
-    ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
-    if not ids:
-        st.info("Run a point evaluation first.")
-        return
-    default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
-    rid = st.selectbox("Baseline run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v145_pick_run")
-    run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
-    payload = (run_map.get(rid) or {}).get("payload")
-    base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-    if base is None:
-        st.error("Selected baseline does not contain a run artifact.")
-        return
-
-    topo = st.session_state.get("v142_topo")
-    ds = st.session_state.get("v142_ds")
-    if not isinstance(topo, dict):
-        st.info("Run v142 Topology Maps first (Feasibility Deep Dive panel) to generate feasible topology.")
-        return
-
-    policy_json = st.text_area("Policy JSON (optional)", value="{}", height=120, key="v145_policy")
-
-    if st.button("Generate Topology Certificate", key="v145_run"):
-        try:
-            policy = _json.loads(policy_json) if policy_json.strip() else {}
-            cert = generate_topology_certificate(base, topo, deepdive_dataset=(ds if isinstance(ds, dict) else None), policy=policy)
-            st.session_state["v145_cert"] = cert
-            _v98_record_run("topology_certificate", {"n_islands": (cert.get("topology_summary", {}) or {}).get("n_islands")}, mode="v145")
-            st.success("Topology certificate generated.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    cert = st.session_state.get("v145_cert")
-    if isinstance(cert, dict):
-        st.json(cert.get("topology_summary", {}))
-        st.download_button("Download topology_certificate_v145.json",
-                           data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
-                           file_name="topology_certificate_v145.json", mime="application/json",
-                           use_container_width=True, key="v145_dl")
-        if st.button("Save topology certificate to Vault", key="v145_save_vault"):
-            try:
-                root = Path(__file__).resolve().parents[1]
-                run_vault.write_entry(root=root, kind="topology_certificate", payload=cert, mode="v145",
-                                      files={"topology_certificate_v145.json": _json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8")})
-                st.success("Saved to vault.")
-            except Exception as e:
-                st.error(f"Vault save failed: {e!r}")
-
-
-# =====================
-# v146–v147 Feasibility Completion
-# =====================
-def _v147_feasibility_completion_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.feasibility_atlas import available_numeric_levers
-    from tools.feasibility_bridge import BridgeConfig, run_bridge, bridge_certificate
-    from tools.safe_domain_shrink import ShrinkConfig, run_safe_domain_shrink
-    from tools import run_vault
-    import hashlib
-
-    st.subheader("Feasibility Completion (v146–v147)")
-    st.caption("v146: topology bridge witness between two points. v147: auto-shrink to a certified safe interval box (uses v144).")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    ids = [r.get("id") for r in runs]
-    if len(ids) < 1:
-        st.info("Run at least one point evaluation first.")
-        return
-
-    run_map = {r.get("id"): r for r in runs}
-    def _get_art(rid):
+                    meta = run_vault.write_entry(root=root, kind="fc_bundle", payload=rep or {}, mode="v133", files={"fc_bundle_v133.zip": bun["zip_bytes"]})
+                    st.success(f"Saved to vault: {meta.get('entry_dir')}")
+                except Exception as e:
+                    st.error(f"Vault save failed: {e!r}")
+    
+    
+    # =====================
+    # v134–v138 FC Superpanel (single UI)
+    # =====================
+    def _v138_fc_superpanel():
+        import streamlit as st
+        from pathlib import Path
+        from tools import run_vault
+        from tools.param_guidance import suggest_free_vars, suggest_bounds, sanity_check_bounds
+        from tools.feasibility_completion import FCConfig, run_feasibility_completion, build_fc_bundle_zip
+        from tools.fc_advanced import build_fc_atlas_bundle, repair_to_feasibility, RepairConfig, compress_feasible_set, completion_to_run_artifact
+    
+        st.subheader("Feasibility Completion Advanced (v134–v138)")
+        st.caption("Atlas + guided setup + bounded repair + compression + handoff to study tools. All downstream/orchestration only.")
+    
+        # baseline for defaults
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first to populate the run ledger.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Baseline run (defaults)", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v138_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
         payload = (run_map.get(rid) or {}).get("payload")
-        return payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-
-    tabs = st.tabs(["Bridge Certificate", "Safe Domain Shrink"])
-
-    # ---------- v146
-    with tabs[0]:
-        if len(ids) < 2:
-            st.info("Need at least two runs in history to bridge (A and B).")
-        else:
-            ridA = st.selectbox("Point A (baseline)", options=ids, index=max(0, len(ids)-2), key="v146_A")
-            ridB = st.selectbox("Point B (target)", options=ids, index=len(ids)-1, key="v146_B")
-            artA = _get_art(ridA); artB = _get_art(ridB)
-            if artA is None or artB is None:
-                st.error("Selected runs must be run artifacts.")
-            else:
-                Ain = artA.get("inputs", {}) if isinstance(artA.get("inputs"), dict) else {}
-                Bin = artB.get("inputs", {}) if isinstance(artB.get("inputs"), dict) else {}
-                levers = sorted(set(available_numeric_levers(Ain)).intersection(set(available_numeric_levers(Bin))))
-                default_vars = [v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2]
-                vars_sel = st.multiselect("Bridge variables", options=levers, default=default_vars, key="v146_vars")
-                n_steps = st.slider("Coarse steps", 5, 101, 21, 2, key="v146_steps")
-                bis = st.slider("Max bisection depth", 0, 10, 6, 1, key="v146_bis")
-                req_end = st.checkbox("Require endpoints feasible", value=True, key="v146_req")
-                if st.button("Run bridge", key="v146_run"):
-                    try:
-                        cfg = BridgeConfig(inputs_A=dict(Ain), inputs_B=dict(Bin), vars=list(vars_sel), n_steps=int(n_steps), max_bisect_depth=int(bis), require_endpoints_feasible=bool(req_end))
-                        rep = run_bridge(cfg)
-                        # baseline hash from A inputs
-                        h = hashlib.sha256(_json.dumps(Ain, sort_keys=True, default=str).encode("utf-8")).hexdigest()
-                        cert = bridge_certificate(rep, baseline_inputs_sha256=h)
-                        st.session_state["v146_rep"] = rep
-                        st.session_state["v146_cert"] = cert
-                        _v98_record_run("bridge_certificate", {"bridge_exists": rep.get("bridge_exists"), "n_points": len(rep.get("path") or [])}, mode="v146")
-                        st.success(f"Bridge exists = {rep.get('bridge_exists')}")
-                    except Exception as e:
-                        st.error(f"Bridge failed: {e!r}")
-
-                cert = st.session_state.get("v146_cert")
-                rep = st.session_state.get("v146_rep")
-                if isinstance(cert, dict):
-                    st.json(cert.get("summary", {}))
-                    st.download_button("Download bridge_certificate_v146.json", data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
-                                       file_name="bridge_certificate_v146.json", mime="application/json", use_container_width=True, key="v146_dl_cert")
-                    st.download_button("Download bridge_report_v146.json", data=_json.dumps(rep or {}, indent=2, sort_keys=True, default=str),
-                                       file_name="bridge_report_v146.json", mime="application/json", use_container_width=True, key="v146_dl_rep")
-                    if st.button("Save v146 to Vault", key="v146_save_vault"):
-                        root = Path(__file__).resolve().parents[1]
-                        run_vault.write_entry(root=root, kind="bridge_certificate", payload={"certificate": cert, "report": rep}, mode="v146",
-                                              files={
-                                                  "bridge_certificate_v146.json": _json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8"),
-                                                  "bridge_report_v146.json": _json.dumps(rep or {}, indent=2, sort_keys=True, default=str).encode("utf-8"),
-                                              })
-                        st.success("Saved.")
-
-    # ---------- v147
-    with tabs[1]:
-        rid = st.selectbox("Baseline run for safe box", options=ids, index=len(ids)-1, key="v147_base")
-        art = _get_art(rid)
-        if art is None:
-            st.error("Selected run must be a run artifact.")
-        else:
-            base_inputs = art.get("inputs", {}) if isinstance(art.get("inputs"), dict) else {}
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected baseline does not contain a run artifact.")
+            return
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+    
+        # Use the v133 panel state if present
+        rep = st.session_state.get("v133_rep")
+        bun = st.session_state.get("v133_bun")
+    
+        tabs = st.tabs(["Guided Setup", "Run FC", "Atlas", "Repair (v136)", "Compress (v137)", "Handoff (v138)"])
+    
+        # ---------------- v135 ----------------
+        with tabs[0]:
+            st.write("Suggested FREE variables (heuristics):")
+            avail = list(available_numeric_levers(base_inputs))
+            fixed_guess = [x for x in ["R0_m","Bt_T"] if x in avail]
+            suggested = suggest_free_vars(avail, fixed=fixed_guess, max_k=3)
+            st.json({"suggested_free": suggested})
+            st.write("Suggested bounds (editable):")
+            b = {}
+            for v in suggested:
+                lo,hi = suggest_bounds(base_inputs, v)
+                b[v] = [lo,hi]
+                msgs = sanity_check_bounds(v, lo, hi)
+                st.write(f"- {v}: [{lo:g}, {hi:g}]" + (f" ⚠ {', '.join(msgs)}" if msgs else ""))
+            st.caption("You can copy these into the FC run tab.")
+    
+        # ---------------- v133 run ----------------
+        with tabs[1]:
+            st.write("Run Feasibility Completion using baseline defaults + your fixed/free/uncertain selections.")
             levers = list(available_numeric_levers(base_inputs))
-            vars_sel = st.multiselect("Interval variables", options=levers, default=[v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2], key="v147_vars")
+            fixed_choices = st.multiselect("Fixed parameters", options=levers, default=[x for x in ["R0_m","Bt_T"] if x in levers], key="v138_fixed_list")
+            fixed = {}
+            for k in fixed_choices:
+                v0 = float(base_inputs.get(k, 0.0) or 0.0)
+                fixed[k] = st.number_input(f"Fixed {k}", value=v0, key=f"v138_fix_{k}")
+    
+            free_choices = st.multiselect("Free parameters", options=[x for x in levers if x not in fixed_choices], default=[x for x in ["Ip_MA","kappa","q95"] if x in levers and x not in fixed_choices], key="v138_free_list")
+            uncertain_choices = st.multiselect("Uncertain parameters", options=[x for x in levers if x not in fixed_choices and x not in free_choices], default=[], key="v138_unc_list")
+            vars_all = list(dict.fromkeys(list(free_choices)+list(uncertain_choices)))
+            if vars_all:
+                st.write("Bounds:")
             bounds={}
-            for v in vars_sel:
-                v0=float(base_inputs.get(v, 0.0) or 0.0)
-                lo = st.number_input(f"{v} min", value=(v0*0.9 if v0 else 0.0), key=f"v147_lo_{v}")
-                hi = st.number_input(f"{v} max", value=(v0*1.1 if v0 else 1.0), key=f"v147_hi_{v}")
-                bounds[v]=(float(lo), float(hi))
-            shrink_factor = st.slider("Shrink factor per iteration", 0.50, 0.98, 0.85, 0.01, key="v147_sf")
-            max_iter = st.slider("Max iterations", 1, 30, 10, 1, key="v147_mi")
-            n_random = st.slider("Random probes per iteration", 0, 300, 40, 10, key="v147_nr")
-            seed = st.number_input("Seed", value=0, step=1, key="v147_seed")
-
-            if st.button("Run safe-domain shrink", key="v147_run"):
-                try:
-                    cfg = ShrinkConfig(baseline_inputs=dict(base_inputs), bounds=dict(bounds), shrink_factor=float(shrink_factor),
-                                       max_iter=int(max_iter), n_random=int(n_random), seed=int(seed))
-                    rep = run_safe_domain_shrink(cfg)
-                    st.session_state["v147_rep"] = rep
-                    _v98_record_run("safe_domain_shrink", {"final_certified": rep.get("final_certified"), "iters": len(rep.get("history") or [])}, mode="v147")
-                    st.success(f"Final certified = {rep.get('final_certified')} (iters={len(rep.get('history') or [])})")
-                except Exception as e:
-                    st.error(f"Shrink failed: {e!r}")
-
-            rep = st.session_state.get("v147_rep")
+            for k in vars_all:
+                lo0,hi0 = suggest_bounds(base_inputs, k)
+                c1,c2 = st.columns(2)
+                with c1:
+                    lo = st.number_input(f"{k} min", value=float(lo0), key=f"v138_lo_{k}")
+                with c2:
+                    hi = st.number_input(f"{k} max", value=float(hi0), key=f"v138_hi_{k}")
+                bounds[k]=(float(lo), float(hi))
+                msgs = sanity_check_bounds(k, float(lo), float(hi))
+                if msgs:
+                    st.warning(f"{k}: {', '.join(msgs)}")
+    
+            method = st.selectbox("Method", options=["grid","random"], index=0, key="v138_method")
+            if method=="grid":
+                n_per_dim = st.slider("Grid points per dimension", 2, 10, 4, 1, key="v138_npd")
+                n_random = 0
+            else:
+                n_random = st.slider("Random samples", 50, 2000, 300, 50, key="v138_nr")
+                n_per_dim = 0
+            seed = st.number_input("Seed", value=0, step=1, key="v138_seed")
+            feasible_only = st.checkbox("Export only feasible points", value=True, key="v138_fe_only")
+    
+            if st.button("Run FC", key="v138_run_fc"):
+                cfg = FCConfig(
+                    baseline_inputs=dict(base_inputs),
+                    fixed=dict(fixed),
+                    bounds=dict(bounds),
+                    free=list(free_choices),
+                    uncertain=list(uncertain_choices),
+                    method=str(method),
+                    n_per_dim=int(n_per_dim) if method=="grid" else 0,
+                    n_random=int(n_random) if method=="random" else 0,
+                    seed=int(seed),
+                    feasible_only_export=bool(feasible_only),
+                )
+                rep = run_feasibility_completion(cfg)
+                bun = build_fc_bundle_zip(rep)
+                st.session_state["v133_rep"] = rep
+                st.session_state["v133_bun"] = bun
+                _v98_record_run("feasibility_completion", {"exists_feasible": rep.get("exists_feasible"), "n_evals": rep.get("n_evals"), "n_feasible": rep.get("n_feasible")}, mode="fc_v133")
+                st.success(f"Feasible: {rep.get('exists_feasible')} (feasible points: {rep.get('n_feasible')}/{rep.get('n_evals')})")
+    
+            rep = st.session_state.get("v133_rep")
+            bun = st.session_state.get("v133_bun")
             if isinstance(rep, dict):
-                st.json({"final_certified": rep.get("final_certified"), "final_bounds": rep.get("final_bounds"), "last": (rep.get("history") or [])[-1] if (rep.get("history") or []) else None})
-                st.download_button("Download safe_domain_shrink_report_v147.json",
-                                   data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
-                                   file_name="safe_domain_shrink_report_v147.json", mime="application/json",
-                                   use_container_width=True, key="v147_dl_rep")
-                cert = rep.get("interval_certificate_v144")
-                if isinstance(cert, dict):
-                    st.download_button("Download interval_certificate_v144.json",
-                                       data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
-                                       file_name="interval_certificate_v144.json", mime="application/json",
-                                       use_container_width=True, key="v147_dl_cert")
-                if st.button("Save v147 to Vault", key="v147_save_vault"):
+                st.json({"exists_feasible": rep.get("exists_feasible"), "n_evals": rep.get("n_evals"), "n_feasible": rep.get("n_feasible"), "envelope": rep.get("envelope")})
+                st.download_button("Download fc_report_v133.json", data=_json.dumps(rep, indent=2, sort_keys=True), file_name="fc_report_v133.json", mime="application/json", use_container_width=True)
+            if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+                st.download_button("Download fc_bundle_v133.zip", data=bun["zip_bytes"], file_name="fc_bundle_v133.zip", mime="application/zip", use_container_width=True)
+                if st.button("Save FC bundle to Vault", key="v138_save_fc_vault"):
                     root = Path(__file__).resolve().parents[1]
-                    files={"safe_domain_shrink_report_v147.json": _json.dumps(rep, indent=2, sort_keys=True, default=str).encode("utf-8")}
-                    if isinstance(cert, dict):
-                        files["interval_certificate_v144.json"]=_json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8")
-                    run_vault.write_entry(root=root, kind="safe_domain_shrink", payload=rep, mode="v147", files=files)
+                    run_vault.write_entry(root=root, kind="fc_bundle", payload=rep or {}, mode="v138", files={"fc_bundle_v133.zip": bun["zip_bytes"]})
                     st.success("Saved.")
-
-
-# =====================
-# v148–v150 Publishable Study Kit
-# =====================
-def _v150_publishable_study_kit_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.design_study_kit import PaperPackConfig, build_paper_pack
-    from tools import run_vault
-
-    st.subheader("Publishable Study Kit (v148–v150)")
-    st.caption("One-click paper pack (zip) with study registry + integrity manifest. Downstream-only.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first.")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-
-    def _get_art(rid):
+    
+        # ---------------- v134 atlas ----------------
+        with tabs[2]:
+            rep = st.session_state.get("v133_rep")
+            if not isinstance(rep, dict):
+                st.info("Run FC first (Run FC tab).")
+            else:
+                bounds = rep.get("config", {}).get("bounds", {}) if isinstance(rep.get("config"), dict) else {}
+                vars_ = list(bounds.keys())
+                if len(vars_) < 2:
+                    st.info("Need at least two bounded variables in FC config to build an atlas.")
+                else:
+                    x = st.selectbox("X axis", options=vars_, index=0, key="v138_atlas_x")
+                    y = st.selectbox("Y axis", options=[v for v in vars_ if v != x], index=0, key="v138_atlas_y")
+                    if st.button("Build FC Atlas", key="v138_build_atlas"):
+                        try:
+                            bun_at = build_fc_atlas_bundle(rep, x_var=str(x), y_var=str(y))
+                            st.session_state["v134_atlas"] = bun_at
+                            _v98_record_run("fc_atlas", {"x": x, "y": y, "n": bun_at.get("manifest", {}).get("files", {}).get("atlas_points.csv", {}).get("bytes")}, mode="v134")
+                            st.success("Atlas built.")
+                        except Exception as e:
+                            st.error(f"Atlas failed: {e!r}")
+    
+                    bun_at = st.session_state.get("v134_atlas")
+                    if isinstance(bun_at, dict) and isinstance(bun_at.get("zip_bytes"), (bytes, bytearray)):
+                        st.download_button("Download fc_atlas_v134.zip", data=bun_at["zip_bytes"], file_name="fc_atlas_v134.zip", mime="application/zip", use_container_width=True, key="v138_dl_atlas")
+                        st.json(bun_at.get("manifest", {}))
+    
+        # ---------------- v136 repair ----------------
+        with tabs[3]:
+            rep = st.session_state.get("v133_rep")
+            if not isinstance(rep, dict):
+                st.info("Run FC first (Run FC tab).")
+            else:
+                evals = list(rep.get("evaluations") or [])
+                infeas = [r for r in evals if r.get("feasible") is not True]
+                cfg0 = rep.get("config", {}) if isinstance(rep.get("config"), dict) else {}
+                bounds = cfg0.get("bounds", {}) if isinstance(cfg0.get("bounds"), dict) else {}
+                free = list(cfg0.get("free") or [])
+                if not free or not bounds:
+                    st.info("Repair requires FREE variables with bounds.")
+                elif not infeas:
+                    st.success("No infeasible points in current export. Disable 'feasible-only export' if you want to repair infeasible samples.")
+                else:
+                    st.write(f"Infeasible points available: {len(infeas)}")
+                    idx = st.slider("Pick infeasible sample index", 0, len(infeas)-1, 0, 1, key="v138_rep_idx")
+                    start = infeas[int(idx)].get("inputs", {}) if isinstance(infeas[int(idx)].get("inputs"), dict) else {}
+                    max_steps = st.slider("Max steps", 5, 30, 12, 1, key="v138_rep_steps")
+                    step_frac = st.slider("Step fraction", 0.05, 0.50, 0.15, 0.05, key="v138_rep_frac")
+                    seed = st.number_input("Repair seed", value=0, step=1, key="v138_rep_seed")
+                    if st.button("Run bounded repair", key="v138_run_repair"):
+                        try:
+                            bnd = {k: (float(v[0]), float(v[1])) for k,v in bounds.items()}
+                            cfg = RepairConfig(bounds=bnd, free=list(free), max_steps=int(max_steps), step_frac=float(step_frac), seed=int(seed))
+                            tr = repair_to_feasibility(baseline_inputs=dict(base_inputs), start_inputs=dict(start), cfg=cfg)
+                            st.session_state["v136_trace"] = tr
+                            st.success(f"Repair done. Feasible={tr.get('final',{}).get('feasible')}")
+                        except Exception as e:
+                            st.error(f"Repair failed: {e!r}")
+                    tr = st.session_state.get("v136_trace")
+                    if isinstance(tr, dict):
+                        st.json({"final": tr.get("final"), "final_inputs": tr.get("final_inputs")})
+                        st.dataframe(tr.get("trace", [])[:200], use_container_width=True)
+                        st.download_button("Download repair_trace_v136.json", data=_json.dumps(tr, indent=2, sort_keys=True), file_name="repair_trace_v136.json", mime="application/json", use_container_width=True)
+    
+        # ---------------- v137 compress ----------------
+        with tabs[4]:
+            rep = st.session_state.get("v133_rep")
+            if not isinstance(rep, dict):
+                st.info("Run FC first.")
+            else:
+                k = st.slider("Representatives K", 5, 200, 25, 5, key="v138_k")
+                if st.button("Compress feasible set", key="v138_compress"):
+                    comp = compress_feasible_set(rep, k=int(k))
+                    st.session_state["v137_comp"] = comp
+                    st.success("Compressed.")
+                comp = st.session_state.get("v137_comp")
+                if isinstance(comp, dict):
+                    st.json({"k": comp.get("k"), "n_feasible": comp.get("n_feasible")})
+                    st.dataframe(comp.get("representatives", [])[:200], use_container_width=True)
+                    st.download_button("Download fc_compressed_v137.json", data=_json.dumps(comp, indent=2, sort_keys=True), file_name="fc_compressed_v137.json", mime="application/json", use_container_width=True)
+    
+        # ---------------- v138 handoff ----------------
+        with tabs[5]:
+            comp = st.session_state.get("v137_comp")
+            rep = st.session_state.get("v133_rep")
+            if not isinstance(rep, dict):
+                st.info("Run FC first.")
+            else:
+                # pick best feasible from compressed or report
+                best_inputs = None
+                if isinstance(comp, dict) and (comp.get("representatives")):
+                    best_inputs = (comp["representatives"][0].get("inputs") if isinstance(comp["representatives"][0], dict) else None)
+                if best_inputs is None:
+                    feas = [r for r in (rep.get("evaluations") or []) if isinstance(r, dict) and r.get("feasible") is True]
+                    if feas:
+                        best_inputs = feas[0].get("inputs")
+                if not isinstance(best_inputs, dict):
+                    st.info("No feasible point available to hand off. Try expanding bounds or budget.")
+                else:
+                    st.write("Best feasible completion inputs (preview):")
+                    st.json({k: best_inputs.get(k) for k in list(best_inputs.keys())[:40]})
+                    if st.button("Evaluate completion as new run + pin", key="v138_handoff_eval"):
+                        try:
+                            art = completion_to_run_artifact(baseline_inputs=dict(base_inputs), completion_inputs=dict(best_inputs))
+                            rid2 = _v98_record_run("handoff_run_artifact", art, mode="fc_handoff_v138")
+                            s.pinned_run_ids.append(rid2)
+                            st.success(f"Created new run artifact in ledger: {rid2} (pinned)")
+                        except Exception as e:
+                            st.error(f"Handoff failed: {e!r}")
+                    st.caption("After creating the pinned run, go to Study Matrix Builder v2 and select the pinned baseline.")
+    
+    
+    # =====================
+    # v139 Feasibility Certificate
+    # =====================
+    def _v139_feasibility_certificate_panel():
+        import streamlit as st
+        import json as _json
+        from pathlib import Path
+        from tools import run_vault
+        from tools.feasibility_certificate import generate_feasibility_certificate
+    
+        st.subheader("Feasibility Certificate")
+        st.caption("Generate an immutable, audit-ready certificate for a specific run artifact.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first to populate the run ledger.")
+            return
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids) > 0) else ids[-1])
+        rid = st.selectbox("Select run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids) - 1, key="v139_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
         payload = (run_map.get(rid) or {}).get("payload")
-        return payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
-
-    sel = st.multiselect("Select run(s) to include", options=ids, default=[ids[-1]], key="v150_sel_runs")
-    title = st.text_input("Study title", value="SHAMS design study", key="v150_title")
-    authors = st.text_input("Authors (comma-separated)", value="", key="v150_authors")
-    desc = st.text_area("Description", value="", height=120, key="v150_desc")
-
-    # auto-pick latest certificates present in session_state (best effort)
-    certs=[]
-    for key, fn in [
-        ("v139_fc", "feasibility_certificate_v139.json"),
-        ("v141_rc", "robustness_certificate_v141.json"),
-        ("v144_ic", "interval_certificate_v144.json"),
-        ("v145_tc", "topology_certificate_v145.json"),
-        ("v146_bc", "bridge_certificate_v146.json"),
-        ("v147_sd", "safe_domain_shrink_report_v147.json"),
-    ]:
-        obj = st.session_state.get(key)
-        if isinstance(obj, dict):
-            certs.append((fn, obj))
-
-    st.checkbox("Include best-effort certificates from current session", value=True, key="v150_include_session_certs")
-    st.checkbox("Include figures/tables from session bundles", value=True, key="v151_include_session_bundles")
-    methods_json = st.text_area("Methods JSON (optional)", value="{}", height=120, key="v150_methods")
-    policy_json = st.text_area("Policy JSON (optional)", value='{"mode":"paper_pack"}', height=120, key="v150_policy")
-
-    if st.button("Build Paper Pack", key="v150_run"):
-        try:
-            run_arts=[]
-            for rid in sel:
-                art=_get_art(rid)
-                if art is not None:
-                    run_arts.append(art)
-            if not run_arts:
-                st.error("No valid run artifacts selected.")
-                return
-
-            methods=_json.loads(methods_json) if methods_json.strip() else {}
-            policy=_json.loads(policy_json) if policy_json.strip() else {}
-            # v154 captions override
-            caps = st.session_state.get("v154_captions")
-            if isinstance(caps, dict) and caps:
-                policy = dict(policy)
-                policy["captions_override"] = caps
-
-            cfg=PaperPackConfig(
-                shams_version=str((_json.loads((Path(__file__).resolve().parents[1]/"VERSION").read_text(encoding="utf-8").strip().splitlines()[0]) if True else "unknown")),
-                title=title,
-                authors=[a.strip() for a in authors.split(",") if a.strip()],
-                description=desc,
-                run_artifacts=run_arts,
-                certificates=certs if st.session_state.get("v150_include_session_certs") else [],
-                figures=figs,
-                tables=tabs,
-                methods=methods,
-                policy=policy,
-            )
-            bun=build_paper_pack(cfg)
-            st.session_state["v150_pack"]=bun
-            _v98_record_run("paper_pack", {"n_runs": len(run_arts), "n_certs": len(cfg.certificates)}, mode="v150")
-            st.success("Paper pack built.")
-        except Exception as e:
-            st.error(f"Failed: {e!r}")
-
-    bun=st.session_state.get("v150_pack")
-    if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
-        st.download_button("Download paper_pack_v150.zip", data=bun["zip_bytes"], file_name="paper_pack_v150.zip",
-                           mime="application/zip", use_container_width=True, key="v150_dl_zip")
-        st.download_button("Download study_registry_v149.json", data=_json.dumps(bun.get("study_registry") or {}, indent=2, sort_keys=True, default=str),
-                           file_name="study_registry_v149.json", mime="application/json", use_container_width=True, key="v150_dl_reg")
-        st.download_button("Download captions.json", data=_json.dumps({"note":"captions.json is included inside paper_pack_v150.zip"}, indent=2), file_name="captions_note.json", mime="application/json", use_container_width=True, key="v151_dl_caps_note")
-        
-        st.download_button("Download integrity_manifest_v150.json", data=_json.dumps((bun.get("manifest") or {}), indent=2, sort_keys=True, default=str),
-                           file_name="integrity_manifest_v150.json", mime="application/json", use_container_width=True, key="v150_dl_mf")
-
-        if st.button("Save paper pack to Vault", key="v150_save_vault"):
+        art = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if art is None:
+            st.error("Selected entry does not contain a run artifact.")
+            return
+    
+        origin = st.selectbox("Origin label", options=["point","fc_handoff","study_matrix",""], index=0, key="v139_origin")
+    
+        if st.button("Generate certificate", key="v139_gen"):
             root = Path(__file__).resolve().parents[1]
-            run_vault.write_entry(root=root, kind="paper_pack", payload={"study_registry": bun.get("study_registry"), "manifest": bun.get("manifest")}, mode="v150",
-                                  files={
-                                      "paper_pack_v150.zip": bun["zip_bytes"],
-                                      "study_registry_v149.json": _json.dumps(bun.get("study_registry") or {}, indent=2, sort_keys=True, default=str).encode("utf-8"),
-                                      "integrity_manifest_v150.json": _json.dumps(bun.get("manifest") or {}, indent=2, sort_keys=True, default=str).encode("utf-8"),
-                                  })
-            st.success("Saved.")
-
-
-# =====================
-# v152 Integrity Lock helpers
-# =====================
-def _v152_artifact_sha(payload):
-    import json, hashlib
-    b = json.dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(b).hexdigest()
-
-def _v152_get_lock_for_run(run_id: str):
-    import streamlit as st
-    locks = st.session_state.get("v152_locks") or {}
-    return locks.get(run_id) if isinstance(locks, dict) else None
-
-def _v152_set_lock_for_run(run_id: str, lock_obj: dict):
-    import streamlit as st
-    locks = st.session_state.get("v152_locks")
-    if not isinstance(locks, dict):
-        locks = {}
-    locks[str(run_id)] = lock_obj
-    st.session_state["v152_locks"] = locks
-
-def _v152_integrity_status(run_id: str, payload: dict):
-    lock = _v152_get_lock_for_run(run_id)
-    if not isinstance(lock, dict):
-        return ("UNLOCKED", None)
-    # compare current artifact sha with stored
-    expected = ((lock.get("files") or {}).get("run_artifact.json") or {}).get("sha256")
-    cur = _v152_artifact_sha(payload)
-    if expected and cur == expected:
-        return ("VERIFIED", cur)
-    return ("MODIFIED", cur)
-
-def _v152_integrity_panel():
-    import streamlit as st
-    from pathlib import Path
-    from tools.run_integrity_lock import lock_run, verify_run
-    from tools import run_vault
-
-    st.subheader("Run Integrity Lock")
-    st.caption("Lock a run artifact hash and later verify whether it changed. Downstream-only.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first.")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Select run to lock/verify", options=ids, index=len(ids)-1, key="v152_pick_run")
-    payload = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
-        st.error("Selected run payload missing.")
-        return
-
-    status, cur_sha = _v152_integrity_status(rid, payload)
-    st.write(f"Status: **{status}**")
-    if cur_sha:
-        st.code(cur_sha)
-
-    if st.button("Lock integrity for this run", key="v152_lock"):
-        out = lock_run(run_id=str(rid), run_artifact=payload, extras=None, policy={"mode":"ui"})
-        lock_obj = out["lock"]
-        _v152_set_lock_for_run(rid, lock_obj)
-        st.session_state["v152_last_lock"] = lock_obj
-        st.success("Locked.")
-        _v98_record_run("integrity_lock", {"status":"locked"}, mode="v152")
-
-    lock_obj = _v152_get_lock_for_run(rid) or st.session_state.get("v152_last_lock")
-    if isinstance(lock_obj, dict):
-        rep = verify_run(lock_obj, payload, extras=None)
-        st.json(rep)
-        st.download_button("Download run_integrity_lock_v152.json", data=_json.dumps(lock_obj, indent=2, sort_keys=True, default=str),
-                           file_name="run_integrity_lock_v152.json", mime="application/json", use_container_width=True, key="v152_dl_lock")
-        st.download_button("Download run_integrity_verify_v152.json", data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
-                           file_name="run_integrity_verify_v152.json", mime="application/json", use_container_width=True, key="v152_dl_rep")
-
-        if st.button("Save integrity lock to Vault", key="v152_save_vault"):
-            root = Path(__file__).resolve().parents[1]
-            run_vault.write_entry(root=root, kind="run_integrity_lock", payload={"lock": lock_obj, "verify": rep}, mode="v152",
-                                  files={
-                                      "run_integrity_lock_v152.json": _json.dumps(lock_obj, indent=2, sort_keys=True, default=str).encode("utf-8"),
-                                      "run_integrity_verify_v152.json": _json.dumps(rep, indent=2, sort_keys=True, default=str).encode("utf-8"),
-                                  })
-            st.success("Saved.")
-
-
-# =====================
-# v153–v155 Study Kit Extensions
-# =====================
-def _v153_doi_export_panel():
-    import streamlit as st
-    from tools.doi_export import zenodo_metadata_from_registry, crossref_minimal_from_registry
-
-    st.subheader("DOI Export Helper")
-    st.caption("Export Zenodo/Crossref-style metadata from the latest study registry built in this session.")
-
-    bun = st.session_state.get("v150_pack")
-    reg = (bun or {}).get("study_registry") if isinstance(bun, dict) else None
-    if not isinstance(reg, dict):
-        st.info("Build a Paper Pack first (Publishable Study Kit panel).")
-        return
-
-    comm = st.text_input("Zenodo communities (comma-separated identifiers)", value="", key="v153_comm")
-    kws = st.text_input("Keywords (comma-separated)", value="", key="v153_kws")
-    doi = st.text_input("DOI (optional)", value="", key="v153_doi")
-    publisher = st.text_input("Publisher (optional)", value="SHAMS", key="v153_pub")
-    url = st.text_input("Resource URL (optional)", value="", key="v153_url")
-
-    communities=[c.strip() for c in comm.split(",") if c.strip()] if comm else []
-    keywords=[k.strip() for k in kws.split(",") if k.strip()] if kws else []
-
-    zen = zenodo_metadata_from_registry(reg, communities=communities, keywords=keywords)
-    cr  = crossref_minimal_from_registry(reg, doi=doi, publisher=publisher, resource_url=url)
-
-    st.download_button("Download zenodo_metadata_v153.json", data=_json.dumps(zen, indent=2, sort_keys=True, default=str),
-                       file_name="zenodo_metadata_v153.json", mime="application/json", use_container_width=True, key="v153_dl_zen")
-    st.download_button("Download crossref_minimal_v153.json", data=_json.dumps(cr, indent=2, sort_keys=True, default=str),
-                       file_name="crossref_minimal_v153.json", mime="application/json", use_container_width=True, key="v153_dl_cr")
-
-def _v154_caption_editor_panel():
-    import streamlit as st
-    st.subheader("Caption Editor")
-    st.caption("Edit captions for figures/tables included in the paper pack. Captions are stored in session and exported into paper packs.")
-
-    # Captions live in session state and are applied when building the paper pack.
-    caps = st.session_state.get("v154_captions")
-    if not isinstance(caps, dict):
-        caps = {}
-        st.session_state["v154_captions"] = caps
-
-    # Show detected figure/table filenames from latest built pack, if any
-    bun = st.session_state.get("v150_pack")
-    reg = (bun or {}).get("study_registry") if isinstance(bun, dict) else None
-    names=[]
-    if isinstance(reg, dict):
-        for ref in (reg.get("figures") or []):
-            if isinstance(ref, dict) and ref.get("name"):
-                names.append(ref["name"])
-        for ref in (reg.get("tables") or []):
-            if isinstance(ref, dict) and ref.get("name"):
-                names.append(ref["name"])
-    names = sorted(set(names))
-
-    if not names:
-        st.info("No figures/tables detected yet. Build a Paper Pack with v151 session-bundle harvesting enabled.")
-    else:
-        pick = st.selectbox("Select figure/table", options=names, key="v154_pick")
-        cur = caps.get(pick, f"Figure/Table: {pick}.")
-        new = st.text_area("Caption text", value=cur, height=120, key="v154_text")
-        if st.button("Save caption", key="v154_save"):
-            caps[pick] = new
-            st.session_state["v154_captions"] = caps
-            st.success("Saved.")
-        st.download_button("Download captions_override_v154.json", data=_json.dumps({"captions": caps}, indent=2, sort_keys=True, default=str),
-                           file_name="captions_override_v154.json", mime="application/json", use_container_width=True, key="v154_dl")
-
-def _v155_multi_study_pack_panel():
-    import streamlit as st
-    from tools.multi_study_pack import build_multi_study_pack
-
-    st.subheader("Multi-Study Comparison Pack")
-    st.caption("Upload multiple paper packs and export a comparison bundle with a multi-pack integrity manifest.")
-
-    files = st.file_uploader("Upload paper_pack_v150.zip files", type=["zip"], accept_multiple_files=True, key="v155_upload")
-    if not files:
-        st.info("Upload 2+ paper packs to compare.")
-        return
-    packs=[]
-    for f in files:
-        packs.append((f.name, f.getvalue()))
-
-    bun = build_multi_study_pack(packs, policy={"source":"ui"})
-    st.json({"n_packs": len(packs), "manifest_sha256": (bun.get("manifest") or {}).get("hashes",{}).get("manifest_sha256")})
-    st.download_button("Download multi_study_pack_v155.zip", data=bun["zip_bytes"], file_name="multi_study_pack_v155.zip",
-                       mime="application/zip", use_container_width=True, key="v155_dl_zip")
-    st.download_button("Download comparison_report_v155.json", data=_json.dumps(bun.get("bundle") or {}, indent=2, sort_keys=True, default=str),
-                       file_name="comparison_report_v155.json", mime="application/json", use_container_width=True, key="v155_dl_rep")
-
-
-# =====================
-# v156 / v160 Design Space Authority (Atlas + Certificates)
-# =====================
-def _v156_feasibility_atlas_panel():
-    import streamlit as st
-    from tools.feasibility_field import build_feasibility_field
-
-    st.subheader("Feasibility Atlas")
-    st.caption("Sample a 2D design space slice and export a feasibility field + atlas bundle.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Baseline run", options=ids, index=len(ids)-1, key="v156_base_run")
-    payload = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
-        st.error("Selected baseline run payload missing.")
-        return
-    baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
-    if not isinstance(baseline_inputs, dict) or not baseline_inputs:
-        st.error("Baseline inputs missing.")
-        return
-
-    keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
-    col1,col2=st.columns(2)
-    with col1:
-        a1 = st.selectbox("Axis 1 parameter", options=keys, index=0 if keys else 0, key="v156_a1")
-        a1_start = st.number_input("Axis 1 start", value=float(baseline_inputs.get(a1, 0.0) or 0.0), key="v156_a1s")
-        a1_stop  = st.number_input("Axis 1 stop", value=float(baseline_inputs.get(a1, 1.0) or 1.0)+1.0, key="v156_a1e")
-        a1_n     = st.number_input("Axis 1 N", value=25, min_value=2, max_value=250, step=1, key="v156_a1n")
-    with col2:
-        a2 = st.selectbox("Axis 2 parameter", options=keys, index=1 if len(keys)>1 else 0, key="v156_a2")
-        a2_start = st.number_input("Axis 2 start", value=float(baseline_inputs.get(a2, 0.0) or 0.0), key="v156_a2s")
-        a2_stop  = st.number_input("Axis 2 stop", value=float(baseline_inputs.get(a2, 1.0) or 1.0)+1.0, key="v156_a2e")
-        a2_n     = st.number_input("Axis 2 N", value=25, min_value=2, max_value=250, step=1, key="v156_a2n")
-
-    fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=90, key="v156_fixed")
-    assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=90, key="v156_assumptions")
-    margin_eps = st.number_input("Margin epsilon for feasible", value=1e-6, format="%.1e", key="v156_eps")
-    run_btn = st.button("Build Feasibility Field", use_container_width=True, key="v156_run")
-
-    if run_btn:
-        try:
-            fixed = _json.loads(fixed_json) if fixed_json.strip() else []
-            assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
-            return
-
-        axis1={"name": a1, "role":"axis", "grid":{"type":"linspace","start": float(a1_start), "stop": float(a1_stop), "n": int(a1_n)}}
-        axis2={"name": a2, "role":"axis", "grid":{"type":"linspace","start": float(a2_start), "stop": float(a2_stop), "n": int(a2_n)}}
-        with st.spinner("Sampling feasibility field..."):
-            out = build_feasibility_field(
-                baseline_inputs=baseline_inputs,
-                axis1=axis1,
-                axis2=axis2,
-                fixed=fixed if isinstance(fixed, list) else [],
-                assumption_set=assumptions if isinstance(assumptions, dict) else {},
-                sampling={"generator":"ui","strategy":"grid"},
-                solver_meta={"label":"feasibility_field_v156"},
-                margin_eps=float(margin_eps),
+            cert = generate_feasibility_certificate(run_artifact=art, repo_root=root, run_id=str(rid), origin=str(origin))
+            st.session_state["v139_cert"] = cert
+            _v98_record_run("feasibility_certificate", {"certificate_id": cert.get("certificate_id"), "worst": cert.get("dominance",{}).get("worst_constraint"), "worst_margin_frac": cert.get("dominance",{}).get("worst_margin_frac")}, mode="v139")
+            st.success("Certificate generated.")
+    
+        cert = st.session_state.get("v139_cert")
+        if isinstance(cert, dict):
+            st.json({
+                "certificate_id": cert.get("certificate_id"),
+                "issued_utc": cert.get("issued_utc"),
+                "worst_constraint": (cert.get("dominance") or {}).get("worst_constraint"),
+                "worst_margin_frac": (cert.get("dominance") or {}).get("worst_margin_frac"),
+                "n_hard": len((cert.get("constraints") or {}).get("hard") or {}),
+            })
+            st.download_button(
+                "Download feasibility_certificate_v139.json",
+                data=_json.dumps(cert, indent=2, sort_keys=True),
+                file_name="feasibility_certificate_v139.json",
+                mime="application/json",
+                use_container_width=True,
             )
-        st.session_state["v156_field"] = out["field"]
-        st.session_state["v156_atlas_zip"] = out["zip_bytes"]
-        summ = (((out["field"].get("payload") or {}).get("field") or {}).get("summaries") or {})
-        st.success("Built.")
-        st.json(summ)
-        st.download_button("Download feasibility_atlas_bundle_v156.zip", data=out["zip_bytes"], file_name="feasibility_atlas_bundle_v156.zip",
-                           mime="application/zip", use_container_width=True, key="v156_dl_zip")
-        st.download_button("Download feasibility_field_v156.json", data=_json.dumps(out["field"], indent=2, sort_keys=True, default=str),
-                           file_name="feasibility_field_v156.json", mime="application/json", use_container_width=True, key="v156_dl_json")
-
-def _v160_authority_certificate_panel():
-    import streamlit as st
-    from tools.feasibility_authority_certificate import issue_certificate_from_field
-
-    st.subheader("Feasibility Authority Certificate")
-    st.caption("Issue an authority certificate from a feasibility field (dense sampling basis).")
-
-    field = st.session_state.get("v156_field")
-    up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v160_upload")
-    if up is not None:
-        try:
-            field = _json.loads(up.getvalue().decode("utf-8"))
-        except Exception as e:
-            st.error(f"Invalid JSON: {e}")
+            if st.button("Save certificate to Vault", key="v139_save_vault"):
+                root = Path(__file__).resolve().parents[1]
+                run_vault.write_entry(root=root, kind="feasibility_certificate", payload=cert, mode="v139", files={"feasibility_certificate_v139.json": _json.dumps(cert, indent=2, sort_keys=True).encode("utf-8")})
+                st.success("Saved.")
+    
+    
+    # =====================
+    # v140 Sensitivity Maps (certificate -> fragility envelopes)
+    # =====================
+    def _v140_sensitivity_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.sensitivity_maps import SensitivityConfig, run_sensitivity, build_sensitivity_bundle
+        from tools.feasibility_atlas import available_numeric_levers
+        from tools import run_vault
+    
+        st.subheader("Constraint Sensitivity Maps")
+        st.caption("Finite perturbation sensitivity: how much each variable can vary (+/-) before feasibility breaks. Auditable, no gradients/optimizers.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first.")
             return
-
-    if not isinstance(field, dict):
-        st.info("Build a Feasibility Field first or upload one here.")
-        return
-
-    claim = st.selectbox("Claim type", options=["feasible_region","excluded_region","boundary_surface","completion_existence"], index=1, key="v160_claim")
-    default_stmt = "Under assumption_set SHA256=..., region sampled is excluded/feasible under dense sampling evidence."
-    stmt = st.text_area("Claim statement (human-readable, publishable)", value=default_stmt, height=110, key="v160_stmt")
-    conf = st.number_input("Confidence level", value=0.95, min_value=0.5, max_value=0.999, step=0.01, key="v160_conf")
-    grade = st.selectbox("Grade", options=["A","B","C"], index=1, key="v160_grade")
-
-    if st.button("Issue Certificate", use_container_width=True, key="v160_issue"):
-        cert = issue_certificate_from_field(field=field, claim_type=claim, statement=stmt, confidence_level=float(conf), confidence_grade=str(grade), policy={"mode":"ui"})
-        st.session_state["v160_cert"] = cert
-        st.success("Issued.")
-        st.json(cert.get("payload") or {})
-        st.download_button("Download feasibility_authority_certificate_v160.json",
-                           data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
-                           file_name="feasibility_authority_certificate_v160.json",
-                           mime="application/json", use_container_width=True, key="v160_dl")
-
-
-# =====================
-# v157 Feasibility Boundary Extractor
-# =====================
-def _v157_feasibility_boundary_panel():
-    import streamlit as st
-    from tools.feasibility_boundary import build_feasibility_boundary
-
-    st.subheader("Feasibility Boundary")
-    st.caption("Extract a feasibility boundary curve from a v156 feasibility field (grid interpolation).")
-
-    field = st.session_state.get("v156_field")
-    up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v157_upload")
-    if up is not None:
-        try:
-            field = _json.loads(up.getvalue().decode("utf-8"))
-        except Exception as e:
-            st.error(f"Invalid JSON: {e}")
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Baseline run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v140_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected baseline does not contain a run artifact.")
             return
-    if not isinstance(field, dict):
-        st.info("Build a Feasibility Field first or upload one here.")
-        return
-
-    prefer_lowest = st.checkbox("Prefer lowest Axis2 crossing (typical min required)", value=True, key="v157_low")
-    if st.button("Extract Boundary", use_container_width=True, key="v157_run"):
-        b = build_feasibility_boundary(field=field, prefer_lowest_axis2=bool(prefer_lowest))
-        st.session_state["v157_boundary"] = b
-        st.success(f"Extracted {len(((b.get('payload') or {}).get('boundary') or {}).get('samples') or [])} samples.")
-        st.json((b.get("payload") or {}).get("boundary_definition") or {})
-        st.download_button("Download feasibility_boundary_v157.json",
-                           data=_json.dumps(b, indent=2, sort_keys=True, default=str),
-                           file_name="feasibility_boundary_v157.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v157_dl")
-
-
-# =====================
-# v158 Constraint Dominance Topology
-# =====================
-def _v158_constraint_dominance_panel():
-    import streamlit as st
-    from tools.constraint_dominance import build_constraint_dominance
-
-    st.subheader("Constraint Dominance Topology")
-    st.caption("Explain why regions fail: dominant violated constraint maps + connected components (grid topology).")
-
-    field = st.session_state.get("v156_field")
-    up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v158_upload")
-    if up is not None:
-        try:
-            field = _json.loads(up.getvalue().decode("utf-8"))
-        except Exception as e:
-            st.error(f"Invalid JSON: {e}")
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+    
+        levers = list(available_numeric_levers(base_inputs))
+        default_vars = [v for v in ["Ip_MA","kappa","q95","a_m","beta_N","f_GW"] if v in levers]
+        vars_sel = st.multiselect("Variables to probe", options=levers, default=(default_vars or levers[:4]), key="v140_vars")
+        max_rel = st.slider("Max relative change (+/-)", 0.05, 1.0, 0.40, 0.05, key="v140_max_rel")
+        n_expand = st.slider("Expansion steps", 3, 20, 8, 1, key="v140_nexp")
+        n_bisect = st.slider("Bisection steps", 3, 20, 10, 1, key="v140_nbis")
+        require_feas = st.checkbox("Require baseline feasible", value=True, key="v140_req_feas")
+    
+        if st.button("Run sensitivity", key="v140_run"):
+            try:
+                cfg = SensitivityConfig(
+                    baseline_inputs=dict(base_inputs),
+                    fixed_overrides={},
+                    vars=list(vars_sel),
+                    bounds={},  # intentionally empty by default; user can constrain later if needed
+                    max_rel=float(max_rel),
+                    max_abs=0.0,
+                    n_expand=int(n_expand),
+                    n_bisect=int(n_bisect),
+                    require_baseline_feasible=bool(require_feas),
+                )
+                rep = run_sensitivity(cfg)
+                bun = build_sensitivity_bundle(rep)
+                st.session_state["v140_rep"] = rep
+                st.session_state["v140_bun"] = bun
+                _v98_record_run("sensitivity_maps", {"n_vars": len(vars_sel), "max_rel": max_rel}, mode="v140")
+                st.success("Sensitivity run complete.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        rep = st.session_state.get("v140_rep")
+        bun = st.session_state.get("v140_bun")
+        if isinstance(rep, dict):
+            st.json({"baseline": rep.get("baseline"), "n_vars": len(rep.get("results") or [])})
+            st.dataframe(rep.get("results", [])[:200], use_container_width=True)
+            st.download_button("Download sensitivity_report_v140.json", data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
+                               file_name="sensitivity_report_v140.json", mime="application/json", use_container_width=True, key="v140_dl_rep")
+    
+        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download sensitivity_bundle_v140.zip", data=bun["zip_bytes"], file_name="sensitivity_bundle_v140.zip",
+                               mime="application/zip", use_container_width=True, key="v140_dl_zip")
+            if st.button("Save sensitivity bundle to Vault", key="v140_save_vault"):
+                try:
+                    root = Path(__file__).resolve().parents[1]
+                    run_vault.write_entry(root=root, kind="sensitivity_bundle", payload=rep or {}, mode="v140",
+                                          files={"sensitivity_bundle_v140.zip": bun["zip_bytes"]})
+                    st.success("Saved to vault.")
+                except Exception as e:
+                    st.error(f"Vault save failed: {e!r}")
+    
+    
+    # =====================
+    # v141 Robustness Certificate
+    # =====================
+    def _v141_robustness_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.feasibility_certificate import generate_feasibility_certificate
+        from tools.sensitivity_maps import SensitivityConfig, run_sensitivity
+        from tools.robustness_certificate import generate_robustness_certificate
+        from tools.feasibility_atlas import available_numeric_levers
+        from tools import run_vault
+    
+        st.subheader("Robustness Certificate")
+        st.caption("Derives a robustness certificate from v139 Feasibility Certificate + v140 Sensitivity Report. No optimizers/gradients.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first.")
             return
-    if not isinstance(field, dict):
-        st.info("Build a Feasibility Field first or upload one here.")
-        return
-
-    include_all = st.checkbox("Include feasible points in dominance map (larger JSON)", value=False, key="v158_all")
-    if st.button("Compute Dominance Topology", use_container_width=True, key="v158_run"):
-        dom = build_constraint_dominance(field=field, only_infeasible=(not include_all))
-        st.session_state["v158_dom"] = dom
-        summ = (((dom.get("payload") or {}).get("dominance") or {}).get("summary") or {})
-        st.success("Computed.")
-        st.json(summ)
-        st.download_button("Download constraint_dominance_v158.json",
-                           data=_json.dumps(dom, indent=2, sort_keys=True, default=str),
-                           file_name="constraint_dominance_v158.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v158_dl")
-
-
-# =====================
-# v159 Feasibility Completion Evidence
-# =====================
-def _v159_feasibility_completion_panel():
-    import streamlit as st
-    from tools.feasibility_completion_evidence import build_feasibility_completion_evidence
-
-    st.subheader("Feasibility Completion Evidence")
-    st.caption("Given partial inputs + bounds on unknowns, search for a feasible completion witness and report bottlenecks.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Baseline run (provides default known inputs)", options=ids, index=len(ids)-1, key="v159_base_run")
-    payload = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
-        st.error("Selected baseline run payload missing.")
-        return
-    baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
-    if not isinstance(baseline_inputs, dict) or not baseline_inputs:
-        st.error("Baseline inputs missing.")
-        return
-
-    st.markdown("### Unknowns to search")
-    keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
-    unk = st.multiselect("Select unknown parameters (will be randomized within bounds)", options=keys, default=[k for k in keys if k in ("R0_m","B0_T")], key="v159_unk_keys")
-    st.caption('Provide bounds as JSON list: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
-    default_bounds=_json.dumps([{"name":k, "bounds":[float(baseline_inputs.get(k,0.0) or 0.0)*0.9, float(baseline_inputs.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (unk or [])][:6], indent=2)
-    bounds_json = st.text_area("Unknown bounds (JSON)", value=default_bounds, height=140, key="v159_bounds")
-    fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=80, key="v159_fixed")
-    assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v159_assumptions")
-
-    col1,col2,col3=st.columns(3)
-    with col1:
-        n_samples = st.number_input("Samples", value=400, min_value=20, max_value=20000, step=20, key="v159_n")
-    with col2:
-        seed = st.number_input("Seed", value=0, min_value=0, max_value=10_000_000, step=1, key="v159_seed")
-    with col3:
-        strategy = st.selectbox("Strategy", options=["random","lhs"], index=0, key="v159_strategy")
-
-    if st.button("Search Completion Witness", use_container_width=True, key="v159_run"):
-        try:
-            unknowns = _json.loads(bounds_json) if bounds_json.strip() else []
-            fixed = _json.loads(fixed_json) if fixed_json.strip() else []
-            assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
+    
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Baseline run (for certificate + sensitivity)", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v141_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected baseline does not contain a run artifact.")
             return
-
-        # known = baseline minus unknown keys
-        known = {k:v for k,v in baseline_inputs.items() if (k not in set(unk or []))}
-        with st.spinner("Sampling for feasibility completion..."):
-            ev = build_feasibility_completion_evidence(
-                known=known,
-                unknowns=unknowns,
-                fixed=fixed if isinstance(fixed,list) else [],
-                assumption_set=assumptions if isinstance(assumptions,dict) else {},
-                n_samples=int(n_samples),
-                seed=int(seed),
-                strategy=str(strategy),
-                policy={"generator":"ui"},
-            )
-        st.session_state["v159_completion"] = ev
-        res=((ev.get("payload") or {}).get("result") or {})
-        st.success(f"Verdict: {res.get('verdict')}")
-        st.json(res.get("bottleneck") or {})
-        st.download_button("Download feasibility_completion_evidence_v159.json",
-                           data=_json.dumps(ev, indent=2, sort_keys=True, default=str),
-                           file_name="feasibility_completion_evidence_v159.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v159_dl")
-
-
-# =====================
-# v161 Completion Frontier + Minimal Change Distance
-# =====================
-def _v161_completion_frontier_panel():
-    import streamlit as st
-    from tools.completion_frontier import build_completion_frontier
-
-    st.subheader("Completion Frontier")
-    st.caption("Quantify how far a baseline guess is from feasibility: minimal-change feasible witness + distance–margin frontier.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Baseline run (baseline guess x0)", options=ids, index=len(ids)-1, key="v161_base_run")
-    payload = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
-        st.error("Selected baseline run payload missing.")
-        return
-    baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
-    if not isinstance(baseline_inputs, dict) or not baseline_inputs:
-        st.error("Baseline inputs missing.")
-        return
-
-    st.markdown("### Decision variables (vary to reach feasibility)")
-    keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
-    dv = st.multiselect("Select decision variables", options=keys, default=[k for k in keys if k in ("R0_m","B0_T","q95","kappa")], key="v161_dv_keys")
-    default_bounds=_json.dumps([{"name":k, "bounds":[float(baseline_inputs.get(k,0.0) or 0.0)*0.9, float(baseline_inputs.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (dv or [])][:8], indent=2)
-    st.caption('Bounds JSON example: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
-    bounds_json = st.text_area("Decision variable bounds (JSON)", value=default_bounds, height=160, key="v161_bounds")
-    fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=80, key="v161_fixed")
-    assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v161_assumptions")
-
-    col1,col2,col3=st.columns(3)
-    with col1:
-        n_samples = st.number_input("Samples", value=800, min_value=40, max_value=50000, step=40, key="v161_n")
-    with col2:
-        seed = st.number_input("Seed", value=0, min_value=0, max_value=10_000_000, step=1, key="v161_seed")
-    with col3:
-        strategy = st.selectbox("Strategy", options=["random","lhs"], index=0, key="v161_strategy")
-
-    if st.button("Compute Completion Frontier", use_container_width=True, key="v161_run"):
-        try:
-            vars_spec = _json.loads(bounds_json) if bounds_json.strip() else []
-            fixed = _json.loads(fixed_json) if fixed_json.strip() else []
-            assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+    
+        # v140 settings (re-run sensitivity here for coherence)
+        levers = list(available_numeric_levers(base_inputs))
+        default_vars = [v for v in ["Ip_MA","kappa","q95","a_m","beta_N","f_GW"] if v in levers]
+        vars_sel = st.multiselect("Variables for robustness probing", options=levers, default=(default_vars or levers[:4]), key="v141_vars")
+        max_rel = st.slider("Max relative change (+/-) for sensitivity", 0.05, 1.0, 0.40, 0.05, key="v141_max_rel")
+        n_expand = st.slider("Expansion steps", 3, 20, 8, 1, key="v141_nexp")
+        n_bisect = st.slider("Bisection steps", 3, 20, 10, 1, key="v141_nbis")
+        require_feas = st.checkbox("Require baseline feasible", value=True, key="v141_req_feas")
+    
+        policy_json = st.text_area("Policy JSON (optional)", value="{}", height=120, key="v141_policy")
+    
+        if st.button("Generate Robustness Certificate", key="v141_run"):
+            try:
+                # v139 cert from current artifact (source of truth)
+                fc = generate_feasibility_certificate(base)
+    
+                # v140 report (computed here for coherence; also available via v140 panel)
+                cfg = SensitivityConfig(
+                    baseline_inputs=dict(base_inputs),
+                    fixed_overrides={},
+                    vars=list(vars_sel),
+                    bounds={},
+                    max_rel=float(max_rel),
+                    max_abs=0.0,
+                    n_expand=int(n_expand),
+                    n_bisect=int(n_bisect),
+                    require_baseline_feasible=bool(require_feas),
+                )
+                sr = run_sensitivity(cfg)
+    
+                policy = _json.loads(policy_json) if policy_json.strip() else {}
+                rc = generate_robustness_certificate(fc, sr, policy=policy)
+    
+                st.session_state["v141_fc"] = fc
+                st.session_state["v141_sr"] = sr
+                st.session_state["v141_rc"] = rc
+                _v98_record_run("robustness_certificate", {"n_vars": len(vars_sel), "max_rel": max_rel, "index": rc.get("robustness", {}).get("index_min_bounded_rel")}, mode="v141")
+                st.success("Robustness certificate generated.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        rc = st.session_state.get("v141_rc")
+        fc = st.session_state.get("v141_fc")
+        sr = st.session_state.get("v141_sr")
+    
+        if isinstance(rc, dict):
+            st.json({
+                "robustness_index_min_bounded_rel": (rc.get("robustness", {}) or {}).get("index_min_bounded_rel"),
+                "fragility_top": ((rc.get("robustness", {}) or {}).get("fragility_ranking") or [])[:5],
+            })
+            st.download_button("Download robustness_certificate_v141.json",
+                               data=_json.dumps(rc, indent=2, sort_keys=True, default=str),
+                               file_name="robustness_certificate_v141.json", mime="application/json", use_container_width=True, key="v141_dl_rc")
+            with st.expander("See underlying v139 feasibility certificate"):
+                st.download_button("Download feasibility_certificate_v139.json",
+                                   data=_json.dumps(fc or {}, indent=2, sort_keys=True, default=str),
+                                   file_name="feasibility_certificate_v139.json", mime="application/json", use_container_width=True, key="v141_dl_fc")
+            with st.expander("See underlying v140 sensitivity report"):
+                st.download_button("Download sensitivity_report_v140.json",
+                                   data=_json.dumps(sr or {}, indent=2, sort_keys=True, default=str),
+                                   file_name="sensitivity_report_v140.json", mime="application/json", use_container_width=True, key="v141_dl_sr")
+    
+            if st.button("Save robustness certificate to Vault", key="v141_save_vault"):
+                try:
+                    root = Path(__file__).resolve().parents[1]
+                    run_vault.write_entry(root=root, kind="robustness_certificate", payload=rc, mode="v141",
+                                          files={"robustness_certificate_v141.json": _json.dumps(rc, indent=2, sort_keys=True, default=str).encode("utf-8")})
+                    st.success("Saved to vault.")
+                except Exception as e:
+                    st.error(f"Vault save failed: {e!r}")
+    
+    
+    # =====================
+    # v142–v144 Feasibility Deep Dive
+    # =====================
+    def _v144_deepdive_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.feasibility_atlas import available_numeric_levers
+        from tools.feasibility_deepdive import (
+            SampleConfig, sample_and_evaluate, topology_from_dataset, bundle_topology,
+            interactions_from_dataset, bundle_interactions,
+            IntervalConfig, interval_certificate, bundle_interval_certificate,
+        )
+        from tools import run_vault
+    
+        st.subheader("Feasibility Deep Dive (v142–v144)")
+        st.caption("Topology maps + constraint interaction structure + interval feasibility certificates. Downstream analysis only.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first.")
             return
-        with st.spinner("Sampling and evaluating frontier..."):
-            out = build_completion_frontier(
-                baseline=baseline_inputs,
-                decision_vars=vars_spec,
-                fixed=fixed if isinstance(fixed,list) else [],
-                assumption_set=assumptions if isinstance(assumptions,dict) else {},
-                n_samples=int(n_samples),
-                seed=int(seed),
-                strategy=str(strategy),
-                policy={"generator":"ui"},
-            )
-        st.session_state["v161_frontier"] = out
-        res=((out.get("payload") or {}).get("result") or {})
-        st.success("Computed.")
-        st.markdown("**Minimal-change feasible witness**")
-        st.json(res.get("minimal_change_feasible") or {})
-        st.markdown("**Frontier (preview)**")
-        st.json((res.get("frontier") or [])[:20])
-        st.download_button("Download completion_frontier_v161.json",
-                           data=_json.dumps(out, indent=2, sort_keys=True, default=str),
-                           file_name="completion_frontier_v161.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v161_dl")
-
-
-# =====================
-# v162 Directed Local Search (safe)
-# =====================
-def _v162_directed_local_search_panel():
-    import streamlit as st
-    from tools.directed_local_search import build_directed_local_search
-
-    st.subheader("Directed Local Search")
-    st.caption("A safe, bounded local search that tries to reach feasibility with minimal evaluations (downstream-only).")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Baseline run (starting guess)", options=ids, index=len(ids)-1, key="v162_base_run")
-    payload = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
-        st.error("Selected baseline run payload missing.")
-        return
-    baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
-    if not isinstance(baseline_inputs, dict) or not baseline_inputs:
-        st.error("Baseline inputs missing.")
-        return
-
-    st.markdown("### Decision variables")
-    keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
-    dv = st.multiselect("Select decision variables to adjust", options=keys, default=[k for k in keys if k in ("R0_m","B0_T","q95","kappa")], key="v162_dv_keys")
-    default_bounds=_json.dumps([{"name":k, "bounds":[float(baseline_inputs.get(k,0.0) or 0.0)*0.9, float(baseline_inputs.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (dv or [])][:8], indent=2)
-    st.caption('Bounds JSON example: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
-    bounds_json = st.text_area("Decision variable bounds (JSON)", value=default_bounds, height=160, key="v162_bounds")
-    fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=80, key="v162_fixed")
-    assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v162_assumptions")
-
-    col1,col2,col3,col4=st.columns(4)
-    with col1:
-        max_evals = st.number_input("Max evals", value=200, min_value=30, max_value=5000, step=10, key="v162_maxeval")
-    with col2:
-        seed = st.number_input("Seed", value=0, min_value=0, max_value=10_000_000, step=1, key="v162_seed")
-    with col3:
-        init_step = st.number_input("Initial step (norm)", value=0.12, min_value=0.01, max_value=0.50, step=0.01, key="v162_initstep")
-    with col4:
-        min_step = st.number_input("Min step (norm)", value=0.004, min_value=0.0005, max_value=0.10, step=0.0005, format="%.4f", key="v162_minstep")
-
-    shrink = st.slider("Step shrink factor", min_value=0.2, max_value=0.9, value=0.5, step=0.05, key="v162_shrink")
-
-    if st.button("Run Directed Search", use_container_width=True, key="v162_run"):
-        try:
-            vars_spec = _json.loads(bounds_json) if bounds_json.strip() else []
-            fixed = _json.loads(fixed_json) if fixed_json.strip() else []
-            assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Baseline run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v144_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected baseline does not contain a run artifact.")
             return
-        with st.spinner("Searching..."):
-            out = build_directed_local_search(
-                baseline=baseline_inputs,
-                decision_vars=vars_spec,
-                fixed=fixed if isinstance(fixed,list) else [],
-                assumption_set=assumptions if isinstance(assumptions,dict) else {},
-                max_evals=int(max_evals),
-                seed=int(seed),
-                initial_step_norm=float(init_step),
-                min_step_norm=float(min_step),
-                step_shrink=float(shrink),
-                policy={"generator":"ui"},
-            )
-        st.session_state["v162_local_search"] = out
-        res=((out.get("payload") or {}).get("result") or {})
-        st.success(f"Stop reason: {res.get('stop_reason')}")
-        st.json(res.get("final") or {})
-        st.download_button("Download directed_local_search_v162.json",
-                           data=_json.dumps(out, indent=2, sort_keys=True, default=str),
-                           file_name="directed_local_search_v162.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v162_dl")
-
-
-# =====================
-# v163 Completion Pack (Actionable Recipe)
-# =====================
-def _v163_completion_pack_panel():
-    import streamlit as st
-    from tools.completion_pack import build_completion_pack, render_completion_pack_markdown
-
-    st.subheader("Completion Pack")
-    st.caption("Bundle completion evidence into an actionable recipe: witness + knob ranking + bounds recommendations.")
-
-    v159 = st.session_state.get("v159_completion")
-    v161 = st.session_state.get("v161_frontier")
-    v162 = st.session_state.get("v162_local_search")
-
-    st.markdown("### Inputs")
-    colA,colB,colC = st.columns(3)
-    with colA:
-        up159 = st.file_uploader("Optional: upload v159 evidence JSON", type=["json"], key="v163_up159")
-    with colB:
-        up161 = st.file_uploader("Optional: upload v161 frontier JSON", type=["json"], key="v163_up161")
-    with colC:
-        up162 = st.file_uploader("Optional: upload v162 local search JSON", type=["json"], key="v163_up162")
-
-    def _load(up):
-        if up is None:
-            return None
-        try:
-            return _json.loads(up.getvalue().decode("utf-8"))
-        except Exception:
-            return None
-
-    v159 = _load(up159) or v159
-    v161 = _load(up161) or v161
-    v162 = _load(up162) or v162
-
-    tighten = st.slider("Bounds tighten factor (heuristic)", min_value=0.05, max_value=0.45, value=0.25, step=0.05, key="v163_tighten")
-
-    if st.button("Build Completion Pack", use_container_width=True, key="v163_run"):
-        pack = build_completion_pack(v159=v159, v161=v161, v162=v162, policy={"generator":"ui", "tighten": float(tighten)})
-        st.session_state["v163_pack"] = pack
-        st.success(f"Witness provenance: {((pack.get('payload') or {}).get('witness_provenance') or '')}")
-        st.markdown("### Preview")
-        st.json((pack.get("payload") or {}) )
-        st.download_button("Download completion_pack_v163.json",
-                           data=_json.dumps(pack, indent=2, sort_keys=True, default=str),
-                           file_name="completion_pack_v163.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v163_dl_json")
-        md = render_completion_pack_markdown(pack)
-        st.download_button("Download completion_pack_summary_v163.md",
-                           data=md,
-                           file_name="completion_pack_summary_v163.md",
-                           mime="text/markdown",
-                           use_container_width=True,
-                           key="v163_dl_md")
-
-
-# =====================
-# v164 Sensitivity + Bottleneck Attribution
-# =====================
-def _v164_sensitivity_panel():
-    import streamlit as st
-    from tools.sensitivity_v164 import build_sensitivity_report, render_sensitivity_markdown
-
-    st.subheader("Sensitivity + Bottleneck Attribution")
-    st.caption("Local finite-difference sensitivities around a witness: ranked leverage variables and dominant-constraint changes.")
-
-    # Prefer completion pack witness if present, else last run
-    pack = st.session_state.get("v163_pack")
-    witness = None
-    if isinstance(pack, dict):
-        witness = ((pack.get("payload") or {}).get("recommended_witness"))
-    if not isinstance(witness, dict):
-        # fallback to baseline last run
+        base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
+    
+        levers = list(available_numeric_levers(base_inputs))
+        tabs = st.tabs(["Topology Maps", "Constraint Interactions", "Interval Certificates"])
+    
+        # -------- v142
+        with tabs[0]:
+            st.write("Build feasible topology (islands) by sampling within bounds for selected variables.")
+            vars_sel = st.multiselect("Variables (2–6 recommended)", options=levers, default=[v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2], key="v142_vars")
+            n_samples = st.slider("Samples", 100, 2000, 300, 50, key="v142_ns")
+            seed = st.number_input("Seed", value=0, step=1, key="v142_seed")
+            k = st.slider("kNN neighbors", 2, 20, 6, 1, key="v142_k")
+            eps = st.number_input("Distance cutoff eps (0 = no cutoff)", value=0.0, key="v142_eps")
+    
+            bounds = {}
+            for v in vars_sel:
+                v0 = float(base_inputs.get(v, 0.0) or 0.0)
+                lo = st.number_input(f"{v} min", value=(v0*0.9 if v0 else 0.0), key=f"v142_lo_{v}")
+                hi = st.number_input(f"{v} max", value=(v0*1.1 if v0 else 1.0), key=f"v142_hi_{v}")
+                bounds[v] = (float(lo), float(hi))
+    
+            if st.button("Run topology", key="v142_run"):
+                try:
+                    cfg = SampleConfig(baseline_inputs=dict(base_inputs), vars=list(vars_sel), bounds=dict(bounds), n_samples=int(n_samples), seed=int(seed))
+                    ds = sample_and_evaluate(cfg)
+                    topo = topology_from_dataset(ds, k=int(k), eps=float(eps))
+                    bun = bundle_topology(ds, topo)
+                    st.session_state["v142_ds"] = ds
+                    st.session_state["v142_topo"] = topo
+                    st.session_state["v142_bun"] = bun
+                    _v98_record_run("feasible_topology", {"n_samples": n_samples, "n_feasible": topo.get("n_feasible_points"), "n_islands": len(topo.get("islands") or [])}, mode="v142")
+                    st.success(f"Topology built: feasible={topo.get('n_feasible_points')} islands={len(topo.get('islands') or [])}")
+                except Exception as e:
+                    st.error(f"Topology failed: {e!r}")
+    
+            topo = st.session_state.get("v142_topo")
+            bun = st.session_state.get("v142_bun")
+            if isinstance(topo, dict):
+                st.json({"n_feasible_points": topo.get("n_feasible_points"), "islands": topo.get("islands")[:10]})
+            if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+                st.download_button("Download topology_bundle_v142.zip", data=bun["zip_bytes"], file_name="topology_bundle_v142.zip", mime="application/zip", use_container_width=True, key="v142_dl")
+                if st.button("Save topology bundle to Vault", key="v142_save_vault"):
+                    root = Path(__file__).resolve().parents[1]
+                    run_vault.write_entry(root=root, kind="topology_bundle", payload=topo or {}, mode="v142", files={"topology_bundle_v142.zip": bun["zip_bytes"]})
+                    st.success("Saved.")
+    
+        # -------- v143
+        with tabs[1]:
+            st.write("Compute constraint co-failure and dominance statistics from the last deep-dive dataset.")
+            ds = st.session_state.get("v142_ds")
+            if not isinstance(ds, dict):
+                st.info("Run topology sampling first (v142 tab) to generate a dataset.")
+            else:
+                if st.button("Compute interactions", key="v143_run"):
+                    try:
+                        inter = interactions_from_dataset(ds, top_n=20)
+                        bun2 = bundle_interactions(inter)
+                        st.session_state["v143_inter"] = inter
+                        st.session_state["v143_bun"] = bun2
+                        _v98_record_run("constraint_interactions", {"top_constraints": len(inter.get("top_constraints") or [])}, mode="v143")
+                        st.success("Interactions computed.")
+                    except Exception as e:
+                        st.error(f"Interactions failed: {e!r}")
+                inter = st.session_state.get("v143_inter")
+                bun2 = st.session_state.get("v143_bun")
+                if isinstance(inter, dict):
+                    st.json({"top_constraints": inter.get("top_constraints")[:12], "dominance_top": sorted((inter.get("dominance_counts") or {}).items(), key=lambda kv: kv[1], reverse=True)[:10]})
+                if isinstance(bun2, dict) and isinstance(bun2.get("zip_bytes"), (bytes, bytearray)):
+                    st.download_button("Download interactions_bundle_v143.zip", data=bun2["zip_bytes"], file_name="interactions_bundle_v143.zip", mime="application/zip", use_container_width=True, key="v143_dl")
+                    if st.button("Save interactions bundle to Vault", key="v143_save_vault"):
+                        root = Path(__file__).resolve().parents[1]
+                        run_vault.write_entry(root=root, kind="interactions_bundle", payload=inter or {}, mode="v143", files={"interactions_bundle_v143.zip": bun2["zip_bytes"]})
+                        st.success("Saved.")
+    
+        # -------- v144
+        with tabs[2]:
+            st.write("Certify a hyper-rectangle interval (conservative): checks all corners + random interior probes.")
+            vars_sel = st.multiselect("Interval variables", options=levers, default=[v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2], key="v144_ivars")
+            bounds = {}
+            for v in vars_sel:
+                v0 = float(base_inputs.get(v, 0.0) or 0.0)
+                lo = st.number_input(f"{v} min", value=(v0*0.95 if v0 else 0.0), key=f"v144_lo_{v}")
+                hi = st.number_input(f"{v} max", value=(v0*1.05 if v0 else 1.0), key=f"v144_hi_{v}")
+                bounds[v] = (float(lo), float(hi))
+            n_random = st.slider("Random interior probes", 0, 500, 60, 10, key="v144_nr")
+            seed = st.number_input("Seed", value=0, step=1, key="v144_seed")
+            if st.button("Generate interval certificate (v144)", key="v144_run"):
+                try:
+                    cert = interval_certificate(IntervalConfig(baseline_inputs=dict(base_inputs), bounds=dict(bounds), n_random=int(n_random), seed=int(seed)))
+                    bun = bundle_interval_certificate(cert)
+                    st.session_state["v144_cert"] = cert
+                    st.session_state["v144_bun"] = bun
+                    _v98_record_run("interval_certificate", {"interval_certified": cert.get("verdict",{}).get("interval_certified"), "n_vars": len(bounds)}, mode="v144")
+                    st.success(f"Interval certified = {cert.get('verdict',{}).get('interval_certified')}")
+                except Exception as e:
+                    st.error(f"Interval certificate failed: {e!r}")
+    
+            cert = st.session_state.get("v144_cert")
+            bun = st.session_state.get("v144_bun")
+            if isinstance(cert, dict):
+                st.json(cert.get("verdict", {}))
+                st.download_button("Download interval_certificate_v144.json", data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
+                                   file_name="interval_certificate_v144.json", mime="application/json", use_container_width=True, key="v144_dl_json")
+            if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+                st.download_button("Download interval_bundle_v144.zip", data=bun["zip_bytes"], file_name="interval_bundle_v144.zip", mime="application/zip", use_container_width=True, key="v144_dl_zip")
+                if st.button("Save interval bundle to Vault", key="v144_save_vault"):
+                    root = Path(__file__).resolve().parents[1]
+                    run_vault.write_entry(root=root, kind="interval_bundle", payload=cert or {}, mode="v144", files={"interval_bundle_v144.zip": bun["zip_bytes"]})
+                    st.success("Saved.")
+    
+    
+    # =====================
+    # v145 Topology Certificate
+    # =====================
+    def _v145_topology_certificate_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.topology_certificate import generate_topology_certificate
+        from tools import run_vault
+    
+        st.subheader("Topology Certificate")
+        st.caption("Citable certificate summarizing feasible-set topology (islands) for a declared domain and sampling protocol.")
+    
+        s = _v98_state_init_runlists()
+        ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
+        if not ids:
+            st.info("Run a point evaluation first.")
+            return
+        default_id = (s.pinned_run_ids[-1] if (s.pinned_run_ids and len(s.pinned_run_ids)>0) else ids[-1])
+        rid = st.selectbox("Baseline run", options=ids, index=ids.index(default_id) if default_id in ids else len(ids)-1, key="v145_pick_run")
+        run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
+        payload = (run_map.get(rid) or {}).get("payload")
+        base = payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+        if base is None:
+            st.error("Selected baseline does not contain a run artifact.")
+            return
+    
+        topo = st.session_state.get("v142_topo")
+        ds = st.session_state.get("v142_ds")
+        if not isinstance(topo, dict):
+            st.info("Run v142 Topology Maps first (Feasibility Deep Dive panel) to generate feasible topology.")
+            return
+    
+        policy_json = st.text_area("Policy JSON (optional)", value="{}", height=120, key="v145_policy")
+    
+        if st.button("Generate Topology Certificate", key="v145_run"):
+            try:
+                policy = _json.loads(policy_json) if policy_json.strip() else {}
+                cert = generate_topology_certificate(base, topo, deepdive_dataset=(ds if isinstance(ds, dict) else None), policy=policy)
+                st.session_state["v145_cert"] = cert
+                _v98_record_run("topology_certificate", {"n_islands": (cert.get("topology_summary", {}) or {}).get("n_islands")}, mode="v145")
+                st.success("Topology certificate generated.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        cert = st.session_state.get("v145_cert")
+        if isinstance(cert, dict):
+            st.json(cert.get("topology_summary", {}))
+            st.download_button("Download topology_certificate_v145.json",
+                               data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
+                               file_name="topology_certificate_v145.json", mime="application/json",
+                               use_container_width=True, key="v145_dl")
+            if st.button("Save topology certificate to Vault", key="v145_save_vault"):
+                try:
+                    root = Path(__file__).resolve().parents[1]
+                    run_vault.write_entry(root=root, kind="topology_certificate", payload=cert, mode="v145",
+                                          files={"topology_certificate_v145.json": _json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8")})
+                    st.success("Saved to vault.")
+                except Exception as e:
+                    st.error(f"Vault save failed: {e!r}")
+    
+    
+    # =====================
+    # v146–v147 Feasibility Completion
+    # =====================
+    def _v147_feasibility_completion_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.feasibility_atlas import available_numeric_levers
+        from tools.feasibility_bridge import BridgeConfig, run_bridge, bridge_certificate
+        from tools.safe_domain_shrink import ShrinkConfig, run_safe_domain_shrink
+        from tools import run_vault
+        import hashlib
+    
+        st.subheader("Feasibility Completion (v146–v147)")
+        st.caption("v146: topology bridge witness between two points. v147: auto-shrink to a certified safe interval box (uses v144).")
+    
         s = _v98_state_init_runlists()
         runs = [r for r in (s.run_history or []) if r.get("id")]
-        if runs:
-            payload = (runs[-1].get("payload") or {})
-            if isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact":
-                witness = payload.get("inputs") or payload.get("_inputs")
-
-    if not isinstance(witness, dict) or not witness:
-        st.info("No witness found yet. Run v159/v161/v162 or build v163 completion pack first.")
-        return
-
-    st.markdown("### Witness source")
-    st.code(f"Using witness keys: {len(witness)}", language="text")
-
-    st.markdown("### Variables to perturb")
-    keys=sorted([k for k in witness.keys() if isinstance(k,str)])
-    dv = st.multiselect("Select variables", options=keys, default=[k for k in keys if k in ("R0_m","B0_T","q95","kappa")], key="v164_dv")
-    default_bounds=_json.dumps([{"name":k, "bounds":[float(witness.get(k,0.0) or 0.0)*0.9, float(witness.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (dv or [])][:10], indent=2)
-    st.caption('Bounds JSON example: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
-    bounds_json = st.text_area("Variable bounds (JSON)", value=default_bounds, height=160, key="v164_bounds")
-    assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v164_assumptions")
-
-    col1,col2=st.columns(2)
-    with col1:
-        rel_step = st.number_input("Relative step (fraction of span)", value=0.01, min_value=0.001, max_value=0.10, step=0.001, format="%.3f", key="v164_relstep")
-    with col2:
-        abs_step_min = st.number_input("Absolute step min", value=1e-6, min_value=0.0, max_value=1e-2, step=1e-6, format="%.6f", key="v164_absmin")
-
-    if st.button("Compute Sensitivity", use_container_width=True, key="v164_run"):
-        try:
-            vars_spec = _json.loads(bounds_json) if bounds_json.strip() else []
-            assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
+        ids = [r.get("id") for r in runs]
+        if len(ids) < 1:
+            st.info("Run at least one point evaluation first.")
             return
-        with st.spinner("Evaluating baseline and perturbations..."):
-            rep = build_sensitivity_report(
-                witness=witness,
-                variables=vars_spec,
-                assumption_set=assumptions if isinstance(assumptions,dict) else {},
-                rel_step=float(rel_step),
-                abs_step_min=float(abs_step_min),
-                policy={"generator":"ui"},
-            )
-        st.session_state["v164_sensitivity"] = rep
-        ranked=((rep.get("payload") or {}).get("ranked") or [])
-        st.success(f"Computed. Ranked variables: {len(ranked)}")
-        st.markdown("### Ranked leverage (preview)")
-        st.json(ranked[:15])
-        st.download_button("Download sensitivity_v164.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
-                           file_name="sensitivity_v164.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v164_dl_json")
-        md = render_sensitivity_markdown(rep)
-        st.download_button("Download sensitivity_v164.md",
-                           data=md,
-                           file_name="sensitivity_v164.md",
-                           mime="text/markdown",
-                           use_container_width=True,
-                           key="v164_dl_md")
-
-
-# =====================
-# v165 Study Protocol Generator
-# =====================
-def _v165_study_protocol_panel():
-    import streamlit as st
-    from tools.study_protocol_v165 import build_study_protocol, render_study_protocol_markdown
-
-    st.subheader("Study Protocol Generator")
-    st.caption("Generate journal-ready, audit-ready study protocol (Methods) with protocol SHA-256. Reporting-only.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode) to generate a run artifact.")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Select run artifact", options=ids, index=len(ids)-1, key="v165_run_id")
-    run_art = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
-        st.error("Selected run is missing shams_run_artifact payload.")
-        return
-
-    col1,col2=st.columns(2)
-    with col1:
-        title = st.text_input("Study title", value="SHAMS Design Study", key="v165_title")
-    with col2:
-        study_id = st.text_input("Study ID (optional)", value="", key="v165_study_id")
-
-    objective = st.text_area("Objective (paper-ready)", value="Feasibility characterization and completion under explicit constraints.", height=80, key="v165_obj")
-    notes = st.text_area("Notes (one per line)", value="", height=60, key="v165_notes")
-
-    st.markdown("### Optional: variables varied / scan definition")
-    vars_json = st.text_area("variables_varied (JSON list)", value="[]", height=120, key="v165_vars")
-    artifacts_json = st.text_area("artifacts_generated (JSON list)", value='["study_protocol_v165.json","study_protocol_v165.md"]', height=80, key="v165_artifacts")
-    seed = st.number_input("Seed (optional)", value=0, min_value=0, max_value=10_000_000, step=1, key="v165_seed")
-
-    if st.button("Generate Study Protocol", use_container_width=True, key="v165_run"):
-        try:
-            vv = _json.loads(vars_json) if vars_json.strip() else []
-            ag = _json.loads(artifacts_json) if artifacts_json.strip() else []
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
+    
+        run_map = {r.get("id"): r for r in runs}
+        def _get_art(rid):
+            payload = (run_map.get(rid) or {}).get("payload")
+            return payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+    
+        tabs = st.tabs(["Bridge Certificate", "Safe Domain Shrink"])
+    
+        # ---------- v146
+        with tabs[0]:
+            if len(ids) < 2:
+                st.info("Need at least two runs in history to bridge (A and B).")
+            else:
+                ridA = st.selectbox("Point A (baseline)", options=ids, index=max(0, len(ids)-2), key="v146_A")
+                ridB = st.selectbox("Point B (target)", options=ids, index=len(ids)-1, key="v146_B")
+                artA = _get_art(ridA); artB = _get_art(ridB)
+                if artA is None or artB is None:
+                    st.error("Selected runs must be run artifacts.")
+                else:
+                    Ain = artA.get("inputs", {}) if isinstance(artA.get("inputs"), dict) else {}
+                    Bin = artB.get("inputs", {}) if isinstance(artB.get("inputs"), dict) else {}
+                    levers = sorted(set(available_numeric_levers(Ain)).intersection(set(available_numeric_levers(Bin))))
+                    default_vars = [v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2]
+                    vars_sel = st.multiselect("Bridge variables", options=levers, default=default_vars, key="v146_vars")
+                    n_steps = st.slider("Coarse steps", 5, 101, 21, 2, key="v146_steps")
+                    bis = st.slider("Max bisection depth", 0, 10, 6, 1, key="v146_bis")
+                    req_end = st.checkbox("Require endpoints feasible", value=True, key="v146_req")
+                    if st.button("Run bridge", key="v146_run"):
+                        try:
+                            cfg = BridgeConfig(inputs_A=dict(Ain), inputs_B=dict(Bin), vars=list(vars_sel), n_steps=int(n_steps), max_bisect_depth=int(bis), require_endpoints_feasible=bool(req_end))
+                            rep = run_bridge(cfg)
+                            # baseline hash from A inputs
+                            h = hashlib.sha256(_json.dumps(Ain, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+                            cert = bridge_certificate(rep, baseline_inputs_sha256=h)
+                            st.session_state["v146_rep"] = rep
+                            st.session_state["v146_cert"] = cert
+                            _v98_record_run("bridge_certificate", {"bridge_exists": rep.get("bridge_exists"), "n_points": len(rep.get("path") or [])}, mode="v146")
+                            st.success(f"Bridge exists = {rep.get('bridge_exists')}")
+                        except Exception as e:
+                            st.error(f"Bridge failed: {e!r}")
+    
+                    cert = st.session_state.get("v146_cert")
+                    rep = st.session_state.get("v146_rep")
+                    if isinstance(cert, dict):
+                        st.json(cert.get("summary", {}))
+                        st.download_button("Download bridge_certificate_v146.json", data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
+                                           file_name="bridge_certificate_v146.json", mime="application/json", use_container_width=True, key="v146_dl_cert")
+                        st.download_button("Download bridge_report_v146.json", data=_json.dumps(rep or {}, indent=2, sort_keys=True, default=str),
+                                           file_name="bridge_report_v146.json", mime="application/json", use_container_width=True, key="v146_dl_rep")
+                        if st.button("Save v146 to Vault", key="v146_save_vault"):
+                            root = Path(__file__).resolve().parents[1]
+                            run_vault.write_entry(root=root, kind="bridge_certificate", payload={"certificate": cert, "report": rep}, mode="v146",
+                                                  files={
+                                                      "bridge_certificate_v146.json": _json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                                                      "bridge_report_v146.json": _json.dumps(rep or {}, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                                                  })
+                            st.success("Saved.")
+    
+        # ---------- v147
+        with tabs[1]:
+            rid = st.selectbox("Baseline run for safe box", options=ids, index=len(ids)-1, key="v147_base")
+            art = _get_art(rid)
+            if art is None:
+                st.error("Selected run must be a run artifact.")
+            else:
+                base_inputs = art.get("inputs", {}) if isinstance(art.get("inputs"), dict) else {}
+                levers = list(available_numeric_levers(base_inputs))
+                vars_sel = st.multiselect("Interval variables", options=levers, default=[v for v in ["Ip_MA","kappa"] if v in levers] or levers[:2], key="v147_vars")
+                bounds={}
+                for v in vars_sel:
+                    v0=float(base_inputs.get(v, 0.0) or 0.0)
+                    lo = st.number_input(f"{v} min", value=(v0*0.9 if v0 else 0.0), key=f"v147_lo_{v}")
+                    hi = st.number_input(f"{v} max", value=(v0*1.1 if v0 else 1.0), key=f"v147_hi_{v}")
+                    bounds[v]=(float(lo), float(hi))
+                shrink_factor = st.slider("Shrink factor per iteration", 0.50, 0.98, 0.85, 0.01, key="v147_sf")
+                max_iter = st.slider("Max iterations", 1, 30, 10, 1, key="v147_mi")
+                n_random = st.slider("Random probes per iteration", 0, 300, 40, 10, key="v147_nr")
+                seed = st.number_input("Seed", value=0, step=1, key="v147_seed")
+    
+                if st.button("Run safe-domain shrink", key="v147_run"):
+                    try:
+                        cfg = ShrinkConfig(baseline_inputs=dict(base_inputs), bounds=dict(bounds), shrink_factor=float(shrink_factor),
+                                           max_iter=int(max_iter), n_random=int(n_random), seed=int(seed))
+                        rep = run_safe_domain_shrink(cfg)
+                        st.session_state["v147_rep"] = rep
+                        _v98_record_run("safe_domain_shrink", {"final_certified": rep.get("final_certified"), "iters": len(rep.get("history") or [])}, mode="v147")
+                        st.success(f"Final certified = {rep.get('final_certified')} (iters={len(rep.get('history') or [])})")
+                    except Exception as e:
+                        st.error(f"Shrink failed: {e!r}")
+    
+                rep = st.session_state.get("v147_rep")
+                if isinstance(rep, dict):
+                    st.json({"final_certified": rep.get("final_certified"), "final_bounds": rep.get("final_bounds"), "last": (rep.get("history") or [])[-1] if (rep.get("history") or []) else None})
+                    st.download_button("Download safe_domain_shrink_report_v147.json",
+                                       data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
+                                       file_name="safe_domain_shrink_report_v147.json", mime="application/json",
+                                       use_container_width=True, key="v147_dl_rep")
+                    cert = rep.get("interval_certificate_v144")
+                    if isinstance(cert, dict):
+                        st.download_button("Download interval_certificate_v144.json",
+                                           data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
+                                           file_name="interval_certificate_v144.json", mime="application/json",
+                                           use_container_width=True, key="v147_dl_cert")
+                    if st.button("Save v147 to Vault", key="v147_save_vault"):
+                        root = Path(__file__).resolve().parents[1]
+                        files={"safe_domain_shrink_report_v147.json": _json.dumps(rep, indent=2, sort_keys=True, default=str).encode("utf-8")}
+                        if isinstance(cert, dict):
+                            files["interval_certificate_v144.json"]=_json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8")
+                        run_vault.write_entry(root=root, kind="safe_domain_shrink", payload=rep, mode="v147", files=files)
+                        st.success("Saved.")
+    
+    
+    # =====================
+    # v148–v150 Publishable Study Kit
+    # =====================
+    def _v150_publishable_study_kit_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.design_study_kit import PaperPackConfig, build_paper_pack
+        from tools import run_vault
+    
+        st.subheader("Publishable Study Kit (v148–v150)")
+        st.caption("One-click paper pack (zip) with study registry + integrity manifest. Downstream-only.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first.")
             return
-        overrides={
-            "title": title,
-            "study_id": study_id,
-            "objective": objective,
-            "notes": [ln.strip() for ln in notes.splitlines() if ln.strip()],
-            "variables_varied": vv if isinstance(vv, list) else [],
-            "artifacts_generated": ag if isinstance(ag, list) else [],
-            "seed": int(seed),
-        }
-        prot = build_study_protocol(run_artifact=run_art, protocol_overrides=overrides)
-        st.session_state["v165_protocol"] = prot
-        sha = ((prot.get("payload") or {}).get("integrity") or {}).get("protocol_sha256")
-        st.success(f"Generated. Protocol SHA-256: {sha}")
-        st.download_button("Download study_protocol_v165.json",
-                           data=_json.dumps(prot, indent=2, sort_keys=True, default=str),
-                           file_name="study_protocol_v165.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v165_dl_json")
-        md = render_study_protocol_markdown(prot)
-        st.download_button("Download study_protocol_v165.md",
-                           data=md,
-                           file_name="study_protocol_v165.md",
-                           mime="text/markdown",
-                           use_container_width=True,
-                           key="v165_dl_md")
-
-
-# =====================
-# v166 Reproducibility Lock + Replay Checker
-# =====================
-def _v166_repro_lock_panel():
-    import streamlit as st
-    from tools.repro_lock_v166 import build_repro_lock, replay_check
-
-    st.subheader("Reproducibility Lock + Replay Checker")
-    st.caption("Freeze a run (inputs + assumptions + solver meta) into a lockfile and verify replay matches within tolerances.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Select run artifact to lock", options=ids, index=len(ids)-1, key="v166_run_id")
-    run_art = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
-        st.error("Selected run is missing shams_run_artifact payload.")
-        return
-
-    st.markdown("### Tolerances (edit JSON)")
-    tol_default = _json.dumps({
-        "min_margin_abs": 1e-8,
-        "constraint_margin_abs": 1e-6,
-        "metric_rel": 1e-6,
-        "metric_abs": 1e-9,
-    }, indent=2)
-    tol_json = st.text_area("tolerances JSON", value=tol_default, height=140, key="v166_tol")
-
-    notes = st.text_area("Notes (one per line)", value="", height=60, key="v166_notes")
-
-    col1,col2=st.columns(2)
-    with col1:
-        if st.button("Create Lock", use_container_width=True, key="v166_lock"):
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+    
+        def _get_art(rid):
+            payload = (run_map.get(rid) or {}).get("payload")
+            return payload if (isinstance(payload, dict) and payload.get("kind") == "shams_run_artifact") else None
+    
+        sel = st.multiselect("Select run(s) to include", options=ids, default=[ids[-1]], key="v150_sel_runs")
+        title = st.text_input("Study title", value="SHAMS design study", key="v150_title")
+        authors = st.text_input("Authors (comma-separated)", value="", key="v150_authors")
+        desc = st.text_area("Description", value="", height=120, key="v150_desc")
+    
+        # auto-pick latest certificates present in session_state (best effort)
+        certs=[]
+        for key, fn in [
+            ("v139_fc", "feasibility_certificate_v139.json"),
+            ("v141_rc", "robustness_certificate_v141.json"),
+            ("v144_ic", "interval_certificate_v144.json"),
+            ("v145_tc", "topology_certificate_v145.json"),
+            ("v146_bc", "bridge_certificate_v146.json"),
+            ("v147_sd", "safe_domain_shrink_report_v147.json"),
+        ]:
+            obj = st.session_state.get(key)
+            if isinstance(obj, dict):
+                certs.append((fn, obj))
+    
+        st.checkbox("Include best-effort certificates from current session", value=True, key="v150_include_session_certs")
+        st.checkbox("Include figures/tables from session bundles", value=True, key="v151_include_session_bundles")
+        methods_json = st.text_area("Methods JSON (optional)", value="{}", height=120, key="v150_methods")
+        policy_json = st.text_area("Policy JSON (optional)", value='{"mode":"paper_pack"}', height=120, key="v150_policy")
+    
+        if st.button("Build Paper Pack", key="v150_run"):
             try:
-                tol=_json.loads(tol_json) if tol_json.strip() else {}
+                run_arts=[]
+                for rid in sel:
+                    art=_get_art(rid)
+                    if art is not None:
+                        run_arts.append(art)
+                if not run_arts:
+                    st.error("No valid run artifacts selected.")
+                    return
+    
+                methods=_json.loads(methods_json) if methods_json.strip() else {}
+                policy=_json.loads(policy_json) if policy_json.strip() else {}
+                # v154 captions override
+                caps = st.session_state.get("v154_captions")
+                if isinstance(caps, dict) and caps:
+                    policy = dict(policy)
+                    policy["captions_override"] = caps
+    
+                cfg=PaperPackConfig(
+                    shams_version=str((_json.loads((Path(__file__).resolve().parents[1]/"VERSION").read_text(encoding="utf-8").strip().splitlines()[0]) if True else "unknown")),
+                    title=title,
+                    authors=[a.strip() for a in authors.split(",") if a.strip()],
+                    description=desc,
+                    run_artifacts=run_arts,
+                    certificates=certs if st.session_state.get("v150_include_session_certs") else [],
+                    figures=figs,
+                    tables=tabs,
+                    methods=methods,
+                    policy=policy,
+                )
+                bun=build_paper_pack(cfg)
+                st.session_state["v150_pack"]=bun
+                _v98_record_run("paper_pack", {"n_runs": len(run_arts), "n_certs": len(cfg.certificates)}, mode="v150")
+                st.success("Paper pack built.")
+            except Exception as e:
+                st.error(f"Failed: {e!r}")
+    
+        bun=st.session_state.get("v150_pack")
+        if isinstance(bun, dict) and isinstance(bun.get("zip_bytes"), (bytes, bytearray)):
+            st.download_button("Download paper_pack_v150.zip", data=bun["zip_bytes"], file_name="paper_pack_v150.zip",
+                               mime="application/zip", use_container_width=True, key="v150_dl_zip")
+            st.download_button("Download study_registry_v149.json", data=_json.dumps(bun.get("study_registry") or {}, indent=2, sort_keys=True, default=str),
+                               file_name="study_registry_v149.json", mime="application/json", use_container_width=True, key="v150_dl_reg")
+            st.download_button("Download captions.json", data=_json.dumps({"note":"captions.json is included inside paper_pack_v150.zip"}, indent=2), file_name="captions_note.json", mime="application/json", use_container_width=True, key="v151_dl_caps_note")
+            
+            st.download_button("Download integrity_manifest_v150.json", data=_json.dumps((bun.get("manifest") or {}), indent=2, sort_keys=True, default=str),
+                               file_name="integrity_manifest_v150.json", mime="application/json", use_container_width=True, key="v150_dl_mf")
+    
+            if st.button("Save paper pack to Vault", key="v150_save_vault"):
+                root = Path(__file__).resolve().parents[1]
+                run_vault.write_entry(root=root, kind="paper_pack", payload={"study_registry": bun.get("study_registry"), "manifest": bun.get("manifest")}, mode="v150",
+                                      files={
+                                          "paper_pack_v150.zip": bun["zip_bytes"],
+                                          "study_registry_v149.json": _json.dumps(bun.get("study_registry") or {}, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                                          "integrity_manifest_v150.json": _json.dumps(bun.get("manifest") or {}, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                                      })
+                st.success("Saved.")
+    
+    
+    # =====================
+    # v152 Integrity Lock helpers
+    # =====================
+    def _v152_artifact_sha(payload):
+        import json, hashlib
+        b = json.dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8")
+        return hashlib.sha256(b).hexdigest()
+    
+    def _v152_get_lock_for_run(run_id: str):
+        import streamlit as st
+        locks = st.session_state.get("v152_locks") or {}
+        return locks.get(run_id) if isinstance(locks, dict) else None
+    
+    def _v152_set_lock_for_run(run_id: str, lock_obj: dict):
+        import streamlit as st
+        locks = st.session_state.get("v152_locks")
+        if not isinstance(locks, dict):
+            locks = {}
+        locks[str(run_id)] = lock_obj
+        st.session_state["v152_locks"] = locks
+    
+    def _v152_integrity_status(run_id: str, payload: dict):
+        lock = _v152_get_lock_for_run(run_id)
+        if not isinstance(lock, dict):
+            return ("UNLOCKED", None)
+        # compare current artifact sha with stored
+        expected = ((lock.get("files") or {}).get("run_artifact.json") or {}).get("sha256")
+        cur = _v152_artifact_sha(payload)
+        if expected and cur == expected:
+            return ("VERIFIED", cur)
+        return ("MODIFIED", cur)
+    
+    def _v152_integrity_panel():
+        import streamlit as st
+        from pathlib import Path
+        from tools.run_integrity_lock import lock_run, verify_run
+        from tools import run_vault
+    
+        st.subheader("Run Integrity Lock")
+        st.caption("Lock a run artifact hash and later verify whether it changed. Downstream-only.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first.")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Select run to lock/verify", options=ids, index=len(ids)-1, key="v152_pick_run")
+        payload = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
+            st.error("Selected run payload missing.")
+            return
+    
+        status, cur_sha = _v152_integrity_status(rid, payload)
+        st.write(f"Status: **{status}**")
+        if cur_sha:
+            st.code(cur_sha)
+    
+        if st.button("Lock integrity for this run", key="v152_lock"):
+            out = lock_run(run_id=str(rid), run_artifact=payload, extras=None, policy={"mode":"ui"})
+            lock_obj = out["lock"]
+            _v152_set_lock_for_run(rid, lock_obj)
+            st.session_state["v152_last_lock"] = lock_obj
+            st.success("Locked.")
+            _v98_record_run("integrity_lock", {"status":"locked"}, mode="v152")
+    
+        lock_obj = _v152_get_lock_for_run(rid) or st.session_state.get("v152_last_lock")
+        if isinstance(lock_obj, dict):
+            rep = verify_run(lock_obj, payload, extras=None)
+            st.json(rep)
+            st.download_button("Download run_integrity_lock_v152.json", data=_json.dumps(lock_obj, indent=2, sort_keys=True, default=str),
+                               file_name="run_integrity_lock_v152.json", mime="application/json", use_container_width=True, key="v152_dl_lock")
+            st.download_button("Download run_integrity_verify_v152.json", data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
+                               file_name="run_integrity_verify_v152.json", mime="application/json", use_container_width=True, key="v152_dl_rep")
+    
+            if st.button("Save integrity lock to Vault", key="v152_save_vault"):
+                root = Path(__file__).resolve().parents[1]
+                run_vault.write_entry(root=root, kind="run_integrity_lock", payload={"lock": lock_obj, "verify": rep}, mode="v152",
+                                      files={
+                                          "run_integrity_lock_v152.json": _json.dumps(lock_obj, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                                          "run_integrity_verify_v152.json": _json.dumps(rep, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                                      })
+                st.success("Saved.")
+    
+    
+    # =====================
+    # v153–v155 Study Kit Extensions
+    # =====================
+    def _v153_doi_export_panel():
+        import streamlit as st
+        from tools.doi_export import zenodo_metadata_from_registry, crossref_minimal_from_registry
+    
+        st.subheader("DOI Export Helper")
+        st.caption("Export Zenodo/Crossref-style metadata from the latest study registry built in this session.")
+    
+        bun = st.session_state.get("v150_pack")
+        reg = (bun or {}).get("study_registry") if isinstance(bun, dict) else None
+        if not isinstance(reg, dict):
+            st.info("Build a Paper Pack first (Publishable Study Kit panel).")
+            return
+    
+        comm = st.text_input("Zenodo communities (comma-separated identifiers)", value="", key="v153_comm")
+        kws = st.text_input("Keywords (comma-separated)", value="", key="v153_kws")
+        doi = st.text_input("DOI (optional)", value="", key="v153_doi")
+        publisher = st.text_input("Publisher (optional)", value="SHAMS", key="v153_pub")
+        url = st.text_input("Resource URL (optional)", value="", key="v153_url")
+    
+        communities=[c.strip() for c in comm.split(",") if c.strip()] if comm else []
+        keywords=[k.strip() for k in kws.split(",") if k.strip()] if kws else []
+    
+        zen = zenodo_metadata_from_registry(reg, communities=communities, keywords=keywords)
+        cr  = crossref_minimal_from_registry(reg, doi=doi, publisher=publisher, resource_url=url)
+    
+        st.download_button("Download zenodo_metadata_v153.json", data=_json.dumps(zen, indent=2, sort_keys=True, default=str),
+                           file_name="zenodo_metadata_v153.json", mime="application/json", use_container_width=True, key="v153_dl_zen")
+        st.download_button("Download crossref_minimal_v153.json", data=_json.dumps(cr, indent=2, sort_keys=True, default=str),
+                           file_name="crossref_minimal_v153.json", mime="application/json", use_container_width=True, key="v153_dl_cr")
+    
+    def _v154_caption_editor_panel():
+        import streamlit as st
+        st.subheader("Caption Editor")
+        st.caption("Edit captions for figures/tables included in the paper pack. Captions are stored in session and exported into paper packs.")
+    
+        # Captions live in session state and are applied when building the paper pack.
+        caps = st.session_state.get("v154_captions")
+        if not isinstance(caps, dict):
+            caps = {}
+            st.session_state["v154_captions"] = caps
+    
+        # Show detected figure/table filenames from latest built pack, if any
+        bun = st.session_state.get("v150_pack")
+        reg = (bun or {}).get("study_registry") if isinstance(bun, dict) else None
+        names=[]
+        if isinstance(reg, dict):
+            for ref in (reg.get("figures") or []):
+                if isinstance(ref, dict) and ref.get("name"):
+                    names.append(ref["name"])
+            for ref in (reg.get("tables") or []):
+                if isinstance(ref, dict) and ref.get("name"):
+                    names.append(ref["name"])
+        names = sorted(set(names))
+    
+        if not names:
+            st.info("No figures/tables detected yet. Build a Paper Pack with v151 session-bundle harvesting enabled.")
+        else:
+            pick = st.selectbox("Select figure/table", options=names, key="v154_pick")
+            cur = caps.get(pick, f"Figure/Table: {pick}.")
+            new = st.text_area("Caption text", value=cur, height=120, key="v154_text")
+            if st.button("Save caption", key="v154_save"):
+                caps[pick] = new
+                st.session_state["v154_captions"] = caps
+                st.success("Saved.")
+            st.download_button("Download captions_override_v154.json", data=_json.dumps({"captions": caps}, indent=2, sort_keys=True, default=str),
+                               file_name="captions_override_v154.json", mime="application/json", use_container_width=True, key="v154_dl")
+    
+    def _v155_multi_study_pack_panel():
+        import streamlit as st
+        from tools.multi_study_pack import build_multi_study_pack
+    
+        st.subheader("Multi-Study Comparison Pack")
+        st.caption("Upload multiple paper packs and export a comparison bundle with a multi-pack integrity manifest.")
+    
+        files = st.file_uploader("Upload paper_pack_v150.zip files", type=["zip"], accept_multiple_files=True, key="v155_upload")
+        if not files:
+            st.info("Upload 2+ paper packs to compare.")
+            return
+        packs=[]
+        for f in files:
+            packs.append((f.name, f.getvalue()))
+    
+        bun = build_multi_study_pack(packs, policy={"source":"ui"})
+        st.json({"n_packs": len(packs), "manifest_sha256": (bun.get("manifest") or {}).get("hashes",{}).get("manifest_sha256")})
+        st.download_button("Download multi_study_pack_v155.zip", data=bun["zip_bytes"], file_name="multi_study_pack_v155.zip",
+                           mime="application/zip", use_container_width=True, key="v155_dl_zip")
+        st.download_button("Download comparison_report_v155.json", data=_json.dumps(bun.get("bundle") or {}, indent=2, sort_keys=True, default=str),
+                           file_name="comparison_report_v155.json", mime="application/json", use_container_width=True, key="v155_dl_rep")
+    
+    
+    # =====================
+    # v156 / v160 Design Space Authority (Atlas + Certificates)
+    # =====================
+    def _v156_feasibility_atlas_panel():
+        import streamlit as st
+        from tools.feasibility_field import build_feasibility_field
+    
+        st.subheader("Feasibility Atlas")
+        st.caption("Sample a 2D design space slice and export a feasibility field + atlas bundle.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Baseline run", options=ids, index=len(ids)-1, key="v156_base_run")
+        payload = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
+            st.error("Selected baseline run payload missing.")
+            return
+        baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
+        if not isinstance(baseline_inputs, dict) or not baseline_inputs:
+            st.error("Baseline inputs missing.")
+            return
+    
+        keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
+        col1,col2=st.columns(2)
+        with col1:
+            a1 = st.selectbox("Axis 1 parameter", options=keys, index=0 if keys else 0, key="v156_a1")
+            a1_start = st.number_input("Axis 1 start", value=float(baseline_inputs.get(a1, 0.0) or 0.0), key="v156_a1s")
+            a1_stop  = st.number_input("Axis 1 stop", value=float(baseline_inputs.get(a1, 1.0) or 1.0)+1.0, key="v156_a1e")
+            a1_n     = st.number_input("Axis 1 N", value=25, min_value=2, max_value=250, step=1, key="v156_a1n")
+        with col2:
+            a2 = st.selectbox("Axis 2 parameter", options=keys, index=1 if len(keys)>1 else 0, key="v156_a2")
+            a2_start = st.number_input("Axis 2 start", value=float(baseline_inputs.get(a2, 0.0) or 0.0), key="v156_a2s")
+            a2_stop  = st.number_input("Axis 2 stop", value=float(baseline_inputs.get(a2, 1.0) or 1.0)+1.0, key="v156_a2e")
+            a2_n     = st.number_input("Axis 2 N", value=25, min_value=2, max_value=250, step=1, key="v156_a2n")
+    
+        fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=90, key="v156_fixed")
+        assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=90, key="v156_assumptions")
+        margin_eps = st.number_input("Margin epsilon for feasible", value=1e-6, format="%.1e", key="v156_eps")
+        run_btn = st.button("Build Feasibility Field", use_container_width=True, key="v156_run")
+    
+        if run_btn:
+            try:
+                fixed = _json.loads(fixed_json) if fixed_json.strip() else []
+                assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
             except Exception as e:
                 st.error(f"JSON parse error: {e}")
                 return
-            lock = build_repro_lock(run_artifact=run_art, lock_overrides={"tolerances": tol, "notes":[ln.strip() for ln in notes.splitlines() if ln.strip()]})
-            st.session_state["v166_lock"] = lock
-            sha = ((lock.get("payload") or {}).get("integrity") or {}).get("lock_sha256")
-            st.success(f"Lock created. lock_sha256: {sha}")
-            st.download_button("Download repro_lock_v166.json",
-                               data=_json.dumps(lock, indent=2, sort_keys=True, default=str),
-                               file_name="repro_lock_v166.json",
+    
+            axis1={"name": a1, "role":"axis", "grid":{"type":"linspace","start": float(a1_start), "stop": float(a1_stop), "n": int(a1_n)}}
+            axis2={"name": a2, "role":"axis", "grid":{"type":"linspace","start": float(a2_start), "stop": float(a2_stop), "n": int(a2_n)}}
+            with st.spinner("Sampling feasibility field..."):
+                out = build_feasibility_field(
+                    baseline_inputs=baseline_inputs,
+                    axis1=axis1,
+                    axis2=axis2,
+                    fixed=fixed if isinstance(fixed, list) else [],
+                    assumption_set=assumptions if isinstance(assumptions, dict) else {},
+                    sampling={"generator":"ui","strategy":"grid"},
+                    solver_meta={"label":"feasibility_field_v156"},
+                    margin_eps=float(margin_eps),
+                )
+            st.session_state["v156_field"] = out["field"]
+            st.session_state["v156_atlas_zip"] = out["zip_bytes"]
+            summ = (((out["field"].get("payload") or {}).get("field") or {}).get("summaries") or {})
+            st.success("Built.")
+            st.json(summ)
+            st.download_button("Download feasibility_atlas_bundle_v156.zip", data=out["zip_bytes"], file_name="feasibility_atlas_bundle_v156.zip",
+                               mime="application/zip", use_container_width=True, key="v156_dl_zip")
+            st.download_button("Download feasibility_field_v156.json", data=_json.dumps(out["field"], indent=2, sort_keys=True, default=str),
+                               file_name="feasibility_field_v156.json", mime="application/json", use_container_width=True, key="v156_dl_json")
+    
+    def _v160_authority_certificate_panel():
+        import streamlit as st
+        from tools.feasibility_authority_certificate import issue_certificate_from_field
+    
+        st.subheader("Feasibility Authority Certificate")
+        st.caption("Issue an authority certificate from a feasibility field (dense sampling basis).")
+    
+        field = st.session_state.get("v156_field")
+        up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v160_upload")
+        if up is not None:
+            try:
+                field = _json.loads(up.getvalue().decode("utf-8"))
+            except Exception as e:
+                st.error(f"Invalid JSON: {e}")
+                return
+    
+        if not isinstance(field, dict):
+            st.info("Build a Feasibility Field first or upload one here.")
+            return
+    
+        claim = st.selectbox("Claim type", options=["feasible_region","excluded_region","boundary_surface","completion_existence"], index=1, key="v160_claim")
+        default_stmt = "Under assumption_set SHA256=..., region sampled is excluded/feasible under dense sampling evidence."
+        stmt = st.text_area("Claim statement (human-readable, publishable)", value=default_stmt, height=110, key="v160_stmt")
+        conf = st.number_input("Confidence level", value=0.95, min_value=0.5, max_value=0.999, step=0.01, key="v160_conf")
+        grade = st.selectbox("Grade", options=["A","B","C"], index=1, key="v160_grade")
+    
+        if st.button("Issue Certificate", use_container_width=True, key="v160_issue"):
+            cert = issue_certificate_from_field(field=field, claim_type=claim, statement=stmt, confidence_level=float(conf), confidence_grade=str(grade), policy={"mode":"ui"})
+            st.session_state["v160_cert"] = cert
+            st.success("Issued.")
+            st.json(cert.get("payload") or {})
+            st.download_button("Download feasibility_authority_certificate_v160.json",
+                               data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
+                               file_name="feasibility_authority_certificate_v160.json",
+                               mime="application/json", use_container_width=True, key="v160_dl")
+    
+    
+    # =====================
+    # v157 Feasibility Boundary Extractor
+    # =====================
+    def _v157_feasibility_boundary_panel():
+        import streamlit as st
+        from tools.feasibility_boundary import build_feasibility_boundary
+    
+        st.subheader("Feasibility Boundary")
+        st.caption("Extract a feasibility boundary curve from a v156 feasibility field (grid interpolation).")
+    
+        field = st.session_state.get("v156_field")
+        up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v157_upload")
+        if up is not None:
+            try:
+                field = _json.loads(up.getvalue().decode("utf-8"))
+            except Exception as e:
+                st.error(f"Invalid JSON: {e}")
+                return
+        if not isinstance(field, dict):
+            st.info("Build a Feasibility Field first or upload one here.")
+            return
+    
+        prefer_lowest = st.checkbox("Prefer lowest Axis2 crossing (typical min required)", value=True, key="v157_low")
+        if st.button("Extract Boundary", use_container_width=True, key="v157_run"):
+            b = build_feasibility_boundary(field=field, prefer_lowest_axis2=bool(prefer_lowest))
+            st.session_state["v157_boundary"] = b
+            st.success(f"Extracted {len(((b.get('payload') or {}).get('boundary') or {}).get('samples') or [])} samples.")
+            st.json((b.get("payload") or {}).get("boundary_definition") or {})
+            st.download_button("Download feasibility_boundary_v157.json",
+                               data=_json.dumps(b, indent=2, sort_keys=True, default=str),
+                               file_name="feasibility_boundary_v157.json",
                                mime="application/json",
                                use_container_width=True,
-                               key="v166_dl_lock")
-    with col2:
-        lock_up = st.file_uploader("Or upload existing lock JSON", type=["json"], key="v166_up_lock")
-
-    lock = st.session_state.get("v166_lock")
-    if lock_up is not None:
-        try:
-            lock = _json.loads(lock_up.getvalue().decode("utf-8"))
-            st.session_state["v166_lock"] = lock
-        except Exception:
-            st.warning("Could not parse uploaded lock JSON.")
-
-    st.markdown("### Replay check")
-    ao_json = st.text_area("assumption_set override (JSON, optional)", value="{}", height=80, key="v166_ao")
-    if st.button("Run Replay Check", use_container_width=True, key="v166_replay"):
-        if not isinstance(lock, dict) or lock.get("kind")!="shams_repro_lock":
-            st.error("No valid lock loaded. Create or upload a lock first.")
+                               key="v157_dl")
+    
+    
+    # =====================
+    # v158 Constraint Dominance Topology
+    # =====================
+    def _v158_constraint_dominance_panel():
+        import streamlit as st
+        from tools.constraint_dominance import build_constraint_dominance
+    
+        st.subheader("Constraint Dominance Topology")
+        st.caption("Explain why regions fail: dominant violated constraint maps + connected components (grid topology).")
+    
+        field = st.session_state.get("v156_field")
+        up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v158_upload")
+        if up is not None:
+            try:
+                field = _json.loads(up.getvalue().decode("utf-8"))
+            except Exception as e:
+                st.error(f"Invalid JSON: {e}")
+                return
+        if not isinstance(field, dict):
+            st.info("Build a Feasibility Field first or upload one here.")
             return
-        try:
-            ao = _json.loads(ao_json) if ao_json.strip() else {}
-        except Exception as e:
-            st.error(f"JSON parse error: {e}")
+    
+        include_all = st.checkbox("Include feasible points in dominance map (larger JSON)", value=False, key="v158_all")
+        if st.button("Compute Dominance Topology", use_container_width=True, key="v158_run"):
+            dom = build_constraint_dominance(field=field, only_infeasible=(not include_all))
+            st.session_state["v158_dom"] = dom
+            summ = (((dom.get("payload") or {}).get("dominance") or {}).get("summary") or {})
+            st.success("Computed.")
+            st.json(summ)
+            st.download_button("Download constraint_dominance_v158.json",
+                               data=_json.dumps(dom, indent=2, sort_keys=True, default=str),
+                               file_name="constraint_dominance_v158.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v158_dl")
+    
+    
+    # =====================
+    # v159 Feasibility Completion Evidence
+    # =====================
+    def _v159_feasibility_completion_panel():
+        import streamlit as st
+        from tools.feasibility_completion_evidence import build_feasibility_completion_evidence
+    
+        st.subheader("Feasibility Completion Evidence")
+        st.caption("Given partial inputs + bounds on unknowns, search for a feasible completion witness and report bottlenecks.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
             return
-        rep = replay_check(lock=lock, assumption_set_override=ao if isinstance(ao, dict) else None, policy={"generator":"ui"})
-        st.session_state["v166_replay"] = rep
-        ok = ((rep.get("payload") or {}).get("ok"))
-        st.success("Replay OK" if ok else "Replay NOT OK")
-        st.json((rep.get("payload") or {}).get("checks") or {})
-        st.download_button("Download replay_report_v166.json",
-                           data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
-                           file_name="replay_report_v166.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v166_dl_rep")
-
-
-# =====================
-# v167 Design Study Authority Pack
-# =====================
-def _v167_authority_pack_panel():
-    import streamlit as st
-    from tools.authority_pack_v167 import build_authority_pack
-
-    st.subheader("Design Study Authority Pack")
-    st.caption("One downloadable ZIP bundling protocol + lock + replay + completion + sensitivity (+ certificate if available).")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Select run artifact to include", options=ids, index=len(ids)-1, key="v167_run_id")
-    run_art = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
-        st.error("Selected run is missing shams_run_artifact payload.")
-        return
-
-    st.markdown("### Auto-pick from session state (recommended)")
-    prot = st.session_state.get("v165_protocol")
-    lock = st.session_state.get("v166_lock")
-    replay = st.session_state.get("v166_replay")
-    comp = st.session_state.get("v163_pack")
-    sens = st.session_state.get("v164_sensitivity")
-    cert = st.session_state.get("v160_certificate")
-
-    st.markdown("### Optional: upload any missing JSONs")
-    col1,col2,col3 = st.columns(3)
-    with col1:
-        up_prot = st.file_uploader("upload study_protocol_v165.json", type=["json"], key="v167_up_prot")
-        up_lock = st.file_uploader("upload repro_lock_v166.json", type=["json"], key="v167_up_lock")
-    with col2:
-        up_rep = st.file_uploader("upload replay_report_v166.json", type=["json"], key="v167_up_rep")
-        up_comp = st.file_uploader("upload completion_pack_v163.json", type=["json"], key="v167_up_comp")
-    with col3:
-        up_sens = st.file_uploader("upload sensitivity_v164.json", type=["json"], key="v167_up_sens")
-        up_cert = st.file_uploader("upload certificate_v160.json", type=["json"], key="v167_up_cert")
-
-    def _load(up):
-        if up is None:
-            return None
-        try:
-            return _json.loads(up.getvalue().decode("utf-8"))
-        except Exception:
-            return None
-
-    prot = _load(up_prot) or prot
-    lock = _load(up_lock) or lock
-    replay = _load(up_rep) or replay
-    comp = _load(up_comp) or comp
-    sens = _load(up_sens) or sens
-    cert = _load(up_cert) or cert
-
-    if st.button("Build Authority Pack ZIP", use_container_width=True, key="v167_build"):
-        res = build_authority_pack(
-            run_artifact=run_art,
-            study_protocol_v165=prot,
-            repro_lock_v166=lock,
-            replay_report_v166=replay,
-            completion_pack_v163=comp,
-            sensitivity_v164=sens,
-            certificate_v160=cert,
-            policy={"generator":"ui"},
-        )
-        st.session_state["v167_manifest"] = res["manifest"]
-        st.success(f"Built authority_pack_v167.zip (sha256={res['pack']['integrity']['zip_sha256']})")
-        st.json(res["manifest"])
-        st.download_button("Download authority_pack_v167.zip",
-                           data=res["zip_bytes"],
-                           file_name="authority_pack_v167.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v167_dl_zip")
-
-
-# =====================
-# v168 Citation-Grade Study Reference
-# =====================
-def _v168_citation_panel():
-    import streamlit as st
-    from tools.citation_v168 import build_citation_bundle
-
-    st.subheader("Citation-Grade Study Reference")
-    st.caption("Generate Study ID + CITATION.cff + BibTeX from protocol/lock/authority-pack manifest.")
-
-    prot = st.session_state.get("v165_protocol")
-    lock = st.session_state.get("v166_lock")
-    manifest = st.session_state.get("v167_manifest")
-
-    st.markdown("### Inputs (auto-pick from session state or upload)")
-    col1,col2,col3 = st.columns(3)
-    with col1:
-        up_prot = st.file_uploader("upload study_protocol_v165.json", type=["json"], key="v168_up_prot")
-    with col2:
-        up_lock = st.file_uploader("upload repro_lock_v166.json", type=["json"], key="v168_up_lock")
-    with col3:
-        up_man = st.file_uploader("upload authority_pack_manifest_v167.json", type=["json"], key="v168_up_man")
-
-    def _load(up):
-        if up is None:
-            return None
-        try:
-            return _json.loads(up.getvalue().decode("utf-8"))
-        except Exception:
-            return None
-
-    prot = _load(up_prot) or prot
-    lock = _load(up_lock) or lock
-    manifest = _load(up_man) or manifest
-
-    st.markdown("### Metadata (optional)")
-    title = st.text_input("Title override (optional)", value="", key="v168_title")
-    repo_url = st.text_input("Repository/URL (optional)", value="", key="v168_repo")
-    doi = st.text_input("DOI (optional)", value="", key="v168_doi")
-    author = st.text_input("Author name (optional)", value="SHAMS–FUSION-X Contributors", key="v168_author")
-
-    if st.button("Generate Citation Bundle", use_container_width=True, key="v168_run"):
-        if not (isinstance(prot, dict) and prot.get("kind")=="shams_study_protocol"):
-            st.error("Need a valid study_protocol_v165.json (generate in v165).")
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Baseline run (provides default known inputs)", options=ids, index=len(ids)-1, key="v159_base_run")
+        payload = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
+            st.error("Selected baseline run payload missing.")
             return
-        meta={
-            "title": title or None,
-            "repository": repo_url or None,
-            "url": repo_url or None,
-            "doi": doi or None,
-            "authors": [{"name": author}] if author else [{"name":"SHAMS–FUSION-X Contributors"}],
-            "version": "v168",
-        }
-        res = build_citation_bundle(
-            study_protocol_v165=prot,
-            repro_lock_v166=lock if isinstance(lock, dict) else None,
-            authority_pack_manifest_v167=manifest if isinstance(manifest, dict) else None,
-            metadata=meta,
-        )
-        st.session_state["v168_citation"] = res
-        sid = ((res.get("payload") or {}).get("study_id"))
-        st.success(f"Study ID: {sid}")
-        st.download_button("Download citation_bundle_v168.json",
-                           data=_json.dumps(res, indent=2, sort_keys=True, default=str),
-                           file_name="citation_bundle_v168.json",
-                           mime="application/json",
-                           use_container_width=True,
-                           key="v168_dl_json")
-        st.download_button("Download CITATION.cff",
-                           data=(res.get("payload") or {}).get("citation_cff_text",""),
-                           file_name="CITATION.cff",
-                           mime="text/yaml",
-                           use_container_width=True,
-                           key="v168_dl_cff")
-        st.download_button("Download study_citation_v168.bib",
-                           data=(res.get("payload") or {}).get("bibtex_text",""),
-                           file_name="study_citation_v168.bib",
-                           mime="text/plain",
-                           use_container_width=True,
-                           key="v168_dl_bib")
-        st.download_button("Download study_reference_v168.md",
-                           data=(res.get("payload") or {}).get("reference_markdown",""),
-                           file_name="study_reference_v168.md",
-                           mime="text/markdown",
-                           use_container_width=True,
-                           key="v168_dl_md")
-
-
-# =====================
-# v169 Feasibility Boundary Atlas (figure pack)
-# =====================
-def _v169_atlas_panel():
-    import streamlit as st
-    from tools.atlas_v169 import build_atlas_pack
-
-    st.subheader("Feasibility Boundary Atlas")
-    st.caption("Generate a publishable atlas-style figure pack with consistent captions and a hash manifest.")
-
-    sens = st.session_state.get("v164_sensitivity")
-    st.markdown("### Input")
-    up_sens = st.file_uploader("Upload sensitivity_v164.json (optional)", type=["json"], key="v169_up_sens")
-
-    if up_sens is not None:
-        try:
-            sens = _json.loads(up_sens.getvalue().decode("utf-8"))
-        except Exception:
-            st.warning("Could not parse uploaded JSON.")
-
-    if not isinstance(sens, dict):
-        st.info("Run v164 Sensitivity first (or upload sensitivity_v164.json) to build the initial atlas.")
-        return
-
-    if st.button("Build Atlas Pack ZIP", use_container_width=True, key="v169_build"):
-        res = build_atlas_pack(sensitivity_v164=sens, policy={"generator":"ui"})
-        st.session_state["v169_manifest"] = res["manifest"]
-        st.success(f"Built atlas_pack_v169.zip (sha256={res['pack']['integrity']['zip_sha256']})")
-        st.json(res["manifest"])
-        st.download_button("Download atlas_pack_v169.zip",
-                           data=res["zip_bytes"],
-                           file_name="atlas_pack_v169.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v169_dl_zip")
-
-
-# =====================
-# v170 SHAMS → external systems codes Downstream Export
-# =====================
-def _v170_process_export_panel():
-    import streamlit as st
-    from tools.process_export_v170 import build_process_export_pack
-
-    st.subheader("SHAMS → external systems codes Downstream Export")
-    st.caption("Export SHAMS study outputs into transparent (systems-code-inspired) tables, keeping SHAMS as upstream authority.")
-
-    s = _v98_state_init_runlists()
-    runs = [r for r in (s.run_history or []) if r.get("id")]
-    if not runs:
-        st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
-        return
-    ids=[r.get("id") for r in runs]
-    run_map={r.get("id"): r for r in runs}
-    rid = st.selectbox("Select run artifact to export", options=ids, index=len(ids)-1, key="v170_run_id")
-    run_art = (run_map.get(rid) or {}).get("payload")
-    if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
-        st.error("Selected run is missing shams_run_artifact payload.")
-        return
-
-    comp = st.session_state.get("v163_pack")
-    cite = st.session_state.get("v168_citation")
-
-    st.markdown("### Optional attachments")
-    st.write("- completion_pack_v163.json:", "yes" if isinstance(comp, dict) else "no")
-    st.write("- citation_bundle_v168.json:", "yes" if isinstance(cite, dict) else "no")
-
-    if st.button("Build external systems codes Export Pack ZIP", use_container_width=True, key="v170_build"):
-        res = build_process_export_pack(
-            run_artifact=run_art,
-            completion_pack_v163=comp if isinstance(comp, dict) else None,
-            citation_bundle_v168=cite if isinstance(cite, dict) else None,
-            policy={"generator":"ui"},
-        )
-        st.session_state["v170_manifest"] = res["manifest"]
-        st.success(f"Built process_export_pack_v170.zip (sha256={res['pack']['integrity']['zip_sha256']})")
-        st.json(res["manifest"])
-        st.download_button("Download process_export_pack_v170.zip",
-                           data=res["zip_bytes"],
-                           file_name="process_export_pack_v170.zip",
-                           mime="application/zip",
-                           use_container_width=True,
-                           key="v170_dl_zip")
-
-
-# =====================
-# v172 Demo seed + hydration
-# =====================
-def _v172_demo_loader():
-    import streamlit as st
-    from tools.demo_seed_v172 import install_demo_bundle
-    st.subheader("Demo seed")
-    st.caption("Loads synthetic demo artifacts into session state so every panel shows content offline. Not authoritative.")
-    col1,col2 = st.columns([1,2])
-    with col1:
-        if st.button("Load demo artifacts", use_container_width=True, key="v172_load_demo"):
-            install_demo_bundle(st.session_state)
-            st.success("Demo artifacts loaded into session state.")
-    with col2:
-        if st.button("Clear demo artifacts", use_container_width=True, key="v172_clear_demo"):
-            for k in ["v164_sensitivity","v165_protocol","v166_lock","v166_replay","v167_manifest","v168_citation","v163_pack",
-                      "pd_last_outputs","pd_last_artifact","demo_run_artifact"]:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.success("Demo artifacts cleared.")
-
-
-# --- Deferred PAM render ---
-try:
-    if 'pam_placeholder' in globals() and pam_placeholder is not None:
-        with pam_placeholder.container():
-            _v175_panel_availability_map_panel()
-except Exception as _e:
-    # Never fail the whole app due to PAM rendering
+        baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
+        if not isinstance(baseline_inputs, dict) or not baseline_inputs:
+            st.error("Baseline inputs missing.")
+            return
+    
+        st.markdown("### Unknowns to search")
+        keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
+        unk = st.multiselect("Select unknown parameters (will be randomized within bounds)", options=keys, default=[k for k in keys if k in ("R0_m","B0_T")], key="v159_unk_keys")
+        st.caption('Provide bounds as JSON list: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
+        default_bounds=_json.dumps([{"name":k, "bounds":[float(baseline_inputs.get(k,0.0) or 0.0)*0.9, float(baseline_inputs.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (unk or [])][:6], indent=2)
+        bounds_json = st.text_area("Unknown bounds (JSON)", value=default_bounds, height=140, key="v159_bounds")
+        fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=80, key="v159_fixed")
+        assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v159_assumptions")
+    
+        col1,col2,col3=st.columns(3)
+        with col1:
+            n_samples = st.number_input("Samples", value=400, min_value=20, max_value=20000, step=20, key="v159_n")
+        with col2:
+            seed = st.number_input("Seed", value=0, min_value=0, max_value=10_000_000, step=1, key="v159_seed")
+        with col3:
+            strategy = st.selectbox("Strategy", options=["random","lhs"], index=0, key="v159_strategy")
+    
+        if st.button("Search Completion Witness", use_container_width=True, key="v159_run"):
+            try:
+                unknowns = _json.loads(bounds_json) if bounds_json.strip() else []
+                fixed = _json.loads(fixed_json) if fixed_json.strip() else []
+                assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
+            except Exception as e:
+                st.error(f"JSON parse error: {e}")
+                return
+    
+            # known = baseline minus unknown keys
+            known = {k:v for k,v in baseline_inputs.items() if (k not in set(unk or []))}
+            with st.spinner("Sampling for feasibility completion..."):
+                ev = build_feasibility_completion_evidence(
+                    known=known,
+                    unknowns=unknowns,
+                    fixed=fixed if isinstance(fixed,list) else [],
+                    assumption_set=assumptions if isinstance(assumptions,dict) else {},
+                    n_samples=int(n_samples),
+                    seed=int(seed),
+                    strategy=str(strategy),
+                    policy={"generator":"ui"},
+                )
+            st.session_state["v159_completion"] = ev
+            res=((ev.get("payload") or {}).get("result") or {})
+            st.success(f"Verdict: {res.get('verdict')}")
+            st.json(res.get("bottleneck") or {})
+            st.download_button("Download feasibility_completion_evidence_v159.json",
+                               data=_json.dumps(ev, indent=2, sort_keys=True, default=str),
+                               file_name="feasibility_completion_evidence_v159.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v159_dl")
+    
+    
+    # =====================
+    # v161 Completion Frontier + Minimal Change Distance
+    # =====================
+    def _v161_completion_frontier_panel():
+        import streamlit as st
+        from tools.completion_frontier import build_completion_frontier
+    
+        st.subheader("Completion Frontier")
+        st.caption("Quantify how far a baseline guess is from feasibility: minimal-change feasible witness + distance–margin frontier.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Baseline run (baseline guess x0)", options=ids, index=len(ids)-1, key="v161_base_run")
+        payload = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
+            st.error("Selected baseline run payload missing.")
+            return
+        baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
+        if not isinstance(baseline_inputs, dict) or not baseline_inputs:
+            st.error("Baseline inputs missing.")
+            return
+    
+        st.markdown("### Decision variables (vary to reach feasibility)")
+        keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
+        dv = st.multiselect("Select decision variables", options=keys, default=[k for k in keys if k in ("R0_m","B0_T","q95","kappa")], key="v161_dv_keys")
+        default_bounds=_json.dumps([{"name":k, "bounds":[float(baseline_inputs.get(k,0.0) or 0.0)*0.9, float(baseline_inputs.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (dv or [])][:8], indent=2)
+        st.caption('Bounds JSON example: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
+        bounds_json = st.text_area("Decision variable bounds (JSON)", value=default_bounds, height=160, key="v161_bounds")
+        fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=80, key="v161_fixed")
+        assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v161_assumptions")
+    
+        col1,col2,col3=st.columns(3)
+        with col1:
+            n_samples = st.number_input("Samples", value=800, min_value=40, max_value=50000, step=40, key="v161_n")
+        with col2:
+            seed = st.number_input("Seed", value=0, min_value=0, max_value=10_000_000, step=1, key="v161_seed")
+        with col3:
+            strategy = st.selectbox("Strategy", options=["random","lhs"], index=0, key="v161_strategy")
+    
+        if st.button("Compute Completion Frontier", use_container_width=True, key="v161_run"):
+            try:
+                vars_spec = _json.loads(bounds_json) if bounds_json.strip() else []
+                fixed = _json.loads(fixed_json) if fixed_json.strip() else []
+                assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
+            except Exception as e:
+                st.error(f"JSON parse error: {e}")
+                return
+            with st.spinner("Sampling and evaluating frontier..."):
+                out = build_completion_frontier(
+                    baseline=baseline_inputs,
+                    decision_vars=vars_spec,
+                    fixed=fixed if isinstance(fixed,list) else [],
+                    assumption_set=assumptions if isinstance(assumptions,dict) else {},
+                    n_samples=int(n_samples),
+                    seed=int(seed),
+                    strategy=str(strategy),
+                    policy={"generator":"ui"},
+                )
+            st.session_state["v161_frontier"] = out
+            res=((out.get("payload") or {}).get("result") or {})
+            st.success("Computed.")
+            st.markdown("**Minimal-change feasible witness**")
+            st.json(res.get("minimal_change_feasible") or {})
+            st.markdown("**Frontier (preview)**")
+            st.json((res.get("frontier") or [])[:20])
+            st.download_button("Download completion_frontier_v161.json",
+                               data=_json.dumps(out, indent=2, sort_keys=True, default=str),
+                               file_name="completion_frontier_v161.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v161_dl")
+    
+    
+    # =====================
+    # v162 Directed Local Search (safe)
+    # =====================
+    def _v162_directed_local_search_panel():
+        import streamlit as st
+        from tools.directed_local_search import build_directed_local_search
+    
+        st.subheader("Directed Local Search")
+        st.caption("A safe, bounded local search that tries to reach feasibility with minimal evaluations (downstream-only).")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Baseline run (starting guess)", options=ids, index=len(ids)-1, key="v162_base_run")
+        payload = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact"):
+            st.error("Selected baseline run payload missing.")
+            return
+        baseline_inputs = payload.get("inputs") or payload.get("_inputs") or {}
+        if not isinstance(baseline_inputs, dict) or not baseline_inputs:
+            st.error("Baseline inputs missing.")
+            return
+    
+        st.markdown("### Decision variables")
+        keys=sorted([k for k in baseline_inputs.keys() if isinstance(k,str)])
+        dv = st.multiselect("Select decision variables to adjust", options=keys, default=[k for k in keys if k in ("R0_m","B0_T","q95","kappa")], key="v162_dv_keys")
+        default_bounds=_json.dumps([{"name":k, "bounds":[float(baseline_inputs.get(k,0.0) or 0.0)*0.9, float(baseline_inputs.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (dv or [])][:8], indent=2)
+        st.caption('Bounds JSON example: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
+        bounds_json = st.text_area("Decision variable bounds (JSON)", value=default_bounds, height=160, key="v162_bounds")
+        fixed_json = st.text_area("Fixed overrides (JSON list of {name,value})", value="[]", height=80, key="v162_fixed")
+        assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v162_assumptions")
+    
+        col1,col2,col3,col4=st.columns(4)
+        with col1:
+            max_evals = st.number_input("Max evals", value=200, min_value=30, max_value=5000, step=10, key="v162_maxeval")
+        with col2:
+            seed = st.number_input("Seed", value=0, min_value=0, max_value=10_000_000, step=1, key="v162_seed")
+        with col3:
+            init_step = st.number_input("Initial step (norm)", value=0.12, min_value=0.01, max_value=0.50, step=0.01, key="v162_initstep")
+        with col4:
+            min_step = st.number_input("Min step (norm)", value=0.004, min_value=0.0005, max_value=0.10, step=0.0005, format="%.4f", key="v162_minstep")
+    
+        shrink = st.slider("Step shrink factor", min_value=0.2, max_value=0.9, value=0.5, step=0.05, key="v162_shrink")
+    
+        if st.button("Run Directed Search", use_container_width=True, key="v162_run"):
+            try:
+                vars_spec = _json.loads(bounds_json) if bounds_json.strip() else []
+                fixed = _json.loads(fixed_json) if fixed_json.strip() else []
+                assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
+            except Exception as e:
+                st.error(f"JSON parse error: {e}")
+                return
+            with st.spinner("Searching..."):
+                out = build_directed_local_search(
+                    baseline=baseline_inputs,
+                    decision_vars=vars_spec,
+                    fixed=fixed if isinstance(fixed,list) else [],
+                    assumption_set=assumptions if isinstance(assumptions,dict) else {},
+                    max_evals=int(max_evals),
+                    seed=int(seed),
+                    initial_step_norm=float(init_step),
+                    min_step_norm=float(min_step),
+                    step_shrink=float(shrink),
+                    policy={"generator":"ui"},
+                )
+            st.session_state["v162_local_search"] = out
+            res=((out.get("payload") or {}).get("result") or {})
+            st.success(f"Stop reason: {res.get('stop_reason')}")
+            st.json(res.get("final") or {})
+            st.download_button("Download directed_local_search_v162.json",
+                               data=_json.dumps(out, indent=2, sort_keys=True, default=str),
+                               file_name="directed_local_search_v162.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v162_dl")
+    
+    
+    # =====================
+    # v163 Completion Pack (Actionable Recipe)
+    # =====================
+    def _v163_completion_pack_panel():
+        import streamlit as st
+        from tools.completion_pack import build_completion_pack, render_completion_pack_markdown
+    
+        st.subheader("Completion Pack")
+        st.caption("Bundle completion evidence into an actionable recipe: witness + knob ranking + bounds recommendations.")
+    
+        v159 = st.session_state.get("v159_completion")
+        v161 = st.session_state.get("v161_frontier")
+        v162 = st.session_state.get("v162_local_search")
+    
+        st.markdown("### Inputs")
+        colA,colB,colC = st.columns(3)
+        with colA:
+            up159 = st.file_uploader("Optional: upload v159 evidence JSON", type=["json"], key="v163_up159")
+        with colB:
+            up161 = st.file_uploader("Optional: upload v161 frontier JSON", type=["json"], key="v163_up161")
+        with colC:
+            up162 = st.file_uploader("Optional: upload v162 local search JSON", type=["json"], key="v163_up162")
+    
+        def _load(up):
+            if up is None:
+                return None
+            try:
+                return _json.loads(up.getvalue().decode("utf-8"))
+            except Exception:
+                return None
+    
+        v159 = _load(up159) or v159
+        v161 = _load(up161) or v161
+        v162 = _load(up162) or v162
+    
+        tighten = st.slider("Bounds tighten factor (heuristic)", min_value=0.05, max_value=0.45, value=0.25, step=0.05, key="v163_tighten")
+    
+        if st.button("Build Completion Pack", use_container_width=True, key="v163_run"):
+            pack = build_completion_pack(v159=v159, v161=v161, v162=v162, policy={"generator":"ui", "tighten": float(tighten)})
+            st.session_state["v163_pack"] = pack
+            st.success(f"Witness provenance: {((pack.get('payload') or {}).get('witness_provenance') or '')}")
+            st.markdown("### Preview")
+            st.json((pack.get("payload") or {}) )
+            st.download_button("Download completion_pack_v163.json",
+                               data=_json.dumps(pack, indent=2, sort_keys=True, default=str),
+                               file_name="completion_pack_v163.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v163_dl_json")
+            md = render_completion_pack_markdown(pack)
+            st.download_button("Download completion_pack_summary_v163.md",
+                               data=md,
+                               file_name="completion_pack_summary_v163.md",
+                               mime="text/markdown",
+                               use_container_width=True,
+                               key="v163_dl_md")
+    
+    
+    # =====================
+    # v164 Sensitivity + Bottleneck Attribution
+    # =====================
+    def _v164_sensitivity_panel():
+        import streamlit as st
+        from tools.sensitivity_v164 import build_sensitivity_report, render_sensitivity_markdown
+    
+        st.subheader("Sensitivity + Bottleneck Attribution")
+        st.caption("Local finite-difference sensitivities around a witness: ranked leverage variables and dominant-constraint changes.")
+    
+        # Prefer completion pack witness if present, else last run
+        pack = st.session_state.get("v163_pack")
+        witness = None
+        if isinstance(pack, dict):
+            witness = ((pack.get("payload") or {}).get("recommended_witness"))
+        if not isinstance(witness, dict):
+            # fallback to baseline last run
+            s = _v98_state_init_runlists()
+            runs = [r for r in (s.run_history or []) if r.get("id")]
+            if runs:
+                payload = (runs[-1].get("payload") or {})
+                if isinstance(payload, dict) and payload.get("kind")=="shams_run_artifact":
+                    witness = payload.get("inputs") or payload.get("_inputs")
+    
+        if not isinstance(witness, dict) or not witness:
+            st.info("No witness found yet. Run v159/v161/v162 or build v163 completion pack first.")
+            return
+    
+        st.markdown("### Witness source")
+        st.code(f"Using witness keys: {len(witness)}", language="text")
+    
+        st.markdown("### Variables to perturb")
+        keys=sorted([k for k in witness.keys() if isinstance(k,str)])
+        dv = st.multiselect("Select variables", options=keys, default=[k for k in keys if k in ("R0_m","B0_T","q95","kappa")], key="v164_dv")
+        default_bounds=_json.dumps([{"name":k, "bounds":[float(witness.get(k,0.0) or 0.0)*0.9, float(witness.get(k,0.0) or 0.0)*1.1+1e-9]} for k in (dv or [])][:10], indent=2)
+        st.caption('Bounds JSON example: [{"name":"R0_m","bounds":[2.5,3.5]}, ...]')
+        bounds_json = st.text_area("Variable bounds (JSON)", value=default_bounds, height=160, key="v164_bounds")
+        assumptions_json = st.text_area("Assumption set (JSON object)", value="{}", height=80, key="v164_assumptions")
+    
+        col1,col2=st.columns(2)
+        with col1:
+            rel_step = st.number_input("Relative step (fraction of span)", value=0.01, min_value=0.001, max_value=0.10, step=0.001, format="%.3f", key="v164_relstep")
+        with col2:
+            abs_step_min = st.number_input("Absolute step min", value=1e-6, min_value=0.0, max_value=1e-2, step=1e-6, format="%.6f", key="v164_absmin")
+    
+        if st.button("Compute Sensitivity", use_container_width=True, key="v164_run"):
+            try:
+                vars_spec = _json.loads(bounds_json) if bounds_json.strip() else []
+                assumptions = _json.loads(assumptions_json) if assumptions_json.strip() else {}
+            except Exception as e:
+                st.error(f"JSON parse error: {e}")
+                return
+            with st.spinner("Evaluating baseline and perturbations..."):
+                rep = build_sensitivity_report(
+                    witness=witness,
+                    variables=vars_spec,
+                    assumption_set=assumptions if isinstance(assumptions,dict) else {},
+                    rel_step=float(rel_step),
+                    abs_step_min=float(abs_step_min),
+                    policy={"generator":"ui"},
+                )
+            st.session_state["v164_sensitivity"] = rep
+            ranked=((rep.get("payload") or {}).get("ranked") or [])
+            st.success(f"Computed. Ranked variables: {len(ranked)}")
+            st.markdown("### Ranked leverage (preview)")
+            st.json(ranked[:15])
+            st.download_button("Download sensitivity_v164.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
+                               file_name="sensitivity_v164.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v164_dl_json")
+            md = render_sensitivity_markdown(rep)
+            st.download_button("Download sensitivity_v164.md",
+                               data=md,
+                               file_name="sensitivity_v164.md",
+                               mime="text/markdown",
+                               use_container_width=True,
+                               key="v164_dl_md")
+    
+    
+    # =====================
+    # v165 Study Protocol Generator
+    # =====================
+    def _v165_study_protocol_panel():
+        import streamlit as st
+        from tools.study_protocol_v165 import build_study_protocol, render_study_protocol_markdown
+    
+        st.subheader("Study Protocol Generator")
+        st.caption("Generate journal-ready, audit-ready study protocol (Methods) with protocol SHA-256. Reporting-only.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode) to generate a run artifact.")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Select run artifact", options=ids, index=len(ids)-1, key="v165_run_id")
+        run_art = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
+            st.error("Selected run is missing shams_run_artifact payload.")
+            return
+    
+        col1,col2=st.columns(2)
+        with col1:
+            title = st.text_input("Study title", value="SHAMS Design Study", key="v165_title")
+        with col2:
+            study_id = st.text_input("Study ID (optional)", value="", key="v165_study_id")
+    
+        objective = st.text_area("Objective (paper-ready)", value="Feasibility characterization and completion under explicit constraints.", height=80, key="v165_obj")
+        notes = st.text_area("Notes (one per line)", value="", height=60, key="v165_notes")
+    
+        st.markdown("### Optional: variables varied / scan definition")
+        vars_json = st.text_area("variables_varied (JSON list)", value="[]", height=120, key="v165_vars")
+        artifacts_json = st.text_area("artifacts_generated (JSON list)", value='["study_protocol_v165.json","study_protocol_v165.md"]', height=80, key="v165_artifacts")
+        seed = st.number_input("Seed (optional)", value=0, min_value=0, max_value=10_000_000, step=1, key="v165_seed")
+    
+        if st.button("Generate Study Protocol", use_container_width=True, key="v165_run"):
+            try:
+                vv = _json.loads(vars_json) if vars_json.strip() else []
+                ag = _json.loads(artifacts_json) if artifacts_json.strip() else []
+            except Exception as e:
+                st.error(f"JSON parse error: {e}")
+                return
+            overrides={
+                "title": title,
+                "study_id": study_id,
+                "objective": objective,
+                "notes": [ln.strip() for ln in notes.splitlines() if ln.strip()],
+                "variables_varied": vv if isinstance(vv, list) else [],
+                "artifacts_generated": ag if isinstance(ag, list) else [],
+                "seed": int(seed),
+            }
+            prot = build_study_protocol(run_artifact=run_art, protocol_overrides=overrides)
+            st.session_state["v165_protocol"] = prot
+            sha = ((prot.get("payload") or {}).get("integrity") or {}).get("protocol_sha256")
+            st.success(f"Generated. Protocol SHA-256: {sha}")
+            st.download_button("Download study_protocol_v165.json",
+                               data=_json.dumps(prot, indent=2, sort_keys=True, default=str),
+                               file_name="study_protocol_v165.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v165_dl_json")
+            md = render_study_protocol_markdown(prot)
+            st.download_button("Download study_protocol_v165.md",
+                               data=md,
+                               file_name="study_protocol_v165.md",
+                               mime="text/markdown",
+                               use_container_width=True,
+                               key="v165_dl_md")
+    
+    
+    # =====================
+    # v166 Reproducibility Lock + Replay Checker
+    # =====================
+    def _v166_repro_lock_panel():
+        import streamlit as st
+        from tools.repro_lock_v166 import build_repro_lock, replay_check
+    
+        st.subheader("Reproducibility Lock + Replay Checker")
+        st.caption("Freeze a run (inputs + assumptions + solver meta) into a lockfile and verify replay matches within tolerances.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Select run artifact to lock", options=ids, index=len(ids)-1, key="v166_run_id")
+        run_art = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
+            st.error("Selected run is missing shams_run_artifact payload.")
+            return
+    
+        st.markdown("### Tolerances (edit JSON)")
+        tol_default = _json.dumps({
+            "min_margin_abs": 1e-8,
+            "constraint_margin_abs": 1e-6,
+            "metric_rel": 1e-6,
+            "metric_abs": 1e-9,
+        }, indent=2)
+        tol_json = st.text_area("tolerances JSON", value=tol_default, height=140, key="v166_tol")
+    
+        notes = st.text_area("Notes (one per line)", value="", height=60, key="v166_notes")
+    
+        col1,col2=st.columns(2)
+        with col1:
+            if st.button("Create Lock", use_container_width=True, key="v166_lock"):
+                try:
+                    tol=_json.loads(tol_json) if tol_json.strip() else {}
+                except Exception as e:
+                    st.error(f"JSON parse error: {e}")
+                    return
+                lock = build_repro_lock(run_artifact=run_art, lock_overrides={"tolerances": tol, "notes":[ln.strip() for ln in notes.splitlines() if ln.strip()]})
+                st.session_state["v166_lock"] = lock
+                sha = ((lock.get("payload") or {}).get("integrity") or {}).get("lock_sha256")
+                st.success(f"Lock created. lock_sha256: {sha}")
+                st.download_button("Download repro_lock_v166.json",
+                                   data=_json.dumps(lock, indent=2, sort_keys=True, default=str),
+                                   file_name="repro_lock_v166.json",
+                                   mime="application/json",
+                                   use_container_width=True,
+                                   key="v166_dl_lock")
+        with col2:
+            lock_up = st.file_uploader("Or upload existing lock JSON", type=["json"], key="v166_up_lock")
+    
+        lock = st.session_state.get("v166_lock")
+        if lock_up is not None:
+            try:
+                lock = _json.loads(lock_up.getvalue().decode("utf-8"))
+                st.session_state["v166_lock"] = lock
+            except Exception:
+                st.warning("Could not parse uploaded lock JSON.")
+    
+        st.markdown("### Replay check")
+        ao_json = st.text_area("assumption_set override (JSON, optional)", value="{}", height=80, key="v166_ao")
+        if st.button("Run Replay Check", use_container_width=True, key="v166_replay"):
+            if not isinstance(lock, dict) or lock.get("kind")!="shams_repro_lock":
+                st.error("No valid lock loaded. Create or upload a lock first.")
+                return
+            try:
+                ao = _json.loads(ao_json) if ao_json.strip() else {}
+            except Exception as e:
+                st.error(f"JSON parse error: {e}")
+                return
+            rep = replay_check(lock=lock, assumption_set_override=ao if isinstance(ao, dict) else None, policy={"generator":"ui"})
+            st.session_state["v166_replay"] = rep
+            ok = ((rep.get("payload") or {}).get("ok"))
+            st.success("Replay OK" if ok else "Replay NOT OK")
+            st.json((rep.get("payload") or {}).get("checks") or {})
+            st.download_button("Download replay_report_v166.json",
+                               data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
+                               file_name="replay_report_v166.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v166_dl_rep")
+    
+    
+    # =====================
+    # v167 Design Study Authority Pack
+    # =====================
+    def _v167_authority_pack_panel():
+        import streamlit as st
+        from tools.authority_pack_v167 import build_authority_pack
+    
+        st.subheader("Design Study Authority Pack")
+        st.caption("One downloadable ZIP bundling protocol + lock + replay + completion + sensitivity (+ certificate if available).")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Select run artifact to include", options=ids, index=len(ids)-1, key="v167_run_id")
+        run_art = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
+            st.error("Selected run is missing shams_run_artifact payload.")
+            return
+    
+        st.markdown("### Auto-pick from session state (recommended)")
+        prot = st.session_state.get("v165_protocol")
+        lock = st.session_state.get("v166_lock")
+        replay = st.session_state.get("v166_replay")
+        comp = st.session_state.get("v163_pack")
+        sens = st.session_state.get("v164_sensitivity")
+        cert = st.session_state.get("v160_certificate")
+    
+        st.markdown("### Optional: upload any missing JSONs")
+        col1,col2,col3 = st.columns(3)
+        with col1:
+            up_prot = st.file_uploader("upload study_protocol_v165.json", type=["json"], key="v167_up_prot")
+            up_lock = st.file_uploader("upload repro_lock_v166.json", type=["json"], key="v167_up_lock")
+        with col2:
+            up_rep = st.file_uploader("upload replay_report_v166.json", type=["json"], key="v167_up_rep")
+            up_comp = st.file_uploader("upload completion_pack_v163.json", type=["json"], key="v167_up_comp")
+        with col3:
+            up_sens = st.file_uploader("upload sensitivity_v164.json", type=["json"], key="v167_up_sens")
+            up_cert = st.file_uploader("upload certificate_v160.json", type=["json"], key="v167_up_cert")
+    
+        def _load(up):
+            if up is None:
+                return None
+            try:
+                return _json.loads(up.getvalue().decode("utf-8"))
+            except Exception:
+                return None
+    
+        prot = _load(up_prot) or prot
+        lock = _load(up_lock) or lock
+        replay = _load(up_rep) or replay
+        comp = _load(up_comp) or comp
+        sens = _load(up_sens) or sens
+        cert = _load(up_cert) or cert
+    
+        if st.button("Build Authority Pack ZIP", use_container_width=True, key="v167_build"):
+            res = build_authority_pack(
+                run_artifact=run_art,
+                study_protocol_v165=prot,
+                repro_lock_v166=lock,
+                replay_report_v166=replay,
+                completion_pack_v163=comp,
+                sensitivity_v164=sens,
+                certificate_v160=cert,
+                policy={"generator":"ui"},
+            )
+            st.session_state["v167_manifest"] = res["manifest"]
+            st.success(f"Built authority_pack_v167.zip (sha256={res['pack']['integrity']['zip_sha256']})")
+            st.json(res["manifest"])
+            st.download_button("Download authority_pack_v167.zip",
+                               data=res["zip_bytes"],
+                               file_name="authority_pack_v167.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v167_dl_zip")
+    
+    
+    # =====================
+    # v168 Citation-Grade Study Reference
+    # =====================
+    def _v168_citation_panel():
+        import streamlit as st
+        from tools.citation_v168 import build_citation_bundle
+    
+        st.subheader("Citation-Grade Study Reference")
+        st.caption("Generate Study ID + CITATION.cff + BibTeX from protocol/lock/authority-pack manifest.")
+    
+        prot = st.session_state.get("v165_protocol")
+        lock = st.session_state.get("v166_lock")
+        manifest = st.session_state.get("v167_manifest")
+    
+        st.markdown("### Inputs (auto-pick from session state or upload)")
+        col1,col2,col3 = st.columns(3)
+        with col1:
+            up_prot = st.file_uploader("upload study_protocol_v165.json", type=["json"], key="v168_up_prot")
+        with col2:
+            up_lock = st.file_uploader("upload repro_lock_v166.json", type=["json"], key="v168_up_lock")
+        with col3:
+            up_man = st.file_uploader("upload authority_pack_manifest_v167.json", type=["json"], key="v168_up_man")
+    
+        def _load(up):
+            if up is None:
+                return None
+            try:
+                return _json.loads(up.getvalue().decode("utf-8"))
+            except Exception:
+                return None
+    
+        prot = _load(up_prot) or prot
+        lock = _load(up_lock) or lock
+        manifest = _load(up_man) or manifest
+    
+        st.markdown("### Metadata (optional)")
+        title = st.text_input("Title override (optional)", value="", key="v168_title")
+        repo_url = st.text_input("Repository/URL (optional)", value="", key="v168_repo")
+        doi = st.text_input("DOI (optional)", value="", key="v168_doi")
+        author = st.text_input("Author name (optional)", value="SHAMS–FUSION-X Contributors", key="v168_author")
+    
+        if st.button("Generate Citation Bundle", use_container_width=True, key="v168_run"):
+            if not (isinstance(prot, dict) and prot.get("kind")=="shams_study_protocol"):
+                st.error("Need a valid study_protocol_v165.json (generate in v165).")
+                return
+            meta={
+                "title": title or None,
+                "repository": repo_url or None,
+                "url": repo_url or None,
+                "doi": doi or None,
+                "authors": [{"name": author}] if author else [{"name":"SHAMS–FUSION-X Contributors"}],
+                "version": "v168",
+            }
+            res = build_citation_bundle(
+                study_protocol_v165=prot,
+                repro_lock_v166=lock if isinstance(lock, dict) else None,
+                authority_pack_manifest_v167=manifest if isinstance(manifest, dict) else None,
+                metadata=meta,
+            )
+            st.session_state["v168_citation"] = res
+            sid = ((res.get("payload") or {}).get("study_id"))
+            st.success(f"Study ID: {sid}")
+            st.download_button("Download citation_bundle_v168.json",
+                               data=_json.dumps(res, indent=2, sort_keys=True, default=str),
+                               file_name="citation_bundle_v168.json",
+                               mime="application/json",
+                               use_container_width=True,
+                               key="v168_dl_json")
+            st.download_button("Download CITATION.cff",
+                               data=(res.get("payload") or {}).get("citation_cff_text",""),
+                               file_name="CITATION.cff",
+                               mime="text/yaml",
+                               use_container_width=True,
+                               key="v168_dl_cff")
+            st.download_button("Download study_citation_v168.bib",
+                               data=(res.get("payload") or {}).get("bibtex_text",""),
+                               file_name="study_citation_v168.bib",
+                               mime="text/plain",
+                               use_container_width=True,
+                               key="v168_dl_bib")
+            st.download_button("Download study_reference_v168.md",
+                               data=(res.get("payload") or {}).get("reference_markdown",""),
+                               file_name="study_reference_v168.md",
+                               mime="text/markdown",
+                               use_container_width=True,
+                               key="v168_dl_md")
+    
+    
+    # =====================
+    # v169 Feasibility Boundary Atlas (figure pack)
+    # =====================
+    def _v169_atlas_panel():
+        import streamlit as st
+        from tools.atlas_v169 import build_atlas_pack
+    
+        st.subheader("Feasibility Boundary Atlas")
+        st.caption("Generate a publishable atlas-style figure pack with consistent captions and a hash manifest.")
+    
+        sens = st.session_state.get("v164_sensitivity")
+        st.markdown("### Input")
+        up_sens = st.file_uploader("Upload sensitivity_v164.json (optional)", type=["json"], key="v169_up_sens")
+    
+        if up_sens is not None:
+            try:
+                sens = _json.loads(up_sens.getvalue().decode("utf-8"))
+            except Exception:
+                st.warning("Could not parse uploaded JSON.")
+    
+        if not isinstance(sens, dict):
+            st.info("Run v164 Sensitivity first (or upload sensitivity_v164.json) to build the initial atlas.")
+            return
+    
+        if st.button("Build Atlas Pack ZIP", use_container_width=True, key="v169_build"):
+            res = build_atlas_pack(sensitivity_v164=sens, policy={"generator":"ui"})
+            st.session_state["v169_manifest"] = res["manifest"]
+            st.success(f"Built atlas_pack_v169.zip (sha256={res['pack']['integrity']['zip_sha256']})")
+            st.json(res["manifest"])
+            st.download_button("Download atlas_pack_v169.zip",
+                               data=res["zip_bytes"],
+                               file_name="atlas_pack_v169.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v169_dl_zip")
+    
+    
+    # =====================
+    # v170 SHAMS → external systems codes Downstream Export
+    # =====================
+    def _v170_process_export_panel():
+        import streamlit as st
+        from tools.process_export_v170 import build_process_export_pack
+    
+        st.subheader("SHAMS → external systems codes Downstream Export")
+        st.caption("Export SHAMS study outputs into transparent (systems-code-inspired) tables, keeping SHAMS as upstream authority.")
+    
+        s = _v98_state_init_runlists()
+        runs = [r for r in (s.run_history or []) if r.get("id")]
+        if not runs:
+            st.info("Run at least one evaluation first (Point Designer / Systems Mode).")
+            return
+        ids=[r.get("id") for r in runs]
+        run_map={r.get("id"): r for r in runs}
+        rid = st.selectbox("Select run artifact to export", options=ids, index=len(ids)-1, key="v170_run_id")
+        run_art = (run_map.get(rid) or {}).get("payload")
+        if not (isinstance(run_art, dict) and run_art.get("kind")=="shams_run_artifact"):
+            st.error("Selected run is missing shams_run_artifact payload.")
+            return
+    
+        comp = st.session_state.get("v163_pack")
+        cite = st.session_state.get("v168_citation")
+    
+        st.markdown("### Optional attachments")
+        st.write("- completion_pack_v163.json:", "yes" if isinstance(comp, dict) else "no")
+        st.write("- citation_bundle_v168.json:", "yes" if isinstance(cite, dict) else "no")
+    
+        if st.button("Build external systems codes Export Pack ZIP", use_container_width=True, key="v170_build"):
+            res = build_process_export_pack(
+                run_artifact=run_art,
+                completion_pack_v163=comp if isinstance(comp, dict) else None,
+                citation_bundle_v168=cite if isinstance(cite, dict) else None,
+                policy={"generator":"ui"},
+            )
+            st.session_state["v170_manifest"] = res["manifest"]
+            st.success(f"Built process_export_pack_v170.zip (sha256={res['pack']['integrity']['zip_sha256']})")
+            st.json(res["manifest"])
+            st.download_button("Download process_export_pack_v170.zip",
+                               data=res["zip_bytes"],
+                               file_name="process_export_pack_v170.zip",
+                               mime="application/zip",
+                               use_container_width=True,
+                               key="v170_dl_zip")
+    
+    
+    # =====================
+    # v172 Demo seed + hydration
+    # =====================
+    def _v172_demo_loader():
+        import streamlit as st
+        from tools.demo_seed_v172 import install_demo_bundle
+        st.subheader("Demo seed")
+        st.caption("Loads synthetic demo artifacts into session state so every panel shows content offline. Not authoritative.")
+        col1,col2 = st.columns([1,2])
+        with col1:
+            if st.button("Load demo artifacts", use_container_width=True, key="v172_load_demo"):
+                install_demo_bundle(st.session_state)
+                st.success("Demo artifacts loaded into session state.")
+        with col2:
+            if st.button("Clear demo artifacts", use_container_width=True, key="v172_clear_demo"):
+                for k in ["v164_sensitivity","v165_protocol","v166_lock","v166_replay","v167_manifest","v168_citation","v163_pack",
+                          "pd_last_outputs","pd_last_artifact","demo_run_artifact"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.success("Demo artifacts cleared.")
+    
+    
+    # --- Deferred PAM render ---
     try:
-        st.warning(f'PAM render failed: {_e}')
-    except Exception:
-        pass
-
-# --- Render Activity Log late so it includes events logged during this run ---
+        if 'pam_placeholder' in globals() and pam_placeholder is not None:
+            with pam_placeholder.container():
+                _v175_panel_availability_map_panel()
+    except Exception as _e:
+        # Never fail the whole app due to PAM rendering
+        try:
+            st.warning(f'PAM render failed: {_e}')
+        except Exception:
+            pass
+    
+    # --- Render Activity Log late so it includes events logged during this run ---
 try:
     _render_activity_log_sidebar()
 except Exception:

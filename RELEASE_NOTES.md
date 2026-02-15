@@ -1,3 +1,33 @@
+## v372.6.8 — Point Designer Evaluate Point execution + Telemetry wiring hotfix
+
+## v372.7.1 — UI Hotfix: v92 state helper forward-declaration
+
+- Fixed `NameError: _v92_state_get` by defining the v92 session-state accessor **before first use** (Streamlit rerun-safe).
+- Removed the duplicated, late, indented `_v92_state_get` block to prevent scope drift.
+- No physics changes; UI/import stability only.
+
+
+## v372.7.0 — Panel Interoperability & Scope Hardening (Coherent Audit Upgrade)
+
+### Fixed
+- Control Room: eliminated module-scope leaked tab blocks (e.g. `tab_model`) by scoping all Constitution/Provenance tab renders under the Control Room deck guard.
+- Systems Mode: removed `max_iter` NameError by sourcing iteration budget from `st.session_state['systems_max_iter']` with deterministic fallback; no reliance on lazy-tab locals.
+
+### Governance / Interoperability
+- Enforced “execute where button is clicked; downstream panels are cache-read-only” contract for Control Room tab renders and Systems solve telemetry emission.
+- Preserved frozen-truth discipline: no physics changes, no solver/iteration policy changes beyond UI robustness.
+
+### Verification
+- `python -m py_compile ui/app.py` clean
+- `pytest -q` clean
+- Manifests regenerated; hygiene clean
+
+
+- Fix: Evaluate Point now **executes in Configure** (Streamlit tabs are lazy; Telemetry is read-only).
+- Fix: Always persists `pd_last_outputs` + minimal artifact scaffold on every run (ok or NO-SOLUTION).
+- Fix: Point Designer base input construction now uses `make_point_inputs()` to **filter unknown keys** (e.g., `confidence`), preventing schema-drift TypeErrors.
+- Hardening: Telemetry renders from the unified cache key and cannot silently disagree with Configure.
+
 ## v372.6.6 — Point Designer result caching + Telemetry persistence hotfix
 
 - Point Designer now caches **best-effort** outputs to `pd_last_outputs` even when the operating-target solver fails (NO-SOLUTION is still a reportable outcome).

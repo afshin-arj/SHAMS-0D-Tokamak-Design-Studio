@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.6.6 — Transport Contract Library Authority 2.0
+**Current version:** v372.7.1 — UI hotfix: v92 state helper forward-declaration
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
