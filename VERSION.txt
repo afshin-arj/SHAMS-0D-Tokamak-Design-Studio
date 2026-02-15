@@ -1,1 +1,1 @@
-v372.7.1
+v372.8 — UI Stabilization Phase 1: early-safe state helpers, duplicate deck block removal, canonical cache aliasing

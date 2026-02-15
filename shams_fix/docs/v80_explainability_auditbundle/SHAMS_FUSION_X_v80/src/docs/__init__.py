@@ -1,1 +1,0 @@
-"""Documentation helpers (variable registry, explanations)."""

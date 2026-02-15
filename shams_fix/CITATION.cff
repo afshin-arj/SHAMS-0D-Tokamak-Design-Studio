@@ -1,8 +1,0 @@
-cff-version: 1.2.0
-message: "If you use SHAMS–FUSION-X, please cite it."
-title: "SHAMS–FUSION-X: Constraint-first, audit-ready fusion design authority system"
-type: software
-authors:
-  - name: "SHAMS–FUSION-X Contributors"
-version: "v120_2026-01-17"
-date-released: "2026-01-17"

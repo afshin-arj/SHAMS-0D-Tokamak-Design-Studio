@@ -1,1 +1,0 @@
-v372.5 — UI Hotfix: Point Designer block scoping & tab variables (tab_tel)

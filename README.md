@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.7.1 — UI hotfix: v92 state helper forward-declaration
+**Current version:** v372.8 — UI stabilization Phase 1 (architecture reset)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
