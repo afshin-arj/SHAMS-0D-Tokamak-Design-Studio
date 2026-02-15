@@ -847,3 +847,10 @@ Truth outputs unchanged.
 - Telemetry tab is now strictly cached/read-only: guides user to run Evaluate Point in Configure when no cached results exist.
 - Replace Configure-tab-only log formatting with artifact-derived logging to prevent cross-tab NameErrors.
 - Gatechecks: `py_compile ui/app.py`, full pytest suite.
+
+
+## v372.6.4 — UI Hotfix: defaults dict + Point Designer Configure indentation
+- Fix NameError: defaults not defined (use defaults dict accessor, remove getattr on dict)
+- Fix Point Designer Configure layout: dedent Control Deck expanders + Evaluate Point out of Scenario Templates expander
+- Fix Streamlit rerun compatibility shim (avoid recursion; use st.rerun or st.experimental_rerun)
+- Manifests regenerated; hygiene enforced

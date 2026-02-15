@@ -226,7 +226,8 @@ def _st_rerun() -> None:
         return
     # Older Streamlit
     if hasattr(st, 'experimental_rerun'):
-        _st_rerun()
+        st.experimental_rerun()
+        return
 
 from ui.tablekit import install_expandable_tables
 
@@ -4126,360 +4127,552 @@ if _deck == "🧭 Point Designer":
                         st.rerun()
             except Exception as _e:
                 st.warning(f"Scenario template library unavailable: {_e}")
-            with st.expander("Plasma & geometry", expanded=False):
-                R0 = _num("Major radius R₀ (m)", float(_base_pd.R0_m), 0.01, help="Distance from tokamak centerline to plasma magnetic axis (major radius).", key=PD_KEYS["R0_m"])
-                a = _num("Minor radius a (m)", float(_base_pd.a_m), 0.01, min_value=0.1, help="Plasma minor radius (a). Together with R₀ sets aspect ratio.", key=PD_KEYS["a_m"])
-                kappa = _num("Elongation κ (–)", float(_base_pd.kappa), 0.05, min_value=1.0, max_value=3.2, help="Plasma elongation κ. Used in volume/area and stability proxies.", key=PD_KEYS["kappa"])
-                delta = _num("Triangularity δ (–)", float(getattr(_base_pd, "delta", 0.0) or 0.0), 0.02, min_value=0.0, max_value=0.8, help="Triangularity δ. Used only in the transparent inboard radial-build clearance proxy (stack closure). Default 0.0 preserves legacy behavior.", key=PD_KEYS["delta"])
-                B0 = _num("Toroidal field on axis B₀ (T)", float(_base_pd.Bt_T), 0.1, min_value=0.5, max_value=25.0, help="Toroidal field at plasma axis (B₀). Drives confinement and magnet sizing.", key=PD_KEYS["Bt_T"])
-                Ti = _num("Ion temperature Tᵢ (keV)", float(_base_pd.Ti_keV), 0.25, min_value=1.0, max_value=40.0, help="Core ion temperature proxy. Drives fusion reactivity and stored energy.", key=PD_KEYS["Ti_keV"])
-                Ti_over_Te = _num("Ion-to-electron temperature ratio Tᵢ/Tₑ (–)", float(getattr(_base_pd, "Ti_over_Te", 1.0)), 0.1, min_value=0.5, help="Assumed ratio Tᵢ/Tₑ; sets electron temperature for radiation estimate.", key=PD_KEYS["Ti_over_Te"])
+        with st.expander("Plasma & geometry", expanded=False):
+            R0 = _num("Major radius R₀ (m)", float(_base_pd.R0_m), 0.01, help="Distance from tokamak centerline to plasma magnetic axis (major radius).", key=PD_KEYS["R0_m"])
+            a = _num("Minor radius a (m)", float(_base_pd.a_m), 0.01, min_value=0.1, help="Plasma minor radius (a). Together with R₀ sets aspect ratio.", key=PD_KEYS["a_m"])
+            kappa = _num("Elongation κ (–)", float(_base_pd.kappa), 0.05, min_value=1.0, max_value=3.2, help="Plasma elongation κ. Used in volume/area and stability proxies.", key=PD_KEYS["kappa"])
+            delta = _num("Triangularity δ (–)", float(getattr(_base_pd, "delta", 0.0) or 0.0), 0.02, min_value=0.0, max_value=0.8, help="Triangularity δ. Used only in the transparent inboard radial-build clearance proxy (stack closure). Default 0.0 preserves legacy behavior.", key=PD_KEYS["delta"])
+            B0 = _num("Toroidal field on axis B₀ (T)", float(_base_pd.Bt_T), 0.1, min_value=0.5, max_value=25.0, help="Toroidal field at plasma axis (B₀). Drives confinement and magnet sizing.", key=PD_KEYS["Bt_T"])
+            Ti = _num("Ion temperature Tᵢ (keV)", float(_base_pd.Ti_keV), 0.25, min_value=1.0, max_value=40.0, help="Core ion temperature proxy. Drives fusion reactivity and stored energy.", key=PD_KEYS["Ti_keV"])
+            Ti_over_Te = _num("Ion-to-electron temperature ratio Tᵢ/Tₑ (–)", float(getattr(_base_pd, "Ti_over_Te", 1.0)), 0.1, min_value=0.5, help="Assumed ratio Tᵢ/Tₑ; sets electron temperature for radiation estimate.", key=PD_KEYS["Ti_over_Te"])
 
-            with st.expander("TF magnets & technology", expanded=False):
-                tech_opts = [
-                    "HTS_REBCO",
-                    "LTS_NB3SN",
-                    "LTS_NBTI",
-                    "COPPER",
-                ]
-                _base_tech = str(getattr(_base_pd, "magnet_technology", "HTS_REBCO") or "HTS_REBCO").strip().upper()
-                if _base_tech not in tech_opts:
-                    _base_tech = "HTS_REBCO"
-                tech = st.selectbox(
-                    "TF technology (tech-axis)",
-                    options=tech_opts,
-                    index=tech_opts.index(_base_tech),
-                    key=PD_KEYS["magnet_technology"],
+        with st.expander("TF magnets & technology", expanded=False):
+            tech_opts = [
+                "HTS_REBCO",
+                "LTS_NB3SN",
+                "LTS_NBTI",
+                "COPPER",
+            ]
+            _base_tech = str(getattr(_base_pd, "magnet_technology", "HTS_REBCO") or "HTS_REBCO").strip().upper()
+            if _base_tech not in tech_opts:
+                _base_tech = "HTS_REBCO"
+            tech = st.selectbox(
+                "TF technology (tech-axis)",
+                options=tech_opts,
+                index=tech_opts.index(_base_tech),
+                key=PD_KEYS["magnet_technology"],
+                help=(
+                    "Select the TF magnet technology. This controls the superconducting critical-surface margin proxy "
+                    "(or disables it for copper) and is recorded in artifacts for reviewer traceability."
+                ),
+            )
+            Tcoil = _num(
+                "TF coil temperature T_coil (K)",
+                float(getattr(_base_pd, "Tcoil_K", 20.0)),
+                0.5,
+                min_value=3.5,
+                max_value=350.0,
+                help=(
+                    "Operating temperature for the TF conductor. Typical anchors: ~4.2–4.5 K for NbTi/Nb3Sn, "
+                    "~20 K for REBCO screening, ~300 K for copper (resistive)."
+                ),
+                key=PD_KEYS["Tcoil_K"],
+            )
+        with st.expander("Model options (transparent (systems-code-inspired))", expanded=False):
+            confinement_scaling_label = st.selectbox(
+                "H-factor reference scaling (for H_scaling)",
+                options=[
+                    "IPB98(y,2) (H98 basis)",
+                    "ITER89-P (L-mode)",
+                    "Kaye–Goldston (L-mode)",
+                    "Neo-Alcator (ohmic/L)",
+                    "Mirnov (ohmic)",
+                    "Shimomura (L-mode)",
+                ],
+                index=0,
+                help=(
+                    "Controls the reference scaling used for the reported H_scaling = tauE_eff / tauScaling. "
+                    "H98 remains defined relative to IPB98(y,2)."
+                ),
+            )
+            confinement_scaling_map = {
+                "IPB98(y,2) (H98 basis)": "IPB98y2",
+                "ITER89-P (L-mode)": "ITER89P",
+                "Kaye–Goldston (L-mode)": "KG",
+                "Neo-Alcator (ohmic/L)": "NEOALC",
+                "Mirnov (ohmic)": "MIRNOV",
+                "Shimomura (L-mode)": "SHIMOMURA",
+            }
+            confinement_scaling = confinement_scaling_map.get(confinement_scaling_label, "IPB98y2")
+
+            # -----------------------------------------------------------------
+            # v371.0: Transport contract library (governance-only)
+            # -----------------------------------------------------------------
+            with st.expander("🚦 Transport contract library (v371)", expanded=False):
+                include_transport_contracts_v371 = st.checkbox(
+                    "Enable transport contract diagnostics",
+                    value=bool(getattr(_base_pd, "include_transport_contracts_v371", False)),
+                    key=PD_KEYS["include_transport_contracts_v371"],
                     help=(
-                        "Select the TF magnet technology. This controls the superconducting critical-surface margin proxy "
-                        "(or disables it for copper) and is recorded in artifacts for reviewer traceability."
+                        "Regime-conditioned confinement-scaling envelope + explicit optimistic/robust caps on required confinement (H_required). "
+                        "Governance-only: does not change frozen truth unless you set caps as constraints."
                     ),
                 )
-                Tcoil = _num(
-                    "TF coil temperature T_coil (K)",
-                    float(getattr(_base_pd, "Tcoil_K", 20.0)),
-                    0.5,
-                    min_value=3.5,
-                    max_value=350.0,
-                    help=(
-                        "Operating temperature for the TF conductor. Typical anchors: ~4.2–4.5 K for NbTi/Nb3Sn, "
-                        "~20 K for REBCO screening, ~300 K for copper (resistive)."
-                    ),
-                    key=PD_KEYS["Tcoil_K"],
-                )
-            with st.expander("Model options (transparent (systems-code-inspired))", expanded=False):
-                confinement_scaling_label = st.selectbox(
-                    "H-factor reference scaling (for H_scaling)",
-                    options=[
-                        "IPB98(y,2) (H98 basis)",
-                        "ITER89-P (L-mode)",
-                        "Kaye–Goldston (L-mode)",
-                        "Neo-Alcator (ohmic/L)",
-                        "Mirnov (ohmic)",
-                        "Shimomura (L-mode)",
-                    ],
-                    index=0,
-                    help=(
-                        "Controls the reference scaling used for the reported H_scaling = tauE_eff / tauScaling. "
-                        "H98 remains defined relative to IPB98(y,2)."
-                    ),
-                )
-                confinement_scaling_map = {
-                    "IPB98(y,2) (H98 basis)": "IPB98y2",
-                    "ITER89-P (L-mode)": "ITER89P",
-                    "Kaye–Goldston (L-mode)": "KG",
-                    "Neo-Alcator (ohmic/L)": "NEOALC",
-                    "Mirnov (ohmic)": "MIRNOV",
-                    "Shimomura (L-mode)": "SHIMOMURA",
-                }
-                confinement_scaling = confinement_scaling_map.get(confinement_scaling_label, "IPB98y2")
-
-                # -----------------------------------------------------------------
-                # v371.0: Transport contract library (governance-only)
-                # -----------------------------------------------------------------
-                with st.expander("🚦 Transport contract library (v371)", expanded=False):
-                    include_transport_contracts_v371 = st.checkbox(
-                        "Enable transport contract diagnostics",
-                        value=bool(getattr(_base_pd, "include_transport_contracts_v371", False)),
-                        key=PD_KEYS["include_transport_contracts_v371"],
-                        help=(
-                            "Regime-conditioned confinement-scaling envelope + explicit optimistic/robust caps on required confinement (H_required). "
-                            "Governance-only: does not change frozen truth unless you set caps as constraints."
-                        ),
-                    )
-                    _hopt_base = getattr(_base_pd, "H_required_max_optimistic", float("nan"))
-                    _hrob_base = getattr(_base_pd, "H_required_max_robust", float("nan"))
-                    cH1, cH2 = st.columns(2)
-                    with cH1:
-                        H_required_max_optimistic = st.number_input(
-                            "H_required max (optimistic)",
-                            min_value=0.5,
-                            max_value=5.0,
-                            value=float(_hopt_base) if (float(_hopt_base)==float(_hopt_base) and float(_hopt_base)>0) else 2.0,
-                            step=0.05,
-                            key=PD_KEYS["H_required_max_optimistic"],
-                            disabled=not include_transport_contracts_v371,
-                            help="If enabled, enforces H_required ≤ this cap (optimistic).",
-                        )
-                    with cH2:
-                        H_required_max_robust = st.number_input(
-                            "H_required max (robust)",
-                            min_value=0.5,
-                            max_value=5.0,
-                            value=float(_hrob_base) if (float(_hrob_base)==float(_hrob_base) and float(_hrob_base)>0) else 1.5,
-                            step=0.05,
-                            key=PD_KEYS["H_required_max_robust"],
-                            disabled=not include_transport_contracts_v371,
-                            help="If enabled, enforces H_required ≤ this tighter cap (robust).",
-                        )
-                    st.caption("These caps are explicit constraints (no smoothing): if set, infeasible points are reported as transport-limited.")
-
-                # -----------------------------------------------------------------
-                # v372.0: Neutronics–Materials coupling (governance-only)
-                # -----------------------------------------------------------------
-                with st.expander("🧬 Neutronics–Materials coupling (v372)", expanded=False):
-                    include_neutronics_materials_coupling_v372 = st.checkbox(
-                        "Enable neutronics–materials coupling diagnostics",
-                        value=bool(getattr(_base_pd, "include_neutronics_materials_coupling_v372", False)),
-                        key=PD_KEYS["include_neutronics_materials_coupling_v372"],
-                        help=(
-                            "Governance-only: material/spectrum-conditioned DPA-rate proxy, component damage partitions, and optional explicit DPA caps. "
-                            "Does not modify frozen truth."
-                        ),
-                    )
-                    _mat0 = str(getattr(_base_pd, "nm_material_class_v372", "RAFM"))
-                    _spec0 = str(getattr(_base_pd, "nm_spectrum_class_v372", "nominal"))
-                    cNM1, cNM2 = st.columns(2)
-                    with cNM1:
-                        nm_material_class_v372 = st.selectbox(
-                            "Material class (governance)",
-                            ["RAFM", "W", "SiC", "ODS"],
-                            index=max(0, ["RAFM","W","SiC","ODS"].index(_mat0) if _mat0 in ["RAFM","W","SiC","ODS"] else 0),
-                            disabled=not include_neutronics_materials_coupling_v372,
-                            key=PD_KEYS["nm_material_class_v372"],
-                        )
-                    with cNM2:
-                        nm_spectrum_class_v372 = st.selectbox(
-                            "Spectrum class (governance)",
-                            ["soft", "nominal", "hard"],
-                            index=max(0, ["soft","nominal","hard"].index(_spec0) if _spec0 in ["soft","nominal","hard"] else 1),
-                            disabled=not include_neutronics_materials_coupling_v372,
-                            key=PD_KEYS["nm_spectrum_class_v372"],
-                        )
-                    _T0 = getattr(_base_pd, "nm_T_oper_C_v372", float('nan'))
-                    use_T = st.checkbox(
-                        "Use operating temperature window check",
-                        value=bool(np.isfinite(_T0)),
-                        disabled=not include_neutronics_materials_coupling_v372,
-                        key=PD_KEYS["nm_T_oper_C_v372"] + "_use",
-                    )
-                    nm_T_oper_C_v372 = float('nan')
-                    if use_T:
-                        nm_T_oper_C_v372 = st.number_input(
-                            "Operating temperature (°C)",
-                            value=float(_T0) if np.isfinite(_T0) else 500.0,
-                            min_value=0.0,
-                            step=10.0,
-                            disabled=not include_neutronics_materials_coupling_v372,
-                            key=PD_KEYS["nm_T_oper_C_v372"],
-                        )
-                    _dpa0 = getattr(_base_pd, "dpa_rate_eff_max_v372", float('nan'))
-                    use_dpa_cap = st.checkbox(
-                        "Enable explicit DPA-rate cap constraint",
-                        value=bool(np.isfinite(_dpa0)),
-                        disabled=not include_neutronics_materials_coupling_v372,
-                        key=PD_KEYS["dpa_rate_eff_max_v372"] + "_use",
-                    )
-                    dpa_rate_eff_max_v372 = float('nan')
-                    if use_dpa_cap:
-                        dpa_rate_eff_max_v372 = st.number_input(
-                            "DPA-rate cap (DPA/FPY)",
-                            value=float(_dpa0) if np.isfinite(_dpa0) else 20.0,
-                            min_value=0.0,
-                            step=1.0,
-                            disabled=not include_neutronics_materials_coupling_v372,
-                            key=PD_KEYS["dpa_rate_eff_max_v372"],
-                        )
-                    _m0 = getattr(_base_pd, "damage_margin_min_v372", float('nan'))
-                    use_margin = st.checkbox(
-                        "Enable minimum damage margin constraint",
-                        value=bool(np.isfinite(_m0)),
-                        disabled=not include_neutronics_materials_coupling_v372 or (not use_dpa_cap),
-                        key=PD_KEYS["damage_margin_min_v372"] + "_use",
-                    )
-                    damage_margin_min_v372 = float('nan')
-                    if use_margin:
-                        damage_margin_min_v372 = st.number_input(
-                            "Minimum damage margin (fraction)",
-                            value=float(_m0) if np.isfinite(_m0) else 0.0,
-                            step=0.05,
-                            disabled=not include_neutronics_materials_coupling_v372 or (not use_dpa_cap),
-                            key=PD_KEYS["damage_margin_min_v372"],
-                        )
-
-                st.caption("Tip: Use this for sensitivity studies (external systems codes-style). It does not change the solved operating point unless you also constrain power balance residuals.")
-                profile_model = st.selectbox(
-                    "Analytic profiles (½-D scaffold)",
-                    options=["none", "parabolic", "pedestal"],
-                    index=0,
-                    help="If enabled, SHAMS computes simple analytic profiles and adds profile-integrated fusion diagnostics.",
-                )
-                profile_peaking_ne = _num("nₑ peaking (alpha)", 1.0, 0.1, min_value=0.0, help="Parabolic/pedestal core peaking control for density.")
-                profile_peaking_T = _num("T peaking (alpha)", 1.5, 0.1, min_value=0.0, help="Parabolic/pedestal core peaking control for temperature.")
-
-                # v318.0: 1.5D profile authority knobs (deterministic; no solvers)
-                # v318.0: 1.5D profile authority knobs (deterministic; no solvers)
-                profile_mode = st.checkbox(
-                    "Enable 1.5D profile authority diagnostics",
-                    value=bool(getattr(_base_pd, "profile_mode", False)),
-                    key=PD_KEYS["profile_mode"],
-                    help=(
-                        "Enables analytic profile diagnostics + the algebraic 1.5D profile bundle. "
-                        "This does NOT run transport, does NOT iterate, and does NOT modify the frozen operating point. "
-                        "It only produces additional diagnostics and (bounded) bootstrap sensitivity when explicitly selected."
-                    ),
-                )
-
-                # -----------------------------------------------------------------
-                # v358.0: Profile Family Library Authority (transport proxy)
-                # -----------------------------------------------------------------
-                with st.expander("🧬 Profile family library (v358)", expanded=False):
-                    include_profile_family_v358 = st.checkbox(
-                        "Enable profile family transport proxy",
-                        value=bool(getattr(_base_pd, "include_profile_family_v358", False)),
-                        help="Deterministic profile-family tags and shape multipliers. No solvers, no iteration.",
-                    )
-                    _pf_opts = ["CORE_FLAT","CORE_PEAKED","PEDESTAL_MODERATE","PEDESTAL_STRONG","HYBRID_CORE_PEAKED_PED"]
-                    _pf_base = str(getattr(_base_pd, "profile_family_v358", "CORE_FLAT")).upper().replace(" ", "_")
-                    _pf_idx = _pf_opts.index(_pf_base) if _pf_base in _pf_opts else 0
-                    profile_family_v358 = st.selectbox(
-                        "Profile family",
-                        options=_pf_opts,
-                        index=_pf_idx,
-                        help="Certified profile narratives used to derive bounded shape factors.",
-                    )
-                    profile_family_pedestal_frac = st.slider(
-                        "Pedestal fraction (proxy)",
-                        min_value=0.0, max_value=0.40, value=float(getattr(_base_pd, "profile_family_pedestal_frac", 0.0)), step=0.01,
-                    )
-                    profile_family_peaking_p = st.slider(
-                        "Pressure peaking factor",
-                        min_value=0.70, max_value=2.00, value=float(getattr(_base_pd, "profile_family_peaking_p", 1.0)), step=0.01,
-                    )
-                    profile_family_peaking_j = st.slider(
-                        "Current peaking factor",
-                        min_value=0.70, max_value=2.00, value=float(getattr(_base_pd, "profile_family_peaking_j", 1.0)), step=0.01,
-                    )
-                    profile_family_shear_shape = st.slider(
-                        "Shear shape (0–1)",
-                        min_value=0.0, max_value=1.0, value=float(getattr(_base_pd, "profile_family_shear_shape", 0.5)), step=0.01,
-                    )
-                    profile_family_confinement_mult = st.slider(
-                        "Confinement multiplier (bounded)",
-                        min_value=0.50, max_value=1.80, value=float(getattr(_base_pd, "profile_family_confinement_mult", 1.0)), step=0.01,
-                    )
-                    profile_family_bootstrap_mult = st.slider(
-                        "Bootstrap multiplier (bounded)",
-                        min_value=0.50, max_value=1.80, value=float(getattr(_base_pd, "profile_family_bootstrap_mult", 1.0)), step=0.01,
-                    )
-                    st.caption("Outputs: profile_family_* keys, tauE_profile_s, H98_profile, profile_f_bootstrap_profile")
-
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    profile_alpha_T = _num(
-                        "Core T exponent α_T",
-                        float(getattr(_base_pd, "profile_alpha_T", 1.5)),
-                        0.1,
-                        min_value=0.0,
-                        key=PD_KEYS["profile_alpha_T"],
-                        help="Parabolic exponent for diagnostic T(r) used when profile diagnostics are enabled.",
-                    )
-                with c2:
-                    profile_alpha_n = _num(
-                        "Core n exponent α_n",
-                        float(getattr(_base_pd, "profile_alpha_n", 1.0)),
-                        0.1,
-                        min_value=0.0,
-                        key=PD_KEYS["profile_alpha_n"],
-                        help="Parabolic exponent for diagnostic n(r) used when profile diagnostics are enabled.",
-                    )
-                with c3:
-                    profile_shear_shape = st.slider(
-                        "Shear shape (0..1)",
-                        min_value=0.0,
-                        max_value=1.0,
-                        value=float(getattr(_base_pd, "profile_shear_shape", 0.5)),
+                _hopt_base = getattr(_base_pd, "H_required_max_optimistic", float("nan"))
+                _hrob_base = getattr(_base_pd, "H_required_max_robust", float("nan"))
+                cH1, cH2 = st.columns(2)
+                with cH1:
+                    H_required_max_optimistic = st.number_input(
+                        "H_required max (optimistic)",
+                        min_value=0.5,
+                        max_value=5.0,
+                        value=float(_hopt_base) if (float(_hopt_base)==float(_hopt_base) and float(_hopt_base)>0) else 2.0,
                         step=0.05,
-                        key=PD_KEYS["profile_shear_shape"],
-                        help="Algebraic 1.5D bundle knob: higher values increase qmin_proxy (stabilizing) in the diagnostic profile bundle.",
+                        key=PD_KEYS["H_required_max_optimistic"],
+                        disabled=not include_transport_contracts_v371,
+                        help="If enabled, enforces H_required ≤ this cap (optimistic).",
                     )
+                with cH2:
+                    H_required_max_robust = st.number_input(
+                        "H_required max (robust)",
+                        min_value=0.5,
+                        max_value=5.0,
+                        value=float(_hrob_base) if (float(_hrob_base)==float(_hrob_base) and float(_hrob_base)>0) else 1.5,
+                        step=0.05,
+                        key=PD_KEYS["H_required_max_robust"],
+                        disabled=not include_transport_contracts_v371,
+                        help="If enabled, enforces H_required ≤ this tighter cap (robust).",
+                    )
+                st.caption("These caps are explicit constraints (no smoothing): if set, infeasible points are reported as transport-limited.")
 
-                pedestal_enabled = st.checkbox(
-                    "Enable pedestal shaping (diagnostic scaffold)",
-                    value=bool(getattr(_base_pd, "pedestal_enabled", False)),
-                    key=PD_KEYS["pedestal_enabled"],
-                    help="If enabled, the analytic profile scaffold applies a simple pedestal edge transition for diagnostics.",
+            # -----------------------------------------------------------------
+            # v372.0: Neutronics–Materials coupling (governance-only)
+            # -----------------------------------------------------------------
+            with st.expander("🧬 Neutronics–Materials coupling (v372)", expanded=False):
+                include_neutronics_materials_coupling_v372 = st.checkbox(
+                    "Enable neutronics–materials coupling diagnostics",
+                    value=bool(getattr(_base_pd, "include_neutronics_materials_coupling_v372", False)),
+                    key=PD_KEYS["include_neutronics_materials_coupling_v372"],
+                    help=(
+                        "Governance-only: material/spectrum-conditioned DPA-rate proxy, component damage partitions, and optional explicit DPA caps. "
+                        "Does not modify frozen truth."
+                    ),
                 )
-                pedestal_width_a = _num(
-                    "Pedestal width (a-units)",
-                    float(getattr(_base_pd, "pedestal_width_a", 0.05)),
-                    0.005,
-                    min_value=0.01,
-                    max_value=0.25,
-                    key=PD_KEYS["pedestal_width_a"],
-                    help="Pedestal width used by the analytic profile scaffold (diagnostic only).",
+                _mat0 = str(getattr(_base_pd, "nm_material_class_v372", "RAFM"))
+                _spec0 = str(getattr(_base_pd, "nm_spectrum_class_v372", "nominal"))
+                cNM1, cNM2 = st.columns(2)
+                with cNM1:
+                    nm_material_class_v372 = st.selectbox(
+                        "Material class (governance)",
+                        ["RAFM", "W", "SiC", "ODS"],
+                        index=max(0, ["RAFM","W","SiC","ODS"].index(_mat0) if _mat0 in ["RAFM","W","SiC","ODS"] else 0),
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["nm_material_class_v372"],
+                    )
+                with cNM2:
+                    nm_spectrum_class_v372 = st.selectbox(
+                        "Spectrum class (governance)",
+                        ["soft", "nominal", "hard"],
+                        index=max(0, ["soft","nominal","hard"].index(_spec0) if _spec0 in ["soft","nominal","hard"] else 1),
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["nm_spectrum_class_v372"],
+                    )
+                _T0 = getattr(_base_pd, "nm_T_oper_C_v372", float('nan'))
+                use_T = st.checkbox(
+                    "Use operating temperature window check",
+                    value=bool(np.isfinite(_T0)),
+                    disabled=not include_neutronics_materials_coupling_v372,
+                    key=PD_KEYS["nm_T_oper_C_v372"] + "_use",
                 )
-                bootstrap_model = st.selectbox(
-                    "Bootstrap proxy model",
-                    options=["proxy", "improved"],
-                    index=0,
-                    help="Select bootstrap fraction proxy used for reporting and (if enabled) steady-state current fractions.",
-                )
-
-                include_bootstrap_pressure_selfconsistency = st.checkbox(
-                    "Enable Bootstrap–Pressure Self-Consistency Authority (v349)",
-                    value=bool(getattr(_base_pd, "include_bootstrap_pressure_selfconsistency", False)),
-                    key=PD_KEYS["include_bootstrap_pressure_selfconsistency"],
-                    help="Deterministic check: compares f_bs proxy from the profile bundle vs a pressure-derived expectation under the selected bootstrap proxy model. No iteration.",
-                )
-                f_bootstrap_consistency_abs_max = float("nan")
-                if include_bootstrap_pressure_selfconsistency:
-                    f_bootstrap_consistency_abs_max = _num(
-                        "Max |Δf_bs| (–)",
-                        float(getattr(_base_pd, "f_bootstrap_consistency_abs_max", 0.08) or 0.08),
-                        0.01,
+                nm_T_oper_C_v372 = float('nan')
+                if use_T:
+                    nm_T_oper_C_v372 = st.number_input(
+                        "Operating temperature (°C)",
+                        value=float(_T0) if np.isfinite(_T0) else 500.0,
                         min_value=0.0,
-                        max_value=0.5,
-                        key=PD_KEYS["f_bootstrap_consistency_abs_max"],
-                        help="Hard cap for |f_bs(reported)-f_bs(expected)|. Enforced as a constraint when enabled.",
+                        step=10.0,
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["nm_T_oper_C_v372"],
+                    )
+                _dpa0 = getattr(_base_pd, "dpa_rate_eff_max_v372", float('nan'))
+                use_dpa_cap = st.checkbox(
+                    "Enable explicit DPA-rate cap constraint",
+                    value=bool(np.isfinite(_dpa0)),
+                    disabled=not include_neutronics_materials_coupling_v372,
+                    key=PD_KEYS["dpa_rate_eff_max_v372"] + "_use",
+                )
+                dpa_rate_eff_max_v372 = float('nan')
+                if use_dpa_cap:
+                    dpa_rate_eff_max_v372 = st.number_input(
+                        "DPA-rate cap (DPA/FPY)",
+                        value=float(_dpa0) if np.isfinite(_dpa0) else 20.0,
+                        min_value=0.0,
+                        step=1.0,
+                        disabled=not include_neutronics_materials_coupling_v372,
+                        key=PD_KEYS["dpa_rate_eff_max_v372"],
+                    )
+                _m0 = getattr(_base_pd, "damage_margin_min_v372", float('nan'))
+                use_margin = st.checkbox(
+                    "Enable minimum damage margin constraint",
+                    value=bool(np.isfinite(_m0)),
+                    disabled=not include_neutronics_materials_coupling_v372 or (not use_dpa_cap),
+                    key=PD_KEYS["damage_margin_min_v372"] + "_use",
+                )
+                damage_margin_min_v372 = float('nan')
+                if use_margin:
+                    damage_margin_min_v372 = st.number_input(
+                        "Minimum damage margin (fraction)",
+                        value=float(_m0) if np.isfinite(_m0) else 0.0,
+                        step=0.05,
+                        disabled=not include_neutronics_materials_coupling_v372 or (not use_dpa_cap),
+                        key=PD_KEYS["damage_margin_min_v372"],
                     )
 
+            st.caption("Tip: Use this for sensitivity studies (external systems codes-style). It does not change the solved operating point unless you also constrain power balance residuals.")
+            profile_model = st.selectbox(
+                "Analytic profiles (½-D scaffold)",
+                options=["none", "parabolic", "pedestal"],
+                index=0,
+                help="If enabled, SHAMS computes simple analytic profiles and adds profile-integrated fusion diagnostics.",
+            )
+            profile_peaking_ne = _num("nₑ peaking (alpha)", 1.0, 0.1, min_value=0.0, help="Parabolic/pedestal core peaking control for density.")
+            profile_peaking_T = _num("T peaking (alpha)", 1.5, 0.1, min_value=0.0, help="Parabolic/pedestal core peaking control for temperature.")
+
+            # v318.0: 1.5D profile authority knobs (deterministic; no solvers)
+            # v318.0: 1.5D profile authority knobs (deterministic; no solvers)
+            profile_mode = st.checkbox(
+                "Enable 1.5D profile authority diagnostics",
+                value=bool(getattr(_base_pd, "profile_mode", False)),
+                key=PD_KEYS["profile_mode"],
+                help=(
+                    "Enables analytic profile diagnostics + the algebraic 1.5D profile bundle. "
+                    "This does NOT run transport, does NOT iterate, and does NOT modify the frozen operating point. "
+                    "It only produces additional diagnostics and (bounded) bootstrap sensitivity when explicitly selected."
+                ),
+            )
+
+            # -----------------------------------------------------------------
+            # v358.0: Profile Family Library Authority (transport proxy)
+            # -----------------------------------------------------------------
+            with st.expander("🧬 Profile family library (v358)", expanded=False):
+                include_profile_family_v358 = st.checkbox(
+                    "Enable profile family transport proxy",
+                    value=bool(getattr(_base_pd, "include_profile_family_v358", False)),
+                    help="Deterministic profile-family tags and shape multipliers. No solvers, no iteration.",
+                )
+                _pf_opts = ["CORE_FLAT","CORE_PEAKED","PEDESTAL_MODERATE","PEDESTAL_STRONG","HYBRID_CORE_PEAKED_PED"]
+                _pf_base = str(getattr(_base_pd, "profile_family_v358", "CORE_FLAT")).upper().replace(" ", "_")
+                _pf_idx = _pf_opts.index(_pf_base) if _pf_base in _pf_opts else 0
+                profile_family_v358 = st.selectbox(
+                    "Profile family",
+                    options=_pf_opts,
+                    index=_pf_idx,
+                    help="Certified profile narratives used to derive bounded shape factors.",
+                )
+                profile_family_pedestal_frac = st.slider(
+                    "Pedestal fraction (proxy)",
+                    min_value=0.0, max_value=0.40, value=float(getattr(_base_pd, "profile_family_pedestal_frac", 0.0)), step=0.01,
+                )
+                profile_family_peaking_p = st.slider(
+                    "Pressure peaking factor",
+                    min_value=0.70, max_value=2.00, value=float(getattr(_base_pd, "profile_family_peaking_p", 1.0)), step=0.01,
+                )
+                profile_family_peaking_j = st.slider(
+                    "Current peaking factor",
+                    min_value=0.70, max_value=2.00, value=float(getattr(_base_pd, "profile_family_peaking_j", 1.0)), step=0.01,
+                )
+                profile_family_shear_shape = st.slider(
+                    "Shear shape (0–1)",
+                    min_value=0.0, max_value=1.0, value=float(getattr(_base_pd, "profile_family_shear_shape", 0.5)), step=0.01,
+                )
+                profile_family_confinement_mult = st.slider(
+                    "Confinement multiplier (bounded)",
+                    min_value=0.50, max_value=1.80, value=float(getattr(_base_pd, "profile_family_confinement_mult", 1.0)), step=0.01,
+                )
+                profile_family_bootstrap_mult = st.slider(
+                    "Bootstrap multiplier (bounded)",
+                    min_value=0.50, max_value=1.80, value=float(getattr(_base_pd, "profile_family_bootstrap_mult", 1.0)), step=0.01,
+                )
+                st.caption("Outputs: profile_family_* keys, tauE_profile_s, H98_profile, profile_f_bootstrap_profile")
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                profile_alpha_T = _num(
+                    "Core T exponent α_T",
+                    float(getattr(_base_pd, "profile_alpha_T", 1.5)),
+                    0.1,
+                    min_value=0.0,
+                    key=PD_KEYS["profile_alpha_T"],
+                    help="Parabolic exponent for diagnostic T(r) used when profile diagnostics are enabled.",
+                )
+            with c2:
+                profile_alpha_n = _num(
+                    "Core n exponent α_n",
+                    float(getattr(_base_pd, "profile_alpha_n", 1.0)),
+                    0.1,
+                    min_value=0.0,
+                    key=PD_KEYS["profile_alpha_n"],
+                    help="Parabolic exponent for diagnostic n(r) used when profile diagnostics are enabled.",
+                )
+            with c3:
+                profile_shear_shape = st.slider(
+                    "Shear shape (0..1)",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=float(getattr(_base_pd, "profile_shear_shape", 0.5)),
+                    step=0.05,
+                    key=PD_KEYS["profile_shear_shape"],
+                    help="Algebraic 1.5D bundle knob: higher values increase qmin_proxy (stabilizing) in the diagnostic profile bundle.",
+                )
+
+            pedestal_enabled = st.checkbox(
+                "Enable pedestal shaping (diagnostic scaffold)",
+                value=bool(getattr(_base_pd, "pedestal_enabled", False)),
+                key=PD_KEYS["pedestal_enabled"],
+                help="If enabled, the analytic profile scaffold applies a simple pedestal edge transition for diagnostics.",
+            )
+            pedestal_width_a = _num(
+                "Pedestal width (a-units)",
+                float(getattr(_base_pd, "pedestal_width_a", 0.05)),
+                0.005,
+                min_value=0.01,
+                max_value=0.25,
+                key=PD_KEYS["pedestal_width_a"],
+                help="Pedestal width used by the analytic profile scaffold (diagnostic only).",
+            )
+            bootstrap_model = st.selectbox(
+                "Bootstrap proxy model",
+                options=["proxy", "improved"],
+                index=0,
+                help="Select bootstrap fraction proxy used for reporting and (if enabled) steady-state current fractions.",
+            )
+
+            include_bootstrap_pressure_selfconsistency = st.checkbox(
+                "Enable Bootstrap–Pressure Self-Consistency Authority (v349)",
+                value=bool(getattr(_base_pd, "include_bootstrap_pressure_selfconsistency", False)),
+                key=PD_KEYS["include_bootstrap_pressure_selfconsistency"],
+                help="Deterministic check: compares f_bs proxy from the profile bundle vs a pressure-derived expectation under the selected bootstrap proxy model. No iteration.",
+            )
+            f_bootstrap_consistency_abs_max = float("nan")
+            if include_bootstrap_pressure_selfconsistency:
+                f_bootstrap_consistency_abs_max = _num(
+                    "Max |Δf_bs| (–)",
+                    float(getattr(_base_pd, "f_bootstrap_consistency_abs_max", 0.08) or 0.08),
+                    0.01,
+                    min_value=0.0,
+                    max_value=0.5,
+                    key=PD_KEYS["f_bootstrap_consistency_abs_max"],
+                    help="Hard cap for |f_bs(reported)-f_bs(expected)|. Enforced as a constraint when enabled.",
+                )
 
 
-            with st.expander("Power & composition", expanded=False):
-                Paux = _num("Auxiliary heating power P_aux (MW)", float(_base_pd.Paux_MW), 1.0, min_value=0.0, max_value=500.0, help="Auxiliary heating power delivered to the plasma (MW).", key=PD_KEYS["Paux_MW"])
-                Paux_for_Q = _num("Aux power used in Q definition (MW)", float(getattr(_base_pd, "Paux_MW", 0.0)), 1.0, min_value=0.0, help="Denominator power for Q = P_fus,DT(adj)/P_aux_for_Q (MW).", key=PD_KEYS["Paux_for_Q"])
 
-                with st.expander("Physics include/exclude", expanded=False):
-                    st.caption("Disable a block to SKIP its related physics *and* its checks.")
-                    include_radiation = st.checkbox("Include core radiation + impurities/dilution model", value=False, help="OFF by default (reviewer-safe). Enable explicitly for Research intent studies.")
-                    include_alpha_loss = st.checkbox("Include alpha-loss fraction model", value=True)
-                    include_hmode_physics = st.checkbox("Include H-mode access physics (P_LH / LH_ok)", value=True)
-                    use_lambda_q = st.checkbox("Include SOL width (λq) proxy", value=True)
+        with st.expander("Power & composition", expanded=False):
+            Paux = _num("Auxiliary heating power P_aux (MW)", float(_base_pd.Paux_MW), 1.0, min_value=0.0, max_value=500.0, help="Auxiliary heating power delivered to the plasma (MW).", key=PD_KEYS["Paux_MW"])
+            Paux_for_Q = _num("Aux power used in Q definition (MW)", float(getattr(_base_pd, "Paux_MW", 0.0)), 1.0, min_value=0.0, help="Denominator power for Q = P_fus,DT(adj)/P_aux_for_Q (MW).", key=PD_KEYS["Paux_for_Q"])
 
-                # Defaults (used even when radiation is disabled, for deterministic artifacts)
-                Zeff = 1.5
-                dilution_fuel = 0.85
-                f_rad_core = 0.20
-                radiation_model = "fractional"
-                radiation_db = "proxy_v1"
+            with st.expander("Physics include/exclude", expanded=False):
+                st.caption("Disable a block to SKIP its related physics *and* its checks.")
+                include_radiation = st.checkbox("Include core radiation + impurities/dilution model", value=False, help="OFF by default (reviewer-safe). Enable explicitly for Research intent studies.")
+                include_alpha_loss = st.checkbox("Include alpha-loss fraction model", value=True)
+                include_hmode_physics = st.checkbox("Include H-mode access physics (P_LH / LH_ok)", value=True)
+                use_lambda_q = st.checkbox("Include SOL width (λq) proxy", value=True)
+
+            # Defaults (used even when radiation is disabled, for deterministic artifacts)
+            Zeff = 1.5
+            dilution_fuel = 0.85
+            f_rad_core = 0.20
+            radiation_model = "fractional"
+            radiation_db = "proxy_v1"
+            impurity_species = "C"
+            impurity_frac = 0.0
+            include_synchrotron = True
+            zeff_mode = "fixed"
+            impurity_mix = ""
+
+            # v320 impurity + detachment authority contract defaults
+            impurity_contract_species = "Ne"
+            impurity_contract_f_z = 3e-4
+            impurity_partition_core = 0.50
+            impurity_partition_edge = 0.20
+            impurity_partition_sol = 0.20
+            impurity_partition_div = 0.10
+            include_sol_radiation_control = False
+            q_div_target_MW_m2 = float('nan')
+            T_sol_keV = 0.08
+            f_V_sol_div = 0.12
+            detachment_fz_max = float('nan')
+            include_edge_core_coupled_exhaust = False
+            edge_core_coupling_chi_core = 0.25
+            f_rad_core_edge_core_max = float('nan')
+
+            if include_radiation:
+                Zeff = _num("Effective charge Z_eff (–)", 1.5, 0.1, min_value=1.0, help="Effective ion charge Z_eff; used for brems proxy (diagnostic) and radiation screens when enabled.")
+                dilution_fuel = _num("Fuel dilution fraction (DT-equivalent) (–)", 0.85, 0.01, min_value=0.0, max_value=1.0, help="Multiplicative penalty on DT-equivalent fusion power due to dilution/impurities.")
+                f_rad_core = _num("Core radiation fraction f_rad,core (–)", 0.20, 0.01, min_value=0.0, max_value=0.95, help="If enabled, Prad_core = f_rad_core * Pin (simple screening model).")
+        
+                radiation_model = st.selectbox(
+                    "Radiation model",
+                    options=["fractional", "impurity_mix"],
+                    index=0,
+                    help="fractional: Prad_core = f_rad_core * Pin (legacy proxy). impurity_mix: brem + (optional) synchrotron + impurity line radiation using Lz(Te) tables."
+                )
+                radiation_db = st.selectbox(
+                    "Lz(Te) database",
+                    options=["proxy_v1","radas_openadas_v1","file:<path>"],
+                    index=0,
+                    help="Repo-local Lz tables with hash recorded in artifacts. Replace proxy_v1 with validated tables for publication claims.",
+                )
+
+                # One-line reviewer-safe warning: if the selected DB cannot be resolved,
+                # the frozen evaluator will fall back to builtin_proxy (no crash). We
+                # surface this *before* a run so the user is not misled.
+                try:
+                    _db_raw = str(radiation_db or "").strip()
+                    _db_ok = True
+                    if _db_raw.lower().startswith("file:"):
+                        _p = _db_raw[5:].strip()
+                        _db_ok = bool(_p) and Path(_p).expanduser().exists()
+                    else:
+                        _fname = f"lz_tables_{_db_raw.lower()}.json"
+                        _db_ok = (SRC / "data" / "radiation" / _fname).exists()
+                    if not _db_ok:
+                        st.warning("Selected Lz(Te) DB not found → will use builtin_proxy (no crash; provenance recorded).")
+                except Exception:
+                    pass
+                if str(radiation_db).startswith('file:'):
+                    radiation_db = st.text_input(
+                        "Radiation DB file (JSON)",
+                        value=radiation_db,
+                        help="Provide as file:<path>. The JSON must contain {'species': {<SYM>: {'Te_keV': [...], 'Lz_W_m3': [...]}, ...}}. SHA256 will be recorded in artifacts.",
+                    )
+                impurity_species = st.selectbox("Impurity species (for line radiation)", options=["C","N","Ne","Ar","W"], index=0)
+                impurity_frac = _num("Impurity fraction (rough)", 0.0, 0.001, min_value=0.0, help="Rough number fraction for line radiation placeholder model.")
+                include_synchrotron = st.checkbox("Include synchrotron radiation (rough)", value=True)
+
+                zeff_mode = st.selectbox(
+                    "Z_eff handling",
+                    options=["fixed", "from_impurity", "from_mix"],
+                    index=0,
+                    help="fixed: use Z_eff input directly. from_impurity: estimate Z_eff from (species, frac). from_mix: estimate Z_eff from impurity_mix dict.",
+                )
+                impurity_mix = st.text_input(
+                    "Impurity mix (optional JSON dict)",
+                    value="",
+                    help="Optional multi-impurity number fractions, e.g. {\"C\":0.01, \"Ne\":0.002}. Used by the physics radiation model and (if selected) to estimate Z_eff.",
+                )
+
+                with st.expander("Impurity radiation & detachment authority (v320)", expanded=False):
+                    st.caption(
+                        "Algebraic contracts: (i) impurity radiation partitions using a bounded Lz envelope, "
+                        "and (ii) detachment budget inversion from q_div target → required SOL+div radiation → implied f_z. "
+                        "No time-domain modelling; no feedback into core power balance unless you add explicit constraints."
+                    )
+                    c1,c2 = st.columns(2)
+                    with c1:
+                        impurity_contract_species = st.selectbox(
+                            "Contract species",
+                            options=["C","N","Ne","Ar","W"],
+                            index=2,
+                            help="Species used by the contract envelope (separate from line-radiation mix model).",
+                        )
+                        impurity_contract_f_z = _num(
+                            "Contract seeding fraction f_z = nZ/ne (–)",
+                            float(impurity_contract_f_z),
+                            1e-4,
+                            min_value=0.0,
+                            max_value=1e-2,
+                            fmt="%.1e",
+                            help="Declared seeding fraction for partition estimates (clamped to ≤1e-2 in truth).",
+                        )
+                    with c2:
+                        detachment_fz_max = _num(
+                            "Max allowed implied f_z (optional constraint)",
+                            float(detachment_fz_max),
+                            1e-4,
+                            min_value=0.0,
+                            fmt="%.1e",
+                            help="If set (finite), SHAMS adds a soft feasibility cap: implied f_z_required ≤ this value.",
+                        )
+
+                    st.markdown("**Radiation partitions (fractions; sum ≤ 1; remainder → core)**")
+                    p1,p2,p3,p4 = st.columns(4)
+                    with p1:
+                        impurity_partition_core = st.slider("core", 0.0, 1.0, float(impurity_partition_core), 0.01)
+                    with p2:
+                        impurity_partition_edge = st.slider("edge", 0.0, 1.0, float(impurity_partition_edge), 0.01)
+                    with p3:
+                        impurity_partition_sol = st.slider("SOL", 0.0, 1.0, float(impurity_partition_sol), 0.01)
+                    with p4:
+                        impurity_partition_div = st.slider("divertor", 0.0, 1.0, float(impurity_partition_div), 0.01)
+
+                    st.markdown("**Detachment target (diagnostic transparency)**")
+                    include_sol_radiation_control = st.checkbox(
+                        "Enable q_div target inversion",
+                        value=bool(include_sol_radiation_control),
+                        help="Uses q_div_target to compute required SOL+div radiated fraction and implied impurity f_z.",
+                    )
+                    q_div_target_MW_m2 = _num(
+                        "Requested q_div target (MW/m²)",
+                        float(q_div_target_MW_m2) if q_div_target_MW_m2==q_div_target_MW_m2 else 10.0,
+                        0.5,
+                        min_value=0.1,
+                        help="Technology goal. This does not change the operating point; it produces a required SOL+div radiation budget.",
+                    ) if include_sol_radiation_control else float('nan')
+                    c3,c4 = st.columns(2)
+                    with c3:
+                        T_sol_keV = _num("T_SOL proxy (keV)", float(T_sol_keV), 0.01, min_value=0.03, max_value=1.0)
+                    with c4:
+                        f_V_sol_div = _num("Effective radiating volume fraction V_SOL+div / V", float(f_V_sol_div), 0.01, min_value=0.005, max_value=0.5)
+
+                    st.markdown('**Edge–core coupled exhaust (v348)**')
+                    include_edge_core_coupled_exhaust = st.checkbox(
+                        'Enable edge–core coupled exhaust re-evaluation',
+                        value=bool(include_edge_core_coupled_exhaust),
+                        help='One-pass: uses P_SOL,eff = P_SOL - chi_core·P_rad,req(SOL+div) to re-evaluate q_div. lambda_q is held fixed. Does not iterate.',
+                    )
+                    edge_core_coupling_chi_core = st.slider(
+                        'Coupling coefficient chi_core (–)',
+                        min_value=0.0, max_value=1.0, value=float(edge_core_coupling_chi_core), step=0.05,
+                        help='Fraction of SOL+div radiation requirement mapped to additional core radiation penalty for exhaust budgeting.',
+                    )
+                    f_rad_core_edge_core_max = _num(
+                        'Max allowed coupled core radiative fraction (optional)',
+                        float(f_rad_core_edge_core_max),
+                        0.05, min_value=0.0, max_value=2.0,
+                        help='If set, enforces f_rad_core_edge_core ≤ max when edge-core coupling is enabled.',
+                    )
+
+                st.markdown("**Power-channel bookkeeping (transparent; totals unchanged)**")
+                f_alpha_to_ion = st.slider("Alpha deposition to ions f_α→i", min_value=0.0, max_value=1.0, value=0.85, step=0.01)
+                f_aux_to_ion = st.slider("Aux deposition to ions f_aux→i", min_value=0.0, max_value=1.0, value=0.50, step=0.01)
+                include_P_ie = st.checkbox("Include ion↔electron equilibration P_ie (diagnostic)", value=True)
+
+                st.markdown("**Particle sustainability (optional diagnostic closure)**")
+                include_particle_balance = st.checkbox("Enable particle balance closure (diagnostic)", value=False)
+                tau_p_over_tauE = _num("τ_p / τ_E,eff (–)", 3.0, 0.2, min_value=0.0, help="Proxy: particle confinement time τ_p = (τ_p/τ_E,eff)·τ_E,eff.")
+                S_fuel_max_1e22_per_s = _num("Max fueling source S_max (1e22/s) (optional)", float('nan'), 0.1, min_value=0.0, help="If set, SHAMS enforces S_required ≤ S_max as a feasibility constraint (only when particle closure enabled).")
+
+                st.markdown("**Non-inductive & risk screens (optional; system-code)**")
+                cd_enable = st.checkbox("Enable current-drive closure (proxy)", value=False)
+                cd_method = st.selectbox("CD method", options=["NBI","EC","LH"], index=0)
+                cd_fraction_of_Paux = st.slider("Fraction of Paux allocated to CD", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
+                f_NI_min = _num("Min non-inductive fraction f_NI,min (optional)", float("nan"), 0.05, min_value=0.0, max_value=1.0, help="If set, enforces (I_bootstrap+I_cd)/Ip ≥ f_NI,min.")
+                disruption_risk_max = _num("Max disruption risk proxy (optional)", float("nan"), 0.1, min_value=0.0, help="If set, enforces disruption_risk_proxy ≤ max.")
+                f_rad_core_max = _num("Max core radiative fraction (optional)", float("nan"), 0.05, min_value=0.0, max_value=2.0, help="If set, enforces Prad_core/Ploss ≤ max.")
+
+            else:
+                Zeff = 1.0
+                dilution_fuel = 1.0
+                f_rad_core = 0.0
+                zeff_mode = "fixed"
                 impurity_species = "C"
                 impurity_frac = 0.0
-                include_synchrotron = True
-                zeff_mode = "fixed"
                 impurity_mix = ""
+                include_synchrotron = False
+                f_alpha_to_ion = 0.85
+                f_aux_to_ion = 0.50
+                include_P_ie = True
+                include_particle_balance = False
+                tau_p_over_tauE = 3.0
+                S_fuel_max_1e22_per_s = float("nan")
+                cd_enable = False
+                cd_method = "NBI"
+                cd_fraction_of_Paux = 0.5
+                f_NI_min = float("nan")
+                disruption_risk_max = float("nan")
+                f_rad_core_max = float("nan")
 
-                # v320 impurity + detachment authority contract defaults
                 impurity_contract_species = "Ne"
                 impurity_contract_f_z = 3e-4
                 impurity_partition_core = 0.50
@@ -4491,991 +4684,799 @@ if _deck == "🧭 Point Designer":
                 T_sol_keV = 0.08
                 f_V_sol_div = 0.12
                 detachment_fz_max = float('nan')
-                include_edge_core_coupled_exhaust = False
-                edge_core_coupling_chi_core = 0.25
-                f_rad_core_edge_core_max = float('nan')
 
-                if include_radiation:
-                    Zeff = _num("Effective charge Z_eff (–)", 1.5, 0.1, min_value=1.0, help="Effective ion charge Z_eff; used for brems proxy (diagnostic) and radiation screens when enabled.")
-                    dilution_fuel = _num("Fuel dilution fraction (DT-equivalent) (–)", 0.85, 0.01, min_value=0.0, max_value=1.0, help="Multiplicative penalty on DT-equivalent fusion power due to dilution/impurities.")
-                    f_rad_core = _num("Core radiation fraction f_rad,core (–)", 0.20, 0.01, min_value=0.0, max_value=0.95, help="If enabled, Prad_core = f_rad_core * Pin (simple screening model).")
-            
-                    radiation_model = st.selectbox(
-                        "Radiation model",
-                        options=["fractional", "impurity_mix"],
-                        index=0,
-                        help="fractional: Prad_core = f_rad_core * Pin (legacy proxy). impurity_mix: brem + (optional) synchrotron + impurity line radiation using Lz(Te) tables."
-                    )
-                    radiation_db = st.selectbox(
-                        "Lz(Te) database",
-                        options=["proxy_v1","radas_openadas_v1","file:<path>"],
-                        index=0,
-                        help="Repo-local Lz tables with hash recorded in artifacts. Replace proxy_v1 with validated tables for publication claims.",
-                    )
+            if include_alpha_loss:
+                alpha_loss_frac = _num("Alpha heating loss fraction (–)", 0.05, 0.01, min_value=0.0, max_value=1.0, help="If enabled, fraction of alpha heating assumed lost (not deposited in core).")
+            else:
+                alpha_loss_frac = 0.0
 
-                    # One-line reviewer-safe warning: if the selected DB cannot be resolved,
-                    # the frozen evaluator will fall back to builtin_proxy (no crash). We
-                    # surface this *before* a run so the user is not misled.
-                    try:
-                        _db_raw = str(radiation_db or "").strip()
-                        _db_ok = True
-                        if _db_raw.lower().startswith("file:"):
-                            _p = _db_raw[5:].strip()
-                            _db_ok = bool(_p) and Path(_p).expanduser().exists()
-                        else:
-                            _fname = f"lz_tables_{_db_raw.lower()}.json"
-                            _db_ok = (SRC / "data" / "radiation" / _fname).exists()
-                        if not _db_ok:
-                            st.warning("Selected Lz(Te) DB not found → will use builtin_proxy (no crash; provenance recorded).")
-                    except Exception:
-                        pass
-                    if str(radiation_db).startswith('file:'):
-                        radiation_db = st.text_input(
-                            "Radiation DB file (JSON)",
-                            value=radiation_db,
-                            help="Provide as file:<path>. The JSON must contain {'species': {<SYM>: {'Te_keV': [...], 'Lz_W_m3': [...]}, ...}}. SHA256 will be recorded in artifacts.",
-                        )
-                    impurity_species = st.selectbox("Impurity species (for line radiation)", options=["C","N","Ne","Ar","W"], index=0)
-                    impurity_frac = _num("Impurity fraction (rough)", 0.0, 0.001, min_value=0.0, help="Rough number fraction for line radiation placeholder model.")
-                    include_synchrotron = st.checkbox("Include synchrotron radiation (rough)", value=True)
-
-                    zeff_mode = st.selectbox(
-                        "Z_eff handling",
-                        options=["fixed", "from_impurity", "from_mix"],
-                        index=0,
-                        help="fixed: use Z_eff input directly. from_impurity: estimate Z_eff from (species, frac). from_mix: estimate Z_eff from impurity_mix dict.",
-                    )
-                    impurity_mix = st.text_input(
-                        "Impurity mix (optional JSON dict)",
-                        value="",
-                        help="Optional multi-impurity number fractions, e.g. {\"C\":0.01, \"Ne\":0.002}. Used by the physics radiation model and (if selected) to estimate Z_eff.",
-                    )
-
-                    with st.expander("Impurity radiation & detachment authority (v320)", expanded=False):
-                        st.caption(
-                            "Algebraic contracts: (i) impurity radiation partitions using a bounded Lz envelope, "
-                            "and (ii) detachment budget inversion from q_div target → required SOL+div radiation → implied f_z. "
-                            "No time-domain modelling; no feedback into core power balance unless you add explicit constraints."
-                        )
-                        c1,c2 = st.columns(2)
-                        with c1:
-                            impurity_contract_species = st.selectbox(
-                                "Contract species",
-                                options=["C","N","Ne","Ar","W"],
-                                index=2,
-                                help="Species used by the contract envelope (separate from line-radiation mix model).",
-                            )
-                            impurity_contract_f_z = _num(
-                                "Contract seeding fraction f_z = nZ/ne (–)",
-                                float(impurity_contract_f_z),
-                                1e-4,
-                                min_value=0.0,
-                                max_value=1e-2,
-                                fmt="%.1e",
-                                help="Declared seeding fraction for partition estimates (clamped to ≤1e-2 in truth).",
-                            )
-                        with c2:
-                            detachment_fz_max = _num(
-                                "Max allowed implied f_z (optional constraint)",
-                                float(detachment_fz_max),
-                                1e-4,
-                                min_value=0.0,
-                                fmt="%.1e",
-                                help="If set (finite), SHAMS adds a soft feasibility cap: implied f_z_required ≤ this value.",
-                            )
-
-                        st.markdown("**Radiation partitions (fractions; sum ≤ 1; remainder → core)**")
-                        p1,p2,p3,p4 = st.columns(4)
-                        with p1:
-                            impurity_partition_core = st.slider("core", 0.0, 1.0, float(impurity_partition_core), 0.01)
-                        with p2:
-                            impurity_partition_edge = st.slider("edge", 0.0, 1.0, float(impurity_partition_edge), 0.01)
-                        with p3:
-                            impurity_partition_sol = st.slider("SOL", 0.0, 1.0, float(impurity_partition_sol), 0.01)
-                        with p4:
-                            impurity_partition_div = st.slider("divertor", 0.0, 1.0, float(impurity_partition_div), 0.01)
-
-                        st.markdown("**Detachment target (diagnostic transparency)**")
-                        include_sol_radiation_control = st.checkbox(
-                            "Enable q_div target inversion",
-                            value=bool(include_sol_radiation_control),
-                            help="Uses q_div_target to compute required SOL+div radiated fraction and implied impurity f_z.",
-                        )
-                        q_div_target_MW_m2 = _num(
-                            "Requested q_div target (MW/m²)",
-                            float(q_div_target_MW_m2) if q_div_target_MW_m2==q_div_target_MW_m2 else 10.0,
-                            0.5,
-                            min_value=0.1,
-                            help="Technology goal. This does not change the operating point; it produces a required SOL+div radiation budget.",
-                        ) if include_sol_radiation_control else float('nan')
-                        c3,c4 = st.columns(2)
-                        with c3:
-                            T_sol_keV = _num("T_SOL proxy (keV)", float(T_sol_keV), 0.01, min_value=0.03, max_value=1.0)
-                        with c4:
-                            f_V_sol_div = _num("Effective radiating volume fraction V_SOL+div / V", float(f_V_sol_div), 0.01, min_value=0.005, max_value=0.5)
-
-                        st.markdown('**Edge–core coupled exhaust (v348)**')
-                        include_edge_core_coupled_exhaust = st.checkbox(
-                            'Enable edge–core coupled exhaust re-evaluation',
-                            value=bool(include_edge_core_coupled_exhaust),
-                            help='One-pass: uses P_SOL,eff = P_SOL - chi_core·P_rad,req(SOL+div) to re-evaluate q_div. lambda_q is held fixed. Does not iterate.',
-                        )
-                        edge_core_coupling_chi_core = st.slider(
-                            'Coupling coefficient chi_core (–)',
-                            min_value=0.0, max_value=1.0, value=float(edge_core_coupling_chi_core), step=0.05,
-                            help='Fraction of SOL+div radiation requirement mapped to additional core radiation penalty for exhaust budgeting.',
-                        )
-                        f_rad_core_edge_core_max = _num(
-                            'Max allowed coupled core radiative fraction (optional)',
-                            float(f_rad_core_edge_core_max),
-                            0.05, min_value=0.0, max_value=2.0,
-                            help='If set, enforces f_rad_core_edge_core ≤ max when edge-core coupling is enabled.',
-                        )
-
-                    st.markdown("**Power-channel bookkeeping (transparent; totals unchanged)**")
-                    f_alpha_to_ion = st.slider("Alpha deposition to ions f_α→i", min_value=0.0, max_value=1.0, value=0.85, step=0.01)
-                    f_aux_to_ion = st.slider("Aux deposition to ions f_aux→i", min_value=0.0, max_value=1.0, value=0.50, step=0.01)
-                    include_P_ie = st.checkbox("Include ion↔electron equilibration P_ie (diagnostic)", value=True)
-
-                    st.markdown("**Particle sustainability (optional diagnostic closure)**")
-                    include_particle_balance = st.checkbox("Enable particle balance closure (diagnostic)", value=False)
-                    tau_p_over_tauE = _num("τ_p / τ_E,eff (–)", 3.0, 0.2, min_value=0.0, help="Proxy: particle confinement time τ_p = (τ_p/τ_E,eff)·τ_E,eff.")
-                    S_fuel_max_1e22_per_s = _num("Max fueling source S_max (1e22/s) (optional)", float('nan'), 0.1, min_value=0.0, help="If set, SHAMS enforces S_required ≤ S_max as a feasibility constraint (only when particle closure enabled).")
-
-                    st.markdown("**Non-inductive & risk screens (optional; system-code)**")
-                    cd_enable = st.checkbox("Enable current-drive closure (proxy)", value=False)
-                    cd_method = st.selectbox("CD method", options=["NBI","EC","LH"], index=0)
-                    cd_fraction_of_Paux = st.slider("Fraction of Paux allocated to CD", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
-                    f_NI_min = _num("Min non-inductive fraction f_NI,min (optional)", float("nan"), 0.05, min_value=0.0, max_value=1.0, help="If set, enforces (I_bootstrap+I_cd)/Ip ≥ f_NI,min.")
-                    disruption_risk_max = _num("Max disruption risk proxy (optional)", float("nan"), 0.1, min_value=0.0, help="If set, enforces disruption_risk_proxy ≤ max.")
-                    f_rad_core_max = _num("Max core radiative fraction (optional)", float("nan"), 0.05, min_value=0.0, max_value=2.0, help="If set, enforces Prad_core/Ploss ≤ max.")
-
-                else:
-                    Zeff = 1.0
-                    dilution_fuel = 1.0
-                    f_rad_core = 0.0
-                    zeff_mode = "fixed"
-                    impurity_species = "C"
-                    impurity_frac = 0.0
-                    impurity_mix = ""
-                    include_synchrotron = False
-                    f_alpha_to_ion = 0.85
-                    f_aux_to_ion = 0.50
-                    include_P_ie = True
-                    include_particle_balance = False
-                    tau_p_over_tauE = 3.0
-                    S_fuel_max_1e22_per_s = float("nan")
-                    cd_enable = False
-                    cd_method = "NBI"
-                    cd_fraction_of_Paux = 0.5
-                    f_NI_min = float("nan")
-                    disruption_risk_max = float("nan")
-                    f_rad_core_max = float("nan")
-
-                    impurity_contract_species = "Ne"
-                    impurity_contract_f_z = 3e-4
-                    impurity_partition_core = 0.50
-                    impurity_partition_edge = 0.20
-                    impurity_partition_sol = 0.20
-                    impurity_partition_div = 0.10
-                    include_sol_radiation_control = False
-                    q_div_target_MW_m2 = float('nan')
-                    T_sol_keV = 0.08
-                    f_V_sol_div = 0.12
-                    detachment_fz_max = float('nan')
-
-                if include_alpha_loss:
-                    alpha_loss_frac = _num("Alpha heating loss fraction (–)", 0.05, 0.01, min_value=0.0, max_value=1.0, help="If enabled, fraction of alpha heating assumed lost (not deposited in core).")
-                else:
-                    alpha_loss_frac = 0.0
-
-                # Optional fast-particle / ash closures (transparent (systems-code-inspired); defaults preserve legacy behavior)
-                with st.expander("Advanced fast-particle / ash closures (optional)", expanded=False):
-                    st.caption("All options here are **opt-in**; defaults preserve current SHAMS behavior.")
-                    alpha_loss_model = st.selectbox(
-                        "Alpha prompt-loss model",
-                        options=["fixed", "rho_star"],
-                        index=0,
-                        help="fixed: use alpha_loss_frac directly. rho_star: alpha_loss_frac_eff = alpha_loss_frac + k·rho* (transparent proxy).",
-                    )
-                    alpha_prompt_loss_k = _num(
-                        "Prompt-loss slope k (–)",
-                        0.0,
-                        0.01,
-                        min_value=0.0,
-                        max_value=1.0,
-                        help="Used only if alpha_loss_model='rho_star'. Effective alpha loss is clipped to [0,0.9].",
-                    )
-                    alpha_partition_model = st.selectbox(
-                        "Alpha ion/electron partition proxy",
-                        options=["fixed", "Te_ratio"],
-                        index=0,
-                        help="Bookkeeping only: affects Palpha_i/Palpha_e reporting (Pin unchanged).",
-                    )
-                    alpha_partition_k = _num(
-                        "Partition slope k (–)",
-                        0.0,
-                        0.01,
-                        min_value=0.0,
-                        max_value=2.0,
-                        help="Used only if alpha_partition_model='Te_ratio'.",
-                    )
-
-                    ash_dilution_mode = st.selectbox(
-                        "Helium-ash dilution penalty",
-                        options=["off", "fixed_fraction"],
-                        index=0,
-                        help="off: no additional penalty. fixed_fraction: Pfus_for_Q *= (1-f_He_ash)^2 (transparent proxy).",
-                    )
-                    f_He_ash = _num(
-                        "Helium-ash fraction f_He_ash (–)",
-                        0.0,
-                        0.01,
-                        min_value=0.0,
-                        max_value=0.9,
-                        help="Used only if ash_dilution_mode='fixed_fraction'.",
-                    )
-                if include_hmode_physics:
-                    require_Hmode = st.checkbox("Require H-mode access (enforce P_aux ≥ (1+margin)·P_LH)", value=False)
-                    PLH_margin = _num("P_LH margin (–)", 0.0, 0.05, min_value=0.0, max_value=5.0, help="If Require H-mode is enabled: require P_aux ≥ (1+margin)·P_LH.")
-                else:
-                    require_Hmode = False
-                    PLH_margin = 0.0
-            with st.expander("Operating targets (solver)", expanded=False):
-                fuel_mode_label = st.radio(
-                    "Fuel / design mode",
-                    ["DT performance (targets Q & net electric)", "DD feasibility (includes secondary DT from DD-produced T)"],
+            # Optional fast-particle / ash closures (transparent (systems-code-inspired); defaults preserve legacy behavior)
+            with st.expander("Advanced fast-particle / ash closures (optional)", expanded=False):
+                st.caption("All options here are **opt-in**; defaults preserve current SHAMS behavior.")
+                alpha_loss_model = st.selectbox(
+                    "Alpha prompt-loss model",
+                    options=["fixed", "rho_star"],
                     index=0,
+                    help="fixed: use alpha_loss_frac directly. rho_star: alpha_loss_frac_eff = alpha_loss_frac + k·rho* (transparent proxy).",
                 )
-                fuel_mode = "DT" if fuel_mode_label.startswith("DT") else "DD"
-                if fuel_mode == "DD":
-                    include_secondary_DT = st.checkbox("Include secondary DT from DD-produced tritium", value=True)
-                    if include_secondary_DT:
-                        tritium_retention = _num("Tritium retention fraction f_ret (–)", 0.5, 0.05, min_value=0.0, max_value=1.0,
-                                                 help="Fraction of DD-produced tritium retained/available to burn in secondary DT.")
-                        tau_T_loss_s = _num("Effective tritium loss time τ_T (s)", 5.0, 0.5, min_value=0.1,
-                                            help="Effective confinement/retention time for produced tritium before loss/removal.")
-                    else:
-                        tritium_retention = 0.0
-                        tau_T_loss_s = 1.0
+                alpha_prompt_loss_k = _num(
+                    "Prompt-loss slope k (–)",
+                    0.0,
+                    0.01,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Used only if alpha_loss_model='rho_star'. Effective alpha loss is clipped to [0,0.9].",
+                )
+                alpha_partition_model = st.selectbox(
+                    "Alpha ion/electron partition proxy",
+                    options=["fixed", "Te_ratio"],
+                    index=0,
+                    help="Bookkeeping only: affects Palpha_i/Palpha_e reporting (Pin unchanged).",
+                )
+                alpha_partition_k = _num(
+                    "Partition slope k (–)",
+                    0.0,
+                    0.01,
+                    min_value=0.0,
+                    max_value=2.0,
+                    help="Used only if alpha_partition_model='Te_ratio'.",
+                )
+
+                ash_dilution_mode = st.selectbox(
+                    "Helium-ash dilution penalty",
+                    options=["off", "fixed_fraction"],
+                    index=0,
+                    help="off: no additional penalty. fixed_fraction: Pfus_for_Q *= (1-f_He_ash)^2 (transparent proxy).",
+                )
+                f_He_ash = _num(
+                    "Helium-ash fraction f_He_ash (–)",
+                    0.0,
+                    0.01,
+                    min_value=0.0,
+                    max_value=0.9,
+                    help="Used only if ash_dilution_mode='fixed_fraction'.",
+                )
+            if include_hmode_physics:
+                require_Hmode = st.checkbox("Require H-mode access (enforce P_aux ≥ (1+margin)·P_LH)", value=False)
+                PLH_margin = _num("P_LH margin (–)", 0.0, 0.05, min_value=0.0, max_value=5.0, help="If Require H-mode is enabled: require P_aux ≥ (1+margin)·P_LH.")
+            else:
+                require_Hmode = False
+                PLH_margin = 0.0
+        with st.expander("Operating targets (solver)", expanded=False):
+            fuel_mode_label = st.radio(
+                "Fuel / design mode",
+                ["DT performance (targets Q & net electric)", "DD feasibility (includes secondary DT from DD-produced T)"],
+                index=0,
+            )
+            fuel_mode = "DT" if fuel_mode_label.startswith("DT") else "DD"
+            if fuel_mode == "DD":
+                include_secondary_DT = st.checkbox("Include secondary DT from DD-produced tritium", value=True)
+                if include_secondary_DT:
+                    tritium_retention = _num("Tritium retention fraction f_ret (–)", 0.5, 0.05, min_value=0.0, max_value=1.0,
+                                             help="Fraction of DD-produced tritium retained/available to burn in secondary DT.")
+                    tau_T_loss_s = _num("Effective tritium loss time τ_T (s)", 5.0, 0.5, min_value=0.1,
+                                        help="Effective confinement/retention time for produced tritium before loss/removal.")
                 else:
-                    include_secondary_DT = False
                     tritium_retention = 0.0
                     tau_T_loss_s = 1.0
+            else:
+                include_secondary_DT = False
+                tritium_retention = 0.0
+                tau_T_loss_s = 1.0
 
-                # Mode-specific safe defaults (DD mode prioritizes feasibility screens over performance)
-                default_Q = 2.0 if fuel_mode == "DT" else 0.05
-                default_H98 = 1.15 if fuel_mode == "DT" else 1.0
-                Q_target = _num("Target Q (fusion gain proxy) [-]", default_Q, 0.05, min_value=0.0)
-                H98_target = _num("Target H98 [-]", default_H98, 0.05, min_value=0.1, help="Required confinement factor H98. Solver adjusts Ip and f_G to meet this target.")
-                use_envelope = st.checkbox("Design envelope solve (SPARC-like)", value=False, help="Use transparent (systems-code-inspired) bounded vector solve to hit targets by varying Ip, fG, and optionally Paux.")
-                Pfus_target = None
-                Pnet_target = None
-                if use_envelope:
-                    Pfus_target = _num("Target fusion power P_fus (MW)", 140.0, 10.0, min_value=0.0)
-                    Pnet_target = _num("Target net electric power P_net (MW) (optional)", -1.0, 10.0, help="Set to <0 to ignore. If >0, solver will try to meet it by varying Paux as needed.", min_value=-1e6)
+            # Mode-specific safe defaults (DD mode prioritizes feasibility screens over performance)
+            default_Q = 2.0 if fuel_mode == "DT" else 0.05
+            default_H98 = 1.15 if fuel_mode == "DT" else 1.0
+            Q_target = _num("Target Q (fusion gain proxy) [-]", default_Q, 0.05, min_value=0.0)
+            H98_target = _num("Target H98 [-]", default_H98, 0.05, min_value=0.1, help="Required confinement factor H98. Solver adjusts Ip and f_G to meet this target.")
+            use_envelope = st.checkbox("Design envelope solve (SPARC-like)", value=False, help="Use transparent (systems-code-inspired) bounded vector solve to hit targets by varying Ip, fG, and optionally Paux.")
+            Pfus_target = None
+            Pnet_target = None
+            if use_envelope:
+                Pfus_target = _num("Target fusion power P_fus (MW)", 140.0, 10.0, min_value=0.0)
+                Pnet_target = _num("Target net electric power P_net (MW) (optional)", -1.0, 10.0, help="Set to <0 to ignore. If >0, solver will try to meet it by varying Paux as needed.", min_value=-1e6)
 
-                # -------------------------------------------------------------
-                # Optimization (transparent (systems-code-inspired)): search within bounds for a better design
-                # -------------------------------------------------------------
-                st.markdown("**Optimization (experimental)**")
-                do_opt = st.checkbox("Run constrained optimization (random search)", value=False,
-                                     help="Searches over (Ip, fG, Paux) within bounds to improve an objective while satisfying constraints.")
-                opt_objective = st.selectbox("Objective", ["min_R0", "min_Bpeak", "max_Pnet", "min_recirc"], index=1)
-                opt_iters = int(_num("Optimization iterations", 200, 10, min_value=20.0))
-                opt_seed = int(_num("Optimization seed", 1, 1, min_value=0.0))
-                st.divider()
+            # -------------------------------------------------------------
+            # Optimization (transparent (systems-code-inspired)): search within bounds for a better design
+            # -------------------------------------------------------------
+            st.markdown("**Optimization (experimental)**")
+            do_opt = st.checkbox("Run constrained optimization (random search)", value=False,
+                                 help="Searches over (Ip, fG, Paux) within bounds to improve an objective while satisfying constraints.")
+            opt_objective = st.selectbox("Objective", ["min_R0", "min_Bpeak", "max_Pnet", "min_recirc"], index=1)
+            opt_iters = int(_num("Optimization iterations", 200, 10, min_value=20.0))
+            opt_seed = int(_num("Optimization seed", 1, 1, min_value=0.0))
+            st.divider()
 
-                # Defaults track the currently loaded base point so preset loads immediately feel consistent.
-                _ip0 = float(getattr(_base_pd, "Ip_MA", 8.0) or 8.0)
-                _fg0 = float(getattr(_base_pd, "fG", 0.8) or 0.8)
-                Ip_min = _num("Plasma current lower bound I_p,min (MA)", max(0.1, 0.80 * _ip0), 1.0, min_value=0.1, key=PD_KEYS["Ip_lo"])
-                Ip_max = _num("Plasma current upper bound I_p,max (MA)", max(0.2, 1.20 * _ip0), 0.5, min_value=0.1, key=PD_KEYS["Ip_hi"])
-                fG_min = _num("Greenwald fraction lower bound f_G,min (–)", max(0.0, _fg0 - 0.20), 0.01, min_value=0.0, max_value=2.0, key=PD_KEYS["fG_lo"])
-                fG_max = _num("Greenwald fraction upper bound f_G,max (–)", min(2.0, _fg0 + 0.20), 0.01, min_value=0.0, max_value=2.0, key=PD_KEYS["fG_hi"])
-                tol = _num("solver tol [-]", 1e-3, 1e-4, min_value=1e-6, fmt="%.1e")
-                show_solver_live = st.checkbox(
-                    "Show solver physics live (step-by-step)",
-                    value=True,
-                    help=(
-                        "Visualize how the nested solver converges: outer bisection on Ip to hit the target H98, "
-                        "with an inner solve on fG to match the target Q at each Ip evaluation."
-                    ),
+            # Defaults track the currently loaded base point so preset loads immediately feel consistent.
+            _ip0 = float(getattr(_base_pd, "Ip_MA", 8.0) or 8.0)
+            _fg0 = float(getattr(_base_pd, "fG", 0.8) or 0.8)
+            Ip_min = _num("Plasma current lower bound I_p,min (MA)", max(0.1, 0.80 * _ip0), 1.0, min_value=0.1, key=PD_KEYS["Ip_lo"])
+            Ip_max = _num("Plasma current upper bound I_p,max (MA)", max(0.2, 1.20 * _ip0), 0.5, min_value=0.1, key=PD_KEYS["Ip_hi"])
+            fG_min = _num("Greenwald fraction lower bound f_G,min (–)", max(0.0, _fg0 - 0.20), 0.01, min_value=0.0, max_value=2.0, key=PD_KEYS["fG_lo"])
+            fG_max = _num("Greenwald fraction upper bound f_G,max (–)", min(2.0, _fg0 + 0.20), 0.01, min_value=0.0, max_value=2.0, key=PD_KEYS["fG_hi"])
+            tol = _num("solver tol [-]", 1e-3, 1e-4, min_value=1e-6, fmt="%.1e")
+            show_solver_live = st.checkbox(
+                "Show solver physics live (step-by-step)",
+                value=True,
+                help=(
+                    "Visualize how the nested solver converges: outer bisection on Ip to hit the target H98, "
+                    "with an inner solve on fG to match the target Q at each Ip evaluation."
+                ),
+            )
+        with st.expander("Engineering & plant feasibility (optional)", expanded=False):
+            # These names are passed through via PointInputs **kwargs, so they must exist in your src version.
+            # We keep them optional. If missing, they are simply ignored by PointInputs.
+            tshield = _num("Neutron shield thickness (m)", 0.8, 0.01, min_value=0.0, help="Effective neutron shield thickness used for neutronics/HTS lifetime proxies.")
+            # A small representative set; add more once you confirm exact fields in src/phase1_systems.py
+            # We still allow user to run without them.
+
+            # --- Engineering & plant feasibility (optional): per-subsystem toggles + confidence presets ---
+            st.markdown("#### Engineering & plant feasibility (optional)")
+            confidence = st.radio(
+                "Confidence level",
+                ["Conservative", "Nominal", "Aggressive"],
+                index=1,
+                horizontal=True,
+                help="Controls default assumptions and warning bands (WARN vs FAIL). Conservative is stricter; aggressive is more permissive."
+            )
+            warn_fracs = {
+                "Conservative": {"max": 0.85, "min": 1.20},
+                "Nominal":      {"max": 0.90, "min": 1.10},
+                "Aggressive":   {"max": 0.95, "min": 1.05},
+            }[confidence]
+
+            c1, c2 = st.columns(2)
+            with c1:
+                include_build = st.checkbox("Build & radial build", value=True)
+                include_magnets = st.checkbox("Magnets & HTS", value=True)
+                include_divertor = st.checkbox("Divertor / SOL", value=True)
+            with c2:
+                include_neutronics = st.checkbox("Neutronics (TBR, lifetime)", value=True)
+                include_net_power = st.checkbox("Net power / electrical balance", value=True)
+                include_fuelcycle = st.checkbox("Fuel-cycle (tritium throughput/inventory)", value=False)
+                include_economics = st.checkbox(
+                    "Economics overlay (CAPEX proxy cap)",
+                    value=False,
+                    help="Enable optional PROCESS-like component CAPEX proxy knobs and an optional hard cap. Diagnostic only; does not change plasma truth.",
                 )
-            with st.expander("Engineering & plant feasibility (optional)", expanded=False):
-                # These names are passed through via PointInputs **kwargs, so they must exist in your src version.
-                # We keep them optional. If missing, they are simply ignored by PointInputs.
-                tshield = _num("Neutron shield thickness (m)", 0.8, 0.01, min_value=0.0, help="Effective neutron shield thickness used for neutronics/HTS lifetime proxies.")
-                # A small representative set; add more once you confirm exact fields in src/phase1_systems.py
-                # We still allow user to run without them.
 
-                # --- Engineering & plant feasibility (optional): per-subsystem toggles + confidence presets ---
-                st.markdown("#### Engineering & plant feasibility (optional)")
-                confidence = st.radio(
-                    "Confidence level",
-                    ["Conservative", "Nominal", "Aggressive"],
-                    index=1,
-                    horizontal=True,
-                    help="Controls default assumptions and warning bands (WARN vs FAIL). Conservative is stricter; aggressive is more permissive."
+
+            # --- (v359.0) Availability & replacement ledger authority (optional) ---
+            with st.expander("🛠️ Availability & replacement ledger (v359.0)", expanded=False):
+                st.caption("Deterministic algebraic ledger: planned baseline + forced baseline (forced_outage_base) + replacement downtime + annualized replacement cost. Disabled by default.")
+                include_availability_replacement_v359 = st.checkbox(
+                    "Enable availability+replacement ledger authority (v359.0)",
+                    value=bool(defaults.get("include_availability_replacement_v359", False)),
+                    help="Adds availability_v359, replacement cost rate, and an optional LCOE cap. Does not modify plasma truth or legacy economics outputs.",
                 )
-                warn_fracs = {
-                    "Conservative": {"max": 0.85, "min": 1.20},
-                    "Nominal":      {"max": 0.90, "min": 1.10},
-                    "Aggressive":   {"max": 0.95, "min": 1.05},
-                }[confidence]
-
-                c1, c2 = st.columns(2)
-                with c1:
-                    include_build = st.checkbox("Build & radial build", value=True)
-                    include_magnets = st.checkbox("Magnets & HTS", value=True)
-                    include_divertor = st.checkbox("Divertor / SOL", value=True)
-                with c2:
-                    include_neutronics = st.checkbox("Neutronics (TBR, lifetime)", value=True)
-                    include_net_power = st.checkbox("Net power / electrical balance", value=True)
-                    include_fuelcycle = st.checkbox("Fuel-cycle (tritium throughput/inventory)", value=False)
-                    include_economics = st.checkbox(
-                        "Economics overlay (CAPEX proxy cap)",
-                        value=False,
-                        help="Enable optional PROCESS-like component CAPEX proxy knobs and an optional hard cap. Diagnostic only; does not change plasma truth.",
+                cA, cB = st.columns(2)
+                with cA:
+                    planned_outage_base = st.number_input(
+                        "Planned outage baseline (fraction)",
+                        min_value=0.0,
+                        max_value=0.50,
+                        value=float(defaults.get("planned_outage_base", 0.05) or 0.05),
+                        step=0.01,
                     )
-
-
-                # --- (v359.0) Availability & replacement ledger authority (optional) ---
-                with st.expander("🛠️ Availability & replacement ledger (v359.0)", expanded=False):
-                    st.caption("Deterministic algebraic ledger: planned baseline + forced baseline (forced_outage_base) + replacement downtime + annualized replacement cost. Disabled by default.")
-                    include_availability_replacement_v359 = st.checkbox(
-                        "Enable availability+replacement ledger authority (v359.0)",
-                        value=bool(getattr(defaults, "include_availability_replacement_v359", False)),
-                        help="Adds availability_v359, replacement cost rate, and an optional LCOE cap. Does not modify plasma truth or legacy economics outputs.",
+                    availability_v359_min = st.number_input(
+                        "Min availability (v359) (NaN disables)",
+                        value=float(defaults.get("availability_v359_min", float('nan'))),
                     )
-                    cA, cB = st.columns(2)
-                    with cA:
-                        planned_outage_base = st.number_input(
-                            "Planned outage baseline (fraction)",
-                            min_value=0.0,
-                            max_value=0.50,
-                            value=float(getattr(defaults, "planned_outage_base", 0.05) or 0.05),
-                            step=0.01,
-                        )
-                        availability_v359_min = st.number_input(
-                            "Min availability (v359) (NaN disables)",
-                            value=float(getattr(defaults, "availability_v359_min", float('nan'))),
-                        )
-                        LCOE_max_USD_per_MWh = st.number_input(
-                            "Max LCOE proxy (v359) (USD/MWh) (NaN disables)",
-                            value=float(getattr(defaults, "LCOE_max_USD_per_MWh", float('nan'))),
-                        )
-                    with cB:
-                        heating_cd_replace_interval_y = st.number_input(
-                            "Heating/CD replacement interval (y)",
-                            min_value=0.5,
-                            max_value=50.0,
-                            value=float(getattr(defaults, "heating_cd_replace_interval_y", 8.0) or 8.0),
-                            step=0.5,
-                        )
-                        heating_cd_replace_duration_days = st.number_input(
-                            "Heating/CD replacement duration (days)",
-                            min_value=0.0,
-                            max_value=365.0,
-                            value=float(getattr(defaults, "heating_cd_replace_duration_days", 30.0) or 30.0),
-                            step=1.0,
-                        )
-                        tritium_plant_replace_interval_y = st.number_input(
-                            "Tritium plant replacement interval (y)",
-                            min_value=0.5,
-                            max_value=50.0,
-                            value=float(getattr(defaults, "tritium_plant_replace_interval_y", 10.0) or 10.0),
-                            step=0.5,
-                        )
-                        tritium_plant_replace_duration_days = st.number_input(
-                            "Tritium plant replacement duration (days)",
-                            min_value=0.0,
-                            max_value=365.0,
-                            value=float(getattr(defaults, "tritium_plant_replace_duration_days", 30.0) or 30.0),
-                            step=1.0,
-                        )
-
-                # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
-                with st.expander("🗓️ Maintenance scheduling authority (v368.0)", expanded=False):
-                    st.caption(
-                        "Deterministic outage calendar proxy: planned+forced baselines plus a bundled replacement schedule derived from cadences and durations. "
-                        "No time simulation; no optimization; does not modify plasma truth."
+                    LCOE_max_USD_per_MWh = st.number_input(
+                        "Max LCOE proxy (v359) (USD/MWh) (NaN disables)",
+                        value=float(defaults.get("LCOE_max_USD_per_MWh", float('nan'))),
                     )
-                    include_maintenance_scheduling_v368 = st.checkbox(
-                        "Enable maintenance scheduling authority (v368.0)",
-                        value=bool(getattr(defaults, "include_maintenance_scheduling_v368", False)),
-                        help="Adds availability_v368, outage_total_frac_v368, replacement_cost_MUSD_per_year_v368 and an explicit maintenance_events_v368 table.",
-                    )
-                    cM1, cM2 = st.columns(2)
-                    with cM1:
-                        _bp_opts = ["independent", "bundle_in_vessel", "bundle_all"]
-                        _bp_def = str(getattr(defaults, "maintenance_bundle_policy", "independent"))
-                        _bp_ix = _bp_opts.index(_bp_def) if _bp_def in _bp_opts else 0
-                        maintenance_bundle_policy = st.selectbox(
-                            "Bundling policy",
-                            _bp_opts,
-                            index=_bp_ix,
-                            help="Bundling is a deterministic proxy: interval=min(intervals), duration=max(durations)+overhead.",
-                        )
-                        maintenance_bundle_overhead_days = st.number_input(
-                            "Bundle overhead (days)",
-                            min_value=0.0,
-                            max_value=90.0,
-                            value=float(getattr(defaults, "maintenance_bundle_overhead_days", 7.0) or 7.0),
-                            step=1.0,
-                        )
-                        _fm_opts = ["max", "baseline", "trips"]
-                        _fm_def = str(getattr(defaults, "forced_outage_mode_v368", "max"))
-                        _fm_ix = _fm_opts.index(_fm_def) if _fm_def in _fm_opts else 0
-                        forced_outage_mode_v368 = st.selectbox(
-                            "Forced outage mode",
-                            _fm_opts,
-                            index=_fm_ix,
-                            help="max = max(forced_outage_base, trips_per_year*trip_duration_days/365).",
-                        )
-                    with cM2:
-                        availability_v368_min = st.number_input(
-                            "Min availability (v368) (NaN disables)",
-                            value=float(getattr(defaults, "availability_v368_min", float('nan'))),
-                        )
-                        outage_fraction_v368_max = st.number_input(
-                            "Max total outage fraction (v368) (NaN disables)",
-                            value=float(getattr(defaults, "outage_fraction_v368_max", float('nan'))),
-                        )
-                        maintenance_planning_horizon_yr = st.number_input(
-                            "Planning horizon (yr) (NaN uses plant lifetime)",
-                            min_value=1.0,
-                            max_value=100.0,
-                            value=float(getattr(defaults, "maintenance_planning_horizon_yr", float('nan'))),
-                            step=1.0,
-                        )
-                # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
-                with st.expander("💰 Plant Economics Authority (v360.0)", expanded=False):
-                    st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
-                    include_economics_v360 = st.checkbox(
-                        "Enable plant economics authority (v360.0)",
-                        value=bool(getattr(defaults, "include_economics_v360", False)),
-                        help="Adds OPEX component breakdown and LCOE_proxy_v360_USD_per_MWh. Does not modify plasma truth or legacy economics unless enabled.",
-                    )
-                    cE1, cE2 = st.columns(2)
-                    with cE1:
-                        opex_fixed_MUSD_per_y = st.number_input(
-                            "Fixed OPEX (MUSD/y)",
-                            min_value=0.0,
-                            value=float(getattr(defaults, "opex_fixed_MUSD_per_y", 0.0) or 0.0),
-                            step=1.0,
-                        )
-                        tritium_processing_cost_USD_per_g = st.number_input(
-                            "Tritium processing cost (USD/g)",
-                            min_value=0.0,
-                            value=float(getattr(defaults, "tritium_processing_cost_USD_per_g", 0.05) or 0.05),
-                            step=0.01,
-                        )
-                    with cE2:
-                        cryo_wallplug_multiplier = st.number_input(
-                            "Cryo wall-plug multiplier (MW_e/MW@20K)",
-                            min_value=0.0,
-                            value=float(getattr(defaults, "cryo_wallplug_multiplier", 250.0) or 250.0),
-                            step=10.0,
-                        )
-                        OPEX_max_MUSD_per_y = st.number_input(
-                            "Max OPEX (v360) (MUSD/y) (NaN disables)",
-                            value=float(getattr(defaults, "OPEX_max_MUSD_per_y", float('nan'))),
-                        )
-
-
-
-                preset = {
-                    "Conservative": {
-                        "tblanket_m": 0.60, "t_vv_m": 0.08, "t_gap_m": 0.03, "t_tf_struct_m": 0.18, "t_tf_wind_m": 0.12,
-                        "Bpeak_factor": 1.30, "sigma_allow_MPa": 800.0, "Tcoil_K": 20.0, "hts_margin_min": 0.20, "Vmax_kV": 18.0,
-                        "q_div_max_MW_m2": 7.0, "TBR_min": 1.10, "hts_lifetime_min_yr": 5.0, "P_net_min_MW": 0.0,
-                    },
-                    "Nominal": {
-                        "tblanket_m": 0.50, "t_vv_m": 0.06, "t_gap_m": 0.02, "t_tf_struct_m": 0.15, "t_tf_wind_m": 0.10,
-                        "Bpeak_factor": 1.25, "sigma_allow_MPa": 850.0, "Tcoil_K": 20.0, "hts_margin_min": 0.15, "Vmax_kV": 20.0,
-                        "q_div_max_MW_m2": 10.0, "TBR_min": 1.05, "hts_lifetime_min_yr": 3.0, "P_net_min_MW": 0.0,
-                    },
-                    "Aggressive": {
-                        "tblanket_m": 0.40, "t_vv_m": 0.05, "t_gap_m": 0.015, "t_tf_struct_m": 0.12, "t_tf_wind_m": 0.08,
-                        "Bpeak_factor": 1.20, "sigma_allow_MPa": 900.0, "Tcoil_K": 20.0, "hts_margin_min": 0.10, "Vmax_kV": 25.0,
-                        "q_div_max_MW_m2": 15.0, "TBR_min": 1.00, "hts_lifetime_min_yr": 1.0, "P_net_min_MW": 0.0,
-                    },
-                }[confidence]
-
-                def _maybe(x: float, enabled: bool) -> float:
-                    return float(x) if enabled else float("nan")
-
-                clean_knobs = {
-                    # Build & radial build
-                    "tblanket_m": _maybe(float(_num("Blanket thickness (inboard) (m)", preset["tblanket_m"], 0.01, min_value=0.0)), include_build),
-                    "t_vv_m": _maybe(float(_num("Vacuum vessel thickness (inboard) (m)", preset["t_vv_m"], 0.005, min_value=0.0)), include_build),
-                    "t_gap_m": _maybe(float(_num("Inboard gap / clearance (m)", preset["t_gap_m"], 0.005, min_value=0.0)), include_build),
-                    "t_tf_struct_m": _maybe(float(_num("TF structure thickness (inboard) (m)", preset["t_tf_struct_m"], 0.01, min_value=0.0)), include_build),
-                    "t_tf_wind_m": _maybe(float(_num("TF winding pack thickness (inboard) (m)", preset["t_tf_wind_m"], 0.01, min_value=0.0)), include_build),
-
-                    # Magnets & HTS
-                    "Bpeak_factor": _maybe(float(_num("Peak-field mapping factor B_peak/B₀ (–)", preset["Bpeak_factor"], 0.01, min_value=1.0)), include_magnets),
-                    "sigma_allow_MPa": _maybe(float(_num("Allowable coil hoop stress (MPa)", preset["sigma_allow_MPa"], 10.0, min_value=10.0)), include_magnets),
-                    "Tcoil_K": _maybe(float(_num("HTS operating temperature (K)", preset["Tcoil_K"], 1.0, min_value=4.0)), include_magnets),
-                    "hts_margin_min": _maybe(float(_num("Minimum HTS critical-current margin (–)", preset["hts_margin_min"], 0.01, min_value=0.0)), include_magnets),
-                    "include_hts_critical_surface": bool(st.checkbox("Use HTS critical-surface model (Jc(B,T,ε))", value=False, disabled=not include_magnets, help="Off by default (legacy behavior). When enabled, computes hts_margin_cs using Jc(B,T,ε_tf)/Jop and applies the same hts_margin_min threshold.")),
-                    "Vmax_kV": _maybe(float(_num("Max dump voltage limit (kV)", preset["Vmax_kV"], 1.0, min_value=1.0)), include_magnets),
-
-                    # Magnet quench / protection authority (v285.0)
-                    "quench_energy_density_max_MJ_m3": _maybe(float(_num("Max allowable quench energy density (MJ/m³)", float('nan'), 1.0, min_value=0.0, help="Used to normalize stored-energy proxy into magnet_quench_risk_proxy. Leave NaN to disable.")), include_magnets),
-                    "magnet_quench_risk_max": _maybe(float(_num("Max magnet quench risk proxy (–)", float('nan'), 0.05, min_value=0.0, help="Optional cap on stored-energy/allowable proxy. Leave NaN to disable.")), include_magnets),
-
-                    # Divertor / SOL
-                    "q_div_max_MW_m2": _maybe(float(_num("Max divertor heat flux limit (MW/m²)", preset["q_div_max_MW_m2"], 0.5, min_value=0.1)), include_divertor),
-
-                    # Exhaust authority (v285.0)
-                    "detachment_index_min": _maybe(float(_num("Detachment index floor (proxy)", float('nan'), 0.01, help="Optional floor on P_SOL/(n_e^2 R). Leave NaN to disable.")), include_divertor),
-                    "detachment_index_max": _maybe(float(_num("Detachment index cap (proxy)", float('nan'), 0.01, help="Optional cap on P_SOL/(n_e^2 R). Leave NaN to disable.")), include_divertor),
-                    "f_rad_total_max": _maybe(float(_num("Max total radiated fraction f_rad,total (–)", float('nan'), 0.01, min_value=0.0, max_value=1.0, help="Optional cap on (f_rad_core+f_rad_div). Leave NaN to disable.")), include_divertor),
-                    "fuel_ion_fraction_min": _maybe(float(_num("Min fuel ion fraction (dilution)", float('nan'), 0.01, min_value=0.0, max_value=1.0, help="Optional minimum fuel-ion fraction (proxy). Leave NaN to disable.")), include_divertor),
-                    "Q_effective_min": _maybe(float(_num("Min effective Q (dilution-adjusted)", float('nan'), 0.05, min_value=0.0, help="Optional minimum on Q_eff = Q*fuel^2. Leave NaN to disable.")), include_divertor),
-
-                    # Neutronics & Materials (v309.0) — fast optimistic knobs + explicit contracts
-                    "TBR_min": _maybe(float(_num("Minimum tritium breeding ratio (TBR)", preset["TBR_min"], 0.01, min_value=0.0)), include_neutronics),
-                    "port_fraction": _maybe(float(_num("Port/penetration fraction (coverage penalty)", float(preset.get("port_fraction", 0.08)), 0.01, min_value=0.0, max_value=0.8, help="Penalty to blanket coverage in the TBR proxy.")), include_neutronics),
-                    "li6_enrichment": _maybe(float(_num("Li-6 enrichment fraction (0..1)", float(preset.get("li6_enrichment", 0.30)), 0.01, min_value=0.0, max_value=0.95)), include_neutronics),
-                    "blanket_type": str(st.selectbox("Blanket archetype for TBR proxy", options=["LiPb","FLiBe"], index=0, disabled=not include_neutronics, help="Used by the TBR proxy only (transport-free).")),
-                    "multiplier_material": str(st.selectbox("Neutron multiplier tag", options=["None","Be","Pb","Be2"], index=0, disabled=not include_neutronics, help="Simple multiplier factor used by the TBR proxy.")),
-                    "neutronics_archetype": str(st.selectbox("Nuclear heating partition archetype", options=["standard","heavy_shield","compact"], index=0, disabled=not include_neutronics, help="Chooses a deterministic fraction table for in-vessel nuclear heating.")),
-                    "neutronics_domain_enforce": bool(st.checkbox("Enforce neutronics proxy validity domain as HARD", value=False, disabled=not include_neutronics, help="If checked, out-of-range proxy usage (e.g., TBR thickness/coverage domains) becomes a HARD violation. Defaults off to preserve screening behavior.")),
-                    "materials_domain_enforce": bool(st.checkbox("Enforce materials admissibility as HARD", value=False, disabled=not include_neutronics, help="If checked, materials window/stress screening constraints upgrade to HARD. Defaults off.")),
-                    "hts_lifetime_min_yr": _maybe(float(_num("Minimum HTS lifetime (years)", preset["hts_lifetime_min_yr"], 0.5, min_value=0.0)), include_neutronics),
-
-                    # Optional caps & material tags (NaN disables enforcement)
-                    "neutron_wall_load_max_MW_m2": _maybe(float(_num("Max neutron wall load (MW/m²) (optional)", float('nan'), 0.1, min_value=0.0, help="Leave NaN to disable enforcement.")), include_neutronics),
-                    "fw_dpa_max_per_year": _maybe(float(_num("Max first-wall dpa per year (optional)", float('nan'), 0.5, min_value=0.0, help="Order-of-magnitude proxy derived from wall load. Leave NaN to disable.")), include_neutronics),
-                    "fw_lifetime_min_yr": _maybe(float(_num("Min first-wall replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
-                    "blanket_lifetime_min_yr": _maybe(float(_num("Min blanket replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
-
-                    # (v367.0) Materials lifetime closure: deterministic policy/cadence knobs
-                    "plant_design_lifetime_yr": _maybe(float(_num(
-                        "Plant design lifetime (yr) (v367 materials policy)",
-                        float(getattr(defaults, "plant_design_lifetime_yr", 30.0) or 30.0),
-                        1.0,
-                        min_value=1.0,
-                        help="Used by v367 materials lifetime closure to compute replacement counts/costs. No time-domain simulation.",
-                    )), include_neutronics),
-                    "materials_life_cover_plant_enforce": bool(st.checkbox(
-                        "Enforce FW/blanket lifetime ≥ plant lifetime (v367) (HARD)",
-                        value=bool(getattr(defaults, "materials_life_cover_plant_enforce", False)),
-                        disabled=not include_neutronics,
-                        help="Policy constraint: requires fw_lifetime_yr and blanket_lifetime_yr to cover plant_design_lifetime_yr when enabled.",
-                    )),
-                    "fw_replace_interval_min_yr": _maybe(float(_num(
-                        "Min FW replacement cadence (yr) (v367) (optional)",
-                        float(getattr(defaults, "fw_replace_interval_min_yr", float('nan'))),
-                        0.5,
-                        min_value=0.0,
-                        help="Optional minimum on the FW replacement interval used by the replacement ledger. Leave NaN to disable.",
-                    )), include_neutronics),
-                    "blanket_replace_interval_min_yr": _maybe(float(_num(
-                        "Min blanket replacement cadence (yr) (v367) (optional)",
-                        float(getattr(defaults, "blanket_replace_interval_min_yr", float('nan'))),
-                        0.5,
-                        min_value=0.0,
-                        help="Optional minimum on the blanket replacement interval used by the replacement ledger. Leave NaN to disable.",
-                    )), include_neutronics),
-                    "fw_capex_fraction_of_blanket": _maybe(float(_num(
-                        "FW CAPEX fraction of blanket+shield (0..1) (v367)",
-                        float(getattr(defaults, "fw_capex_fraction_of_blanket", 0.20) or 0.20),
-                        0.01,
-                        min_value=0.0,
-                        max_value=1.0,
-                        help="Used to estimate FW replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
-                    )), include_neutronics),
-                    "blanket_capex_fraction_of_blanket": _maybe(float(_num(
-                        "Blanket CAPEX fraction of blanket+shield (0..1) (v367)",
-                        float(getattr(defaults, "blanket_capex_fraction_of_blanket", 1.00) or 1.00),
-                        0.01,
-                        min_value=0.0,
-                        max_value=1.0,
-                        help="Used to estimate blanket replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
-                    )), include_neutronics),
-                    "P_nuc_total_max_MW": _maybe(float(_num("Max total nuclear heating (MW) (optional)", float('nan'), 1.0, min_value=0.0, help="Stack-based nuclear heating bookkeeping. Leave NaN to disable.")), include_neutronics),
-                    "P_nuc_tf_max_MW": _maybe(float(_num("Max TF nuclear heating (MW) (optional)", float('nan'), 0.5, min_value=0.0, help="Stack-based nuclear heating in TF regions. Leave NaN to disable.")), include_neutronics),
-                    "P_nuc_pf_max_MW": _maybe(float(_num("Max PF nuclear heating (MW) (optional)", float('nan'), 0.5, min_value=0.0, help="Leakage partition proxy to PF. Leave NaN to disable.")), include_neutronics),
-                    "P_nuc_cryo_max_kW": _maybe(float(_num("Max cryo nuclear load (kW) (optional)", float('nan'), 10.0, min_value=0.0, help="Leakage partition proxy to cryoplant. Leave NaN to disable.")), include_neutronics),
-
-                    "shield_material": str(st.selectbox("Shield material tag (attenuation)", options=["WC","B4C","SS316","EUROFER"], index=0, disabled=not include_neutronics, help="Used for stack attenuation and heating partitioning.")),
-                    "blanket_material": str(st.selectbox("Blanket material tag (attenuation)", options=["LiPb","FLiBe"], index=0, disabled=not include_neutronics, help="Used for stack attenuation and materials proxies.")),
-                    "fw_material": str(st.selectbox("First-wall material tag (materials)", options=["EUROFER","SS316","W","SiC"], index=0, disabled=not include_neutronics, help="Used for temperature window + DPA/He proxies.")),
-
-                    # Materials admissibility: temperature windows & stress (proxy)
-                    "T_fw_oper_C": _maybe(float(_num("FW operating temperature (°C) (optional)", float('nan'), 10.0, help="Used only for window checks; no thermal solver.")), include_neutronics),
-                    "T_blanket_oper_C": _maybe(float(_num("Blanket operating temperature (°C) (optional)", float('nan'), 10.0, help="Used only for window checks; no thermal solver.")), include_neutronics),
-                    "fw_T_enforce": bool(st.checkbox("Enforce FW temperature window as HARD", value=False, disabled=not include_neutronics)),
-                    "blanket_T_enforce": bool(st.checkbox("Enforce blanket temperature window as HARD", value=False, disabled=not include_neutronics)),
-                    "sigma_fw_oper_MPa": _maybe(float(_num("FW operating stress (MPa) (optional)", float('nan'), 10.0, min_value=0.0, help="Used with irradiation-adjusted allowable stress proxy. Leave NaN to disable.")), include_neutronics),
-                    "sigma_blanket_oper_MPa": _maybe(float(_num("Blanket operating stress (MPa) (optional)", float('nan'), 10.0, min_value=0.0, help="Used with irradiation-adjusted allowable stress proxy. Leave NaN to disable.")), include_neutronics),
-
-
-
-                    # Fuel-cycle / tritium ledger (v350.0) — optional tight closure
-                    "T_reserve_days": _maybe(float(_num("Tritium reserve (days)", 3.0, 0.5, min_value=0.0,
-                        help="Reserve inventory proxy: T_inventory_reserve = T_burn * reserve_days.")), include_fuelcycle),
-                    "T_processing_margin": _maybe(float(_num("Tritium processing margin factor (–)", 1.25, 0.05, min_value=0.1,
-                        help="Multiplies burn throughput to set required processing capacity.")), include_fuelcycle),
-                    "T_processing_capacity_min_g_per_day": _maybe(float(_num("Min processing capacity (g/day) (optional)", float('nan'), 10.0, min_value=0.0,
-                        help="Optional minimum capacity contract. Leave NaN to disable.")), include_fuelcycle),
-                    "T_inventory_min_kg": _maybe(float(_num("Min on-site inventory (kg) (optional)", float('nan'), 0.1, min_value=0.0,
-                        help="Optional minimum inventory contract. Leave NaN to disable.")), include_fuelcycle),
-
-                    "include_tritium_tight_closure": bool(st.checkbox(
-                        "Enable tight tritium closure (inventory+loss+self-sufficiency)",
-                        value=False,
-                        disabled=not include_fuelcycle,
-                        help="When enabled, SHAMS computes in-vessel and total tritium inventory proxies, applies optional loss tightening to TBR_eff, and enforces optional self-sufficiency margins (all algebraic; no iteration).",
-                    )),
-                    "T_processing_delay_days": _maybe(float(_num("Processing delay (days) → in-vessel inventory proxy", 1.0, 0.2, min_value=0.0,
-                        help="In-vessel inventory proxy: T_in_vessel = T_burn * delay_days.")), include_fuelcycle),
-                    "T_in_vessel_max_kg": _maybe(float(_num("Max in-vessel tritium (kg) (optional)", float('nan'), 0.1, min_value=0.0,
-                        help="Optional cap on in-vessel inventory proxy. Leave NaN to disable.")), include_fuelcycle),
-                    "T_total_inventory_max_kg": _maybe(float(_num("Max total tritium inventory (kg) (optional)", float('nan'), 0.5, min_value=0.0,
-                        help="Optional cap on total inventory proxy (reserve+in-vessel+startup). Leave NaN to disable.")), include_fuelcycle),
-                    "T_startup_inventory_kg": _maybe(float(_num("Startup tritium inventory (kg) (optional)", float('nan'), 0.5, min_value=0.0,
-                        help="Optional startup inventory proxy added to total inventory.")), include_fuelcycle),
-                    "T_loss_fraction": _maybe(float(_num("Effective tritium loss fraction (0..0.2) (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.2,
-                        help="If set, effective TBR is reduced: TBR_eff = TBR*(1-loss).")), include_fuelcycle),
-                    "TBR_self_sufficiency_margin": _maybe(float(_num("Self-sufficiency margin on TBR_eff (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.5,
-                        help="If set, requires TBR_eff ≥ 1 + margin (after declared losses).")), include_fuelcycle),
-
-                    # Economics overlay (v356.0) — optional component CAPEX proxy cap (diagnostic)
-                    "cost_k_heating_cd": _maybe(float(_num(
-                        "Heating/CD CAPEX factor (MUSD per MW launched)",
-                        25.0,
-                        1.0,
-                        min_value=0.0,
-                        help="Used only for the v356 component CAPEX proxy: capex_heating_cd = k * P_CD_launch_MW (fallback Paux).",
-                    )), include_economics),
-                    "cost_k_tritium_plant": _maybe(float(_num(
-                        "Tritium plant CAPEX factor (MUSD per kg/day burn)",
-                        40.0,
-                        1.0,
-                        min_value=0.0,
-                        help="Used only for the v356 component CAPEX proxy: capex_tritium_plant = k * T_burn_kg_per_day.",
-                    )), include_economics),
-                    "CAPEX_max_proxy_MUSD": _maybe(float(_num(
-                        "Max component CAPEX proxy (MUSD) (optional)",
-                        float('nan'),
-                        50.0,
-                        min_value=0.0,
-                        help="Optional hard feasibility cap on CAPEX_component_proxy_MUSD. Leave NaN to disable.",
-                    )), include_economics),
-
-                    # Current drive + NI closure + channel caps (v357.0)
-                    "include_current_drive": bool(st.checkbox(
-                        "Current drive & NI closure (compute P_cd)",
-                        value=False,
-                        help="Enables deterministic non-inductive closure: choose actuator, CD efficiency model, and target f_NI; SHAMS computes required launched P_cd (capped by Pcd_max_MW).",
-                    )),
-                    "include_cd_library_v357": bool(st.checkbox(
-                        "CD channel library caps (v357.0)",
-                        value=False,
-                        disabled=False,
-                        help="Adds explicit channel feasibility diagnostics and optional hard caps for LH accessibility, ECCD launcher power density, and NBI shine-through.",
-                    )),
-
-                    "f_noninductive_target": float(_num(
-                        "Target non-inductive fraction f_NI,target (–)",
-                        1.0,
-                        0.02,
-                        min_value=0.0,
-                        max_value=1.2,
-                        help="Target f_NI = f_bs + I_cd/Ip. SHAMS computes I_cd and launched P_cd to reach this target (capped).",
-                    )),
-                    "Pcd_max_MW": float(_num(
-                        "Max launched CD power P_cd,max (MW)",
-                        200.0,
-                        10.0,
-                        min_value=0.0,
-                        help="Hard cap on launched current-drive power used in the NI closure.",
-                    )),
-                    "eta_cd_wallplug": float(_num(
-                        "CD wall-plug efficiency η_cd,wall (0..1)",
-                        0.35,
-                        0.02,
-                        min_value=0.05,
-                        max_value=0.9,
-                        help="Wall-plug efficiency used in plant electric ledger.",
-                    )),
-                    "gamma_cd_A_per_W": float(_num(
-                        "CD efficiency γ_cd (A/W) (legacy fixed model)",
-                        0.05,
-                        0.005,
-                        min_value=1e-4,
-                        max_value=0.2,
-                        help="Used only when cd_model=fixed_gamma.",
-                    )),
-                    "cd_actuator": str(st.selectbox(
-                        "CD actuator channel",
-                        options=["ECCD", "LHCD", "NBI", "ICRF"],
-                        index=0,
-                        help="Actuator used for CD efficiency trends and v357 channel diagnostics.",
-                    )),
-                    "cd_model": str(st.selectbox(
-                        "CD efficiency model",
-                        options=["fixed_gamma", "actuator_scaling", "channel_library_v357"],
-                        index=2,
-                        help="Deterministic CD efficiency proxy model.",
-                    )),
-
-                    # LHCD knobs + optional bounds (caps are disabled by default via NaN)
-                    "lhcd_n_parallel": float(_num(
-                        "LHCD n∥ (–)",
-                        1.8,
-                        0.05,
-                        min_value=1.0,
-                        max_value=4.0,
-                        help="Used only when cd_actuator=LHCD and cd_model=channel_library_v357.",
-                    )),
-                    "lhcd_n_parallel_min": float(_num(
-                        "LHCD n∥ min (optional)",
-                        float('nan'),
-                        0.05,
+                with cB:
+                    heating_cd_replace_interval_y = st.number_input(
+                        "Heating/CD replacement interval (y)",
                         min_value=0.5,
-                        help="Optional hard constraint lower bound on n∥. Leave NaN to disable.",
-                    )),
-                    "lhcd_n_parallel_max": float(_num(
-                        "LHCD n∥ max (optional)",
-                        float('nan'),
-                        0.05,
+                        max_value=50.0,
+                        value=float(defaults.get("heating_cd_replace_interval_y", 8.0) or 8.0),
+                        step=0.5,
+                    )
+                    heating_cd_replace_duration_days = st.number_input(
+                        "Heating/CD replacement duration (days)",
+                        min_value=0.0,
+                        max_value=365.0,
+                        value=float(defaults.get("heating_cd_replace_duration_days", 30.0) or 30.0),
+                        step=1.0,
+                    )
+                    tritium_plant_replace_interval_y = st.number_input(
+                        "Tritium plant replacement interval (y)",
                         min_value=0.5,
-                        help="Optional hard constraint upper bound on n∥. Leave NaN to disable.",
-                    )),
+                        max_value=50.0,
+                        value=float(defaults.get("tritium_plant_replace_interval_y", 10.0) or 10.0),
+                        step=0.5,
+                    )
+                    tritium_plant_replace_duration_days = st.number_input(
+                        "Tritium plant replacement duration (days)",
+                        min_value=0.0,
+                        max_value=365.0,
+                        value=float(defaults.get("tritium_plant_replace_duration_days", 30.0) or 30.0),
+                        step=1.0,
+                    )
 
-                    # ECCD knobs + optional launcher power-density cap
-                    "eccd_launcher_area_m2": float(_num(
-                        "ECCD launcher area A (m²)",
-                        2.0,
-                        0.1,
-                        min_value=0.1,
-                        help="Used to compute launcher power density P_cd/A for v357 cap checks.",
-                    )),
-                    "eccd_launch_factor": float(_num(
-                        "ECCD launch factor (–)",
-                        1.0,
-                        0.05,
-                        min_value=0.2,
-                        max_value=2.0,
-                        help="Captures qualitative steering/optics effects as a declared multiplier on γ_cd for the v357 model.",
-                    )),
-                    "eccd_launcher_power_density_max_MW_m2": float(_num(
-                        "ECCD launcher power density max (MW/m²) (optional)",
-                        float('nan'),
-                        1.0,
+            # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
+            with st.expander("🗓️ Maintenance scheduling authority (v368.0)", expanded=False):
+                st.caption(
+                    "Deterministic outage calendar proxy: planned+forced baselines plus a bundled replacement schedule derived from cadences and durations. "
+                    "No time simulation; no optimization; does not modify plasma truth."
+                )
+                include_maintenance_scheduling_v368 = st.checkbox(
+                    "Enable maintenance scheduling authority (v368.0)",
+                    value=bool(defaults.get("include_maintenance_scheduling_v368", False)),
+                    help="Adds availability_v368, outage_total_frac_v368, replacement_cost_MUSD_per_year_v368 and an explicit maintenance_events_v368 table.",
+                )
+                cM1, cM2 = st.columns(2)
+                with cM1:
+                    _bp_opts = ["independent", "bundle_in_vessel", "bundle_all"]
+                    _bp_def = str(defaults.get("maintenance_bundle_policy", "independent"))
+                    _bp_ix = _bp_opts.index(_bp_def) if _bp_def in _bp_opts else 0
+                    maintenance_bundle_policy = st.selectbox(
+                        "Bundling policy",
+                        _bp_opts,
+                        index=_bp_ix,
+                        help="Bundling is a deterministic proxy: interval=min(intervals), duration=max(durations)+overhead.",
+                    )
+                    maintenance_bundle_overhead_days = st.number_input(
+                        "Bundle overhead (days)",
                         min_value=0.0,
-                        help="Optional hard constraint. Leave NaN to disable.",
-                    )),
+                        max_value=90.0,
+                        value=float(defaults.get("maintenance_bundle_overhead_days", 7.0) or 7.0),
+                        step=1.0,
+                    )
+                    _fm_opts = ["max", "baseline", "trips"]
+                    _fm_def = str(defaults.get("forced_outage_mode_v368", "max"))
+                    _fm_ix = _fm_opts.index(_fm_def) if _fm_def in _fm_opts else 0
+                    forced_outage_mode_v368 = st.selectbox(
+                        "Forced outage mode",
+                        _fm_opts,
+                        index=_fm_ix,
+                        help="max = max(forced_outage_base, trips_per_year*trip_duration_days/365).",
+                    )
+                with cM2:
+                    availability_v368_min = st.number_input(
+                        "Min availability (v368) (NaN disables)",
+                        value=float(defaults.get("availability_v368_min", float('nan'))),
+                    )
+                    outage_fraction_v368_max = st.number_input(
+                        "Max total outage fraction (v368) (NaN disables)",
+                        value=float(defaults.get("outage_fraction_v368_max", float('nan'))),
+                    )
+                    maintenance_planning_horizon_yr = st.number_input(
+                        "Planning horizon (yr) (NaN uses plant lifetime)",
+                        min_value=1.0,
+                        max_value=100.0,
+                        value=float(defaults.get("maintenance_planning_horizon_yr", float('nan'))),
+                        step=1.0,
+                    )
+            # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
+            with st.expander("💰 Plant Economics Authority (v360.0)", expanded=False):
+                st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
+                include_economics_v360 = st.checkbox(
+                    "Enable plant economics authority (v360.0)",
+                    value=bool(defaults.get("include_economics_v360", False)),
+                    help="Adds OPEX component breakdown and LCOE_proxy_v360_USD_per_MWh. Does not modify plasma truth or legacy economics unless enabled.",
+                )
+                cE1, cE2 = st.columns(2)
+                with cE1:
+                    opex_fixed_MUSD_per_y = st.number_input(
+                        "Fixed OPEX (MUSD/y)",
+                        min_value=0.0,
+                        value=float(defaults.get("opex_fixed_MUSD_per_y", 0.0) or 0.0),
+                        step=1.0,
+                    )
+                    tritium_processing_cost_USD_per_g = st.number_input(
+                        "Tritium processing cost (USD/g)",
+                        min_value=0.0,
+                        value=float(defaults.get("tritium_processing_cost_USD_per_g", 0.05) or 0.05),
+                        step=0.01,
+                    )
+                with cE2:
+                    cryo_wallplug_multiplier = st.number_input(
+                        "Cryo wall-plug multiplier (MW_e/MW@20K)",
+                        min_value=0.0,
+                        value=float(defaults.get("cryo_wallplug_multiplier", 250.0) or 250.0),
+                        step=10.0,
+                    )
+                    OPEX_max_MUSD_per_y = st.number_input(
+                        "Max OPEX (v360) (MUSD/y) (NaN disables)",
+                        value=float(defaults.get("OPEX_max_MUSD_per_y", float('nan'))),
+                    )
 
-                    # NBI knobs + optional shine-through cap
-                    "nbi_beam_energy_keV": float(_num(
-                        "NBI beam energy (keV)",
-                        500.0,
-                        25.0,
-                        min_value=50.0,
-                        max_value=5000.0,
-                        help="Used only when cd_actuator=NBI in the v357 model (trend scaling + shine-through proxy).",
-                    )),
-                    "nbi_shinethrough_frac_max": float(_num(
-                        "NBI shine-through max (fraction) (optional)",
-                        float('nan'),
-                        0.01,
-                        min_value=0.0,
-                        max_value=0.5,
-                        help="Optional hard constraint on shine-through fraction proxy. Leave NaN to disable.",
-                    )),
 
-                    # Net power / electrical balance
-                    "P_net_min_MW": _maybe(float(_num("Minimum net electric power (MW)", preset["P_net_min_MW"], 10.0, min_value=-1e6)), include_net_power),
 
-                    # ---------------------------------------------------------
-                    # Plant power ledger caps (v361.0 actuator authority hook)
-                    # ---------------------------------------------------------
-                    "f_recirc_max": float(_num(
-                        "Max recirculating fraction f_recirc (optional)",
-                        float('nan'),
-                        0.02,
-                        min_value=0.0,
-                        max_value=1.0,
-                        help="Optional cap on recirculating fraction Precirc/Pe_gross. Leave NaN to disable.",
-                    )),
-                    "P_pf_avg_max_MW": float(_num(
-                        "Max average PF electric draw (MW) (optional)",
-                        float('nan'),
-                        10.0,
-                        min_value=0.0,
-                        help="Optional cap on average PF electric draw proxy (pf_E_pulse_MJ/(t_burn+t_dwell)). Leave NaN to disable.",
-                    )),
-                    "P_aux_max_MW": float(_num(
-                        "Max aux+CD wallplug electric draw (MW) (optional)",
-                        float('nan'),
-                        10.0,
-                        min_value=0.0,
-                        help="Optional cap on auxiliary+CD wallplug electric draw proxy. Leave NaN to disable.",
-                    )),
-                    "P_supply_peak_max_MW": float(_num(
-                        "Max peak power-supply draw (MW) (optional)",
-                        float('nan'),
-                        10.0,
-                        min_value=0.0,
-                        help="Optional cap on P_supply_peak_MW = max(PF_peak, Aux/CD_wallplug, VS_control, RWM_control). Leave NaN to disable.",
-                    )),
-                    "P_cryo_max_MW": float(_num(
-                        "Max cryo wallplug electric draw (MW) (optional)",
-                        float('nan'),
-                        5.0,
-                        min_value=0.0,
-                        help="Optional cap on cryoplant wallplug electric draw proxy. Leave NaN to disable.",
-                    )),
+            preset = {
+                "Conservative": {
+                    "tblanket_m": 0.60, "t_vv_m": 0.08, "t_gap_m": 0.03, "t_tf_struct_m": 0.18, "t_tf_wind_m": 0.12,
+                    "Bpeak_factor": 1.30, "sigma_allow_MPa": 800.0, "Tcoil_K": 20.0, "hts_margin_min": 0.20, "Vmax_kV": 18.0,
+                    "q_div_max_MW_m2": 7.0, "TBR_min": 1.10, "hts_lifetime_min_yr": 5.0, "P_net_min_MW": 0.0,
+                },
+                "Nominal": {
+                    "tblanket_m": 0.50, "t_vv_m": 0.06, "t_gap_m": 0.02, "t_tf_struct_m": 0.15, "t_tf_wind_m": 0.10,
+                    "Bpeak_factor": 1.25, "sigma_allow_MPa": 850.0, "Tcoil_K": 20.0, "hts_margin_min": 0.15, "Vmax_kV": 20.0,
+                    "q_div_max_MW_m2": 10.0, "TBR_min": 1.05, "hts_lifetime_min_yr": 3.0, "P_net_min_MW": 0.0,
+                },
+                "Aggressive": {
+                    "tblanket_m": 0.40, "t_vv_m": 0.05, "t_gap_m": 0.015, "t_tf_struct_m": 0.12, "t_tf_wind_m": 0.08,
+                    "Bpeak_factor": 1.20, "sigma_allow_MPa": 900.0, "Tcoil_K": 20.0, "hts_margin_min": 0.10, "Vmax_kV": 25.0,
+                    "q_div_max_MW_m2": 15.0, "TBR_min": 1.00, "hts_lifetime_min_yr": 1.0, "P_net_min_MW": 0.0,
+                },
+            }[confidence]
 
-                    # ---------------------------------------------------------
-                    # Control & stability authority (v298.0) — optional caps
-                    # ---------------------------------------------------------
-                    "include_control_contracts": bool(st.checkbox(
-                        "Enable control contracts (deterministic envelopes)",
-                        value=False,
-                        help="When enabled, SHAMS computes VS/PF/RWM control requirements and checks optional caps (no physics mutation).",
-                    )),
-                    "cs_V_loop_max_V": float(_num(
-                        "Max CS loop voltage during ramp V_loop,max (V) (optional)",
-                        float("nan"),
-                        50.0,
-                        min_value=0.0,
-                        help="Optional cap on CS loop voltage proxy during ramp. Leave NaN to disable.",
-                    )),
-                    "vs_bandwidth_max_Hz": float(_num(
-                        "Max VS control bandwidth (Hz) (optional)",
-                        float("nan"),
-                        1.0,
-                        min_value=0.0,
-                        help="Optional cap on VS bandwidth requirement. Leave NaN to disable.",
-                    )),
-                    "vs_control_power_max_MW": float(_num(
-                        "Max VS control power (MW) (optional)",
-                        float("nan"),
-                        1.0,
-                        min_value=0.0,
-                        help="Optional cap on VS control power requirement. Leave NaN to disable.",
-                    )),
-                    "pf_I_peak_max_MA": float(_num(
-                        "Max PF peak current (MA) (optional)",
-                        float("nan"),
-                        0.5,
-                        min_value=0.0,
-                        help="Optional cap on PF peak current requirement from envelope contract. Leave NaN to disable.",
-                    )),
-                    "pf_dIdt_max_MA_s": float(_num(
-                        "Max PF dI/dt (MA/s) (optional)",
-                        float("nan"),
-                        0.5,
-                        min_value=0.0,
-                        help="Optional cap on PF ramp-rate requirement. Leave NaN to disable.",
-                    )),
-                    "pf_V_peak_max_V": float(_num(
-                        "Max PF peak voltage (V) (optional)",
-                        float("nan"),
-                        100.0,
-                        min_value=0.0,
-                        help="Optional cap on PF peak voltage requirement. Leave NaN to disable.",
-                    )),
-                    "pf_P_peak_max_MW": float(_num(
-                        "Max PF peak power (MW) (optional)",
-                        float("nan"),
-                        5.0,
-                        min_value=0.0,
-                        help="Optional cap on PF peak electrical power requirement. Leave NaN to disable.",
-                    )),
-                    "pf_E_pulse_max_MJ": float(_num(
-                        "Max PF pulse energy (MJ) (optional)",
-                        float("nan"),
-                        10.0,
-                        min_value=0.0,
-                        help="Optional cap on PF pulse energy proxy from envelope contract. Leave NaN to disable.",
-                    )),
-                    "include_rwm_screening": bool(st.checkbox(
-                        "Enable RWM screening (optional)",
-                        value=False,
-                        help="If enabled, evaluates an RWM screening proxy and checks bandwidth/power against caps.",
-                    )),
-                    "rwm_bandwidth_max_Hz": float(_num(
-                        "Max RWM bandwidth (Hz) (optional)",
-                        float("nan"),
-                        1.0,
-                        min_value=0.0,
-                        help="Optional cap on RWM required bandwidth; defaults to VS cap if NaN in the evaluator. Leave NaN to disable.",
-                    )),
-                    "rwm_control_power_max_MW": float(_num(
-                        "Max RWM control power (MW) (optional)",
-                        float("nan"),
-                        1.0,
-                        min_value=0.0,
-                        help="Optional cap on RWM required control power; defaults to VS cap if NaN in the evaluator. Leave NaN to disable.",
-                    )),
+            def _maybe(x: float, enabled: bool) -> float:
+                return float(x) if enabled else float("nan")
 
-                    # propagate UI choices to output for check logic
-                    "_warn_frac_max": float(warn_fracs["max"]),
-                    "_warn_frac_min": float(warn_fracs["min"]),
-                    "_subsystem_enabled": {
-                        "build": bool(include_build),
-                        "magnets": bool(include_magnets),
-                        "divertor": bool(include_divertor),
-                        "neutronics": bool(include_neutronics),
-                        "net_power": bool(include_net_power),
-                    },
-                }
+            clean_knobs = {
+                # Build & radial build
+                "tblanket_m": _maybe(float(_num("Blanket thickness (inboard) (m)", preset["tblanket_m"], 0.01, min_value=0.0)), include_build),
+                "t_vv_m": _maybe(float(_num("Vacuum vessel thickness (inboard) (m)", preset["t_vv_m"], 0.005, min_value=0.0)), include_build),
+                "t_gap_m": _maybe(float(_num("Inboard gap / clearance (m)", preset["t_gap_m"], 0.005, min_value=0.0)), include_build),
+                "t_tf_struct_m": _maybe(float(_num("TF structure thickness (inboard) (m)", preset["t_tf_struct_m"], 0.01, min_value=0.0)), include_build),
+                "t_tf_wind_m": _maybe(float(_num("TF winding pack thickness (inboard) (m)", preset["t_tf_wind_m"], 0.01, min_value=0.0)), include_build),
 
-                # (Button moved outside this expander.)
+                # Magnets & HTS
+                "Bpeak_factor": _maybe(float(_num("Peak-field mapping factor B_peak/B₀ (–)", preset["Bpeak_factor"], 0.01, min_value=1.0)), include_magnets),
+                "sigma_allow_MPa": _maybe(float(_num("Allowable coil hoop stress (MPa)", preset["sigma_allow_MPa"], 10.0, min_value=10.0)), include_magnets),
+                "Tcoil_K": _maybe(float(_num("HTS operating temperature (K)", preset["Tcoil_K"], 1.0, min_value=4.0)), include_magnets),
+                "hts_margin_min": _maybe(float(_num("Minimum HTS critical-current margin (–)", preset["hts_margin_min"], 0.01, min_value=0.0)), include_magnets),
+                "include_hts_critical_surface": bool(st.checkbox("Use HTS critical-surface model (Jc(B,T,ε))", value=False, disabled=not include_magnets, help="Off by default (legacy behavior). When enabled, computes hts_margin_cs using Jc(B,T,ε_tf)/Jop and applies the same hts_margin_min threshold.")),
+                "Vmax_kV": _maybe(float(_num("Max dump voltage limit (kV)", preset["Vmax_kV"], 1.0, min_value=1.0)), include_magnets),
 
-            # Evaluate button is intentionally *outside* the optional engineering section so
-            # users don't have to expand engineering knobs just to run Point Designer.
-            run_btn = st.button("Evaluate Point", type="primary", use_container_width=True)
-            # If user clicked the prominent Control Deck trigger, run once and clear the flag.
-            if st.session_state.get("_pd_force_run_once", False):
-                run_btn = True
-                st.session_state["_pd_force_run_once"] = False
+                # Magnet quench / protection authority (v285.0)
+                "quench_energy_density_max_MJ_m3": _maybe(float(_num("Max allowable quench energy density (MJ/m³)", float('nan'), 1.0, min_value=0.0, help="Used to normalize stored-energy proxy into magnet_quench_risk_proxy. Leave NaN to disable.")), include_magnets),
+                "magnet_quench_risk_max": _maybe(float(_num("Max magnet quench risk proxy (–)", float('nan'), 0.05, min_value=0.0, help="Optional cap on stored-energy/allowable proxy. Leave NaN to disable.")), include_magnets),
 
-            # Quick bridge: trigger Systems Mode precheck using the current Point inputs.
-            if st.button("Run Systems Precheck (in Systems Mode)", use_container_width=True, key="pd_to_systems_precheck"):
-                # Schedule the action for Systems Mode and suggest the user switch tabs.
-                st.session_state["_sys_action"] = "precheck"
-                st.session_state["_pending_workflow_step"] = "Diagnose"
-                st.success("Scheduled Systems Precheck. Switch to the **Systems Mode** tab to view the report.")
+                # Divertor / SOL
+                "q_div_max_MW_m2": _maybe(float(_num("Max divertor heat flux limit (MW/m²)", preset["q_div_max_MW_m2"], 0.5, min_value=0.1)), include_divertor),
 
-            # Point Designer usability: show cache status + last-eval timestamp + stale-input warning.
-            try:
-                import hashlib, json as _json
-                from datetime import datetime
-                import time as _time
+                # Exhaust authority (v285.0)
+                "detachment_index_min": _maybe(float(_num("Detachment index floor (proxy)", float('nan'), 0.01, help="Optional floor on P_SOL/(n_e^2 R). Leave NaN to disable.")), include_divertor),
+                "detachment_index_max": _maybe(float(_num("Detachment index cap (proxy)", float('nan'), 0.01, help="Optional cap on P_SOL/(n_e^2 R). Leave NaN to disable.")), include_divertor),
+                "f_rad_total_max": _maybe(float(_num("Max total radiated fraction f_rad,total (–)", float('nan'), 0.01, min_value=0.0, max_value=1.0, help="Optional cap on (f_rad_core+f_rad_div). Leave NaN to disable.")), include_divertor),
+                "fuel_ion_fraction_min": _maybe(float(_num("Min fuel ion fraction (dilution)", float('nan'), 0.01, min_value=0.0, max_value=1.0, help="Optional minimum fuel-ion fraction (proxy). Leave NaN to disable.")), include_divertor),
+                "Q_effective_min": _maybe(float(_num("Min effective Q (dilution-adjusted)", float('nan'), 0.05, min_value=0.0, help="Optional minimum on Q_eff = Q*fuel^2. Leave NaN to disable.")), include_divertor),
 
-                _pd_inputs_fingerprint = {
-                    "R0_m": float(R0), "a_m": float(a), "kappa": float(kappa), "delta": float(delta), "Bt_T": float(B0),
-                    "Paux_MW": float(Paux), "Ti_keV": float(Ti), "Ti_over_Te": float(Ti_over_Te),
-                    "fuel_mode": str(fuel_mode), "Q_target": float(Q_target), "H98_target": float(H98_target),
-                    "Ip_min": float(Ip_min), "Ip_max": float(Ip_max), "fG_min": float(fG_min), "fG_max": float(fG_max),
-                    "tshield": float(tshield),
-                    "magnet_technology": str(tech),
-                    "Tcoil_K": float(Tcoil),
-                    "confidence": str(confidence),
-                    "subsystem_enabled": dict(clean_knobs.get("_subsystem_enabled", {})),
-                }
-                _pd_inputs_hash = hashlib.sha1(_json.dumps(_pd_inputs_fingerprint, sort_keys=True).encode("utf-8")).hexdigest()
-                _last_hash = st.session_state.get("pd_last_inputs_hash")
-                _last_ts = st.session_state.get("pd_last_run_ts")
+                # Neutronics & Materials (v309.0) — fast optimistic knobs + explicit contracts
+                "TBR_min": _maybe(float(_num("Minimum tritium breeding ratio (TBR)", preset["TBR_min"], 0.01, min_value=0.0)), include_neutronics),
+                "port_fraction": _maybe(float(_num("Port/penetration fraction (coverage penalty)", float(preset.get("port_fraction", 0.08)), 0.01, min_value=0.0, max_value=0.8, help="Penalty to blanket coverage in the TBR proxy.")), include_neutronics),
+                "li6_enrichment": _maybe(float(_num("Li-6 enrichment fraction (0..1)", float(preset.get("li6_enrichment", 0.30)), 0.01, min_value=0.0, max_value=0.95)), include_neutronics),
+                "blanket_type": str(st.selectbox("Blanket archetype for TBR proxy", options=["LiPb","FLiBe"], index=0, disabled=not include_neutronics, help="Used by the TBR proxy only (transport-free).")),
+                "multiplier_material": str(st.selectbox("Neutron multiplier tag", options=["None","Be","Pb","Be2"], index=0, disabled=not include_neutronics, help="Simple multiplier factor used by the TBR proxy.")),
+                "neutronics_archetype": str(st.selectbox("Nuclear heating partition archetype", options=["standard","heavy_shield","compact"], index=0, disabled=not include_neutronics, help="Chooses a deterministic fraction table for in-vessel nuclear heating.")),
+                "neutronics_domain_enforce": bool(st.checkbox("Enforce neutronics proxy validity domain as HARD", value=False, disabled=not include_neutronics, help="If checked, out-of-range proxy usage (e.g., TBR thickness/coverage domains) becomes a HARD violation. Defaults off to preserve screening behavior.")),
+                "materials_domain_enforce": bool(st.checkbox("Enforce materials admissibility as HARD", value=False, disabled=not include_neutronics, help="If checked, materials window/stress screening constraints upgrade to HARD. Defaults off.")),
+                "hts_lifetime_min_yr": _maybe(float(_num("Minimum HTS lifetime (years)", preset["hts_lifetime_min_yr"], 0.5, min_value=0.0)), include_neutronics),
 
-                if _last_ts:
-                    st.caption(f"Last evaluation: {datetime.fromtimestamp(float(_last_ts)).strftime('%Y-%m-%d %H:%M:%S')}")
-                if (not run_btn) and ("pd_last_outputs" in st.session_state) and (_last_hash is not None) and (_pd_inputs_hash != _last_hash):
-                    st.warning("Inputs changed since last evaluation. Click **Evaluate Point** to refresh results.")
-                # Keep current hash available to the run path below.
-                st.session_state["pd_current_inputs_hash"] = _pd_inputs_hash
-            except Exception:
-                pass
+                # Optional caps & material tags (NaN disables enforcement)
+                "neutron_wall_load_max_MW_m2": _maybe(float(_num("Max neutron wall load (MW/m²) (optional)", float('nan'), 0.1, min_value=0.0, help="Leave NaN to disable enforcement.")), include_neutronics),
+                "fw_dpa_max_per_year": _maybe(float(_num("Max first-wall dpa per year (optional)", float('nan'), 0.5, min_value=0.0, help="Order-of-magnitude proxy derived from wall load. Leave NaN to disable.")), include_neutronics),
+                "fw_lifetime_min_yr": _maybe(float(_num("Min first-wall replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
+                "blanket_lifetime_min_yr": _maybe(float(_num("Min blanket replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
+
+                # (v367.0) Materials lifetime closure: deterministic policy/cadence knobs
+                "plant_design_lifetime_yr": _maybe(float(_num(
+                    "Plant design lifetime (yr) (v367 materials policy)",
+                    float(defaults.get("plant_design_lifetime_yr", 30.0) or 30.0),
+                    1.0,
+                    min_value=1.0,
+                    help="Used by v367 materials lifetime closure to compute replacement counts/costs. No time-domain simulation.",
+                )), include_neutronics),
+                "materials_life_cover_plant_enforce": bool(st.checkbox(
+                    "Enforce FW/blanket lifetime ≥ plant lifetime (v367) (HARD)",
+                    value=bool(defaults.get("materials_life_cover_plant_enforce", False)),
+                    disabled=not include_neutronics,
+                    help="Policy constraint: requires fw_lifetime_yr and blanket_lifetime_yr to cover plant_design_lifetime_yr when enabled.",
+                )),
+                "fw_replace_interval_min_yr": _maybe(float(_num(
+                    "Min FW replacement cadence (yr) (v367) (optional)",
+                    float(defaults.get("fw_replace_interval_min_yr", float('nan'))),
+                    0.5,
+                    min_value=0.0,
+                    help="Optional minimum on the FW replacement interval used by the replacement ledger. Leave NaN to disable.",
+                )), include_neutronics),
+                "blanket_replace_interval_min_yr": _maybe(float(_num(
+                    "Min blanket replacement cadence (yr) (v367) (optional)",
+                    float(defaults.get("blanket_replace_interval_min_yr", float('nan'))),
+                    0.5,
+                    min_value=0.0,
+                    help="Optional minimum on the blanket replacement interval used by the replacement ledger. Leave NaN to disable.",
+                )), include_neutronics),
+                "fw_capex_fraction_of_blanket": _maybe(float(_num(
+                    "FW CAPEX fraction of blanket+shield (0..1) (v367)",
+                    float(defaults.get("fw_capex_fraction_of_blanket", 0.20) or 0.20),
+                    0.01,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Used to estimate FW replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
+                )), include_neutronics),
+                "blanket_capex_fraction_of_blanket": _maybe(float(_num(
+                    "Blanket CAPEX fraction of blanket+shield (0..1) (v367)",
+                    float(defaults.get("blanket_capex_fraction_of_blanket", 1.00) or 1.00),
+                    0.01,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Used to estimate blanket replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
+                )), include_neutronics),
+                "P_nuc_total_max_MW": _maybe(float(_num("Max total nuclear heating (MW) (optional)", float('nan'), 1.0, min_value=0.0, help="Stack-based nuclear heating bookkeeping. Leave NaN to disable.")), include_neutronics),
+                "P_nuc_tf_max_MW": _maybe(float(_num("Max TF nuclear heating (MW) (optional)", float('nan'), 0.5, min_value=0.0, help="Stack-based nuclear heating in TF regions. Leave NaN to disable.")), include_neutronics),
+                "P_nuc_pf_max_MW": _maybe(float(_num("Max PF nuclear heating (MW) (optional)", float('nan'), 0.5, min_value=0.0, help="Leakage partition proxy to PF. Leave NaN to disable.")), include_neutronics),
+                "P_nuc_cryo_max_kW": _maybe(float(_num("Max cryo nuclear load (kW) (optional)", float('nan'), 10.0, min_value=0.0, help="Leakage partition proxy to cryoplant. Leave NaN to disable.")), include_neutronics),
+
+                "shield_material": str(st.selectbox("Shield material tag (attenuation)", options=["WC","B4C","SS316","EUROFER"], index=0, disabled=not include_neutronics, help="Used for stack attenuation and heating partitioning.")),
+                "blanket_material": str(st.selectbox("Blanket material tag (attenuation)", options=["LiPb","FLiBe"], index=0, disabled=not include_neutronics, help="Used for stack attenuation and materials proxies.")),
+                "fw_material": str(st.selectbox("First-wall material tag (materials)", options=["EUROFER","SS316","W","SiC"], index=0, disabled=not include_neutronics, help="Used for temperature window + DPA/He proxies.")),
+
+                # Materials admissibility: temperature windows & stress (proxy)
+                "T_fw_oper_C": _maybe(float(_num("FW operating temperature (°C) (optional)", float('nan'), 10.0, help="Used only for window checks; no thermal solver.")), include_neutronics),
+                "T_blanket_oper_C": _maybe(float(_num("Blanket operating temperature (°C) (optional)", float('nan'), 10.0, help="Used only for window checks; no thermal solver.")), include_neutronics),
+                "fw_T_enforce": bool(st.checkbox("Enforce FW temperature window as HARD", value=False, disabled=not include_neutronics)),
+                "blanket_T_enforce": bool(st.checkbox("Enforce blanket temperature window as HARD", value=False, disabled=not include_neutronics)),
+                "sigma_fw_oper_MPa": _maybe(float(_num("FW operating stress (MPa) (optional)", float('nan'), 10.0, min_value=0.0, help="Used with irradiation-adjusted allowable stress proxy. Leave NaN to disable.")), include_neutronics),
+                "sigma_blanket_oper_MPa": _maybe(float(_num("Blanket operating stress (MPa) (optional)", float('nan'), 10.0, min_value=0.0, help="Used with irradiation-adjusted allowable stress proxy. Leave NaN to disable.")), include_neutronics),
+
+
+
+                # Fuel-cycle / tritium ledger (v350.0) — optional tight closure
+                "T_reserve_days": _maybe(float(_num("Tritium reserve (days)", 3.0, 0.5, min_value=0.0,
+                    help="Reserve inventory proxy: T_inventory_reserve = T_burn * reserve_days.")), include_fuelcycle),
+                "T_processing_margin": _maybe(float(_num("Tritium processing margin factor (–)", 1.25, 0.05, min_value=0.1,
+                    help="Multiplies burn throughput to set required processing capacity.")), include_fuelcycle),
+                "T_processing_capacity_min_g_per_day": _maybe(float(_num("Min processing capacity (g/day) (optional)", float('nan'), 10.0, min_value=0.0,
+                    help="Optional minimum capacity contract. Leave NaN to disable.")), include_fuelcycle),
+                "T_inventory_min_kg": _maybe(float(_num("Min on-site inventory (kg) (optional)", float('nan'), 0.1, min_value=0.0,
+                    help="Optional minimum inventory contract. Leave NaN to disable.")), include_fuelcycle),
+
+                "include_tritium_tight_closure": bool(st.checkbox(
+                    "Enable tight tritium closure (inventory+loss+self-sufficiency)",
+                    value=False,
+                    disabled=not include_fuelcycle,
+                    help="When enabled, SHAMS computes in-vessel and total tritium inventory proxies, applies optional loss tightening to TBR_eff, and enforces optional self-sufficiency margins (all algebraic; no iteration).",
+                )),
+                "T_processing_delay_days": _maybe(float(_num("Processing delay (days) → in-vessel inventory proxy", 1.0, 0.2, min_value=0.0,
+                    help="In-vessel inventory proxy: T_in_vessel = T_burn * delay_days.")), include_fuelcycle),
+                "T_in_vessel_max_kg": _maybe(float(_num("Max in-vessel tritium (kg) (optional)", float('nan'), 0.1, min_value=0.0,
+                    help="Optional cap on in-vessel inventory proxy. Leave NaN to disable.")), include_fuelcycle),
+                "T_total_inventory_max_kg": _maybe(float(_num("Max total tritium inventory (kg) (optional)", float('nan'), 0.5, min_value=0.0,
+                    help="Optional cap on total inventory proxy (reserve+in-vessel+startup). Leave NaN to disable.")), include_fuelcycle),
+                "T_startup_inventory_kg": _maybe(float(_num("Startup tritium inventory (kg) (optional)", float('nan'), 0.5, min_value=0.0,
+                    help="Optional startup inventory proxy added to total inventory.")), include_fuelcycle),
+                "T_loss_fraction": _maybe(float(_num("Effective tritium loss fraction (0..0.2) (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.2,
+                    help="If set, effective TBR is reduced: TBR_eff = TBR*(1-loss).")), include_fuelcycle),
+                "TBR_self_sufficiency_margin": _maybe(float(_num("Self-sufficiency margin on TBR_eff (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.5,
+                    help="If set, requires TBR_eff ≥ 1 + margin (after declared losses).")), include_fuelcycle),
+
+                # Economics overlay (v356.0) — optional component CAPEX proxy cap (diagnostic)
+                "cost_k_heating_cd": _maybe(float(_num(
+                    "Heating/CD CAPEX factor (MUSD per MW launched)",
+                    25.0,
+                    1.0,
+                    min_value=0.0,
+                    help="Used only for the v356 component CAPEX proxy: capex_heating_cd = k * P_CD_launch_MW (fallback Paux).",
+                )), include_economics),
+                "cost_k_tritium_plant": _maybe(float(_num(
+                    "Tritium plant CAPEX factor (MUSD per kg/day burn)",
+                    40.0,
+                    1.0,
+                    min_value=0.0,
+                    help="Used only for the v356 component CAPEX proxy: capex_tritium_plant = k * T_burn_kg_per_day.",
+                )), include_economics),
+                "CAPEX_max_proxy_MUSD": _maybe(float(_num(
+                    "Max component CAPEX proxy (MUSD) (optional)",
+                    float('nan'),
+                    50.0,
+                    min_value=0.0,
+                    help="Optional hard feasibility cap on CAPEX_component_proxy_MUSD. Leave NaN to disable.",
+                )), include_economics),
+
+                # Current drive + NI closure + channel caps (v357.0)
+                "include_current_drive": bool(st.checkbox(
+                    "Current drive & NI closure (compute P_cd)",
+                    value=False,
+                    help="Enables deterministic non-inductive closure: choose actuator, CD efficiency model, and target f_NI; SHAMS computes required launched P_cd (capped by Pcd_max_MW).",
+                )),
+                "include_cd_library_v357": bool(st.checkbox(
+                    "CD channel library caps (v357.0)",
+                    value=False,
+                    disabled=False,
+                    help="Adds explicit channel feasibility diagnostics and optional hard caps for LH accessibility, ECCD launcher power density, and NBI shine-through.",
+                )),
+
+                "f_noninductive_target": float(_num(
+                    "Target non-inductive fraction f_NI,target (–)",
+                    1.0,
+                    0.02,
+                    min_value=0.0,
+                    max_value=1.2,
+                    help="Target f_NI = f_bs + I_cd/Ip. SHAMS computes I_cd and launched P_cd to reach this target (capped).",
+                )),
+                "Pcd_max_MW": float(_num(
+                    "Max launched CD power P_cd,max (MW)",
+                    200.0,
+                    10.0,
+                    min_value=0.0,
+                    help="Hard cap on launched current-drive power used in the NI closure.",
+                )),
+                "eta_cd_wallplug": float(_num(
+                    "CD wall-plug efficiency η_cd,wall (0..1)",
+                    0.35,
+                    0.02,
+                    min_value=0.05,
+                    max_value=0.9,
+                    help="Wall-plug efficiency used in plant electric ledger.",
+                )),
+                "gamma_cd_A_per_W": float(_num(
+                    "CD efficiency γ_cd (A/W) (legacy fixed model)",
+                    0.05,
+                    0.005,
+                    min_value=1e-4,
+                    max_value=0.2,
+                    help="Used only when cd_model=fixed_gamma.",
+                )),
+                "cd_actuator": str(st.selectbox(
+                    "CD actuator channel",
+                    options=["ECCD", "LHCD", "NBI", "ICRF"],
+                    index=0,
+                    help="Actuator used for CD efficiency trends and v357 channel diagnostics.",
+                )),
+                "cd_model": str(st.selectbox(
+                    "CD efficiency model",
+                    options=["fixed_gamma", "actuator_scaling", "channel_library_v357"],
+                    index=2,
+                    help="Deterministic CD efficiency proxy model.",
+                )),
+
+                # LHCD knobs + optional bounds (caps are disabled by default via NaN)
+                "lhcd_n_parallel": float(_num(
+                    "LHCD n∥ (–)",
+                    1.8,
+                    0.05,
+                    min_value=1.0,
+                    max_value=4.0,
+                    help="Used only when cd_actuator=LHCD and cd_model=channel_library_v357.",
+                )),
+                "lhcd_n_parallel_min": float(_num(
+                    "LHCD n∥ min (optional)",
+                    float('nan'),
+                    0.05,
+                    min_value=0.5,
+                    help="Optional hard constraint lower bound on n∥. Leave NaN to disable.",
+                )),
+                "lhcd_n_parallel_max": float(_num(
+                    "LHCD n∥ max (optional)",
+                    float('nan'),
+                    0.05,
+                    min_value=0.5,
+                    help="Optional hard constraint upper bound on n∥. Leave NaN to disable.",
+                )),
+
+                # ECCD knobs + optional launcher power-density cap
+                "eccd_launcher_area_m2": float(_num(
+                    "ECCD launcher area A (m²)",
+                    2.0,
+                    0.1,
+                    min_value=0.1,
+                    help="Used to compute launcher power density P_cd/A for v357 cap checks.",
+                )),
+                "eccd_launch_factor": float(_num(
+                    "ECCD launch factor (–)",
+                    1.0,
+                    0.05,
+                    min_value=0.2,
+                    max_value=2.0,
+                    help="Captures qualitative steering/optics effects as a declared multiplier on γ_cd for the v357 model.",
+                )),
+                "eccd_launcher_power_density_max_MW_m2": float(_num(
+                    "ECCD launcher power density max (MW/m²) (optional)",
+                    float('nan'),
+                    1.0,
+                    min_value=0.0,
+                    help="Optional hard constraint. Leave NaN to disable.",
+                )),
+
+                # NBI knobs + optional shine-through cap
+                "nbi_beam_energy_keV": float(_num(
+                    "NBI beam energy (keV)",
+                    500.0,
+                    25.0,
+                    min_value=50.0,
+                    max_value=5000.0,
+                    help="Used only when cd_actuator=NBI in the v357 model (trend scaling + shine-through proxy).",
+                )),
+                "nbi_shinethrough_frac_max": float(_num(
+                    "NBI shine-through max (fraction) (optional)",
+                    float('nan'),
+                    0.01,
+                    min_value=0.0,
+                    max_value=0.5,
+                    help="Optional hard constraint on shine-through fraction proxy. Leave NaN to disable.",
+                )),
+
+                # Net power / electrical balance
+                "P_net_min_MW": _maybe(float(_num("Minimum net electric power (MW)", preset["P_net_min_MW"], 10.0, min_value=-1e6)), include_net_power),
+
+                # ---------------------------------------------------------
+                # Plant power ledger caps (v361.0 actuator authority hook)
+                # ---------------------------------------------------------
+                "f_recirc_max": float(_num(
+                    "Max recirculating fraction f_recirc (optional)",
+                    float('nan'),
+                    0.02,
+                    min_value=0.0,
+                    max_value=1.0,
+                    help="Optional cap on recirculating fraction Precirc/Pe_gross. Leave NaN to disable.",
+                )),
+                "P_pf_avg_max_MW": float(_num(
+                    "Max average PF electric draw (MW) (optional)",
+                    float('nan'),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on average PF electric draw proxy (pf_E_pulse_MJ/(t_burn+t_dwell)). Leave NaN to disable.",
+                )),
+                "P_aux_max_MW": float(_num(
+                    "Max aux+CD wallplug electric draw (MW) (optional)",
+                    float('nan'),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on auxiliary+CD wallplug electric draw proxy. Leave NaN to disable.",
+                )),
+                "P_supply_peak_max_MW": float(_num(
+                    "Max peak power-supply draw (MW) (optional)",
+                    float('nan'),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on P_supply_peak_MW = max(PF_peak, Aux/CD_wallplug, VS_control, RWM_control). Leave NaN to disable.",
+                )),
+                "P_cryo_max_MW": float(_num(
+                    "Max cryo wallplug electric draw (MW) (optional)",
+                    float('nan'),
+                    5.0,
+                    min_value=0.0,
+                    help="Optional cap on cryoplant wallplug electric draw proxy. Leave NaN to disable.",
+                )),
+
+                # ---------------------------------------------------------
+                # Control & stability authority (v298.0) — optional caps
+                # ---------------------------------------------------------
+                "include_control_contracts": bool(st.checkbox(
+                    "Enable control contracts (deterministic envelopes)",
+                    value=False,
+                    help="When enabled, SHAMS computes VS/PF/RWM control requirements and checks optional caps (no physics mutation).",
+                )),
+                "cs_V_loop_max_V": float(_num(
+                    "Max CS loop voltage during ramp V_loop,max (V) (optional)",
+                    float("nan"),
+                    50.0,
+                    min_value=0.0,
+                    help="Optional cap on CS loop voltage proxy during ramp. Leave NaN to disable.",
+                )),
+                "vs_bandwidth_max_Hz": float(_num(
+                    "Max VS control bandwidth (Hz) (optional)",
+                    float("nan"),
+                    1.0,
+                    min_value=0.0,
+                    help="Optional cap on VS bandwidth requirement. Leave NaN to disable.",
+                )),
+                "vs_control_power_max_MW": float(_num(
+                    "Max VS control power (MW) (optional)",
+                    float("nan"),
+                    1.0,
+                    min_value=0.0,
+                    help="Optional cap on VS control power requirement. Leave NaN to disable.",
+                )),
+                "pf_I_peak_max_MA": float(_num(
+                    "Max PF peak current (MA) (optional)",
+                    float("nan"),
+                    0.5,
+                    min_value=0.0,
+                    help="Optional cap on PF peak current requirement from envelope contract. Leave NaN to disable.",
+                )),
+                "pf_dIdt_max_MA_s": float(_num(
+                    "Max PF dI/dt (MA/s) (optional)",
+                    float("nan"),
+                    0.5,
+                    min_value=0.0,
+                    help="Optional cap on PF ramp-rate requirement. Leave NaN to disable.",
+                )),
+                "pf_V_peak_max_V": float(_num(
+                    "Max PF peak voltage (V) (optional)",
+                    float("nan"),
+                    100.0,
+                    min_value=0.0,
+                    help="Optional cap on PF peak voltage requirement. Leave NaN to disable.",
+                )),
+                "pf_P_peak_max_MW": float(_num(
+                    "Max PF peak power (MW) (optional)",
+                    float("nan"),
+                    5.0,
+                    min_value=0.0,
+                    help="Optional cap on PF peak electrical power requirement. Leave NaN to disable.",
+                )),
+                "pf_E_pulse_max_MJ": float(_num(
+                    "Max PF pulse energy (MJ) (optional)",
+                    float("nan"),
+                    10.0,
+                    min_value=0.0,
+                    help="Optional cap on PF pulse energy proxy from envelope contract. Leave NaN to disable.",
+                )),
+                "include_rwm_screening": bool(st.checkbox(
+                    "Enable RWM screening (optional)",
+                    value=False,
+                    help="If enabled, evaluates an RWM screening proxy and checks bandwidth/power against caps.",
+                )),
+                "rwm_bandwidth_max_Hz": float(_num(
+                    "Max RWM bandwidth (Hz) (optional)",
+                    float("nan"),
+                    1.0,
+                    min_value=0.0,
+                    help="Optional cap on RWM required bandwidth; defaults to VS cap if NaN in the evaluator. Leave NaN to disable.",
+                )),
+                "rwm_control_power_max_MW": float(_num(
+                    "Max RWM control power (MW) (optional)",
+                    float("nan"),
+                    1.0,
+                    min_value=0.0,
+                    help="Optional cap on RWM required control power; defaults to VS cap if NaN in the evaluator. Leave NaN to disable.",
+                )),
+
+                # propagate UI choices to output for check logic
+                "_warn_frac_max": float(warn_fracs["max"]),
+                "_warn_frac_min": float(warn_fracs["min"]),
+                "_subsystem_enabled": {
+                    "build": bool(include_build),
+                    "magnets": bool(include_magnets),
+                    "divertor": bool(include_divertor),
+                    "neutronics": bool(include_neutronics),
+                    "net_power": bool(include_net_power),
+                },
+            }
+
+            # (Button moved outside this expander.)
+
+        # Evaluate button is intentionally *outside* the optional engineering section so
+        # users don't have to expand engineering knobs just to run Point Designer.
+        run_btn = st.button("Evaluate Point", type="primary", use_container_width=True)
+        # If user clicked the prominent Control Deck trigger, run once and clear the flag.
+        if st.session_state.get("_pd_force_run_once", False):
+            run_btn = True
+            st.session_state["_pd_force_run_once"] = False
+
+        # Quick bridge: trigger Systems Mode precheck using the current Point inputs.
+        if st.button("Run Systems Precheck (in Systems Mode)", use_container_width=True, key="pd_to_systems_precheck"):
+            # Schedule the action for Systems Mode and suggest the user switch tabs.
+            st.session_state["_sys_action"] = "precheck"
+            st.session_state["_pending_workflow_step"] = "Diagnose"
+            st.success("Scheduled Systems Precheck. Switch to the **Systems Mode** tab to view the report.")
+
+        # Point Designer usability: show cache status + last-eval timestamp + stale-input warning.
+        try:
+            import hashlib, json as _json
+            from datetime import datetime
+            import time as _time
+
+            _pd_inputs_fingerprint = {
+                "R0_m": float(R0), "a_m": float(a), "kappa": float(kappa), "delta": float(delta), "Bt_T": float(B0),
+                "Paux_MW": float(Paux), "Ti_keV": float(Ti), "Ti_over_Te": float(Ti_over_Te),
+                "fuel_mode": str(fuel_mode), "Q_target": float(Q_target), "H98_target": float(H98_target),
+                "Ip_min": float(Ip_min), "Ip_max": float(Ip_max), "fG_min": float(fG_min), "fG_max": float(fG_max),
+                "tshield": float(tshield),
+                "magnet_technology": str(tech),
+                "Tcoil_K": float(Tcoil),
+                "confidence": str(confidence),
+                "subsystem_enabled": dict(clean_knobs.get("_subsystem_enabled", {})),
+            }
+            _pd_inputs_hash = hashlib.sha1(_json.dumps(_pd_inputs_fingerprint, sort_keys=True).encode("utf-8")).hexdigest()
+            _last_hash = st.session_state.get("pd_last_inputs_hash")
+            _last_ts = st.session_state.get("pd_last_run_ts")
+
+            if _last_ts:
+                st.caption(f"Last evaluation: {datetime.fromtimestamp(float(_last_ts)).strftime('%Y-%m-%d %H:%M:%S')}")
+            if (not run_btn) and ("pd_last_outputs" in st.session_state) and (_last_hash is not None) and (_pd_inputs_hash != _last_hash):
+                st.warning("Inputs changed since last evaluation. Click **Evaluate Point** to refresh results.")
+            # Keep current hash available to the run path below.
+            st.session_state["pd_current_inputs_hash"] = _pd_inputs_hash
+        except Exception:
+            pass
 
 
     with tab_tel:
