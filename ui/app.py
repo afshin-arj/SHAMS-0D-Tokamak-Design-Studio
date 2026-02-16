@@ -11851,7 +11851,23 @@ if _deck == "🧠 Systems Mode":
                     'ts_unix': float(time.time()),
                 }
             action = st.session_state.get('_sys_action')
-            _fs_running = bool(st.session_state.get('systems_fs_running', False))
+
+_fs_running = bool(st.session_state.get('systems_fs_running', False))
+# Phase-1 UI stabilization: Feasible Search "running" watchdog.
+# If a prior run crashed before clearing the flag, the UI can remain disabled.
+_fs_started_ts = float(st.session_state.get('systems_fs_started_ts', 0.0) or 0.0)
+if _fs_running and _fs_started_ts > 0.0:
+    _fs_age_s = float(time.time()) - _fs_started_ts
+    if _fs_age_s > 30.0:
+        with st.expander('⚠️ Feasible search appears stuck (watchdog)', expanded=False):
+            st.warning('A feasible-search run is marked as running, but no completion was recorded. You can safely clear the running flag to re-enable the button.')
+            st.caption(f'running_since = {_fs_age_s:.1f} s')
+            if st.button('Clear feasible-search running flag', use_container_width=True, key='v178_fs_clear_running'):
+                st.session_state['systems_fs_running'] = False
+                st.session_state['systems_fs_started_ts'] = 0.0
+                st.session_state['systems_fs_last_error'] = None
+                st.success('Cleared. You can run feasible search again.')
+                st.rerun()
             _run_search_clicked = st.button(
                 'Run feasible design search',
                 use_container_width=True,
@@ -11863,116 +11879,133 @@ if _deck == "🧠 Systems Mode":
                 # Programmatic trigger while already running: ignore.
                 _run_search_clicked = False
 
+
             if _run_search_clicked:
+                # Crash-safe running flag (always cleared in finally).
                 st.session_state['systems_fs_running'] = True
+                st.session_state['systems_fs_started_ts'] = float(time.time())
+                st.session_state['systems_fs_last_error'] = None
+
                 if action == 'search':
                     st.session_state.pop('_sys_action', None)
-                try:
-                    _alog('Systems', 'FeasibleSearchClicked', {
-                        'objective': str(obj_key),
-                        'budget': int(st.session_state.get('v178_fs_budget', 0)),
-                        'topk': int(st.session_state.get('v178_fs_topk', 0)),
-                        'multi_seed_runs': int(st.session_state.get('v179_fs_multiseed_n', 1)),
-                        'vars': list(search_vars or []),
-                        'intent': str(st.session_state.get('design_intent', '')),
-                    })
-                except Exception:
-                    pass
 
-                _nms = int(st.session_state.get('v179_fs_multiseed_n', 1))
-                _base_seed = int(st.session_state.get('v178_fs_seed', 2026))
-                _all = []
-                # Run multiple deterministic seeds and merge Top-K candidates (Streamlit-safe: no widget-key mutation).
-                for _j in range(max(1, _nms)):
-                    _all.append(_run_feasible_search(_seed_override=int(_base_seed + _j)))
-
-                rep = _all[0] if _all else {'ok': False, 'reason': 'no_result', 'candidates': []}
                 try:
-                    _intent = str(st.session_state.get('design_intent','')).lower()
-                    _intent_key = 'research' if 'research' in _intent else 'reactor'
-                    _topk = int(rep.get('topk', int(st.session_state.get('v178_fs_topk', 12))))
-                    _cands = []
-                    _trace = []
-                    for _r in _all:
-                        for _c in list(_r.get('candidates', []) or []):
-                            _cc = dict(_c)
-                            _cc['seed'] = _r.get('seed')
-                            _cands.append(_cc)
-                        for _t in list(_r.get('trace', []) or []):
-                            _tt = dict(_t)
-                            _tt['seed'] = _r.get('seed')
-                            _trace.append(_tt)
-                    if _intent_key == 'reactor':
-                        _cands.sort(key=lambda c: float(c.get('obj', float('inf'))))
-                    else:
-                        _cands.sort(key=lambda c: (float(c.get('V', float('inf'))), float(c.get('obj', float('inf')))))
-                    rep['candidates'] = _cands[:max(1, _topk)] if _cands else []
-                    rep['trace'] = _trace[-int(rep.get('trace_keep', 2500)):]
-                    rep['multi_seed_runs'] = int(_nms)
-                    rep['all_runs'] = _all
-                    rep['seed'] = int(_base_seed)
-                    rep['ok'] = bool(len(rep.get('candidates', []) or []) > 0)
-                    rep['reason'] = 'multi_seed_' + str(rep.get('reason'))
-                except Exception:
-                    pass
-                if isinstance(rep, dict):
-                    rep.setdefault('schema_version', 1)
+                    try:
+                        _alog('Systems', 'FeasibleSearchClicked', {
+                            'objective': str(obj_key),
+                            'budget': int(st.session_state.get('v178_fs_budget', 0)),
+                            'topk': int(st.session_state.get('v178_fs_topk', 0)),
+                            'multi_seed_runs': int(st.session_state.get('v179_fs_multiseed_n', 1)),
+                            'vars': list(search_vars or []),
+                            'intent': str(st.session_state.get('design_intent', '')),
+                        })
+                    except Exception:
+                        pass
 
-                # Persist (rerun-safe): cached "latest feasible search" results live outside the expander too.
-                st.session_state['v178_fs_last'] = rep
-                st.session_state['systems_last_feasible_search'] = rep
-                st.session_state['systems_show_fs_cached'] = True
+                    _nms = int(st.session_state.get('v179_fs_multiseed_n', 1))
+                    _base_seed = int(st.session_state.get('v178_fs_seed', 2026))
+                    _all = []
 
-                # Flag that a new feasible-search result exists (used to show a top-of-page callout)
-                try:
-                    import datetime as _dt
-                    st.session_state['systems_fs_new'] = True
-                    st.session_state['systems_fs_new_at'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
-                except Exception:
-                    st.session_state['systems_fs_new'] = True
+                    with st.spinner(f"Running feasible search… (budget={int(st.session_state.get('v178_fs_budget', 800))}, runs={_nms}). This may take a while."):
+                        for _j in range(max(1, _nms)):
+                            _all.append(_run_feasible_search(_seed_override=int(_base_seed + _j)))
 
-                # Run card (MUST): standardized feasible-search summary
-                try:
-                    dom = None
-                    lims = []
-                    cands = list(rep.get('candidates', []) or [])
-                    if cands:
-                        bm = dict((cands[0].get('margins') or {}) or {})
-                        # dominant limiter = tightest margin among known constraints
-                        try:
-                            mlist = [(k, float(v)) for k, v in bm.items() if isinstance(v, (int, float)) and math.isfinite(float(v))]
-                            if mlist:
-                                dom = sorted(mlist, key=lambda t: t[1])[0][0]
-                        except Exception:
-                            dom = None
-                        if dom:
-                            lims = [dom]
-                    outc = {
-                        'status': 'ok' if bool(rep.get('ok')) else 'fail',
-                        'reason': str(rep.get('reason')),
-                        'dominant_limiter': dom,
-                        'limiters': lims,
-                        'next': _sys_failure_taxonomy(str(rep.get('reason'))).get('next', []) + _sys_levers_from_limiters(lims),
-                    }
-                    _sys_append_run_card(
-                        kind='FeasibleSearch',
-                        settings={'intent': st.session_state.get('design_intent',''), 'objective': str(rep.get('objective')), 'vars': list(rep.get('vars',[]) or []), 'budget': int(rep.get('budget', 0)), 'topk': int(rep.get('topk', 0)), 'multi_seed_runs': int(rep.get('multi_seed_runs', 1))},
-                        outcome=outc,
-                    )
-                except Exception:
-                    pass
-                try:
-                    _alog('Systems', 'FeasibleSearch', {'ok': bool(rep.get('ok')), 'reason': str(rep.get('reason')), 'objective': str(rep.get('objective')), 'budget': int(rep.get('budget',0)), 'topk': int(rep.get('topk',0)), 'vars': list(rep.get('vars',[]) or []), 'start_feasible': bool(rep.get('start_feasible')), 'best_obj': rep.get('best_obj'), 'multi_seed_runs': int(rep.get('multi_seed_runs', 1))})
-                except Exception:
-                    pass
-                try:
-                    s_state = _v92_state_get()
-                    setattr(s_state, 'last_feasible_search_artifact', rep)
-                except Exception:
-                    pass
-                st.session_state['systems_fs_running'] = False
-                st.rerun()
+                    rep = _all[0] if _all else {'ok': False, 'reason': 'no_result', 'candidates': []}
+                    try:
+                        _intent = str(st.session_state.get('design_intent','')).lower()
+                        _intent_key = 'research' if 'research' in _intent else 'reactor'
+                        _topk = int(rep.get('topk', int(st.session_state.get('v178_fs_topk', 12))))
+                        _cands = []
+                        _trace = []
+                        for _r in _all:
+                            for _c in list(_r.get('candidates', []) or []):
+                                _cc = dict(_c)
+                                _cc['seed'] = _r.get('seed')
+                                _cands.append(_cc)
+                            for _t in list(_r.get('trace', []) or []):
+                                _tt = dict(_t)
+                                _tt['seed'] = _r.get('seed')
+                                _trace.append(_tt)
+                        if _intent_key == 'reactor':
+                            _cands.sort(key=lambda c: float(c.get('obj', float('inf'))))
+                        else:
+                            _cands.sort(key=lambda c: (float(c.get('V', float('inf'))), float(c.get('obj', float('inf')))))
+                        rep['candidates'] = _cands[:max(1, _topk)] if _cands else []
+                        rep['trace'] = _trace[-int(rep.get('trace_keep', 2500)):]
+                        rep['multi_seed_runs'] = int(_nms)
+                        rep['all_runs'] = _all
+                        rep['seed'] = int(_base_seed)
+                        rep['ok'] = bool(len(rep.get('candidates', []) or []) > 0)
+                        rep['reason'] = 'multi_seed_' + str(rep.get('reason'))
+                    except Exception:
+                        pass
+                    if isinstance(rep, dict):
+                        rep.setdefault('schema_version', 1)
 
+                    st.session_state['v178_fs_last'] = rep
+                    st.session_state['systems_last_feasible_search'] = rep
+                    st.session_state['systems_show_fs_cached'] = True
+
+                    try:
+                        import datetime as _dt
+                        st.session_state['systems_fs_new'] = True
+                        st.session_state['systems_fs_new_at'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+                    except Exception:
+                        st.session_state['systems_fs_new'] = True
+
+                    try:
+                        dom = None
+                        lims = []
+                        cands = list(rep.get('candidates', []) or [])
+                        if cands:
+                            bm = dict((cands[0].get('margins') or {}) or {})
+                            try:
+                                mlist = [(k, float(v)) for k, v in bm.items() if isinstance(v, (int, float)) and math.isfinite(float(v))]
+                                if mlist:
+                                    dom = sorted(mlist, key=lambda t: t[1])[0][0]
+                            except Exception:
+                                dom = None
+                            if dom:
+                                lims = [dom]
+                        outc = {
+                            'status': 'ok' if bool(rep.get('ok')) else 'fail',
+                            'reason': str(rep.get('reason')),
+                            'dominant_limiter': dom,
+                            'limiters': lims,
+                            'next': _sys_failure_taxonomy(str(rep.get('reason'))).get('next', []) + _sys_levers_from_limiters(lims),
+                        }
+                        _sys_append_run_card(
+                            kind='FeasibleSearch',
+                            settings={'intent': st.session_state.get('design_intent',''), 'objective': str(rep.get('objective')), 'vars': list(rep.get('vars',[]) or []), 'budget': int(rep.get('budget', 0)), 'topk': int(rep.get('topk', 0)), 'multi_seed_runs': int(rep.get('multi_seed_runs', 1))},
+                            outcome=outc,
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        _alog('Systems', 'FeasibleSearch', {'ok': bool(rep.get('ok')), 'reason': str(rep.get('reason')), 'objective': str(rep.get('objective')), 'budget': int(rep.get('budget',0)), 'topk': int(rep.get('topk',0)), 'vars': list(rep.get('vars',[]) or []), 'start_feasible': bool(rep.get('start_feasible')), 'best_obj': rep.get('best_obj'), 'multi_seed_runs': int(rep.get('multi_seed_runs', 1))})
+                    except Exception:
+                        pass
+                    try:
+                        s_state = _v92_state_get()
+                        setattr(s_state, 'last_feasible_search_artifact', rep)
+                    except Exception:
+                        pass
+
+                    st.rerun()
+
+                except Exception as _e:
+                    import traceback as _tb
+                    st.session_state['systems_fs_last_error'] = _tb.format_exc()
+                    try:
+                        _alog('Systems', 'FeasibleSearchError', {'err': f"{type(_e).__name__}: {_e}"})
+                    except Exception:
+                        pass
+                    st.error(f"Feasible search failed: {type(_e).__name__}: {_e}")
+                    st.code(st.session_state.get('systems_fs_last_error') or '')
+
+                finally:
+                    st.session_state['systems_fs_running'] = False
+                    st.session_state['systems_fs_started_ts'] = 0.0
             rep = st.session_state.get('v178_fs_last')
             if isinstance(rep, dict) and rep:
                 if str(rep.get('reason')) == 'invalid_bounds':
