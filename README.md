@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.8.10 — UI stabilization Phase 1 hotfix (Systems Mode: persist `block_solve` solver knob via session state; remove NameError from solver execution path)
+**Current version:** v372.8.11 — UI stabilization Phase 1 hotfix (fix Streamlit session_state mutation after widget instantiation in Systems constraint cards; prevent Point Designer Telemetry from forcing tab reset via `st.stop()`)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
