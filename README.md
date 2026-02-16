@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.8.9 — UI stabilization Phase 1 hotfix (Remove module-scope tab handle leakage: render Studies manager inside Control Room → Studies tab; prevent `tab_studies` NameError)
+**Current version:** v372.8.10 — UI stabilization Phase 1 hotfix (Systems Mode: persist `block_solve` solver knob via session state; remove NameError from solver execution path)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

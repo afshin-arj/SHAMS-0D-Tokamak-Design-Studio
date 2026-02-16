@@ -10453,9 +10453,12 @@ if _deck == "🧠 Systems Mode":
                     max_value=50.0,
                 )
             st.caption("Solver trace will show `trust_region` events when steps are clipped or Δ adapts.")
+            # Persist across reruns: this value is referenced later in the Systems solve block,
+            # which may execute even if earlier UI branches were skipped.
             block_solve = st.checkbox(
                 "Block-ordered solve (density → power → confinement → exhaust)",
-                value=False,
+                value=bool(st.session_state.get("systems_block_solve", False)),
+                key="systems_block_solve",
                 help="Runs a staged solve to reduce singular Jacobians. Stages are heuristic and fully traced.",
             )
 
@@ -12224,6 +12227,9 @@ if _deck == "🧠 Systems Mode":
                             except Exception:
                                 st.error('Failed to apply x0.')
     _precheck_only = False  # legacy flag (kept for backward compatibility)
+    # Persisted solver knobs must be defined regardless of which UI subsections were rendered on this rerun.
+    # (Phase-1 rule: no conditional variable definitions.)
+    block_solve = bool(st.session_state.get("systems_block_solve", False))
     if run:
         _warn_unrealistic_point_inputs(base, context="Systems")
         st.info("Running coupled solve…")
@@ -12488,6 +12494,10 @@ if _deck == "🧠 Systems Mode":
                 base_for_solve = PointInputs(**d0)
         except Exception:
             pass
+
+        # Solver knob defaults must be available regardless of which UI branches executed on this rerun.
+        # (Phase-1 rule: no conditional variable definitions.)
+        block_solve = bool(st.session_state.get("systems_block_solve", False))
 
 
         # -----------------------------
