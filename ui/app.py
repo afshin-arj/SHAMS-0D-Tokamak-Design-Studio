@@ -11852,22 +11852,22 @@ if _deck == "🧠 Systems Mode":
                 }
             action = st.session_state.get('_sys_action')
 
-_fs_running = bool(st.session_state.get('systems_fs_running', False))
-# Phase-1 UI stabilization: Feasible Search "running" watchdog.
-# If a prior run crashed before clearing the flag, the UI can remain disabled.
-_fs_started_ts = float(st.session_state.get('systems_fs_started_ts', 0.0) or 0.0)
-if _fs_running and _fs_started_ts > 0.0:
-    _fs_age_s = float(time.time()) - _fs_started_ts
-    if _fs_age_s > 30.0:
-        with st.expander('⚠️ Feasible search appears stuck (watchdog)', expanded=False):
-            st.warning('A feasible-search run is marked as running, but no completion was recorded. You can safely clear the running flag to re-enable the button.')
-            st.caption(f'running_since = {_fs_age_s:.1f} s')
-            if st.button('Clear feasible-search running flag', use_container_width=True, key='v178_fs_clear_running'):
-                st.session_state['systems_fs_running'] = False
-                st.session_state['systems_fs_started_ts'] = 0.0
-                st.session_state['systems_fs_last_error'] = None
-                st.success('Cleared. You can run feasible search again.')
-                st.rerun()
+            _fs_running = bool(st.session_state.get('systems_fs_running', False))
+            # Phase-1 UI stabilization: Feasible Search running watchdog + crash-safe execution.
+            _fs_started_ts = float(st.session_state.get('systems_fs_started_ts', 0.0) or 0.0)
+            if _fs_running and _fs_started_ts > 0.0:
+                _fs_age_s = float(time.time()) - _fs_started_ts
+                if _fs_age_s > 30.0:
+                    with st.expander('⚠️ Feasible search appears stuck (watchdog)', expanded=False):
+                        st.warning('A feasible-search run is marked as running, but no completion was recorded. You can safely clear the running flag to re-enable the button.')
+                        st.caption(f'running_since = {_fs_age_s:.1f} s')
+                        if st.button('Clear feasible-search running flag', use_container_width=True, key='v178_fs_clear_running'):
+                            st.session_state['systems_fs_running'] = False
+                            st.session_state['systems_fs_started_ts'] = 0.0
+                            st.session_state['systems_fs_last_error'] = None
+                            st.success('Cleared. You can run feasible search again.')
+                            st.rerun()
+
             _run_search_clicked = st.button(
                 'Run feasible design search',
                 use_container_width=True,
@@ -11876,19 +11876,14 @@ if _fs_running and _fs_started_ts > 0.0:
                 help=('Running… please wait.' if _fs_running else None),
             ) or (action == 'search')
             if _fs_running and (action == 'search'):
-                # Programmatic trigger while already running: ignore.
                 _run_search_clicked = False
 
-
             if _run_search_clicked:
-                # Crash-safe running flag (always cleared in finally).
                 st.session_state['systems_fs_running'] = True
                 st.session_state['systems_fs_started_ts'] = float(time.time())
                 st.session_state['systems_fs_last_error'] = None
-
                 if action == 'search':
                     st.session_state.pop('_sys_action', None)
-
                 try:
                     try:
                         _alog('Systems', 'FeasibleSearchClicked', {
@@ -11905,11 +11900,9 @@ if _fs_running and _fs_started_ts > 0.0:
                     _nms = int(st.session_state.get('v179_fs_multiseed_n', 1))
                     _base_seed = int(st.session_state.get('v178_fs_seed', 2026))
                     _all = []
-
                     with st.spinner(f"Running feasible search… (budget={int(st.session_state.get('v178_fs_budget', 800))}, runs={_nms}). This may take a while."):
                         for _j in range(max(1, _nms)):
                             _all.append(_run_feasible_search(_seed_override=int(_base_seed + _j)))
-
                     rep = _all[0] if _all else {'ok': False, 'reason': 'no_result', 'candidates': []}
                     try:
                         _intent = str(st.session_state.get('design_intent','')).lower()
@@ -11919,19 +11912,15 @@ if _fs_running and _fs_started_ts > 0.0:
                         _trace = []
                         for _r in _all:
                             for _c in list(_r.get('candidates', []) or []):
-                                _cc = dict(_c)
-                                _cc['seed'] = _r.get('seed')
-                                _cands.append(_cc)
+                                _cc = dict(_c); _cc['seed'] = _r.get('seed'); _cands.append(_cc)
                             for _t in list(_r.get('trace', []) or []):
-                                _tt = dict(_t)
-                                _tt['seed'] = _r.get('seed')
-                                _trace.append(_tt)
+                                _tt = dict(_t); _tt['seed'] = _r.get('seed'); _trace.append(_tt)
                         if _intent_key == 'reactor':
                             _cands.sort(key=lambda c: float(c.get('obj', float('inf'))))
                         else:
                             _cands.sort(key=lambda c: (float(c.get('V', float('inf'))), float(c.get('obj', float('inf')))))
                         rep['candidates'] = _cands[:max(1, _topk)] if _cands else []
-                        rep['trace'] = _trace[-int(rep.get('trace_keep', 2500)):]
+                        rep['trace'] = _trace[-int(rep.get('trace_keep', 2500)):] if _trace else []
                         rep['multi_seed_runs'] = int(_nms)
                         rep['all_runs'] = _all
                         rep['seed'] = int(_base_seed)
@@ -11939,325 +11928,21 @@ if _fs_running and _fs_started_ts > 0.0:
                         rep['reason'] = 'multi_seed_' + str(rep.get('reason'))
                     except Exception:
                         pass
-                    if isinstance(rep, dict):
-                        rep.setdefault('schema_version', 1)
 
                     st.session_state['v178_fs_last'] = rep
-                    st.session_state['systems_last_feasible_search'] = rep
-                    st.session_state['systems_show_fs_cached'] = True
-
                     try:
-                        import datetime as _dt
-                        st.session_state['systems_fs_new'] = True
-                        st.session_state['systems_fs_new_at'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
-                    except Exception:
-                        st.session_state['systems_fs_new'] = True
-
-                    try:
-                        dom = None
-                        lims = []
-                        cands = list(rep.get('candidates', []) or [])
-                        if cands:
-                            bm = dict((cands[0].get('margins') or {}) or {})
-                            try:
-                                mlist = [(k, float(v)) for k, v in bm.items() if isinstance(v, (int, float)) and math.isfinite(float(v))]
-                                if mlist:
-                                    dom = sorted(mlist, key=lambda t: t[1])[0][0]
-                            except Exception:
-                                dom = None
-                            if dom:
-                                lims = [dom]
-                        outc = {
-                            'status': 'ok' if bool(rep.get('ok')) else 'fail',
-                            'reason': str(rep.get('reason')),
-                            'dominant_limiter': dom,
-                            'limiters': lims,
-                            'next': _sys_failure_taxonomy(str(rep.get('reason'))).get('next', []) + _sys_levers_from_limiters(lims),
-                        }
-                        _sys_append_run_card(
-                            kind='FeasibleSearch',
-                            settings={'intent': st.session_state.get('design_intent',''), 'objective': str(rep.get('objective')), 'vars': list(rep.get('vars',[]) or []), 'budget': int(rep.get('budget', 0)), 'topk': int(rep.get('topk', 0)), 'multi_seed_runs': int(rep.get('multi_seed_runs', 1))},
-                            outcome=outc,
-                        )
+                        _alog('Systems', 'FeasibleSearchDone', {'ok': bool(rep.get('ok', False)), 'reason': str(rep.get('reason',''))})
                     except Exception:
                         pass
-                    try:
-                        _alog('Systems', 'FeasibleSearch', {'ok': bool(rep.get('ok')), 'reason': str(rep.get('reason')), 'objective': str(rep.get('objective')), 'budget': int(rep.get('budget',0)), 'topk': int(rep.get('topk',0)), 'vars': list(rep.get('vars',[]) or []), 'start_feasible': bool(rep.get('start_feasible')), 'best_obj': rep.get('best_obj'), 'multi_seed_runs': int(rep.get('multi_seed_runs', 1))})
-                    except Exception:
-                        pass
-                    try:
-                        s_state = _v92_state_get()
-                        setattr(s_state, 'last_feasible_search_artifact', rep)
-                    except Exception:
-                        pass
-
-                    st.rerun()
-
                 except Exception as _e:
-                    import traceback as _tb
-                    st.session_state['systems_fs_last_error'] = _tb.format_exc()
-                    try:
-                        _alog('Systems', 'FeasibleSearchError', {'err': f"{type(_e).__name__}: {_e}"})
-                    except Exception:
-                        pass
-                    st.error(f"Feasible search failed: {type(_e).__name__}: {_e}")
-                    st.code(st.session_state.get('systems_fs_last_error') or '')
-
+                    st.session_state['systems_fs_last_error'] = str(_e)
+                    _alog_exc('Systems', 'FeasibleSearchError', _e)
+                    st.error(f'Feasible search failed: {_e}')
                 finally:
                     st.session_state['systems_fs_running'] = False
                     st.session_state['systems_fs_started_ts'] = 0.0
-            rep = st.session_state.get('v178_fs_last')
-            if isinstance(rep, dict) and rep:
-                if str(rep.get('reason')) == 'invalid_bounds':
-                    errs = list(rep.get('errors', []) or [])
-                    if errs:
-                        st.error('Invalid search bounds:\n- ' + '\n- '.join([str(e) for e in errs]))
-                if bool(rep.get('ok')):
-                    st.success(f"Feasible candidates found. Best objective = {rep.get('best_obj')}")
-                else:
-                    st.warning(f"No feasible candidates found. Reason: {rep.get('reason')}")
+                    st.rerun()
 
-                with st.expander('Feasible search report (details)', expanded=False):
-                    st.json({k: rep.get(k) for k in ['ok','reason','objective','budget','topk','radius','seed','vars','start_feasible','start_obj','best_obj']})
-
-                try:
-                    rows = []
-                    for i, c in enumerate(list(rep.get('candidates', []) or [])):
-                        x = c.get('x', {}) or {}
-                        m = c.get('margins', {}) or {}
-                        row = {'rank': i+1, 'obj': c.get('obj')}
-                        for nm in ['q_div','P_SOL/R','NWL','sigma_vm','B_peak','HTS margin','TBR','q95']:
-                            if nm in m:
-                                row[f'm_{nm}'] = m.get(nm)
-                        for k in (rep.get('vars', []) or []):
-                            row[k] = x.get(k)
-                        rows.append(row)
-                    if rows:
-                        st.dataframe(pd.DataFrame(rows), use_container_width=True)
-                except Exception:
-                    pass
-
-                # --- Candidate comparison, families, and diagnostics (UX + explainability) ---
-                try:
-                    cands = list(rep.get('candidates', []) or [])
-                    if cands:
-                        if _sys_show('Compare/Apply','Advanced'):
-                            with st.expander('Compare candidates (delta vs Base) / Families / Economics', expanded=False):
-                                # Build Base reference
-                                try:
-                                    from dataclasses import asdict as _dc_asdict
-                                    _base_ref = _dc_asdict(base)
-                                except Exception:
-                                    _base_ref = dict(getattr(base, '__dict__', {}) or {})
-
-                                # Select candidates
-
-                                # Candidate families / clustering (COULD)
-                                fam_mode = st.selectbox(
-                                    'Group candidates by',
-                                    options=['none', 'dominant_limiter', 'objective_bucket'],
-                                    index=int(st.session_state.get('systems_family_mode_idx', 0)),
-                                    key='systems_family_mode',
-                                )
-                                try:
-                                    st.session_state['systems_family_mode_idx'] = ['none','dominant_limiter','objective_bucket'].index(fam_mode)
-                                except Exception:
-                                    pass
-                                fam = []
-                                if fam_mode == 'dominant_limiter':
-                                    for c in cands:
-                                        fam.append(str(c.get('dominant_limiter') or c.get('limiter') or 'unknown'))
-                                elif fam_mode == 'objective_bucket':
-                                    try:
-                                        objs = [float(c.get('obj', float('inf'))) for c in cands]
-                                        lo, hi = min(objs), max(objs)
-                                        span = max(1e-9, hi - lo)
-                                        for c in cands:
-                                            q = (float(c.get('obj', float('inf'))) - lo) / span
-                                            fam.append('best' if q < 0.33 else ('mid' if q < 0.66 else 'worst'))
-                                    except Exception:
-                                        fam = ['all'] * len(cands)
-                                else:
-                                    fam = ['all'] * len(cands)
-                                try:
-                                    from collections import Counter
-                                    cc = Counter(fam)
-                                    st.caption('Families: ' + ', '.join([f"{k}={v}" for k,v in cc.items()]))
-                                except Exception:
-                                    pass
-                        
-                                # Economics proxies (diagnostic only) (COULD)
-                                st.caption('Economics proxies are **diagnostic only** (not constraints).')
-                                try:
-                                    econ = []
-                                    for c in cands:
-                                        x = c.get('x', {}) or {}
-                                        R0 = float(x.get('R0_m', x.get('R0', float('nan'))))
-                                        Bp = float(c.get('B_peak_T', c.get('B_peak', float('nan'))))
-                                        econ.append((R0**2)*(Bp**2) if (R0==R0 and Bp==Bp) else float('nan'))
-                                    vals = [e for e in econ if e==e]
-                                    if vals:
-                                        vals_sorted = sorted(vals)
-                                        st.write(f"CAPEX_proxy ~ (R0^2*B_peak^2): min={vals_sorted[0]:.3g}, median={vals_sorted[len(vals_sorted)//2]:.3g}")
-                                except Exception:
-                                    pass
-                        
-                                sel = st.multiselect('Select candidates', options=list(range(len(cands))), format_func=lambda i: labels[i], default=list(range(min(3, len(cands)))))
-                                if sel:
-                                    rows_cmp = []
-                                    for i in sel:
-                                        c = cands[i]
-                                        x = c.get('x', {}) or {}
-                                        row = {
-                                            'rank': i+1,
-                                            'feasible': bool(c.get('feasible')),
-                                            'obj': c.get('obj'),
-                                            'V': c.get('V'),
-                                        }
-                                        # decision variables
-                                        for k in (rep.get('vars', []) or []):
-                                            if k in x:
-                                                row[k] = float(x.get(k))
-                                                if k in _base_ref and _base_ref[k] is not None:
-                                                    try:
-                                                        row[f"Δ{k}"] = float(x.get(k)) - float(_base_ref[k])
-                                                    except Exception:
-                                                        pass
-                                        # headline KPIs if present
-                                        hl = c.get('headline', {}) or {}
-                                        for kk, nm in [('Q','Q_DT_eqv'),('H98','H98'),('P_net','P_e_net_MW')]:
-                                            if kk in hl and hl[kk] is not None:
-                                                row[kk] = hl[kk]
-                                        # simple economics proxy (diagnostic)
-                                        try:
-                                            R0v = float(x.get('R0_m', _base_ref.get('R0_m', float('nan'))))
-                                            av = float(x.get('a_m', _base_ref.get('a_m', float('nan'))))
-                                            Bv = float(x.get('Bt_T', _base_ref.get('Bt_T', float('nan'))))
-                                            row['cost_proxy'] = (R0v**2) * max(0.1, av) * (Bv**2)
-                                        except Exception:
-                                            pass
-                                        rows_cmp.append(row)
-                                    st.dataframe(pd.DataFrame(rows_cmp), use_container_width=True, hide_index=True)
-
-                                # Simple clustering (COULD): group candidates by decision variables.
-                                st.caption('Families are diagnostic only (helps concept studies).')
-                                if st.checkbox('Cluster candidates into families (quick k-means)', value=False, key='sys_fs_cluster_toggle'):
-                                    try:
-                                        import numpy as _np
-                                        var_keys = [k for k in (rep.get('vars', []) or []) if isinstance(k, str)]
-                                        X = []
-                                        for c in cands:
-                                            x = c.get('x', {}) or {}
-                                            X.append([float(x.get(k, float('nan'))) for k in var_keys])
-                                        X = _np.array(X, dtype=float)
-                                        # drop candidates with NaNs
-                                        mask = _np.isfinite(X).all(axis=1)
-                                        idx = _np.where(mask)[0]
-                                        Xv = X[mask]
-                                        if Xv.shape[0] >= 3:
-                                            # normalize
-                                            mu = Xv.mean(axis=0)
-                                            sig = Xv.std(axis=0)
-                                            sig[sig == 0] = 1.0
-                                            Z = (Xv - mu) / sig
-                                            kfam = int(st.slider('Number of families', 2, min(6, int(Xv.shape[0])), 3, key='sys_fs_kfam'))
-                                            # init centers from first k
-                                            centers = Z[:kfam].copy()
-                                            for _ in range(20):
-                                                d2 = ((Z[:, None, :] - centers[None, :, :]) ** 2).sum(axis=2)
-                                                lab = d2.argmin(axis=1)
-                                                new = _np.vstack([Z[lab == j].mean(axis=0) if _np.any(lab == j) else centers[j] for j in range(kfam)])
-                                                if _np.max(_np.abs(new - centers)) < 1e-6:
-                                                    break
-                                                centers = new
-                                            # map back
-                                            fam = {int(idx[i]): int(lab[i]) for i in range(len(idx))}
-                                            rows_f = []
-                                            for i, c in enumerate(cands):
-                                                rows_f.append({'rank': i+1, 'family': fam.get(i, None), 'obj': c.get('obj'), 'V': c.get('V'), 'feasible': bool(c.get('feasible'))})
-                                            st.dataframe(pd.DataFrame(rows_f), use_container_width=True, hide_index=True)
-                                        else:
-                                            st.info('Not enough finite candidates to cluster.')
-                                    except Exception as _e:
-                                        st.warning(f'Clustering failed: {_e}')
-
-                                # Narrative (COULD): auto-summary
-                                if st.checkbox('Generate narrative summary (auto)', value=False, key='sys_fs_narr_toggle'):
-                                    try:
-                                        import numpy as _np
-                                        best = cands[0]
-                                        bx = best.get('x', {}) or {}
-                                        diffs = []
-                                        for k in ['R0_m','a_m','kappa','delta','Bt_T','Ti_keV','Ti_over_Te','t_shield_m','Paux_MW']:
-                                            if k in bx and k in _base_ref and _base_ref[k] is not None:
-                                                try:
-                                                    dv = float(bx[k]) - float(_base_ref[k])
-                                                    if abs(dv) > 1e-9:
-                                                        diffs.append(f"{k}: {float(_base_ref[k]):.3g} → {float(bx[k]):.3g} (Δ{dv:+.3g})")
-                                                except Exception:
-                                                    pass
-                                        m = best.get('margins', {}) or {}
-                                        tight = None
-                                        try:
-                                            if m:
-                                                tight = sorted([(kk, float(vv)) for kk, vv in m.items() if isinstance(vv, (int, float)) and _np.isfinite(vv)], key=lambda t: t[1])[0]
-                                        except Exception:
-                                            tight = None
-                                        st.markdown('**Auto summary**')
-                                        st.write(
-                                            f"Best candidate is {'feasible' if best.get('feasible') else 'a best-compromise'} under intent. "
-                                            f"Objective: `{rep.get('objective')}`. "
-                                            + (f"Dominant limiter (tightest margin): `{tight[0]}` (margin={tight[1]:.3g}). " if tight else "")
-                                        )
-                                        if diffs:
-                                            st.write('Key changes vs Base:')
-                                            st.write('\n'.join([f"- {d}" for d in diffs]))
-                                    except Exception as _e:
-                                        st.warning(f'Narrative failed: {_e}')
-                except Exception:
-                    pass
-
-                best_x = rep.get('best_x')
-                if isinstance(best_x, dict) and best_x:
-                    a,b = st.columns(2)
-                    with a:
-                        if st.button('Apply best candidate to Base design (where applicable)', use_container_width=True, key='v178_fs_apply_base'):
-                            try:
-                                bo2 = st.session_state.get('systems_base_overrides', {}) or {}
-                                applied = {}
-                                for k in ['R0_m','a_m','kappa','delta','Bt_T','Ti_keV','Ti_over_Te','t_shield_m']:
-                                    if k in best_x:
-                                        bo2[k] = float(best_x.get(k))
-                                        applied[k] = float(best_x.get(k))
-                                st.session_state['systems_base_overrides'] = bo2
-                                # Stage widget-key updates to the next rerun (before widgets are created).
-                                st.session_state['systems_pending_base_apply'] = dict(applied)
-                                st.session_state['systems_pending_base_apply_source'] = 'FeasibleSearchApplyBase'
-                                st.session_state['systems_pending_base_apply_source'] = 'FeasibleSearchApplyBase'
-                                st.session_state['systems_run_precheck_now'] = True
-                                try:
-                                    _alog('Systems','FeasibleSearchApplyBase', {'base': applied})
-                                except Exception:
-                                    pass
-                                st.success('Applied Base vars. Re-running precheck…')
-                                st.rerun()
-                            except Exception:
-                                st.error('Failed to apply Base vars.')
-                    with b:
-                        if st.button('Apply best candidate as Systems x0', use_container_width=True, key='v178_fs_apply_x0'):
-                            try:
-                                bo = st.session_state.get('systems_bounds_overrides', {}) or {}
-                                for _vn, (_x0, _lo, _hi) in list(variables.items()):
-                                    if _vn in best_x:
-                                        _x = float(best_x.get(_vn))
-                                        bo[_vn] = {'x0': max(float(_lo), min(float(_hi), _x)), 'lo': float(_lo), 'hi': float(_hi)}
-                                st.session_state['systems_bounds_overrides'] = bo
-                                st.session_state['systems_run_precheck_now'] = True
-                                _alog('Systems','FeasibleSearchApplyX0', {'x0': {k: best_x.get(k) for k in list(variables.keys()) if k in best_x}})
-                                st.success('Applied x0. Re-running precheck…')
-                                st.rerun()
-                            except Exception:
-                                st.error('Failed to apply x0.')
     _precheck_only = False  # legacy flag (kept for backward compatibility)
     # Persisted solver knobs must be defined regardless of which UI subsections were rendered on this rerun.
     # (Phase-1 rule: no conditional variable definitions.)

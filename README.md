@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.8.13 — UI stabilization Phase 1 hotfix (Systems solve stability: eliminate st.stop() in Reactor-intent precheck block; add canonical Systems solve cache keys for cross-deck interop)
+**Current version:** v372.8.14 — UI stabilization Phase 1 hotfix (Systems Mode restore: Feasible Search run button always visible; crash-safe running watchdog; remove indentation leakage that could block Systems solve execution)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
