@@ -12263,6 +12263,12 @@ if _fs_running and _fs_started_ts > 0.0:
     # (Phase-1 rule: no conditional variable definitions.)
     block_solve = bool(st.session_state.get("systems_block_solve", False))
     if run:
+        # Local flow-control exception: block the full solve without calling
+        # st.stop(), which can destabilize Streamlit rerun/tab selection.
+        class _SysPrecheckBlocksSolve(Exception):
+            """Raised to skip the full Systems solve when precheck blocks it."""
+            pass
+
         _warn_unrealistic_point_inputs(base, context="Systems")
         st.info("Running coupled solve…")
         try:
@@ -12484,8 +12490,12 @@ if _fs_running and _fs_started_ts > 0.0:
                         except Exception as _e:
                             st.caption(f"Sample table unavailable: {_e}")
 
+                # Reactor intent is feasibility-authoritative: an infeasible precheck
+                # blocks the full solve. Do **not** call st.stop() here; instead raise
+                # a local flow-control exception that is handled below so UI remains
+                # stable and navigation is not affected.
                 if _design_intent_key() == 'reactor':
-                    st.stop()
+                    raise _SysPrecheckBlocksSolve('precheck_infeasible_reactor')
 
 # Assistant UI is rendered in the persistent Precheck panel above.
                 st.info('Feasibility completion assistant is available in the Precheck panel. Run precheck there to generate and apply proposals.')
@@ -12727,6 +12737,10 @@ if _fs_running and _fs_started_ts > 0.0:
                 s.last_systems_result = artifact
                 # v182.1: also cache into session_state for rerun-stable rendering
                 st.session_state['systems_last_solve_artifact'] = artifact
+                # Canonical interop cache keys (Phase-1 contract): other decks
+                # (Scan/Pareto/Trade Study) consume these without triggering compute.
+                st.session_state['systems_last_solution'] = artifact
+                st.session_state['last_systems_solution'] = artifact
                 _v98_record_run("systems", artifact, mode="systems_mode")
             except Exception:
                 pass
@@ -12784,8 +12798,23 @@ if _fs_running and _fs_started_ts > 0.0:
                 except Exception as e:
                     st.warning(f"Sankey unavailable: {e}")
 
+        except _SysPrecheckBlocksSolve:
+            st.warning(
+                "Full Systems solve skipped: **precheck is infeasible under Reactor intent**. "
+                "Use Seeded Recovery / assistant proposals to regain feasibility, or switch Design Intent "
+                "to **Experimental Device** for exploratory solves.",
+                icon="⛔",
+            )
+            try:
+                st.session_state['systems_last_solve_blocked_reason'] = 'precheck_infeasible_reactor'
+            except Exception:
+                pass
         except Exception as e:
             st.error(f"Systems solver error: {e}")
+            try:
+                _alog_exc('Systems', 'RunSystemsSolveException', e)
+            except Exception:
+                pass
 
 if _deck == "🗺️ Scan Lab":
     # DSG: auto edge-kind tagging by active panel (exploration only)
