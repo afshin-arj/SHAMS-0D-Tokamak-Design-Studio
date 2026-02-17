@@ -10094,6 +10094,82 @@ if _deck == "🧠 Systems Mode":
                     st.json(cert)
 
     # -----------------------------
+    # Confinement & transport certification (v376.0)
+    # -----------------------------
+    with st.expander('Confinement & transport authority (certified) — H98 credibility', expanded=False):
+        st.caption(
+            "Deterministic certification derived from the last Systems artifact (no solves, no iteration). "
+            "Reports H98 vs a conservative credibility envelope (intent-aware) and optional τE terms if available."
+        )
+
+        # UI law: safe defaults; no conditional variable definitions.
+        st.session_state.setdefault('systems_transport_cert', None)
+        probe_frac = float(st.session_state.get('systems_transport_probe_frac', 0.01))
+
+        cA, cB = st.columns([1, 2])
+        with cA:
+            st.session_state['systems_transport_probe_frac'] = st.number_input(
+                'Probe fraction', min_value=0.0, max_value=0.1, value=probe_frac, step=0.005, format='%.3f'
+            )
+        with cB:
+            st.caption('Envelope is intent-aware (reactor tighter than research). This is a credibility contract only; truth is unchanged.')
+
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_transport_cert_btn'):
+                try:
+                    from src.certification.transport_confinement_certification_v376 import (
+                        certify_transport_confinement,
+                    )
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    ins = dict(last_sys_art.get('inputs') or {})
+                    run_id = str(last_sys_art.get('run_id') or (last_sys_art.get('run') or {}).get('run_id') or '')
+                    ih = str(last_sys_art.get('inputs_hash') or '')
+
+                    cert = certify_transport_confinement(
+                        outputs=outs,
+                        inputs=ins,
+                        run_id=(run_id or None),
+                        inputs_hash=(ih or None),
+                        probe_frac=float(st.session_state['systems_transport_probe_frac']),
+                    )
+                    st.session_state['systems_transport_cert'] = cert
+                    st.success('Certification computed and cached (systems_transport_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_transport_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.transport_confinement_certification_v376 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                    cls = ((cert.get('classification') or {}).get('H98_class') if isinstance(cert.get('classification'), dict) else None)
+                    if cls == 'super-credible-viol':
+                        st.warning('H98 exceeds the credibility envelope for this intent. This is a certification flag; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_transport_confinement_certification_v376.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_transport_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
+    # -----------------------------
     # Frontier visualization (SHOULD)
     # -----------------------------
     with st.expander('Frontier visualization (samples / trace)', expanded=False):

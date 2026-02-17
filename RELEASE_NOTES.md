@@ -1,4 +1,14 @@
 # Release Notes
+## v376.0.0 — Confinement & Transport Authority (H98 credibility certification)
+
+- New: **Confinement & transport authority (certified)** in Systems Mode.
+  - Deterministic certification computed from the last Systems artifact (**no solves, no iteration**).
+  - Reports **H98 vs a conservative credibility envelope** (intent-aware: reactor tighter than research).
+  - Exposes optional τE terms (`tauE_req_s`, `tauE_98_s`) if present in the artifact, and reconstructs H98 from them when needed.
+  - Adds a single-step proportional probe (+1% by default) for local cliff awareness.
+  - JSON export: `systems_transport_confinement_certification_v376.json`.
+- UI discipline preserved: button-driven compute → cache → render; no cross-mode coupling; no UI restructuring.
+
 ## v375.0.0 — Exhaust & Divertor Authority v375 + Systems Mode Cached Post-Run Rendering
 
 - New: **Exhaust & Divertor Authority v375** (deterministic) adds explicit bounds and transparency for SOL/divertor screening:
