@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v374.1.1 — Systems Mode base-object access hardening hotfix (dict/dataclass-safe base0 fields)
+**Current version:** v374.2.0 — Systems Mode post‑Key‑results diagnostics render restore (Compact Cockpit + Systems Console bundled under Key results)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

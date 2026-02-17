@@ -9422,50 +9422,7 @@ if _deck == "🧠 Systems Mode":
                 key_prefix="downloads",
             )
 
-        with st.expander("🔎 Detailed Systems Diagnostics (post-run)", expanded=False):
-            # Compact Cockpit (v230.2) and Systems Console moved below Key results (v374.1)
-            cc1, cc2, cc3 = st.columns([1, 1, 2])
-            with cc1:
-                sys_cockpit_pin = st.toggle(
-                    "Pin cockpit",
-                    value=st.session_state.get("systems_cockpit_pin", False),
-                    key="systems_cockpit_pin",
-                )
-            with cc2:
-                sys_cockpit_show_md = st.toggle(
-                    "Show markdown",
-                    value=st.session_state.get("systems_cockpit_show_md", False),
-                    key="systems_cockpit_show_md",
-                )
-            with cc3:
-                st.caption("Cockpit is diagnostic only (does not change physics, constraints, or truth).")
-
-            # Note: pin is kept for future use; in v374.1 cockpit is always post-Key-results to avoid scroll fatigue.
-            _ = sys_cockpit_pin
-
-            # Render compact cockpit first (above console).
-            try:
-                _sys_render_compact_cockpit()
-            except Exception:
-                pass
-
-            # Render Systems Console (verdict bar + why-chain + constraint cards) from cached artifact.
-            try:
-                _sys_art2 = _sys_fetch_latest_systems_artifact()
-                if isinstance(_sys_art2, dict):
-                    _sys_cons2 = _sys_extract_constraints(_sys_art2)
-                    _sys_render_verdict_bar(_sys_art2, constraints=_sys_cons2)
-                    _sys_render_causal_chain(
-                        _sys_art2,
-                        constraints=_sys_cons2,
-                        expert=st.session_state.get("systems_expert_view", False),
-                    )
-                    _sys_render_constraint_cards(_sys_art2, constraints=_sys_cons2)
-                else:
-                    st.info("No cached Systems artifact yet. Run Precheck / Solve to populate diagnostics.")
-            except Exception:
-                st.caption("Detailed diagnostics unavailable (non-fatal).")
-# Candidate sources (recovery/search)
+    # Candidate sources (recovery/search)
     def _sys_get_candidates():
         cands = []
         try:
@@ -12598,6 +12555,51 @@ if _deck == "🧠 Systems Mode":
                     st.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     st.warning(f"Sankey unavailable: {e}")
+
+            # v374.2: Post-Key-results diagnostics bundle (Compact Cockpit + Systems Console)
+            with st.expander("🔎 Detailed Systems Diagnostics (post-run)", expanded=False):
+                # Compact Cockpit controls
+                cc1, cc2, cc3 = st.columns([1, 1, 2])
+                with cc1:
+                    sys_cockpit_pin = st.toggle(
+                        "Pin cockpit",
+                        value=st.session_state.get("systems_cockpit_pin", False),
+                        key="systems_cockpit_pin",
+                    )
+                with cc2:
+                    sys_cockpit_show_md = st.toggle(
+                        "Show markdown",
+                        value=st.session_state.get("systems_cockpit_show_md", False),
+                        key="systems_cockpit_show_md",
+                    )
+                with cc3:
+                    st.caption("Diagnostics only (does not change physics, constraints, or truth).")
+
+                _ = sys_cockpit_pin  # retained for future pin behavior
+
+                # Compact cockpit
+                try:
+                    _sys_render_compact_cockpit()
+                except Exception:
+                    st.caption("Compact cockpit unavailable (non-fatal).")
+
+                # Systems Console: verdict bar + why-chain + constraint cards
+                try:
+                    _sys_art2 = st.session_state.get("systems_last_solve_artifact") or _sys_fetch_latest_systems_artifact()
+                    if isinstance(_sys_art2, dict):
+                        _sys_cons2 = _sys_extract_constraints(_sys_art2)
+                        _sys_render_verdict_bar(_sys_art2, constraints=_sys_cons2)
+                        _sys_render_causal_chain(
+                            _sys_art2,
+                            constraints=_sys_cons2,
+                            expert=st.session_state.get("systems_expert_view", False),
+                        )
+                        _sys_render_constraint_cards(_sys_art2, constraints=_sys_cons2)
+                    else:
+                        st.info("No cached Systems artifact yet. Run Precheck / Solve to populate diagnostics.")
+                except Exception:
+                    st.caption("Detailed diagnostics unavailable (non-fatal).")
+
 
         except _SysPrecheckBlocksSolve:
             st.warning(

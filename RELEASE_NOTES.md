@@ -1,4 +1,11 @@
 # Release Notes
+## v374.2.0 — Systems Mode Diagnostics Render Restore (Post-Key-Results)
+
+- Fix: restored visibility of **Compact Cockpit** and **Systems Console** (verdict bar / why-chain / constraint cards) directly under the **Key results** section.
+- Implementation: added a collapsed expander **“🔎 Detailed Systems Diagnostics (post-run)”** immediately after Key results outputs.
+- Stability: removed the earlier duplicate diagnostics expander to avoid widget-key collisions and accidental gating.
+- No changes to: frozen evaluator, Systems solve execution contract, cache keys, run IDs, or artifacts.
+
 ## v374.1.0 — Systems Mode Post-Key-Results Diagnostics Grouping (UI Non-Structural)
 
 - UI-only refinement: moved **Compact Cockpit** and the **Systems Console** (verdict bar / why-chain / constraint cards) *below* “Latest Systems results (cached)”.
