@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v372.8.14 — UI stabilization Phase 1 hotfix (Systems Mode restore: Feasible Search run button always visible; crash-safe running watchdog; remove indentation leakage that could block Systems solve execution)
+**Current version:** v374.0.0 — Stability & Control Margin Certification Authority (Systems Mode: vertical stability + RWM + volt-seconds margin cert, fragility probes, JSON export)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

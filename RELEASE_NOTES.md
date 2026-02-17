@@ -1,4 +1,15 @@
 # Release Notes
+## v374.0.0 — Stability & Control Margin Certification Authority (Systems Mode)
+
+- New governance-grade certification: stability/control margins computed **from frozen truth outputs** (no solves, no iteration).
+- Covers three reviewer-facing channels:
+  - Vertical stability proxy margin (+ required bandwidth/power if control contracts enabled)
+  - RWM proximity (chi) and regime classification
+  - CS flux-swing (volt-seconds) headroom + optional loop-voltage cap margin
+- Adds deterministic *fragility probes* (single-step 1% perturbations): κ (+1%), β_N (+1%), and I_p (+1%) to show local cliff-sensitivity.
+- UI: new **Systems Mode** panel “Stability & control margin certification” with cache button and JSON export.
+- Hygiene: manifests regenerated; no UI restructuring.
+
 ## v372.5 — UI Hotfix: Point Designer block scoping & tab variable safety (tab_tel)
 
 - Fixed `NameError: tab_tel is not defined` by restoring correct scoping of the Point Designer block (indentation drift fix).

@@ -10020,6 +10020,87 @@ if _deck == "🧠 Systems Mode":
                     st.write('\n'.join([f"- {k}: {v} steps" for k, v in top]))
             except Exception:
                 pass
+
+
+    # -----------------------------
+    # Stability & control margin certification (v374.0)
+    # -----------------------------
+    with st.expander('Stability & control margin certification (vertical / RWM / volt-seconds)', expanded=False):
+        st.caption(
+            "Deterministic, algebraic certification derived from the last Systems artifact (no solves, no iteration). "
+            "Reports vertical stability proxy margin, RWM proximity, and CS flux-swing (volt-seconds) headroom."
+        )
+
+        # Safe defaults (UI law): never conditionally define keys used later.
+        st.session_state.setdefault('systems_stability_cert', None)
+        eps_active = float(st.session_state.get('systems_stability_eps_active', 0.01))
+        eps_tight = float(st.session_state.get('systems_stability_eps_tight', 0.10))
+        probe_frac = float(st.session_state.get('systems_stability_probe_frac', 0.01))
+
+        cA, cB, cC = st.columns([1, 1, 1])
+        with cA:
+            st.session_state['systems_stability_eps_active'] = st.number_input('ε_active', min_value=0.0, max_value=0.5, value=eps_active, step=0.005, format='%.3f')
+        with cB:
+            st.session_state['systems_stability_eps_tight'] = st.number_input('ε_tight', min_value=0.0, max_value=1.0, value=eps_tight, step=0.01, format='%.2f')
+        with cC:
+            st.session_state['systems_stability_probe_frac'] = st.number_input('Probe fraction', min_value=0.0, max_value=0.1, value=probe_frac, step=0.005, format='%.3f')
+
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_stability_cert_btn'):
+                try:
+                    from src.certification.stability_control_certification_v374 import (
+                        certify_stability_control_margins,
+                        certification_table_rows,
+                    )
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    ins = dict(last_sys_art.get('inputs') or {})
+                    run_id = str(last_sys_art.get('run_id') or (last_sys_art.get('run') or {}).get('run_id') or '')
+                    ih = str(last_sys_art.get('inputs_hash') or '')
+
+                    cert = certify_stability_control_margins(
+                        outputs=outs,
+                        inputs=ins,
+                        run_id=(run_id or None),
+                        inputs_hash=(ih or None),
+                        eps_active=float(st.session_state['systems_stability_eps_active']),
+                        eps_tight=float(st.session_state['systems_stability_eps_tight']),
+                        probe_frac=float(st.session_state['systems_stability_probe_frac']),
+                    )
+                    st.session_state['systems_stability_cert'] = cert
+                    st.success('Certification computed and cached (systems_stability_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_stability_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.stability_control_certification_v374 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                except Exception:
+                    st.json(cert)
+
+                # Download JSON
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_stability_control_margin_certification_v374.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_stability_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
     # -----------------------------
     # Frontier visualization (SHOULD)
     # -----------------------------
