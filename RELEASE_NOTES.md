@@ -851,3 +851,9 @@ Truth outputs unchanged.
 - Telemetry tab is now strictly cached/read-only: guides user to run Evaluate Point in Configure when no cached results exist.
 - Replace Configure-tab-only log formatting with artifact-derived logging to prevent cross-tab NameErrors.
 - Gatechecks: `py_compile ui/app.py`, full pytest suite.
+
+
+## v374.1.1 — Systems Mode base-object access hardening hotfix
+
+- Fixed Systems Mode crash when `base0` is a JSON-loaded dict by introducing a dict/dataclass-safe getter (`_safe_get`) and removing direct `base0.<field>` attribute access in fallback paths.
+- No changes to solver execution, cache keys, run IDs, or UI deck structure.

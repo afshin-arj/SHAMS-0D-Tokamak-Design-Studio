@@ -1331,6 +1331,18 @@ def make_point_inputs(**kwargs) -> PointInputs:
 # -----------------------------
 # UI helpers
 # -----------------------------
+def _safe_get(obj, key: str, default=None):
+    """Dict/dataclass-safe getter.
+
+    SHAMS UI sometimes handles base objects loaded from JSON artifacts (dict)
+    or from in-memory dataclass/namespace objects. This helper preserves
+    deterministic fallback semantics without attribute-access crashes.
+    """
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
 def _num(label: str, value: float, step: float, fmt: str = None, help: str = None, min_value=None, max_value=None, key: str = None):
     # Streamlit raises if default value is outside [min_value, max_value].
     # Clamp defensively so the UI remains robust even if bounds change.
@@ -10353,13 +10365,13 @@ if _deck == "🧠 Systems Mode":
                 st.caption(f"Base history: {len(_hist)} step(s). Undo is local to this session.")
         colA, colB, colC = st.columns(3)
         with colA:
-            R0_m = _num("R0 [m]", float(_bo.get('R0_m', base0.R0_m)), 0.01, help="Major radius.", key='sys_base_R0_m')
-            a_m = _num("a [m]", float(_bo.get('a_m', base0.a_m)), 0.01, help="Minor radius.", key='sys_base_a_m')
-            kappa = _num("κ [-]", float(_bo.get('kappa', base0.kappa)), 0.01, help="Elongation.", key='sys_base_kappa')
+            R0_m = _num("R0 [m]", float(_bo.get('R0_m', _safe_get(base0, 'R0_m'))), 0.01, help="Major radius.", key='sys_base_R0_m')
+            a_m = _num("a [m]", float(_bo.get('a_m', _safe_get(base0, 'a_m'))), 0.01, help="Minor radius.", key='sys_base_a_m')
+            kappa = _num("κ [-]", float(_bo.get('kappa', _safe_get(base0, 'kappa'))), 0.01, help="Elongation.", key='sys_base_kappa')
             delta = _num("δ [-]", float(_bo.get('delta', getattr(base0, "delta", 0.0) or 0.0)), 0.02, min_value=0.0, max_value=0.8, help="Triangularity δ used only in the inboard radial-build clearance proxy.", key='sys_base_delta')
         with colB:
-            Bt_T = _num("Bt [T]", float(_bo.get('Bt_T', base0.Bt_T)), 0.1, help="On-axis toroidal field.", key='sys_base_Bt_T')
-            Ti_keV = _num("Ti [keV]", float(_bo.get('Ti_keV', base0.Ti_keV)), 0.5, help="Ion temperature (volume-average input in 0-D mode).", key='sys_base_Ti_keV')
+            Bt_T = _num("Bt [T]", float(_bo.get('Bt_T', _safe_get(base0, 'Bt_T'))), 0.1, help="On-axis toroidal field.", key='sys_base_Bt_T')
+            Ti_keV = _num("Ti [keV]", float(_bo.get('Ti_keV', _safe_get(base0, 'Ti_keV'))), 0.5, help="Ion temperature (volume-average input in 0-D mode).", key='sys_base_Ti_keV')
             Ti_over_Te = _num("Ti/Te [-]", float(_bo.get('Ti_over_Te', getattr(base0, "Ti_over_Te", 2.0))), 0.05, help="Temperature ratio; sets Te.", key='sys_base_Ti_over_Te')
         with colC:
             t_shield_m = _num("Shield thickness [m]", float(_bo.get('t_shield_m', getattr(base0, "t_shield_m", 0.70))), 0.01, help="Inboard shielding thickness proxy (affects neutronics/HTS lifetime).", key='sys_base_t_shield_m')
@@ -14661,9 +14673,9 @@ if _deck == "📈 Pareto Lab":
     with st.expander("Bounds (sampling hyper-rectangle)", expanded=False):
         st.caption("Bounds are applied to the chosen variables during sampling.")
         bcols = st.columns(4)
-        b_R0 = (float(base0.R0_m*0.8), float(base0.R0_m*1.25))
-        b_Bt = (float(base0.Bt_T*0.7), float(base0.Bt_T*1.15))
-        b_Ip = (float(base0.Ip_MA*0.6), float(base0.Ip_MA*1.6))
+        b_R0 = (float(_safe_get(base0, 'R0_m')*0.8), float(_safe_get(base0, 'R0_m')*1.25))
+        b_Bt = (float(_safe_get(base0, 'Bt_T')*0.7), float(_safe_get(base0, 'Bt_T')*1.15))
+        b_Ip = (float(_safe_get(base0, 'Ip_MA')*0.6), float(_safe_get(base0, 'Ip_MA')*1.6))
         b_fG = (0.3, 1.1)
         R0_lo = _num("R0 min [m]", b_R0[0], 0.01)
         R0_hi = _num("R0 max [m]", b_R0[1], 0.01)
