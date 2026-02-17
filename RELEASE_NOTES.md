@@ -1,4 +1,15 @@
 # Release Notes
+## v375.0.0 — Exhaust & Divertor Authority v375 + Systems Mode Cached Post-Run Rendering
+
+- New: **Exhaust & Divertor Authority v375** (deterministic) adds explicit bounds and transparency for SOL/divertor screening:
+  - clamps *inputs* used by the divertor proxy (**λq**, **flux expansion**, **strike count**, **wetted fraction**) via an explicit JSON contract.
+  - adds **unit/scale sanity flag** (`q_div_unit_suspect`) without modifying truth.
+  - exports a certified bundle (raw vs used values + contract SHA) into outputs for governance/reviewer packs.
+- UI: Systems Mode now **always renders** Key results + post-run expanders from the cached `systems_last_solution` artifact (no compute during render).
+  - Fixes the symptom: “post-run results disappear after rerun / scroll.”
+- UI: adds a collapsed expander **“🔥 Exhaust & Divertor Authority (certified)”** under **Key results**.
+- No changes to: frozen evaluator discipline, cache keys, run IDs, or cross-mode coupling.
+
 ## v374.2.0 — Systems Mode Diagnostics Render Restore (Post-Key-Results)
 
 - Fix: restored visibility of **Compact Cockpit** and **Systems Console** (verdict bar / why-chain / constraint cards) directly under the **Key results** section.

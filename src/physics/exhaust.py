@@ -26,6 +26,12 @@ from phase1_systems import (
 )
 from physics.divertor import divertor_two_regime, DivertorResult
 
+from engineering.heat_exhaust.exhaust_authority_v375 import (
+    apply_exhaust_authority,
+    ExhaustAuthorityBundle,
+    CONTRACT_SHA256 as EXHAUST_AUTHORITY_CONTRACT_SHA256,
+)
+
 
 @dataclass(frozen=True)
 class ExhaustResult:
@@ -39,6 +45,7 @@ class ExhaustResult:
 
     flux_expansion: float
     n_strike_points: int
+    f_wet: float
     f_rad_div: float
 
     A_wet_m2: float
@@ -51,6 +58,14 @@ class ExhaustResult:
     q_midplane_MW_m2: float
 
     Lpar_m: float
+
+    # v375 authority transparency (non-breaking; used by UI/governance)
+    lambda_q_mm_raw: float
+    flux_expansion_raw: float
+    n_strike_points_raw: int
+    f_wet_raw: float
+    q_div_unit_suspect: float
+    exhaust_authority_contract_sha256: str
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -72,28 +87,46 @@ def evaluate_exhaust_with_known_lambda_q(
     P_SOL_over_R_max_MW_m: float,
     f_Lpar: float = 1.0,
     advanced_divertor_factor: float = 1.0,
+    f_wet: float = 1.0,
 ) -> ExhaustResult:
     """Evaluate exhaust proxies when Bpol and lambda_q are already computed upstream."""
     P_SOL = max(float(P_SOL_MW), 0.0)
     R0 = max(float(R0_m), 1e-9)
     q95_f = float(q95)
 
-    lam_mm = float(lambda_q_mm)
+    lam_mm_raw = float(lambda_q_mm)
     Bpol_out = float(Bpol_out_mid_T)
 
     f_div = min(max(float(f_rad_div), 0.0), 0.99)
-    nsp = int(max(1, int(n_strike_points)))
+    nsp_raw = int(n_strike_points)
+    flux_exp_raw = float(flux_expansion)
+    f_wet_raw = float(f_wet)
+
+    # Apply explicit v375 authority bounds BEFORE computing wetted area / q_div.
+    tmp: ExhaustAuthorityBundle = apply_exhaust_authority(
+        lambda_q_mm_raw=lam_mm_raw,
+        flux_expansion_raw=flux_exp_raw,
+        n_strike_points_raw=nsp_raw,
+        f_wet_raw=f_wet_raw,
+        q_div_MW_m2=float("nan"),
+        A_wet_m2=float("nan"),
+    )
+
+    lam_mm = float(tmp.lambda_q_mm_used)
+    nsp = int(tmp.n_strike_points_used)
+    flux_exp = float(tmp.flux_expansion_used)
+    f_wet_used = float(tmp.f_wet_used)
 
     qdiv_proxy = divertor_q_MW_m2(
         P_SOL_MW=P_SOL,
         R0_m=R0,
         lambda_q_mm=lam_mm,
-        flux_expansion=float(flux_expansion),
+        flux_expansion=float(flux_exp),
         f_rad_div=float(f_div),
         n_strikes=nsp,
     )
     lam_m = max(lam_mm * 1e-3, 1e-9)
-    A_wet = divertor_wetted_area_m2(R0, lam_m, flux_expansion=float(flux_expansion), n_strikes=nsp)
+    A_wet = divertor_wetted_area_m2(R0, lam_m, flux_expansion=float(flux_exp), n_strikes=nsp) * max(f_wet_used, 1e-9)
 
     div: DivertorResult = divertor_two_regime(
         P_SOL_MW=float(P_SOL),
@@ -105,6 +138,17 @@ def evaluate_exhaust_with_known_lambda_q(
         advanced_divertor_factor=float(advanced_divertor_factor),
     )
 
+    # Final authority bundle with computed q_div and wetted area. We do not enforce q_div_max here;
+    # constraints handle feasibility. We only add a unit/scale sanity flag.
+    bundle: ExhaustAuthorityBundle = apply_exhaust_authority(
+        lambda_q_mm_raw=lam_mm_raw,
+        flux_expansion_raw=flux_exp_raw,
+        n_strike_points_raw=nsp_raw,
+        f_wet_raw=f_wet_raw,
+        q_div_MW_m2=float(div.q_div_MW_m2),
+        A_wet_m2=float(A_wet),
+    )
+
     Lpar = connection_length_m(q95_f, R0, f_Lpar=float(f_Lpar))
 
     return ExhaustResult(
@@ -114,8 +158,9 @@ def evaluate_exhaust_with_known_lambda_q(
         use_lambda_q=True,
         Bpol_out_mid_T=Bpol_out,
         lambda_q_mm=lam_mm,
-        flux_expansion=float(flux_expansion),
+        flux_expansion=float(flux_exp),
         n_strike_points=nsp,
+        f_wet=float(f_wet_used),
         f_rad_div=f_div,
         A_wet_m2=float(A_wet),
         q_div_proxy_MW_m2=float(qdiv_proxy),
@@ -125,6 +170,13 @@ def evaluate_exhaust_with_known_lambda_q(
         q_div_MW_m2=float(div.q_div_MW_m2),
         q_midplane_MW_m2=float(div.q_mid_MW_m2),
         Lpar_m=float(Lpar),
+
+        lambda_q_mm_raw=float(lam_mm_raw),
+        flux_expansion_raw=float(flux_exp_raw),
+        n_strike_points_raw=int(nsp_raw),
+        f_wet_raw=float(f_wet_raw),
+        q_div_unit_suspect=float(bundle.q_div_unit_suspect),
+        exhaust_authority_contract_sha256=str(EXHAUST_AUTHORITY_CONTRACT_SHA256),
     )
 
 

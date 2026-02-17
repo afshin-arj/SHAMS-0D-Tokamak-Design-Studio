@@ -12600,6 +12600,30 @@ if _deck == "🧠 Systems Mode":
                 except Exception:
                     st.caption("Detailed diagnostics unavailable (non-fatal).")
 
+            # v375.0: Exhaust authority (certified bundle) — kept under Key results
+            with st.expander("🔥 Exhaust & Divertor Authority (certified)", expanded=False):
+                try:
+                    _ea = {
+                        "lambda_q_mm_raw": float(out_sol.get("lambda_q_mm_raw", float("nan"))),
+                        "lambda_q_mm_used": float(out_sol.get("lambda_q_mm", float("nan"))),
+                        "flux_expansion_raw": float(out_sol.get("flux_expansion_raw", float("nan"))),
+                        "flux_expansion_used": float(out_sol.get("flux_expansion", float("nan"))),
+                        "n_strike_points_raw": int(out_sol.get("n_strike_points_raw", out_sol.get("n_strike_points", 2)) or 2),
+                        "n_strike_points_used": int(out_sol.get("n_strike_points", 2) or 2),
+                        "f_wet_raw": float(out_sol.get("f_wet_raw", float("nan"))),
+                        "f_wet_used": float(out_sol.get("f_wet_divertor", float("nan"))),
+                        "A_wet_m2": float(out_sol.get("A_wet_m2", float("nan"))),
+                        "q_div_MW_m2": float(out_sol.get("q_div_MW_m2", float("nan"))),
+                        "q_div_max_MW_m2": float(out_sol.get("q_div_max_MW_m2", float("nan"))),
+                        "q_div_unit_suspect": float(out_sol.get("q_div_unit_suspect", 0.0)),
+                        "contract_sha256": str(out_sol.get("exhaust_authority_contract_sha256", "")),
+                    }
+                    st.dataframe(pd.DataFrame([_ea]), use_container_width=True)
+                    if float(_ea.get("q_div_unit_suspect", 0.0)) >= 0.5:
+                        st.warning("q_div magnitude looks unit-suspect (>1e5 MW/m²). This is a flag only; truth is unchanged.")
+                except Exception as _e:
+                    st.caption(f"Exhaust authority bundle unavailable (non-fatal): {_e}")
+
 
         except _SysPrecheckBlocksSolve:
             st.warning(
@@ -12618,6 +12642,108 @@ if _deck == "🧠 Systems Mode":
                 _alog_exc('Systems', 'RunSystemsSolveException', e)
             except Exception:
                 pass
+
+    # ---------------------------------------------------------------------
+    # v374.2+ render contract: if there is a cached Systems solution, ALWAYS
+    # render Key results + post-run expanders from cache (no compute here).
+    # This avoids the "results disappeared" symptom on rerun.
+    # ---------------------------------------------------------------------
+    if not run:
+        try:
+            _art_cached = st.session_state.get('systems_last_solution') or st.session_state.get('systems_last_solve_artifact')
+            if isinstance(_art_cached, dict):
+                _out_cached = _art_cached.get('outputs', {}) if isinstance(_art_cached.get('outputs', {}), dict) else {}
+                _cons_cached = _sys_extract_constraints(_art_cached)
+
+                st.markdown("### Key results")
+                kcols = st.columns(4)
+                def _k(metric, key, fmt="{:.3g}"):
+                    v = float(_out_cached.get(key, float("nan")))
+                    with metric:
+                        st.metric(key, fmt.format(v) if v==v else "NaN")
+                _k(kcols[0], "Q_DT_eqv", "{:.3g}")
+                _k(kcols[1], "H98", "{:.3g}")
+                _k(kcols[2], "P_e_net_MW", "{:.3g}")
+                _k(kcols[3], "q_div_MW_m2", "{:.3g}")
+
+                with st.expander("Constraints & margins (systems mode)", expanded=False):
+                    rows_c = []
+                    for c in _cons_cached:
+                        try:
+                            margin = float(getattr(c, "margin"))
+                        except Exception:
+                            margin = float("nan")
+                        rows_c.append({
+                            "constraint": c.name,
+                            "sense": c.sense,
+                            "value": c.value,
+                            "limit": c.limit,
+                            "units": c.units,
+                            "passed": bool(c.passed),
+                            "margin_frac": margin,
+                            "severity": getattr(c, "severity", "hard"),
+                            "note": c.note,
+                        })
+                    st.dataframe(pd.DataFrame(rows_c), use_container_width=True)
+
+                with st.expander("Plots (radial build + power balance)", expanded=False):
+                    try:
+                        import tempfile, os
+                        tmpdir = tempfile.mkdtemp(prefix="shams_systems_")
+                        rb = os.path.join(tmpdir, "radial_build.png")
+                        plot_radial_build_from_artifact(_art_cached, rb)
+                        st.image(rb, caption="Radial build (proxy)", use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Radial build plot unavailable: {e}")
+                    try:
+                        from shams_io.sankey import build_power_balance_sankey
+                        import plotly.graph_objects as go
+                        sank = build_power_balance_sankey(_art_cached)
+                        fig = go.Figure(data=[go.Sankey(**sank)])
+                        st.plotly_chart(fig, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Sankey unavailable: {e}")
+
+                with st.expander("🔎 Detailed Systems Diagnostics (post-run)", expanded=False):
+                    try:
+                        _sys_render_compact_cockpit()
+                    except Exception:
+                        st.caption("Compact cockpit unavailable (non-fatal).")
+                    try:
+                        _sys_render_verdict_bar(_art_cached, constraints=_cons_cached)
+                        _sys_render_causal_chain(
+                            _art_cached,
+                            constraints=_cons_cached,
+                            expert=st.session_state.get("systems_expert_view", False),
+                        )
+                        _sys_render_constraint_cards(_art_cached, constraints=_cons_cached)
+                    except Exception:
+                        st.caption("Detailed diagnostics unavailable (non-fatal).")
+
+                with st.expander("🔥 Exhaust & Divertor Authority (certified)", expanded=False):
+                    try:
+                        _ea = {
+                            "lambda_q_mm_raw": float(_out_cached.get("lambda_q_mm_raw", float("nan"))),
+                            "lambda_q_mm_used": float(_out_cached.get("lambda_q_mm", float("nan"))),
+                            "flux_expansion_raw": float(_out_cached.get("flux_expansion_raw", float("nan"))),
+                            "flux_expansion_used": float(_out_cached.get("flux_expansion", float("nan"))),
+                            "n_strike_points_raw": int(_out_cached.get("n_strike_points_raw", _out_cached.get("n_strike_points", 2)) or 2),
+                            "n_strike_points_used": int(_out_cached.get("n_strike_points", 2) or 2),
+                            "f_wet_raw": float(_out_cached.get("f_wet_raw", float("nan"))),
+                            "f_wet_used": float(_out_cached.get("f_wet_divertor", float("nan"))),
+                            "A_wet_m2": float(_out_cached.get("A_wet_m2", float("nan"))),
+                            "q_div_MW_m2": float(_out_cached.get("q_div_MW_m2", float("nan"))),
+                            "q_div_max_MW_m2": float(_out_cached.get("q_div_max_MW_m2", float("nan"))),
+                            "q_div_unit_suspect": float(_out_cached.get("q_div_unit_suspect", 0.0)),
+                            "contract_sha256": str(_out_cached.get("exhaust_authority_contract_sha256", "")),
+                        }
+                        st.dataframe(pd.DataFrame([_ea]), use_container_width=True)
+                        if float(_ea.get("q_div_unit_suspect", 0.0)) >= 0.5:
+                            st.warning("q_div magnitude looks unit-suspect (>1e5 MW/m²). This is a flag only; truth is unchanged.")
+                    except Exception as _e:
+                        st.caption(f"Exhaust authority bundle unavailable (non-fatal): {_e}")
+        except Exception:
+            pass
 
 if _deck == "🗺️ Scan Lab":
     # DSG: auto edge-kind tagging by active panel (exploration only)

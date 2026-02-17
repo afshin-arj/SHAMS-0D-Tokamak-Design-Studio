@@ -1411,12 +1411,14 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             P_SOL_over_R_max_MW_m=float(inp.P_SOL_over_R_max_MW_m),
             f_Lpar=float(getattr(inp, "f_Lpar", 1.0)),
             advanced_divertor_factor=float(getattr(inp, "advanced_divertor_factor", 1.0) or 1.0),
+            f_wet=float(getattr(inp, "f_wet_divertor", 1.0) or 1.0),
         )
         q_mid = q_midplane_from_lambda_q(P_SOL_MW=float(P_SOL_MW), R0_m=float(inp.R0_m), lambda_q_mm=float(lam_mm))
         out.update({
             "f_rad_div": float(ex.f_rad_div),
             "flux_expansion": float(ex.flux_expansion),
             "n_strike_points": int(ex.n_strike_points),
+            "f_wet_divertor": float(ex.f_wet),
             "Lpar_m": float(ex.Lpar_m),
             "q_div_MW_m2": float(ex.q_div_MW_m2),
             "q_div_max_MW_m2": float(inp.q_div_max_MW_m2),
@@ -1427,6 +1429,14 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             "q_midplane_W_m2": float(q_mid) * 1e6,
             "q_div_W_m2": float(ex.q_div_MW_m2) * 1e6,
             "q_div_max_W_m2": float(inp.q_div_max_MW_m2) * 1e6,
+
+            # v375 exhaust authority transparency
+            "lambda_q_mm_raw": float(ex.lambda_q_mm_raw),
+            "flux_expansion_raw": float(ex.flux_expansion_raw),
+            "n_strike_points_raw": int(ex.n_strike_points_raw),
+            "f_wet_raw": float(ex.f_wet_raw),
+            "q_div_unit_suspect": float(ex.q_div_unit_suspect),
+            "exhaust_authority_contract_sha256": str(ex.exhaust_authority_contract_sha256),
         })
 
         # Optional SOL radiative control (diagnostic transparency)
@@ -1588,6 +1598,7 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
                             P_SOL_over_R_max_MW_m=float(inp.P_SOL_over_R_max_MW_m),
                             f_Lpar=float(getattr(inp, "f_Lpar", 1.0)),
                             advanced_divertor_factor=float(getattr(inp, "advanced_divertor_factor", 1.0) or 1.0),
+                            f_wet=float(getattr(inp, "f_wet_divertor", 1.0) or 1.0),
                         )
                         q_mid_ec = q_midplane_from_lambda_q(
                             P_SOL_MW=float(res.P_SOL_eff_MW),
@@ -1604,6 +1615,15 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
                             "q_div_W_m2": float(ex_ec.q_div_MW_m2) * 1e6,
                             "P_SOL_over_R_edge_core_MW_m": float(res.P_SOL_eff_MW) / max(float(inp.R0_m), 1e-9),
                             "q_midplane_edge_core_MW_m2": float(q_mid_ec),
+
+                            # v375 exhaust authority transparency (edge-core coupled)
+                            "f_wet_divertor": float(ex_ec.f_wet),
+                            "lambda_q_mm_raw": float(ex_ec.lambda_q_mm_raw),
+                            "flux_expansion_raw": float(ex_ec.flux_expansion_raw),
+                            "n_strike_points_raw": int(ex_ec.n_strike_points_raw),
+                            "f_wet_raw": float(ex_ec.f_wet_raw),
+                            "q_div_unit_suspect": float(ex_ec.q_div_unit_suspect),
+                            "exhaust_authority_contract_sha256": str(ex_ec.exhaust_authority_contract_sha256),
                         })
                 except Exception:
                     out["edge_core_coupling_active"] = 0.0

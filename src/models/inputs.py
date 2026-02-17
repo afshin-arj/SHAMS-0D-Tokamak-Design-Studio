@@ -491,6 +491,7 @@ class PointInputs:
     # --- (New) Heat exhaust / SOL proxy knobs ---
     flux_expansion: float = 8.0          # divertor flux expansion proxy
     n_strike_points: int = 2             # 2=single-null, 4=double-null proxy
+    f_wet_divertor: float = 1.0          # wetted-area utilization (0<fw<=1), accounts for partial wetting/strike sweep
 
     # --- (New) Confinement scaling options ---
     # confinement_scaling selects the *reference scaling* used for H-factor reporting.

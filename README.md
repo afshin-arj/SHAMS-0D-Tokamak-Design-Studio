@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v374.2.0 — Systems Mode post‑Key‑results diagnostics render restore (Compact Cockpit + Systems Console bundled under Key results)
+**Current version:** v375.0.0 — Exhaust & Divertor Authority v375 (λq/flux-expansion/wetting bounds + unit sanity flags) + Systems Mode cached post‑run rendering hardening
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
