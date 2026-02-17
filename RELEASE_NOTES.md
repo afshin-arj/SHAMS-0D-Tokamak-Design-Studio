@@ -1,4 +1,10 @@
 # Release Notes
+## v374.1.0 — Systems Mode Post-Key-Results Diagnostics Grouping (UI Non-Structural)
+
+- UI-only refinement: moved **Compact Cockpit** and the **Systems Console** (verdict bar / why-chain / constraint cards) *below* “Latest Systems results (cached)”.
+- Added a collapsed expander **“Detailed Systems Diagnostics (post-run)”** to reduce scroll fatigue and keep Key results as the primary anchor.
+- No changes to: frozen evaluator, solver execution, cache keys, run IDs, artifacts, or cross-mode contracts.
+
 ## v374.0.0 — Stability & Control Margin Certification Authority (Systems Mode)
 
 - New governance-grade certification: stability/control margins computed **from frozen truth outputs** (no solves, no iteration).

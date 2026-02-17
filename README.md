@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v374.0.0 — Stability & Control Margin Certification Authority (Systems Mode: vertical stability + RWM + volt-seconds margin cert, fragility probes, JSON export)
+**Current version:** v374.1.0 — Stability & Control Margin Certification Authority (Systems Mode: vertical stability + RWM + volt-seconds margin cert, fragility probes, JSON export)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
