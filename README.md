@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v380.0.0 — Impurity Radiation **Current version:** v378.0.0 — Control & Actuation Authority (PF/RWM coupling deepening; actuator margins & volt-second headroom certification) Detachment Authority 3.0 (partition + detachment requirement certification)
+**Current version:** v381.0.0 — Advanced Current Drive Library Authority (regime-aware CD credibility certification)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

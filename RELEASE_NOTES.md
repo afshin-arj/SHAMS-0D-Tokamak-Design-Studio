@@ -1,4 +1,15 @@
 # Release Notes
+
+## v381.0.0 — Advanced Current Drive Library Authority (certified)
+
+- New: **Current drive authority (certified)** in Systems Mode.
+  - Deterministic certification computed from the last Systems artifact (**no solves, no iteration**).
+  - Certifies **non-inductive fraction claims** (`f_NI`) using bootstrap + external CD currents when available.
+  - Computes an effective CD efficiency proxy **η_cd = I_cd / P_CD** (MA/MW) and flags over-claimed efficiencies.
+  - Adds **regime flags** (best-effort) using density thresholds: LH density limit, ECH high-density cutoff, NBI low-density shine-through risk.
+  - JSON export: `systems_current_drive_certification_v381.json`.
+- UI discipline preserved: button-driven compute → cache → render; no compute during render; no structural deck changes.
+
 ## v378.0.0 — Control & Actuation Authority (PF/RWM coupling deepening; certified)
 
 ## v380.0.0 — Impurity Radiation & Detachment Authority 3.0

@@ -10282,6 +10282,59 @@ if _deck == "🧠 Systems Mode":
                 with st.expander('Certification details (JSON)', expanded=False):
                     st.json(cert)
 
+
+    # -----------------------------
+    # Current drive authority (v381.0)
+    # -----------------------------
+    with st.expander('⚡ Current drive authority (certified) — regime-aware credibility', expanded=False):
+        st.caption(
+            "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
+            "Certifies current-drive and non-inductive fraction claims with conservative efficiency bounds and density-based regime flags."
+        )
+
+        st.session_state.setdefault('systems_current_drive_cert', None)
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_current_drive_cert_btn'):
+                try:
+                    from src.certification.current_drive_certification_v381 import evaluate_current_drive_authority
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    _cert = evaluate_current_drive_authority(outs).to_dict()
+                    st.session_state['systems_current_drive_cert'] = _cert
+                    st.success('Certification computed and cached (systems_current_drive_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_current_drive_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.current_drive_certification_v381 import certification_table_rows
+                    st.dataframe(_pd.DataFrame([certification_table_rows(cert)]), use_container_width=True, hide_index=True)
+                    tier = str(cert.get('tier') or '')
+                    if tier in ('BLOCK', 'TIGHT'):
+                        st.warning('Current-drive authority is tight or blocking (proxy). Treat as governance risk; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_current_drive_certification_v381.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_current_drive_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
     # -----------------------------
     # Disruption severity & quench proxy authority (v377.0)
     # -----------------------------
@@ -12731,6 +12784,18 @@ if _deck == "🧠 Systems Mode":
                     artifact['certifications']['impurity_radiation_detachment_v380'] = _cert
             except Exception:
                 pass
+            # v381.0: Advanced current-drive authority (governance-only)
+            try:
+                from src.certification.current_drive_certification_v381 import (
+                    evaluate_current_drive_authority,
+                )
+                _cd_cert = evaluate_current_drive_authority(out_sol).to_dict()
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['current_drive_v381'] = _cd_cert
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -12902,6 +12967,23 @@ if _deck == "🧠 Systems Mode":
                         st.json(_cert)
                 except Exception as _e:
                     st.caption(f"Impurity/detachment authority unavailable (non-fatal): {_e}")
+
+
+                # v381.0: Current drive authority (certified)
+                with st.expander("⚡ Current drive authority (certified)", expanded=False):
+                    try:
+                        _cert = None
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _cert = _certs.get('current_drive_v381')
+                        if not isinstance(_cert, dict):
+                            st.info("No cached current-drive certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.current_drive_certification_v381 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_cert)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_cert)
+                    except Exception as _e:
+                        st.caption(f"Current-drive authority unavailable (non-fatal): {_e}")
 
 
 

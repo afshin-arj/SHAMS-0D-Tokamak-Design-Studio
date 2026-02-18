@@ -1,0 +1,23 @@
+{
+  "schema": "current_drive_authority.contract.v381",
+  "version": "381.0.0",
+  "defaults": {
+    "f_NI_warn": 0.70,
+    "f_NI_block": 0.90,
+    "eta_cd_min_MA_per_MW": 0.001,
+    "eta_cd_warn_MA_per_MW": 0.02,
+    "eta_cd_block_MA_per_MW": 0.08,
+    "lh_density_limit_ne20": 1.2,
+    "ech_density_cutoff_ne20": 1.8,
+    "nbi_shinethrough_warn_ne20": 0.2,
+    "nbi_shinethrough_block_ne20": 0.1
+  },
+  "policy": {
+    "notes": "Governance-only: deterministic certification derived from Systems outputs. No optimization, no solver, no truth re-evaluation.",
+    "weights": {
+      "f_NI": 0.55,
+      "eta_cd": 0.25,
+      "regime_flags": 0.20
+    }
+  }
+}
