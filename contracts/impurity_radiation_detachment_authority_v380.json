@@ -1,0 +1,17 @@
+{
+  "schema": "impurity_radiation_detachment_authority.contract.v380",
+  "notes": "Governance-only deterministic contract for impurity radiation partition + detachment requirement inversion. Not a time-domain detachment model.",
+  "defaults": {
+    "species": "NE",
+    "T_sol_keV": 0.08,
+    "f_V_sol_div": 0.12,
+    "f_Psep": 0.70,
+    "q_div_target_MW_m2_fallback": 10.0
+  },
+  "policy": {
+    "fz_required_warn": 0.002,
+    "fz_required_block": 0.010,
+    "sol_div_rad_availability_warn": 0.80,
+    "sol_div_rad_availability_block": 1.00
+  }
+}

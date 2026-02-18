@@ -10094,6 +10094,119 @@ if _deck == "🧠 Systems Mode":
                     st.json(cert)
 
     # -----------------------------
+    # Control & actuation authority (v378.0)
+    # -----------------------------
+    with st.expander('Control & actuation authority (PF/RWM, certified) — actuator margins', expanded=False):
+        st.caption(
+            "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
+            "Computes actuator margin proxies: VS bandwidth/power caps, PF power cap, RWM power proxy vs cap, and CS/V-loop headroom."
+        )
+
+        st.session_state.setdefault('systems_control_actuation_cert', None)
+        # Governance caps (UI inputs; do not mutate truth).
+        st.session_state.setdefault('systems_v378_vs_bw_cap_Hz', 300.0)
+        st.session_state.setdefault('systems_v378_vs_P_cap_MW', 50.0)
+        st.session_state.setdefault('systems_v378_pf_P_cap_MW', 200.0)
+        st.session_state.setdefault('systems_v378_rwm_P_cap_MW', 20.0)
+        st.session_state.setdefault('systems_v378_rwm_P_ref_MW', 10.0)
+
+        cap_cols = st.columns(5)
+        with cap_cols[0]:
+            st.session_state['systems_v378_vs_bw_cap_Hz'] = st.number_input(
+                'VS BW cap (Hz)', min_value=1.0, max_value=5000.0,
+                value=float(st.session_state.get('systems_v378_vs_bw_cap_Hz', 300.0)),
+                step=10.0, format='%.1f'
+            )
+        with cap_cols[1]:
+            st.session_state['systems_v378_vs_P_cap_MW'] = st.number_input(
+                'VS P cap (MW)', min_value=0.1, max_value=2000.0,
+                value=float(st.session_state.get('systems_v378_vs_P_cap_MW', 50.0)),
+                step=5.0, format='%.2f'
+            )
+        with cap_cols[2]:
+            st.session_state['systems_v378_pf_P_cap_MW'] = st.number_input(
+                'PF P cap (MW)', min_value=0.1, max_value=5000.0,
+                value=float(st.session_state.get('systems_v378_pf_P_cap_MW', 200.0)),
+                step=10.0, format='%.2f'
+            )
+        with cap_cols[3]:
+            st.session_state['systems_v378_rwm_P_cap_MW'] = st.number_input(
+                'RWM P cap (MW)', min_value=0.1, max_value=2000.0,
+                value=float(st.session_state.get('systems_v378_rwm_P_cap_MW', 20.0)),
+                step=1.0, format='%.2f'
+            )
+        with cap_cols[4]:
+            st.session_state['systems_v378_rwm_P_ref_MW'] = st.number_input(
+                'RWM P ref (MW)', min_value=0.1, max_value=2000.0,
+                value=float(st.session_state.get('systems_v378_rwm_P_ref_MW', 10.0)),
+                step=1.0, format='%.2f'
+            )
+
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_control_actuation_cert_btn'):
+                try:
+                    from src.certification.control_actuation_certification_v378 import (
+                        certify_control_actuation,
+                        ActuationCaps,
+                    )
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    ins = dict(last_sys_art.get('inputs') or {})
+                    run_id = str(last_sys_art.get('run_id') or (last_sys_art.get('run') or {}).get('run_id') or '')
+                    ih = str(last_sys_art.get('inputs_hash') or '')
+
+                    caps = ActuationCaps(
+                        vs_bandwidth_cap_Hz=float(st.session_state.get('systems_v378_vs_bw_cap_Hz', 300.0)),
+                        vs_power_cap_MW=float(st.session_state.get('systems_v378_vs_P_cap_MW', 50.0)),
+                        pf_power_cap_MW=float(st.session_state.get('systems_v378_pf_P_cap_MW', 200.0)),
+                        rwm_power_cap_MW=float(st.session_state.get('systems_v378_rwm_P_cap_MW', 20.0)),
+                        rwm_power_ref_MW=float(st.session_state.get('systems_v378_rwm_P_ref_MW', 10.0)),
+                    )
+
+                    cert = certify_control_actuation(
+                        outputs=outs,
+                        inputs=ins,
+                        run_id=(run_id or None),
+                        inputs_hash=(ih or None),
+                        caps=caps,
+                    )
+                    st.session_state['systems_control_actuation_cert'] = cert
+                    st.success('Certification computed and cached (systems_control_actuation_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_control_actuation_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.control_actuation_certification_v378 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                    tier = (((cert.get('tiers') or {}).get('overall')) if isinstance(cert.get('tiers'), dict) else None)
+                    if tier in ('BLOCK', 'TIGHT'):
+                        st.warning('Actuation authority is tight or blocking (proxy). Treat as governance risk; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_control_actuation_certification_v378.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_control_actuation_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
+    # -----------------------------
     # Confinement & transport certification (v376.0)
     # -----------------------------
     with st.expander('Confinement & transport authority (certified) — H98 credibility', expanded=False):
@@ -10162,6 +10275,68 @@ if _deck == "🧠 Systems Mode":
                         mime='application/json',
                         use_container_width=True,
                         key='systems_dl_transport_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
+    # -----------------------------
+    # Disruption severity & quench proxy authority (v377.0)
+    # -----------------------------
+    with st.expander('Disruption & quench authority (certified) — severity proxies', expanded=False):
+        st.caption(
+            "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
+            "Adds consequence-severity proxies: disruption proximity index, thermal quench severity W/A, and halo force proxy."
+        )
+
+        st.session_state.setdefault('systems_disruption_quench_cert', None)
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_disruption_quench_cert_btn'):
+                try:
+                    from src.certification.disruption_quench_certification_v377 import certify_disruption_quench
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    ins = dict(last_sys_art.get('inputs') or {})
+                    run_id = str(last_sys_art.get('run_id') or (last_sys_art.get('run') or {}).get('run_id') or '')
+                    ih = str(last_sys_art.get('inputs_hash') or '')
+
+                    cert = certify_disruption_quench(
+                        outputs=outs,
+                        inputs=ins,
+                        run_id=(run_id or None),
+                        inputs_hash=(ih or None),
+                    )
+                    st.session_state['systems_disruption_quench_cert'] = cert
+                    st.success('Certification computed and cached (systems_disruption_quench_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_disruption_quench_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.disruption_quench_certification_v377 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                    tier = (((cert.get('metrics') or {}).get('disruption_proximity_tier')) if isinstance(cert.get('metrics'), dict) else None)
+                    if tier == 'HIGH':
+                        st.warning('High disruption proximity index (proxy). Treat as governance risk; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_disruption_quench_certification_v377.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_disruption_quench_cert_json',
                     )
                 except Exception:
                     pass
@@ -12543,6 +12718,19 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+
+
+            # v380.0: Impurity radiation partition + detachment requirement certification (governance-only)
+            try:
+                from src.certification.impurity_radiation_detachment_certification_v380 import (
+                    evaluate_impurity_radiation_detachment_authority,
+                )
+                _cert = evaluate_impurity_radiation_detachment_authority(out_sol).to_dict()
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['impurity_radiation_detachment_v380'] = _cert
+            except Exception:
+                pass
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -12700,6 +12888,22 @@ if _deck == "🧠 Systems Mode":
                 except Exception as _e:
                     st.caption(f"Exhaust authority bundle unavailable (non-fatal): {_e}")
 
+            # v380.0: Impurity radiation partition + detachment requirement (certified)
+            with st.expander("🧪 Impurity radiation & detachment authority (certified)", expanded=False):
+                try:
+                    from src.certification.impurity_radiation_detachment_certification_v380 import (
+                        evaluate_impurity_radiation_detachment_authority,
+                        certification_table_rows,
+                    )
+
+                    _cert = evaluate_impurity_radiation_detachment_authority(out_sol).to_dict()
+                    st.dataframe(pd.DataFrame([certification_table_rows(_cert)]), use_container_width=True)
+                    with st.expander("Details", expanded=False):
+                        st.json(_cert)
+                except Exception as _e:
+                    st.caption(f"Impurity/detachment authority unavailable (non-fatal): {_e}")
+
+
 
         except _SysPrecheckBlocksSolve:
             st.warning(
@@ -12818,6 +13022,24 @@ if _deck == "🧠 Systems Mode":
                             st.warning("q_div magnitude looks unit-suspect (>1e5 MW/m²). This is a flag only; truth is unchanged.")
                     except Exception as _e:
                         st.caption(f"Exhaust authority bundle unavailable (non-fatal): {_e}")
+
+                # v380.0: Impurity radiation partition + detachment requirement (certified)
+                with st.expander("🧪 Impurity radiation & detachment authority (certified)", expanded=False):
+                    try:
+                        _cert = None
+                        # Prefer cached certifications if present (strict render-from-cache).
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _cert = _certs.get('impurity_radiation_detachment_v380')
+                        if not isinstance(_cert, dict):
+                            st.info("No cached impurity/detachment certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.impurity_radiation_detachment_certification_v380 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_cert)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_cert)
+                    except Exception as _e:
+                        st.caption(f"Impurity/detachment authority unavailable (non-fatal): {_e}")
+
         except Exception:
             pass
 

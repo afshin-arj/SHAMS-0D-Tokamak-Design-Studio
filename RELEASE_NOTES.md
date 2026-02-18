@@ -1,4 +1,31 @@
 # Release Notes
+## v378.0.0 — Control & Actuation Authority (PF/RWM coupling deepening; certified)
+
+## v380.0.0 — Impurity Radiation & Detachment Authority 3.0
+- Added certified impurity radiation partition + detachment requirement inversion (no solvers, deterministic).
+- Systems Mode: new collapsed expander under Key results (cache-only render).
+- New contract: contracts/impurity_radiation_detachment_authority_v380.json
+
+
+- New: **Control & actuation authority (PF/RWM, certified)** in Systems Mode.
+  - Deterministic certification computed from the last Systems artifact (**no solves, no iteration**).
+  - Adds explicit governance **actuator caps** (VS bandwidth/power, PF power, RWM power) and reports margin tiers.
+  - Reuses the v374 stability/control mapping (vertical/RWM/volt-seconds) to avoid duplicating truth-output key semantics.
+  - Adds a transparent **RWM power requirement proxy**: `P_rwm_req = P_ref * max(0, chi - 1)` (governance-only; tunable).
+  - JSON export: `systems_control_actuation_certification_v378.json`.
+- UI discipline preserved: button-driven compute → cache → render; no compute during render; no structural deck changes.
+
+## v377.0.0 — Disruption Severity & Quench Proxy Authority (certified)
+
+- New: **Disruption & quench authority (certified)** in Systems Mode.
+  - Deterministic certification computed from the last Systems artifact (**no solves, no iteration**).
+  - Adds a **disruption proximity index** (0..1) from βN proximity, q95 proximity, and Greenwald fraction (explicit weights).
+  - Adds a **thermal quench severity proxy**: stored energy density **W/A** in **MJ/m²**.
+  - Adds a **halo-current / force proxy**: I_halo range and force scaling **I_halo·B**.
+  - JSON export: `systems_disruption_quench_certification_v377.json`.
+- Fix (carry-in hardening): ships the missing module `src.certification.transport_confinement_certification_v376` referenced by the v376 UI.
+- UI discipline preserved: button-driven compute → cache → render; no compute during render; no structural deck changes.
+
 ## v376.0.0 — Confinement & Transport Authority (H98 credibility certification)
 
 - New: **Confinement & transport authority (certified)** in Systems Mode.
