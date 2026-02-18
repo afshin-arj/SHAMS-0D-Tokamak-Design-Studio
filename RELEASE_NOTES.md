@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v385.0.1 — Hotfix: Point Designer make_point_inputs de-dup (economics/materials knobs)
+- Fixes TypeError: make_point_inputs() got multiple values for keyword argument `fw_capex_fraction_of_blanket` by expanding the defensive `clean_knobs` de-dup list in Point Designer before calling `make_point_inputs` (prevents preset/sync pathways from passing duplicate kwargs).
+- Adds broader de-dup coverage for v383 economics and v384 materials/lifetime knobs to prevent similar duplicate-kw regressions.
+
+
 ## v385.0.0 — Certified External Optimizer Orchestrator 2.0
 - New: **v385 Orchestrator 2.0** importer/verifier for external optimizer outputs (no optimization inside truth).
   - Accepts **concept_family.v1 YAML** (base_inputs + per-candidate overrides).

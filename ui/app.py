@@ -6164,7 +6164,20 @@ if _deck == "🧭 Point Designer":
                     # "got multiple values for keyword" errors.
                     if isinstance(clean_knobs, dict):
                         clean_knobs = dict(clean_knobs)
-                        for _k in ("Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta"):
+                        for _k in (
+                            "Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta",
+                            # v383 economics knobs that may be injected via presets
+                            "fixed_charge_rate", "capacity_factor", "capacity_factor_used",
+                            "capex_structured_max_MUSD", "opex_structured_max_MUSD_per_y", "lcoe_lite_max_USD_per_MWh",
+                            # v384 materials/lifetime knobs that may be injected via presets
+                            "fw_capex_fraction_of_blanket", "blanket_capex_fraction_of_blanket",
+                            "divertor_capex_fraction_of_total", "base_capacity_factor", "capacity_factor_max",
+                            "fw_downtime_days", "blanket_downtime_days", "divertor_downtime_days", "magnet_downtime_days",
+                            "divertor_life_ref_yr", "divertor_q_ref_MW_m2", "divertor_q_exp",
+                            "magnet_life_ref_yr", "magnet_margin_ref", "magnet_margin_exp",
+                            "fw_lifetime_min_yr_v384", "blanket_lifetime_min_yr_v384", "divertor_lifetime_min_yr_v384",
+                            "magnet_lifetime_min_yr_v384", "replacement_cost_max_MUSD_per_y_v384", "capacity_factor_min_v384",
+                        ):
                             if _k in clean_knobs:
                                 clean_knobs.pop(_k, None)
 
