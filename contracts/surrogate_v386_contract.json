@@ -1,0 +1,25 @@
+{
+  "cache_keys": [
+    "surrogate_v386_model",
+    "surrogate_v386_last_screening_run"
+  ],
+  "feature_policy": {
+    "bools_as_0_1": true,
+    "flat_scalar_numeric_only": true,
+    "sorted_feature_names": true
+  },
+  "laws": {
+    "deterministic": true,
+    "no_render_compute": true,
+    "no_truth_replacement": true,
+    "non_authoritative": true
+  },
+  "schema": "shams_contract_surrogate_v386",
+  "screening_spec_defaults": {
+    "accept_margin": 0.05,
+    "max_truth_evals": 200,
+    "reject_margin": -0.05,
+    "ridge_alpha": 5.0
+  },
+  "version": "v386.0.0"
+}

@@ -1,5 +1,13 @@
 # Release Notes
 
+## v386.0.0 — Feasible-First Surrogate Accelerator (non-authoritative)
+
+- Added deterministic ridge surrogate builder from cached artifacts (scan/pareto/extopt/opt records).
+- Added screened verification UI (truth budgeted) under External Optimizer Suite.
+- Added v386 surrogate contract (contracts/surrogate_v386_contract.json).
+- Preserved frozen truth: surrogate is advisory only; all results are from the deterministic evaluator.
+
+
 
 ## v385.0.1 — Hotfix: Point Designer make_point_inputs de-dup (economics/materials knobs)
 - Fixes TypeError: make_point_inputs() got multiple values for keyword argument `fw_capex_fraction_of_blanket` by expanding the defensive `clean_knobs` de-dup list in Point Designer before calling `make_point_inputs` (prevents preset/sync pathways from passing duplicate kwargs).

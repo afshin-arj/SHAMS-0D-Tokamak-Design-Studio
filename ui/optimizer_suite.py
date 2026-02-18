@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+import json
 import streamlit as st
 
 
@@ -14,7 +15,7 @@ def render_external_optimizer_suite(repo_root: Path):
     st.markdown("## 📦 External Optimizer Suite")
     st.caption("Reference firewalled optimizers (NSGA2-lite, CMAES-lite) + repair kernel. Produces audit bundles.")
 
-    tabs = st.tabs(["📦 Orchestrator 2.0 (import & verify)", "🧪 Lite optimizers (reference)"])
+    tabs = st.tabs(["📦 Orchestrator 2.0 (import & verify)", "⚡ Feasible-first surrogate accelerator (v386)", "🧪 Lite optimizers (reference)"])
 
     # --- v385 Orchestrator 2.0 ---
     with tabs[0]:
@@ -117,7 +118,138 @@ def render_external_optimizer_suite(repo_root: Path):
                 st.json(last, expanded=False)
 
     # --- Existing reference suite ---
-    with tabs[1]:
+    
+    # --- v386 Feasible-first surrogate accelerator ---
+    with tabs[2]:
+        st.markdown("### ⚡ Feasible-First Surrogate Accelerator (v386)")
+        st.caption(
+            "Non-authoritative surrogate screening to reduce truth evaluations. "
+            "All reported results still come from frozen truth. Deterministic and auditable."
+        )
+
+        # Training sources from cache (best effort)
+        src_extopt = st.toggle("Use extopt_last_run as training source", value=True, key="v386_src_extopt")
+        src_scan = st.toggle("Use scan_last_grid as training source", value=True, key="v386_src_scan")
+        src_pareto = st.toggle("Use pareto_last_front as training source", value=True, key="v386_src_pareto")
+        src_opt = st.toggle("Use opt_last_records as training source", value=False, key="v386_src_opt")
+
+        c1, c2, c3 = st.columns(3)
+        accept = c1.number_input("Accept margin (likely-feasible)", value=0.05, step=0.01, key="v386_accept_margin")
+        reject = c2.number_input("Reject margin (likely-infeasible)", value=-0.05, step=0.01, key="v386_reject_margin")
+        max_truth = c3.number_input("Max truth evals / run", value=200, min_value=1, step=10, key="v386_max_truth")
+
+        ridge_alpha = st.number_input("Ridge alpha", value=5.0, min_value=0.0, step=1.0, key="v386_ridge_alpha")
+
+        if st.button("Build surrogate from cached training data", use_container_width=True, key="v386_build_btn"):
+            try:
+                from src.surrogate.v386_screening import harvest_candidate_records, build_surrogate_min_margin
+                sources = []
+                ss = st.session_state
+                if src_extopt and isinstance(ss.get("extopt_last_run"), dict):
+                    sources.append(ss.get("extopt_last_run"))
+                if src_scan and ss.get("scan_last_grid") is not None:
+                    sources.append(ss.get("scan_last_grid"))
+                if src_pareto and ss.get("pareto_last_front") is not None:
+                    sources.append(ss.get("pareto_last_front"))
+                if src_opt and ss.get("opt_last_records") is not None:
+                    sources.append(ss.get("opt_last_records"))
+
+                recs = harvest_candidate_records(*sources)
+                model = build_surrogate_min_margin(recs, alpha=float(ridge_alpha))
+                st.session_state["surrogate_v386_model"] = model.__dict__
+                st.success(f"Surrogate built. Training N={model.train_n}, RMSE(norm)={model.train_rmse:.3f}. Features={len(model.feature_names)}")
+            except Exception as e:
+                st.error(f"Failed to build surrogate: {e}")
+
+        # Render model card from cache
+        m = st.session_state.get("surrogate_v386_model")
+        if isinstance(m, dict) and m:
+            st.markdown("#### Surrogate model card (cached)")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Train N", m.get("train_n", "-"))
+            c2.metric("Train RMSE (norm)", f"{float(m.get('train_rmse', 0.0)):.3f}" if str(m.get("train_rmse","")).strip() else "-")
+            c3.metric("Features", len(m.get("feature_names", []) or []))
+            with st.expander("Model JSON", expanded=False):
+                st.json(m)
+
+        st.divider()
+        st.markdown("#### Screen a concept family YAML (concept_family.v1)")
+
+        up2 = st.file_uploader(
+            "Upload concept family YAML to screen",
+            type=["yaml", "yml"],
+            key="v386_screen_upload_yaml",
+            help="Candidates are screened using the surrogate, then a limited subset is re-verified by frozen truth.",
+        )
+
+        if st.button("Run screened verification (truth budgeted)", use_container_width=True, key="v386_screen_run_btn"):
+            try:
+                if up2 is None:
+                    raise ValueError("Please upload a concept family YAML to screen.")
+                if not (isinstance(st.session_state.get("surrogate_v386_model"), dict) and st.session_state["surrogate_v386_model"]):
+                    raise ValueError("Please build a surrogate model first.")
+                from src.extopt.family import load_concept_family
+                from src.surrogate.v386_surrogate import RidgeModel
+                from src.surrogate.v386_screening import ScreeningSpec, screen_concept_family, build_screening_ledger
+                from src.extopt.batch import BatchEvalConfig, evaluate_concept_family
+
+                p = _read_bytes_to_temp(repo_root, up2.read(), name=f"v386_{up2.name}")
+                fam = load_concept_family(p)
+
+                md = st.session_state["surrogate_v386_model"]
+                model = RidgeModel(**md)
+                spec = ScreeningSpec(
+                    accept_margin=float(accept),
+                    reject_margin=float(reject),
+                    max_truth_evals=int(max_truth),
+                    ridge_alpha=float(ridge_alpha),
+                )
+                decisions, selected = screen_concept_family(concept_family=fam, model=model, spec=spec)
+                ledger = build_screening_ledger(model=model, spec=spec, decisions=decisions, selected=selected)
+
+                # Build filtered family for truth eval (subset)
+                selected_set = set(selected)
+                fam_candidates = [c for c in fam.candidates if str(c.cid) in selected_set]
+                from dataclasses import replace
+                fam_sub = replace(fam, candidates=fam_candidates)
+
+                cfg = BatchEvalConfig(
+                    evaluator_label="hot_ion_point",
+                    cache_dir=(repo_root / "runs" / "disk_cache"),
+                    cache_enabled=True,
+                )
+                ber = evaluate_concept_family(fam_sub, config=cfg, repo_root=repo_root)
+
+                st.session_state["surrogate_v386_last_screening_run"] = {
+                    "ledger": ledger.__dict__,
+                    "truth_results": [r.__dict__ for r in ber.results],
+                    "n_total": len(decisions),
+                    "n_truth": len(fam_candidates),
+                }
+                st.success(f"Screening completed. Total={len(decisions)}; Truth evaluated={len(fam_candidates)}.")
+            except Exception as e:
+                st.error(f"Screened verification failed: {e}")
+
+        # Render screening run from cache
+        last_run = st.session_state.get("surrogate_v386_last_screening_run")
+        if isinstance(last_run, dict) and last_run:
+            st.markdown("#### Last screening run (cached)")
+            c1, c2 = st.columns(2)
+            c1.metric("Total candidates", last_run.get("n_total", "-"))
+            c2.metric("Truth evaluated", last_run.get("n_truth", "-"))
+            with st.expander("Screening ledger JSON", expanded=False):
+                st.json(last_run.get("ledger", {}))
+            st.download_button(
+                "Download screening_ledger.json",
+                data=json.dumps(last_run.get("ledger", {}), indent=2, sort_keys=True).encode("utf-8"),
+                file_name="screening_ledger_v386.json",
+                mime="application/json",
+                use_container_width=True,
+                key="v386_dl_screening_ledger",
+            )
+
+
+    with tabs[2]:
 
         ex_dir = repo_root / "examples" / "concept_families"
         yaml_files = sorted([p for p in ex_dir.glob("*.y*ml")]) if ex_dir.exists() else []
