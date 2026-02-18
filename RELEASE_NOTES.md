@@ -1,5 +1,17 @@
 # Release Notes
 
+## v383.0.0 — Plant Economics & Cost Authority 2.0
+
+- New: deterministic **Plant economics & cost authority (certified)** (governance-only; OFF by default).
+  - Structured CAPEX proxy (prefers v356 component overlay when present).
+  - Structured OPEX proxy: electricity (recirc + cryo + CD), tritium processing, maintenance, replacements, fixed OPEX.
+  - Availability tiering (**A/B/C**) derived from disruption/control proxies → capacity factor used.
+  - LCOE-lite proxy: `(FCR·CAPEX + OPEX)/E_net`.
+  - New contract: `contracts/economics_v383_contract.json`.
+- Systems Mode: adds a collapsed expander to render the cached v383 certification from the last Systems artifact.
+- Feasibility-first: optional caps (NaN disables) added for structured CAPEX/OPEX and LCOE-lite.
+- UI discipline preserved: compute → cache → render; no structural deck changes.
+
 ## v381.0.0 — Advanced Current Drive Library Authority (certified)
 
 - New: **Current drive authority (certified)** in Systems Mode.
@@ -927,3 +939,10 @@ Truth outputs unchanged.
 
 ## v381.0.1 — UI Hotfix (Streamlit widget key hardening)
 - Fix StreamlitDuplicateElementId by adding explicit unique keys to duplicate `number_input` widgets labeled 'Probe fraction' (transport vs stability panels).
+
+## v382.0.0 — Transport Profile Authority (1.5D-lite proxies)
+
+- New governance-only certification: `src/certification/transport_profile_certification_v382.py`.
+- New contract: `contracts/transport_profile_authority_v382.json`.
+- Systems Mode: added collapsed panel **“🧩 Transport profile authority (certified) — 1.5D-lite proxies”** with cache-only compute and JSON export.
+- Version bump + regenerated repo manifests.

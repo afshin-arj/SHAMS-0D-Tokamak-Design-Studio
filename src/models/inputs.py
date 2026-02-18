@@ -782,6 +782,12 @@ class PointInputs:
     cryo_wallplug_multiplier: float = 250.0
     OPEX_max_MUSD_per_y: float = float('nan')
 
+    # --- (v383.0) Plant Economics & Cost Authority 2.0 (optional; OFF by default) ---
+    include_economics_v383: bool = False
+    CAPEX_structured_max_MUSD: float = float('nan')
+    OPEX_structured_max_MUSD_per_y: float = float('nan')
+    LCOE_lite_max_USD_per_MWh: float = float('nan')
+
 
     @staticmethod
     def from_dict(d: dict) -> "PointInputs":

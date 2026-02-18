@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v381.0.1 — Advanced Current Drive Library Authority (regime-aware CD credibility certification)
+**Current version:** v383.0.0 — Plant Economics & Cost Authority 2.0
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

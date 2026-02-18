@@ -220,6 +220,14 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Component CAPEX proxy", "CAPEX_component_proxy_MUSD", hi_key="CAPEX_max_proxy_MUSD", units="MUSD",
         description="Optional cap on PROCESS-style component CAPEX proxy total. Diagnostic only; no hidden weighting.")
 
+    # Plant Economics & Cost Authority 2.0 (v383.0.0) — optional caps (NaN disables)
+    add("Structured CAPEX (v383)", "CAPEX_structured_v383_MUSD", hi_key="CAPEX_structured_max_MUSD", units="MUSD",
+        description="Optional cap on structured CAPEX proxy used by LCOE-lite (v383).")
+    add("Structured OPEX (v383)", "OPEX_structured_v383_MUSD_per_y", hi_key="OPEX_structured_max_MUSD_per_y", units="MUSD/y",
+        description="Optional cap on structured OPEX proxy (v383).")
+    add("LCOE-lite (v383)", "LCOE_lite_v383_USD_per_MWh", hi_key="LCOE_lite_max_USD_per_MWh", units="USD/MWh",
+        description="Optional cap on deterministic LCOE-lite proxy (v383).")
+
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")

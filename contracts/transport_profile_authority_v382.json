@@ -1,0 +1,47 @@
+{
+  "schema": "shams.contract.transport_profile_authority.v382",
+  "version": "382.0.0",
+  "author": "© 2026 Afshin Arjhangmehr",
+  "purpose": "Deterministic governance-only certification of profile/transport plausibility using 1.5D-lite algebraic proxies. No solvers. No iteration.",
+  "intent_tiers": {
+    "research": {
+      "peaking_factor_max": {
+        "ne": 2.5,
+        "Te": 3.0,
+        "Ti": 3.0
+      },
+      "internal_inductance": {
+        "li_min": 0.4,
+        "li_max": 1.6
+      }
+    },
+    "reactor": {
+      "peaking_factor_max": {
+        "ne": 2.0,
+        "Te": 2.5,
+        "Ti": 2.5
+      },
+      "internal_inductance": {
+        "li_min": 0.5,
+        "li_max": 1.4
+      }
+    }
+  },
+  "regime_aliases": {
+    "demo": "reactor",
+    "powerplant": "reactor",
+    "reactor": "reactor",
+    "research": "research",
+    "pilot": "research"
+  },
+  "tier_rules": {
+    "block_on": ["missing_required_signals"],
+    "tight_on": ["peaking_factor_exceeds", "li_out_of_bounds"],
+    "ok_on": ["all_within_bounds"]
+  },
+  "notes": {
+    "required_signals": [
+      "At least one peaking factor signal (central/volume-average) or internal inductance must be available to certify anything. Missing signals produce UNAVAILABLE and are never used to mutate truth."
+    ]
+  }
+}

@@ -368,6 +368,119 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
     except Exception:
         econ_v360 = {}
 
+    # --- (v383.0) Plant Economics & Cost Authority 2.0 (optional; OFF by default) ---
+    # Deterministic structured CAPEX + availability-tiered CF + LCOE-lite.
+    econ_v383: Dict[str, Any] = {}
+    try:
+        if inputs is not None and bool(getattr(inputs, 'include_economics_v383', False)):
+            econ_contract_sha = ''
+            try:
+                econ_contract_path = (Path(__file__).resolve().parents[2] / 'contracts' / 'economics_v383_contract.json')
+                if econ_contract_path.exists():
+                    econ_contract_sha = hashlib.sha256(econ_contract_path.read_bytes()).hexdigest()
+            except Exception:
+                econ_contract_sha = ''
+
+            # Prefer structured component CAPEX if available (v356 overlay), else legacy CAPEX proxy.
+            capex_struct = float('nan')
+            if isinstance(comp, dict):
+                capex_struct = float(comp.get('CAPEX_component_proxy_MUSD', float('nan')))
+            if not (capex_struct == capex_struct):
+                capex_struct = float(CAPEX)
+
+            prox = float(outputs.get('disruption_proximity_index', float('nan')))
+            ctrl = float(outputs.get('control_power_margin_cert_v378', outputs.get('control_power_margin', float('nan'))))
+            vs = float(outputs.get('volt_second_headroom_frac', outputs.get('volt_second_headroom', float('nan'))))
+            tq = float(outputs.get('thermal_quench_severity_W_per_m2', outputs.get('thermal_quench_proxy', float('nan'))))
+
+            tier = 'B'
+            if (prox == prox) and math.isfinite(prox):
+                if prox >= float(coeffs.get('v383_disruption_proximity_high', 0.75)):
+                    tier = 'C'
+                elif prox <= float(coeffs.get('v383_disruption_proximity_low', 0.35)):
+                    tier = 'A'
+            if (ctrl == ctrl) and math.isfinite(ctrl) and ctrl < float(coeffs.get('v383_control_margin_min', 0.10)):
+                tier = 'C'
+            if (vs == vs) and math.isfinite(vs) and vs < float(coeffs.get('v383_vs_headroom_min', 0.05)):
+                tier = 'C'
+            if (tq == tq) and math.isfinite(tq) and tq >= float(coeffs.get('v383_quench_severity_high', 1.0e7)):
+                tier = 'C'
+
+            cf_map = {
+                'A': float(coeffs.get('v383_capacity_factor_A', 0.85)),
+                'B': float(coeffs.get('v383_capacity_factor_B', 0.70)),
+                'C': float(coeffs.get('v383_capacity_factor_C', 0.50)),
+            }
+            cf = float(cf_map.get(tier, 0.70))
+            cf = max(0.0, min(0.95, cf))
+
+            net_mwh = float(outputs.get('net_electric_MWh_per_year_v368', float('nan')))
+            if not (net_mwh == net_mwh):
+                net_mwh = float(outputs.get('net_electric_MWh_per_year_v359', float('nan')))
+            if not (net_mwh == net_mwh):
+                duty = float(outputs.get('duty_factor', 1.0))
+                duty = max(0.0, min(1.0, duty)) if (duty == duty) else 1.0
+                Pnet_eff = float(Pnet) if (Pnet == Pnet) else float('nan')
+                if (Pnet_eff == Pnet_eff) and math.isfinite(Pnet_eff):
+                    net_mwh = max(Pnet_eff, 0.0) * 8760.0 * cf * duty
+                else:
+                    net_mwh = float('nan')
+
+            elec_price = float(getattr(inputs, 'electricity_price_USD_per_MWh', 60.0))
+            hours_cf = 8760.0 * cf
+            opex_elec_recirc = (elec_price * max(Precirc_total, 0.0) * hours_cf) / 1e6 if (Precirc_total == Precirc_total) else 0.0
+            cryo_mult = float(getattr(inputs, 'cryo_wallplug_multiplier', 250.0))
+            Pcryo_wp_MW = max(float(Pcryo), 0.0) * max(cryo_mult, 0.0)
+            opex_elec_cryo = (elec_price * Pcryo_wp_MW * hours_cf) / 1e6
+
+            P_cd = float(outputs.get('P_cd_MW', outputs.get('Pcd_MW', outputs.get('P_CD_MW', 0.0))))
+            eta_wp = float(outputs.get('eta_cd_wallplug', getattr(inputs, 'eta_cd_wallplug', 0.35)))
+            eta_wp = max(min(eta_wp, 1.0), 1e-6)
+            P_cd_wp = max(P_cd, 0.0) / eta_wp
+            opex_elec_cd = (elec_price * P_cd_wp * hours_cf) / 1e6
+
+            T_proc_g_per_day = float(outputs.get('T_processing_required_g_per_day', float('nan')))
+            if not (T_proc_g_per_day == T_proc_g_per_day):
+                T_burn_kg_per_day = float(outputs.get('T_burn_kg_per_day', float('nan')))
+                T_proc_g_per_day = (T_burn_kg_per_day * 1000.0) if (T_burn_kg_per_day == T_burn_kg_per_day) else 0.0
+            T_cost = float(getattr(inputs, 'tritium_processing_cost_USD_per_g', 0.05))
+            opex_trit = (max(T_proc_g_per_day, 0.0) * 365.0 * max(T_cost, 0.0)) / 1e6
+
+            opex_maint_struct = float(opex_maint)
+            repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v368', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v359', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = 0.0
+
+            opex_fixed = float(getattr(inputs, 'opex_fixed_MUSD_per_y', 0.0))
+            opex_struct = float(opex_fixed + opex_elec_recirc + opex_elec_cryo + opex_elec_cd + opex_trit + opex_maint_struct + max(repl_MUSD_per_y, 0.0))
+
+            fcr = float(getattr(inputs, 'fixed_charge_rate', fcr_default))
+            fcr = max(0.0, min(0.30, fcr))
+
+            if (net_mwh == net_mwh) and net_mwh > 1e-9 and math.isfinite(net_mwh):
+                lcoe_lite = ((fcr * capex_struct) + opex_struct) * 1e6 / net_mwh
+            else:
+                lcoe_lite = float('inf')
+
+            econ_v383 = {
+                'economics_v383_contract_sha256': str(econ_contract_sha),
+                'CAPEX_structured_v383_MUSD': float(capex_struct),
+                'OPEX_structured_v383_MUSD_per_y': float(opex_struct),
+                'availability_tier_v383': str(tier),
+                'capacity_factor_used_v383': float(cf),
+                'net_electric_MWh_per_year_used_v383': float(net_mwh) if (net_mwh == net_mwh) else float('nan'),
+                'LCOE_lite_v383_USD_per_MWh': float(lcoe_lite),
+                'dominant_cost_driver_v383': str(dominant_cost_driver),
+                'dominant_cost_frac_v383': float(dominant_cost_frac),
+                'CAPEX_structured_max_MUSD': float(getattr(inputs, 'CAPEX_structured_max_MUSD', float('nan'))),
+                'OPEX_structured_max_MUSD_per_y': float(getattr(inputs, 'OPEX_structured_max_MUSD_per_y', float('nan'))),
+                'LCOE_lite_max_USD_per_MWh': float(getattr(inputs, 'LCOE_lite_max_USD_per_MWh', float('nan'))),
+            }
+    except Exception:
+        econ_v383 = {}
+
     return {
         "cost_magnet_MUSD": float(cost_magnet),
         "cost_blanket_MUSD": float(cost_blanket),
@@ -400,6 +513,7 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
         "CAPEX_max_proxy_MUSD": float(getattr(inputs, "CAPEX_max_proxy_MUSD", float("nan"))) if inputs is not None else float("nan"),
         **(comp if isinstance(comp, dict) else {}),
         **(econ_v360 if isinstance(econ_v360, dict) else {}),
+        **(econ_v383 if isinstance(econ_v383, dict) else {}),
         # structured economics for artifact (optional consumer)
         "_economics": lifecycle,
     }

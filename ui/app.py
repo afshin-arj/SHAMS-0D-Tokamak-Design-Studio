@@ -5128,6 +5128,37 @@ if _deck == "🧭 Point Designer":
                             value=float(getattr(defaults, "OPEX_max_MUSD_per_y", float('nan'))),
                         )
 
+                # --- (v383.0) Plant Economics & Cost Authority 2.0 (optional) ---
+                with st.expander("💰 Plant Economics & Cost Authority (v383.0)", expanded=False):
+                    st.caption(
+                        "Deterministic structured CAPEX+OPEX with availability-tiered capacity factor and LCOE-lite proxy. "
+                        "Governance overlay only; OFF by default."
+                    )
+                    include_economics_v383 = st.checkbox(
+                        "Enable plant economics & cost authority (v383.0)",
+                        value=bool(getattr(defaults, "include_economics_v383", False)),
+                        help="Adds CAPEX_structured_v383_MUSD, OPEX_structured_v383_MUSD_per_y, LCOE_lite_v383_USD_per_MWh, and tiered availability proxy.",
+                        key="pd_include_economics_v383",
+                    )
+                    cE3, cE4 = st.columns(2)
+                    with cE3:
+                        CAPEX_structured_max_MUSD = st.number_input(
+                            "Max structured CAPEX (v383) (MUSD) (NaN disables)",
+                            value=float(getattr(defaults, "CAPEX_structured_max_MUSD", float('nan'))),
+                            key="pd_CAPEX_structured_max_MUSD_v383",
+                        )
+                        OPEX_structured_max_MUSD_per_y = st.number_input(
+                            "Max structured OPEX (v383) (MUSD/y) (NaN disables)",
+                            value=float(getattr(defaults, "OPEX_structured_max_MUSD_per_y", float('nan'))),
+                            key="pd_OPEX_structured_max_MUSD_per_y_v383",
+                        )
+                    with cE4:
+                        LCOE_lite_max_USD_per_MWh = st.number_input(
+                            "Max LCOE-lite (v383) (USD/MWh) (NaN disables)",
+                            value=float(getattr(defaults, "LCOE_lite_max_USD_per_MWh", float('nan'))),
+                            key="pd_LCOE_lite_max_USD_per_MWh_v383",
+                        )
+
 
 
                 preset = {
@@ -6075,6 +6106,11 @@ if _deck == "🧭 Point Designer":
                         tritium_processing_cost_USD_per_g=float(locals().get('tritium_processing_cost_USD_per_g', 0.05)),
                         cryo_wallplug_multiplier=float(locals().get('cryo_wallplug_multiplier', 250.0)),
                         OPEX_max_MUSD_per_y=float(locals().get('OPEX_max_MUSD_per_y', float('nan'))),
+
+                        include_economics_v383=bool(locals().get('include_economics_v383', False)),
+                        CAPEX_structured_max_MUSD=float(locals().get('CAPEX_structured_max_MUSD', float('nan'))),
+                        OPEX_structured_max_MUSD_per_y=float(locals().get('OPEX_structured_max_MUSD_per_y', float('nan'))),
+                        LCOE_lite_max_USD_per_MWh=float(locals().get('LCOE_lite_max_USD_per_MWh', float('nan'))),
 
                         **clean_knobs,
                     )
@@ -10288,6 +10324,73 @@ if _deck == "🧠 Systems Mode":
                     st.json(cert)
 
 
+
+
+    # -----------------------------
+    # Transport profile authority (v382.0)
+    # -----------------------------
+    with st.expander('🧩 Transport profile authority (certified) — 1.5D-lite proxies', expanded=False):
+        st.caption(
+            "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
+            "Best-effort 1.5D-lite proxies: peaking-factor plausibility (central/avg) and internal inductance (li) bounds by intent tier. "
+            "This is a credibility contract only; truth is unchanged."
+        )
+
+        st.session_state.setdefault('systems_transport_profile_cert', None)
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_transport_profile_cert_btn'):
+                try:
+                    from src.certification.transport_profile_certification_v382 import (
+                        certify_transport_profile,
+                    )
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    ins = dict(last_sys_art.get('inputs') or {})
+                    run_id = str(last_sys_art.get('run_id') or (last_sys_art.get('run') or {}).get('run_id') or '')
+                    ih = str(last_sys_art.get('inputs_hash') or '')
+
+                    cert = certify_transport_profile(
+                        outputs=outs,
+                        inputs=ins,
+                        run_id=(run_id or None),
+                        inputs_hash=(ih or None),
+                    ).to_dict()
+
+                    st.session_state['systems_transport_profile_cert'] = cert
+                    st.success('Certification computed and cached (systems_transport_profile_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_transport_profile_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.transport_profile_certification_v382 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                    tier = str(cert.get('tier') or '')
+                    if tier in ('TIGHT', 'BLOCK'):
+                        st.warning('Transport profile authority is tight/blocking (proxy). Treat as governance risk; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_transport_profile_certification_v382.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_transport_profile_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
     # -----------------------------
     # Current drive authority (v381.0)
     # -----------------------------
@@ -12801,6 +12904,21 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+            # v383.0: Plant economics & cost authority 2.0 (governance-only)
+            try:
+                from src.certification.plant_economics_certification_v383 import (
+                    evaluate_plant_economics_authority_v383,
+                )
+                _pe_cert = evaluate_plant_economics_authority_v383(
+                    out_sol,
+                    inputs=(artifact.get('inputs') if isinstance(artifact.get('inputs'), dict) else None),
+                ).to_dict()
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['plant_economics_v383'] = _pe_cert
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -12991,6 +13109,22 @@ if _deck == "🧠 Systems Mode":
                         st.caption(f"Current-drive authority unavailable (non-fatal): {_e}")
 
 
+                # v383.0: Plant economics & cost authority 2.0 (certified)
+                with st.expander("💰 Plant economics & cost authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _pec = _certs.get('plant_economics_v383')
+                        if not isinstance(_pec, dict):
+                            st.info("No cached plant economics certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.plant_economics_certification_v383 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_pec)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_pec)
+                    except Exception as _e:
+                        st.caption(f"Plant economics authority unavailable (non-fatal): {_e}")
+
+
 
         except _SysPrecheckBlocksSolve:
             st.warning(
@@ -13126,6 +13260,21 @@ if _deck == "🧠 Systems Mode":
                                 st.json(_cert)
                     except Exception as _e:
                         st.caption(f"Impurity/detachment authority unavailable (non-fatal): {_e}")
+
+                # v383.0: Plant economics & cost authority 2.0 (certified)
+                with st.expander("💰 Plant economics & cost authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _pec = _certs.get('plant_economics_v383')
+                        if not isinstance(_pec, dict):
+                            st.info("No cached plant economics certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.plant_economics_certification_v383 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_pec)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_pec)
+                    except Exception as _e:
+                        st.caption(f"Plant economics authority unavailable (non-fatal): {_e}")
 
         except Exception:
             pass
