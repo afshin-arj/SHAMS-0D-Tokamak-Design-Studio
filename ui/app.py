@@ -10035,7 +10035,12 @@ if _deck == "🧠 Systems Mode":
         with cB:
             st.session_state['systems_stability_eps_tight'] = st.number_input('ε_tight', min_value=0.0, max_value=1.0, value=eps_tight, step=0.01, format='%.2f')
         with cC:
-            st.session_state['systems_stability_probe_frac'] = st.number_input('Probe fraction', min_value=0.0, max_value=0.1, value=probe_frac, step=0.005, format='%.3f')
+            _stability_probe_frac = st.number_input(
+                'Probe fraction', min_value=0.0, max_value=0.1,
+                value=float(st.session_state.get('systems_stability_probe_frac', probe_frac)),
+                step=0.005, format='%.3f', key='systems_stability_probe_frac_input'
+            )
+            st.session_state['systems_stability_probe_frac'] = float(_stability_probe_frac)
 
         can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
         if not can_compute:
@@ -10216,14 +10221,14 @@ if _deck == "🧠 Systems Mode":
         )
 
         # UI law: safe defaults; no conditional variable definitions.
-        st.session_state.setdefault('systems_transport_cert', None)
-        probe_frac = float(st.session_state.get('systems_transport_probe_frac', 0.01))
-
         cA, cB = st.columns([1, 2])
         with cA:
-            st.session_state['systems_transport_probe_frac'] = st.number_input(
-                'Probe fraction', min_value=0.0, max_value=0.1, value=probe_frac, step=0.005, format='%.3f'
+            _transport_probe_frac = st.number_input(
+                'Probe fraction', min_value=0.0, max_value=0.1,
+                value=float(st.session_state.get('systems_transport_probe_frac', probe_frac)),
+                step=0.005, format='%.3f', key='systems_transport_probe_frac_input'
             )
+            st.session_state['systems_transport_probe_frac'] = float(_transport_probe_frac)
         with cB:
             st.caption('Envelope is intent-aware (reactor tighter than research). This is a credibility contract only; truth is unchanged.')
 

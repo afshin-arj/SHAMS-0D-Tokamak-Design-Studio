@@ -923,3 +923,7 @@ Truth outputs unchanged.
 
 - Fixed Systems Mode crash when `base0` is a JSON-loaded dict by introducing a dict/dataclass-safe getter (`_safe_get`) and removing direct `base0.<field>` attribute access in fallback paths.
 - No changes to solver execution, cache keys, run IDs, or UI deck structure.
+
+
+## v381.0.1 — UI Hotfix (Streamlit widget key hardening)
+- Fix StreamlitDuplicateElementId by adding explicit unique keys to duplicate `number_input` widgets labeled 'Probe fraction' (transport vs stability panels).
