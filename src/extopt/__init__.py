@@ -17,6 +17,7 @@ from .cache import DiskCache
 from .evidence import export_evidence_pack
 from .bundle import BundleCandidate, BundleProvenance, export_bundle_zip
 from .orchestrator import OptimizerJob, run_optimizer_job
+from .orchestrator_v385 import OrchestratorRunSpec, OrchestratorRunResult, run_orchestrator_v385_from_concept_family
 
 __all__ = [
     "ConceptFamily",
@@ -31,4 +32,7 @@ __all__ = [
     "export_bundle_zip",
     "OptimizerJob",
     "run_optimizer_job",
+    "OrchestratorRunSpec",
+    "OrchestratorRunResult",
+    "run_orchestrator_v385_from_concept_family",
 ]

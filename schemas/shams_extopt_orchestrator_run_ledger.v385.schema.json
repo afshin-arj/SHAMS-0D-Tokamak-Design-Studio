@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shams_extopt_orchestrator_run_ledger.v385.schema.json",
+  "title": "SHAMS External Optimizer Orchestrator Run Ledger (v385)",
+  "type": "object",
+  "required": ["schema", "shams_version", "evaluator_label", "intent", "family", "summary", "outputs"],
+  "properties": {
+    "schema": {"const": "shams_extopt_orchestrator_run_ledger.v385"},
+    "shams_version": {"type": "string"},
+    "evaluator_label": {"type": "string"},
+    "intent": {"type": "string"},
+    "family": {
+      "type": "object",
+      "required": ["name", "source"],
+      "properties": {
+        "schema_version": {"type": "string"},
+        "name": {"type": "string"},
+        "source": {"type": "string"},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "summary": {
+      "type": "object",
+      "required": ["schema", "family", "intent", "evaluator_label", "n_total", "n_feasible", "pass_rate"],
+      "properties": {
+        "schema": {"type": "string"},
+        "family": {"type": "string"},
+        "intent": {"type": "string"},
+        "evaluator_label": {"type": "string"},
+        "n_total": {"type": "integer", "minimum": 0},
+        "n_feasible": {"type": "integer", "minimum": 0},
+        "pass_rate": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+      },
+      "additionalProperties": true
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["bundle_zip", "include_evidence_packs"],
+      "properties": {
+        "bundle_zip": {"type": "string"},
+        "include_evidence_packs": {"type": "boolean"},
+        "n_evidence_packs": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

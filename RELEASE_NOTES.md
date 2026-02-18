@@ -1,5 +1,22 @@
 # Release Notes
 
+
+## v385.0.0 — Certified External Optimizer Orchestrator 2.0
+- New: **v385 Orchestrator 2.0** importer/verifier for external optimizer outputs (no optimization inside truth).
+  - Accepts **concept_family.v1 YAML** (base_inputs + per-candidate overrides).
+  - Deterministically re-evaluates candidates via frozen evaluator and writes a **run ledger** + **RUN_MANIFEST_SHA256.json**.
+  - Exports a deterministic **evidence bundle ZIP** (index + artifacts + optional per-candidate dossier zips).
+- UI: External Optimizer Suite adds a new tab **“Orchestrator 2.0 (import & verify)”**.
+  - Button → compute → cache → render.
+  - Cache keys: `extopt_last_run`, `extopt_last_export_zip_path`.
+- Compatibility: adds `ui/extopt_suite.py` shim to preserve stable import path.
+- New schema: `schemas/shams_extopt_orchestrator_run_ledger.v385.schema.json`.
+
+
+## v384.0.1 — Hotfix: materials_lifetime_v384 module + baseline envelope
+- Fixes ModuleNotFoundError for analysis.materials_lifetime_v384 (adds module under repo-root analysis/ and src/analysis/).
+- Updates baseline_v2230 envelope bound/value for q_div_MW_m2 to match current deterministic evaluator output.
+
 ## v384.0.0 — Materials & Lifetime Tightening
 
 - New: deterministic **Materials & lifetime tightening overlay (v384.0.0)** (governance-only; OFF by default).
