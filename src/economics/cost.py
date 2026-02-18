@@ -414,6 +414,14 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
             cf = float(cf_map.get(tier, 0.70))
             cf = max(0.0, min(0.95, cf))
 
+            # (v384.0.0) If materials/lifetime tightening computed a replacement-coupled CF, prefer it.
+            try:
+                cf384 = float(outputs.get('capacity_factor_used_v384', float('nan')))
+                if (cf384 == cf384) and math.isfinite(cf384):
+                    cf = max(0.0, min(0.95, float(cf384)))
+            except Exception:
+                pass
+
             net_mwh = float(outputs.get('net_electric_MWh_per_year_v368', float('nan')))
             if not (net_mwh == net_mwh):
                 net_mwh = float(outputs.get('net_electric_MWh_per_year_v359', float('nan')))
@@ -447,7 +455,10 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
             opex_trit = (max(T_proc_g_per_day, 0.0) * 365.0 * max(T_cost, 0.0)) / 1e6
 
             opex_maint_struct = float(opex_maint)
-            repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v368', float('nan')))
+            # Prefer the most authoritative/explicit replacement ledger available.
+            repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v384', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v368', float('nan')))
             if not (repl_MUSD_per_y == repl_MUSD_per_y):
                 repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v359', float('nan')))
             if not (repl_MUSD_per_y == repl_MUSD_per_y):

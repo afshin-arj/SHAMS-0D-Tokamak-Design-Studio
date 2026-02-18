@@ -5161,6 +5161,169 @@ if _deck == "🧭 Point Designer":
 
 
 
+                # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
+                with st.expander("🧱 Materials & Lifetime Tightening (v384.0.0)", expanded=False):
+                    st.caption(
+                        "Deterministic governance overlay: adds divertor + magnet lifetime proxies, annualized replacement cost, "
+                        "and replacement-downtime coupling to a capacity factor used by economics overlays. OFF by default; truth is unchanged."
+                    )
+                    include_materials_lifetime_v384 = st.checkbox(
+                        "Enable materials & lifetime tightening (v384.0.0)",
+                        value=bool(getattr(defaults, "include_materials_lifetime_v384", False)),
+                        key="pd_include_materials_lifetime_v384",
+                    )
+                    cML1, cML2 = st.columns(2)
+                    with cML1:
+                        divertor_life_ref_yr = st.number_input(
+                            "Divertor life ref (yr)",
+                            min_value=0.1,
+                            value=float(getattr(defaults, "divertor_life_ref_yr", 3.0) or 3.0),
+                            step=0.1,
+                            key="pd_divertor_life_ref_yr_v384",
+                        )
+                        divertor_q_ref_MW_m2 = st.number_input(
+                            "Divertor q_ref (MW/m²)",
+                            min_value=0.1,
+                            value=float(getattr(defaults, "divertor_q_ref_MW_m2", 10.0) or 10.0),
+                            step=0.5,
+                            key="pd_divertor_q_ref_v384",
+                        )
+                        divertor_q_exp = st.number_input(
+                            "Divertor q exponent", min_value=0.0,
+                            value=float(getattr(defaults, "divertor_q_exp", 2.0) or 2.0),
+                            step=0.1,
+                            key="pd_divertor_q_exp_v384",
+                        )
+                        divertor_capex_fraction_of_total = st.number_input(
+                            "Divertor CAPEX fraction of total", min_value=0.0, max_value=0.5,
+                            value=float(getattr(defaults, "divertor_capex_fraction_of_total", 0.05) or 0.05),
+                            step=0.01,
+                            key="pd_divertor_capex_frac_v384",
+                        )
+                    with cML2:
+                        magnet_life_ref_yr = st.number_input(
+                            "Magnet life ref (yr)",
+                            min_value=0.1,
+                            value=float(getattr(defaults, "magnet_life_ref_yr", 30.0) or 30.0),
+                            step=1.0,
+                            key="pd_magnet_life_ref_yr_v384",
+                        )
+                        magnet_margin_ref = st.number_input(
+                            "Magnet margin ref (fraction)",
+                            min_value=0.001,
+                            value=float(getattr(defaults, "magnet_margin_ref", 0.10) or 0.10),
+                            step=0.01,
+                            key="pd_magnet_margin_ref_v384",
+                        )
+                        magnet_margin_exp = st.number_input(
+                            "Magnet margin exponent", min_value=0.0,
+                            value=float(getattr(defaults, "magnet_margin_exp", 1.5) or 1.5),
+                            step=0.1,
+                            key="pd_magnet_margin_exp_v384",
+                        )
+
+                    st.markdown("**Downtime → capacity factor coupling**")
+                    cML3, cML4 = st.columns(2)
+                    with cML3:
+                        base_capacity_factor = st.number_input(
+                            "Base capacity factor (before replacements)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "base_capacity_factor", 0.75) or 0.75),
+                            step=0.01,
+                            key="pd_base_cf_v384",
+                        )
+                        capacity_factor_max = st.number_input(
+                            "Capacity factor max (cap)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "capacity_factor_max", 0.95) or 0.95),
+                            step=0.01,
+                            key="pd_cf_max_v384",
+                        )
+                        fw_downtime_days = st.number_input(
+                            "FW replacement downtime (days)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "fw_downtime_days", 30.0) or 30.0),
+                            step=1.0,
+                            key="pd_fw_dt_days_v384",
+                        )
+                        blanket_downtime_days = st.number_input(
+                            "Blanket replacement downtime (days)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "blanket_downtime_days", 60.0) or 60.0),
+                            step=1.0,
+                            key="pd_blanket_dt_days_v384",
+                        )
+                    with cML4:
+                        divertor_downtime_days = st.number_input(
+                            "Divertor replacement downtime (days)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "divertor_downtime_days", 20.0) or 20.0),
+                            step=1.0,
+                            key="pd_divertor_dt_days_v384",
+                        )
+                        magnet_downtime_days = st.number_input(
+                            "Magnet replacement downtime (days)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "magnet_downtime_days", 120.0) or 120.0),
+                            step=5.0,
+                            key="pd_magnet_dt_days_v384",
+                        )
+                        fw_capex_fraction_of_blanket = st.number_input(
+                            "FW CAPEX fraction of blanket/shield CAPEX",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "fw_capex_fraction_of_blanket", 0.20) or 0.20),
+                            step=0.01,
+                            key="pd_fw_capex_frac_bs_v384",
+                        )
+                        blanket_capex_fraction_of_blanket = st.number_input(
+                            "Blanket CAPEX fraction of blanket/shield CAPEX",
+                            min_value=0.0,
+                            max_value=2.0,
+                            value=float(getattr(defaults, "blanket_capex_fraction_of_blanket", 1.00) or 1.00),
+                            step=0.05,
+                            key="pd_blanket_capex_frac_bs_v384",
+                        )
+
+                    st.markdown("**Feasibility caps (NaN disables)**")
+                    cML5, cML6 = st.columns(2)
+                    with cML5:
+                        divertor_lifetime_min_yr_v384 = st.number_input(
+                            "Min divertor lifetime (yr)",
+                            value=float(getattr(defaults, "divertor_lifetime_min_yr_v384", float('nan'))),
+                            key="pd_div_life_min_v384",
+                        )
+                        magnet_lifetime_min_yr_v384 = st.number_input(
+                            "Min magnet lifetime (yr)",
+                            value=float(getattr(defaults, "magnet_lifetime_min_yr_v384", float('nan'))),
+                            key="pd_mag_life_min_v384",
+                        )
+                        capacity_factor_min_v384 = st.number_input(
+                            "Min capacity factor (replacement-coupled)",
+                            value=float(getattr(defaults, "capacity_factor_min_v384", float('nan'))),
+                            key="pd_cf_min_v384",
+                        )
+                    with cML6:
+                        fw_lifetime_min_yr_v384 = st.number_input(
+                            "Min FW lifetime (yr)",
+                            value=float(getattr(defaults, "fw_lifetime_min_yr_v384", float('nan'))),
+                            key="pd_fw_life_min_v384",
+                        )
+                        blanket_lifetime_min_yr_v384 = st.number_input(
+                            "Min blanket lifetime (yr)",
+                            value=float(getattr(defaults, "blanket_lifetime_min_yr_v384", float('nan'))),
+                            key="pd_blanket_life_min_v384",
+                        )
+                        replacement_cost_max_MUSD_per_y_v384 = st.number_input(
+                            "Max annualized replacement cost (MUSD/y)",
+                            value=float(getattr(defaults, "replacement_cost_max_MUSD_per_y_v384", float('nan'))),
+                            key="pd_repl_cost_max_v384",
+                        )
+
+
+
                 preset = {
                     "Conservative": {
                         "tblanket_m": 0.60, "t_vv_m": 0.08, "t_gap_m": 0.03, "t_tf_struct_m": 0.18, "t_tf_wind_m": 0.12,
@@ -6111,6 +6274,29 @@ if _deck == "🧭 Point Designer":
                         CAPEX_structured_max_MUSD=float(locals().get('CAPEX_structured_max_MUSD', float('nan'))),
                         OPEX_structured_max_MUSD_per_y=float(locals().get('OPEX_structured_max_MUSD_per_y', float('nan'))),
                         LCOE_lite_max_USD_per_MWh=float(locals().get('LCOE_lite_max_USD_per_MWh', float('nan'))),
+
+                        include_materials_lifetime_v384=bool(locals().get('include_materials_lifetime_v384', False)),
+                        divertor_life_ref_yr=float(locals().get('divertor_life_ref_yr', 3.0)),
+                        divertor_q_ref_MW_m2=float(locals().get('divertor_q_ref_MW_m2', 10.0)),
+                        divertor_q_exp=float(locals().get('divertor_q_exp', 2.0)),
+                        divertor_capex_fraction_of_total=float(locals().get('divertor_capex_fraction_of_total', 0.05)),
+                        magnet_life_ref_yr=float(locals().get('magnet_life_ref_yr', 30.0)),
+                        magnet_margin_ref=float(locals().get('magnet_margin_ref', 0.10)),
+                        magnet_margin_exp=float(locals().get('magnet_margin_exp', 1.5)),
+                        base_capacity_factor=float(locals().get('base_capacity_factor', 0.75)),
+                        capacity_factor_max=float(locals().get('capacity_factor_max', 0.95)),
+                        fw_downtime_days=float(locals().get('fw_downtime_days', 30.0)),
+                        blanket_downtime_days=float(locals().get('blanket_downtime_days', 60.0)),
+                        divertor_downtime_days=float(locals().get('divertor_downtime_days', 20.0)),
+                        magnet_downtime_days=float(locals().get('magnet_downtime_days', 120.0)),
+                        fw_capex_fraction_of_blanket=float(locals().get('fw_capex_fraction_of_blanket', 0.20)),
+                        blanket_capex_fraction_of_blanket=float(locals().get('blanket_capex_fraction_of_blanket', 1.00)),
+                        fw_lifetime_min_yr_v384=float(locals().get('fw_lifetime_min_yr_v384', float('nan'))),
+                        blanket_lifetime_min_yr_v384=float(locals().get('blanket_lifetime_min_yr_v384', float('nan'))),
+                        divertor_lifetime_min_yr_v384=float(locals().get('divertor_lifetime_min_yr_v384', float('nan'))),
+                        magnet_lifetime_min_yr_v384=float(locals().get('magnet_lifetime_min_yr_v384', float('nan'))),
+                        replacement_cost_max_MUSD_per_y_v384=float(locals().get('replacement_cost_max_MUSD_per_y_v384', float('nan'))),
+                        capacity_factor_min_v384=float(locals().get('capacity_factor_min_v384', float('nan'))),
 
                         **clean_knobs,
                     )
@@ -10394,6 +10580,71 @@ if _deck == "🧠 Systems Mode":
     # -----------------------------
     # Current drive authority (v381.0)
     # -----------------------------
+    # -----------------------------
+    # Materials & lifetime tightening authority (v384.0.0)
+    # -----------------------------
+    with st.expander('🧱 Materials & lifetime tightening (certified) — divertor+magnet + downtime→CF', expanded=False):
+        st.caption(
+            "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
+            "Summarizes the v384 lifetime proxies and the replacement-coupled capacity factor/cost proxy."
+        )
+
+        st.session_state.setdefault('systems_materials_lifetime_v384_cert', None)
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_materials_life_v384_cert_btn'):
+                try:
+                    from src.certification.materials_lifetime_certification_v384 import (
+                        certify_materials_lifetime_v384,
+                    )
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    ins = dict(last_sys_art.get('inputs') or {})
+                    run_id = str(last_sys_art.get('run_id') or (last_sys_art.get('run') or {}).get('run_id') or '')
+                    ih = str(last_sys_art.get('inputs_hash') or '')
+
+                    cert = certify_materials_lifetime_v384(
+                        outputs=outs,
+                        inputs=ins,
+                        run_id=(run_id or None),
+                        inputs_hash=(ih or None),
+                    ).to_dict()
+
+                    st.session_state['systems_materials_lifetime_v384_cert'] = cert
+                    st.success('Certification computed and cached (systems_materials_lifetime_v384_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_materials_lifetime_v384_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.materials_lifetime_certification_v384 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                    tier = str(cert.get('tier') or '')
+                    if tier in ('BLOCK', 'TIGHT'):
+                        st.warning('Materials/lifetime authority is tight/blocking (proxy). Treat as governance risk; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_materials_lifetime_certification_v384.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_materials_life_v384_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
     with st.expander('⚡ Current drive authority (certified) — regime-aware credibility', expanded=False):
         st.caption(
             "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "

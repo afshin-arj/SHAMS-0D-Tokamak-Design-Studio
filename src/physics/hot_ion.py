@@ -74,6 +74,7 @@ try:
     from ..maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
     # v367.0 module is under repo-root `analysis/` namespace for test/runtime wiring
     from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
+    from analysis.materials_lifetime_v384 import compute_materials_lifetime_tightening_v384  # type: ignore
     from ..analysis.tritium import compute_tritium_cycle  # type: ignore
     from ..engineering.pf_system import pf_system_proxy  # type: ignore
 except Exception:
@@ -89,6 +90,7 @@ except Exception:
     from availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
     from maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
     from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
+    from analysis.materials_lifetime_v384 import compute_materials_lifetime_tightening_v384  # type: ignore
     from analysis.tritium import compute_tritium_cycle  # type: ignore
     from engineering.pf_system import pf_system_proxy  # type: ignore
 from .profiles import build_profiles_from_volume_avgs, gradient_proxy_at_pedestal
@@ -1995,6 +1997,25 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     except Exception:
         pass
 
+    # -----------------------------------------------------------------
+    # (v384.0.0) Materials & lifetime tightening (governance overlay; OFF by default)
+    # -----------------------------------------------------------------
+    try:
+        # Record policy inputs for downstream constraint evaluation and evidence packs.
+        out["include_materials_lifetime_v384"] = bool(getattr(inp, "include_materials_lifetime_v384", False))
+        out["fw_lifetime_min_yr_v384"] = float(getattr(inp, "fw_lifetime_min_yr_v384", float("nan")))
+        out["blanket_lifetime_min_yr_v384"] = float(getattr(inp, "blanket_lifetime_min_yr_v384", float("nan")))
+        out["divertor_lifetime_min_yr_v384"] = float(getattr(inp, "divertor_lifetime_min_yr_v384", float("nan")))
+        out["magnet_lifetime_min_yr_v384"] = float(getattr(inp, "magnet_lifetime_min_yr_v384", float("nan")))
+        out["replacement_cost_max_MUSD_per_y_v384"] = float(getattr(inp, "replacement_cost_max_MUSD_per_y_v384", float("nan")))
+        out["capacity_factor_min_v384"] = float(getattr(inp, "capacity_factor_min_v384", float("nan")))
+
+        ml384 = compute_materials_lifetime_tightening_v384(out, inp)
+        if isinstance(ml384, dict):
+            out.update(ml384)
+    except Exception:
+        pass
+
     # CS flux swing proxy (for pulsed feasibility); recorded even in steady-state for transparency.
     try:
         cs = cs_flux_swing_proxy(
@@ -2313,6 +2334,24 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["fw_replace_interval_y"] = float(ml["fw_replace_interval_y_v367"])
         if "blanket_replace_interval_y_v367" in ml and ml["blanket_replace_interval_y_v367"] == ml["blanket_replace_interval_y_v367"]:
             out["blanket_replace_interval_y"] = float(ml["blanket_replace_interval_y_v367"])
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # (v384.0.0) Materials & lifetime tightening (divertor+magnet + downtime→CF + annualized replacement cost)
+    # -----------------------------------------------------------------
+    try:
+        out["include_materials_lifetime_v384"] = bool(getattr(inp, "include_materials_lifetime_v384", False))
+        out["fw_lifetime_min_yr_v384"] = float(getattr(inp, "fw_lifetime_min_yr_v384", float("nan")))
+        out["blanket_lifetime_min_yr_v384"] = float(getattr(inp, "blanket_lifetime_min_yr_v384", float("nan")))
+        out["divertor_lifetime_min_yr_v384"] = float(getattr(inp, "divertor_lifetime_min_yr_v384", float("nan")))
+        out["magnet_lifetime_min_yr_v384"] = float(getattr(inp, "magnet_lifetime_min_yr_v384", float("nan")))
+        out["replacement_cost_max_MUSD_per_y_v384"] = float(getattr(inp, "replacement_cost_max_MUSD_per_y_v384", float("nan")))
+        out["capacity_factor_min_v384"] = float(getattr(inp, "capacity_factor_min_v384", float("nan")))
+
+        ml384 = compute_materials_lifetime_tightening_v384(out, inp)
+        if isinstance(ml384, dict):
+            out.update(ml384)
     except Exception:
         pass
 

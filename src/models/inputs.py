@@ -788,6 +788,34 @@ class PointInputs:
     OPEX_structured_max_MUSD_per_y: float = float('nan')
     LCOE_lite_max_USD_per_MWh: float = float('nan')
 
+    # --- (v384.0.0) Materials & Lifetime Tightening (optional; OFF by default) ---
+    include_materials_lifetime_v384: bool = False
+    # Divertor lifetime proxy knobs
+    divertor_life_ref_yr: float = 3.0
+    divertor_q_ref_MW_m2: float = 10.0
+    divertor_q_exp: float = 2.0
+    divertor_capex_fraction_of_total: float = 0.05
+    # Magnet lifetime proxy knobs
+    magnet_life_ref_yr: float = 30.0
+    magnet_margin_ref: float = 0.10
+    magnet_margin_exp: float = 1.5
+    # Replacement downtime coupling
+    base_capacity_factor: float = 0.75
+    capacity_factor_max: float = 0.95
+    fw_downtime_days: float = 30.0
+    blanket_downtime_days: float = 60.0
+    divertor_downtime_days: float = 20.0
+    magnet_downtime_days: float = 120.0
+    fw_capex_fraction_of_blanket: float = 0.20
+    blanket_capex_fraction_of_blanket: float = 1.00
+    # Feasibility caps (NaN disables)
+    fw_lifetime_min_yr_v384: float = float('nan')
+    blanket_lifetime_min_yr_v384: float = float('nan')
+    divertor_lifetime_min_yr_v384: float = float('nan')
+    magnet_lifetime_min_yr_v384: float = float('nan')
+    replacement_cost_max_MUSD_per_y_v384: float = float('nan')
+    capacity_factor_min_v384: float = float('nan')
+
 
     @staticmethod
     def from_dict(d: dict) -> "PointInputs":

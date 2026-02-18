@@ -393,6 +393,53 @@ def evaluate_constraints(
                 severity="hard",
                 group="materials_lifetime",
             )
+
+    # (v384.0.0) Materials & lifetime tightening: divertor+magnet lifetime + downtime→CF + annualized replacement cost
+    # These are governance constraints (policy caps), enforced only when the corresponding limits are finite.
+    if "divertor_lifetime_yr_v384" in outputs:
+        lim = outputs.get("divertor_lifetime_min_yr_v384", float("nan"))
+        if lim == lim:
+            ge(
+                "divertor_lifetime_v384",
+                outputs["divertor_lifetime_yr_v384"],
+                lim,
+                units="yr",
+                note="Divertor lifetime proxy ≥ minimum",
+                group="materials_lifetime",
+            )
+    if "magnet_lifetime_yr_v384" in outputs:
+        lim = outputs.get("magnet_lifetime_min_yr_v384", float("nan"))
+        if lim == lim:
+            ge(
+                "magnet_lifetime_v384",
+                outputs["magnet_lifetime_yr_v384"],
+                lim,
+                units="yr",
+                note="Magnet lifetime proxy ≥ minimum",
+                group="materials_lifetime",
+            )
+    if "replacement_cost_MUSD_per_year_v384" in outputs:
+        lim = outputs.get("replacement_cost_max_MUSD_per_y_v384", float("nan"))
+        if lim == lim:
+            le(
+                "replacement_cost_v384",
+                outputs["replacement_cost_MUSD_per_year_v384"],
+                lim,
+                units="MUSD/y",
+                note="Annualized replacement cost proxy ≤ cap",
+                group="materials_lifetime",
+            )
+    if "capacity_factor_used_v384" in outputs:
+        lim = outputs.get("capacity_factor_min_v384", float("nan"))
+        if lim == lim:
+            ge(
+                "capacity_factor_v384",
+                outputs["capacity_factor_used_v384"],
+                lim,
+                units="-",
+                note="Replacement-coupled capacity factor ≥ minimum",
+                group="materials_lifetime",
+            )
         if "blanket_lifetime_yr" in outputs and plant_life == plant_life:
             ge(
                 "blanket_life_covers_plant",

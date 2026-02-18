@@ -1,5 +1,16 @@
 # Release Notes
 
+## v384.0.0 — Materials & Lifetime Tightening
+
+- New: deterministic **Materials & lifetime tightening overlay (v384.0.0)** (governance-only; OFF by default).
+  - Adds **divertor lifetime proxy** from divertor heat-flux (`q_div` fallback `q_par`) with a configurable power-law.
+  - Adds **magnet lifetime proxy** from TF stress / current-density margin fractions (best-effort, algebraic).
+  - Computes **replacement-downtime coupling → capacity factor** (`capacity_factor_used_v384`).
+  - Computes **annualized replacement cost proxy** (`replacement_cost_MUSD_per_year_v384`) suitable for economics overlays.
+- Plant economics (v383): now prefers v384 replacement-coupled CF and replacement-cost proxy when available.
+- Systems Mode: adds a collapsed expander for **v384 certification** with JSON export.
+- Feasibility-first: optional caps (NaN disables) for divertor/magnet lifetime, replacement cost, and capacity factor.
+
 ## v383.0.0 — Plant Economics & Cost Authority 2.0
 
 - New: deterministic **Plant economics & cost authority (certified)** (governance-only; OFF by default).
