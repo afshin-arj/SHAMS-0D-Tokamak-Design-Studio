@@ -3122,7 +3122,13 @@ if _deck == "📚 Publication Benchmarks":
     st.header(" Benchmarks")
     st.caption("Benchmark suite: publication tables and the Tokamak Constitutional Atlas (preset-driven, intent-aware).")
 
-    _pb_tabs = st.tabs(["🗺️ Tokamak Constitutional Atlas", "🧭 Cross‑Code Constitutions", "📦 Publication Benchmarks", "🧾 Contract Studio"])
+    _pb_tabs = st.tabs([
+        "🗺️ Tokamak Constitutional Atlas",
+        "🧭 Cross‑Code Constitutions",
+        "📦 Publication Benchmarks",
+        "🧾 Contract Studio",
+        "🧾 Regulatory Evidence Pack Builder (v387)",
+    ])
     with _pb_tabs[0]:
         st.subheader("🗺️ Tokamak Constitutional Atlas")
         st.caption("Select a famous tokamak preset and evaluate under **Research** or **Reactor** intent. No tuning. Deterministic, reviewer-safe.")
@@ -3541,6 +3547,86 @@ if _deck == "📚 Publication Benchmarks":
                 st.error(f"Contract Studio import failed: {e}")
             except Exception:
                 pass
+
+    with _pb_tabs[4]:
+        st.subheader("🧾 Regulatory Evidence Pack Builder (v387)")
+        st.caption("Deterministic, hash-locked evidence ZIP from cached runs (export-only).")
+
+        try:
+            from src.tools.evidence_pack_v387 import build_evidence_pack_v387
+        except Exception as _e:
+            st.error(f"Evidence pack builder import failed: {_e}")
+        else:
+            # Cache-only: do not compute here; export whatever is already in session cache.
+            cache_sources = {
+                "pd_last_outputs": st.session_state.get("pd_last_outputs"),
+                "systems_last_solution": st.session_state.get("systems_last_solution"),
+                "scan_last_artifact": st.session_state.get("scan_last_artifact"),
+                "pareto_last_front": st.session_state.get("pareto_last_front"),
+                "extopt_last_run": st.session_state.get("extopt_last_run"),
+                "surrogate_v386_last_screening_run": st.session_state.get("surrogate_v386_last_screening_run"),
+            }
+
+            st.markdown("### Select cached sources")
+            include_flags: Dict[str, bool] = {}
+            cols = st.columns(2)
+            for i, k in enumerate(sorted(cache_sources.keys())):
+                v = cache_sources.get(k)
+                avail = isinstance(v, (dict, list))
+                with cols[i % 2]:
+                    include_flags[k] = st.checkbox(
+                        f"Include `{k}`{' ✅' if avail else ' (missing)'}",
+                        value=bool(avail),
+                        disabled=not avail,
+                        key=f"pb_v387_inc_{k}",
+                    )
+
+            notes = st.text_area(
+                "Reviewer notes (optional)",
+                value=str(st.session_state.get("pb_v387_notes", "")),
+                key="pb_v387_notes",
+                height=120,
+            )
+            st.session_state["pb_v387_notes"] = notes
+
+            run_btn = st.button("▶ Build Evidence Pack", type="primary", key="pb_v387_build")
+            if run_btn:
+                shams_version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0]
+                out_dir = REPO_ROOT / "ui_runs" / "evidence_packs_v387"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                out_zip = out_dir / "evidence_pack_v387.zip"
+                with st.spinner("Building deterministic evidence ZIP…"):
+                    res = build_evidence_pack_v387(
+                        out_zip,
+                        shams_version=shams_version,
+                        sources=cache_sources,
+                        include=include_flags,
+                        notes=notes,
+                    )
+                st.session_state["evidence_pack_v387_last_zip"] = str(res.zip_path)
+                st.session_state["evidence_pack_v387_last_index"] = res.index
+
+            # Render from cache
+            idx = st.session_state.get("evidence_pack_v387_last_index")
+            zpath = st.session_state.get("evidence_pack_v387_last_zip")
+            if isinstance(idx, dict):
+                with st.expander("Pack index", expanded=False):
+                    st.json(idx, expanded=False)
+            if isinstance(zpath, str) and zpath:
+                try:
+                    from pathlib import Path
+                    p = Path(zpath)
+                    if p.exists():
+                        st.download_button(
+                            "⬇️ Download Evidence Pack (ZIP)",
+                            data=p.read_bytes(),
+                            file_name=p.name,
+                            mime="application/zip",
+                            use_container_width=True,
+                            key="pb_v387_dl",
+                        )
+                except Exception as _e:
+                    st.error(f"Unable to load evidence ZIP: {_e}")
 
 if _deck == "🎛️ Control Room":
     st.header("🛡️ Control Room")

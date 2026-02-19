@@ -1,5 +1,14 @@
 # Release Notes
 
+## v387.0.0 — Regulatory Evidence Pack Builder
+
+- Added one-click **Regulatory Evidence Pack Builder (v387)** (export-only): deterministic ZIP containing cached artifacts, provenance, narrative stub, and SHA-256 manifest.
+- New module: `src/tools/evidence_pack_v387.py`.
+- New schema: `schemas/evidence_pack_v387.schema.json`.
+- New contract: `contracts/evidence_pack_v387_contract.json`.
+- UI: Publication Benchmarks adds tab **“🧾 Regulatory Evidence Pack Builder (v387)”**.
+- Preserves frozen truth and UI laws: compute only on button, cache-only render, no new solver/iteration.
+
 ## v386.0.0 — Feasible-First Surrogate Accelerator (non-authoritative)
 
 - Added deterministic ridge surrogate builder from cached artifacts (scan/pareto/extopt/opt records).

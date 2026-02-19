@@ -1,0 +1,40 @@
+{
+  "contract_name": "Regulatory Evidence Pack Builder",
+  "contract_version": "v387.0.0",
+  "schema": "evidence_pack_v387.index.v1",
+  "scope": {
+    "what_it_does": [
+      "Exports cached SHAMS artifacts into a deterministic ZIP",
+      "Includes SHA-256 manifest and provenance record",
+      "Produces reviewer-safe narrative stub populated only from cached metadata"
+    ],
+    "what_it_does_not_do": [
+      "Does not compute physics",
+      "Does not modify truth",
+      "Does not run optimizers",
+      "Does not infer or smooth constraints"
+    ]
+  },
+  "cache_inputs": [
+    "pd_last_outputs",
+    "systems_last_solution",
+    "scan_last_artifact",
+    "pareto_last_front",
+    "extopt_last_run",
+    "surrogate_v386_last_screening_run"
+  ],
+  "outputs": {
+    "zip_members": [
+      "EVIDENCE_INDEX.json",
+      "EVIDENCE_INDEX_FINAL.json",
+      "RUN_PROVENANCE.json",
+      "NARRATIVE_STUB.md",
+      "sources/*.json",
+      "MANIFEST_SHA256.json"
+    ],
+    "cache_keys": [
+      "evidence_pack_v387_last_zip",
+      "evidence_pack_v387_last_index"
+    ]
+  }
+}
