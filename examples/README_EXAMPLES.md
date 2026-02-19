@@ -76,3 +76,8 @@ python -m tools.sandbox.external_proposer \
   --topk 20 \
   --outdir out_external_adapter
 ```
+
+## v388.0.0 — Cost Authority 3.0 (Industrial Depth)
+
+See `examples/cost_authority_v388/` for a minimal point JSON that enables the industrial-depth cost authority and shows the new caps.
+

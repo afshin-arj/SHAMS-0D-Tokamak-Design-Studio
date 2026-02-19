@@ -788,6 +788,13 @@ class PointInputs:
     OPEX_structured_max_MUSD_per_y: float = float('nan')
     LCOE_lite_max_USD_per_MWh: float = float('nan')
 
+    # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional; OFF by default) ---
+    # Deterministic, algebraic subsystem scaling envelopes. Governance-only.
+    include_cost_authority_v388: bool = False
+    CAPEX_industrial_max_MUSD: float = float('nan')
+    OPEX_industrial_max_MUSD_per_y: float = float('nan')
+    LCOE_lite_v388_max_USD_per_MWh: float = float('nan')
+
     # --- (v384.0.0) Materials & Lifetime Tightening (optional; OFF by default) ---
     include_materials_lifetime_v384: bool = False
     # Divertor lifetime proxy knobs

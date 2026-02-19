@@ -1,0 +1,64 @@
+{
+  "schema": "economics_authority.v388.contract",
+  "version": "v388.0.0",
+  "title": "Cost Authority 3.0 — Industrial Depth (Deterministic)",
+  "principles": {
+    "frozen_truth": true,
+    "algebraic_only": true,
+    "no_iteration": true,
+    "governance_only": true
+  },
+  "scope": {
+    "what_it_does": [
+      "Computes industrial-depth CAPEX envelopes from deterministic subsystem scaling proxies.",
+      "Computes industrial-depth OPEX and LCOE-lite from CAPEX envelope + electric/tritium/maintenance/replacement ledgers.",
+      "Publishes explicit regime bins (magnet technology family, B_peak bin, divertor heat-flux regime) and dominant cost driver attribution.",
+      "Provides optional hard caps (NaN disables) for feasibility-first governance."
+    ],
+    "what_it_does_not_do": [
+      "Does not modify plasma/physics truth.",
+      "Does not regress v383 structured economics outputs (it is additive).",
+      "Does not fit regressions, perform stochastic costing, or optimize within truth.",
+      "Does not hide infeasibility with penalties or smoothing."
+    ]
+  },
+  "inputs": {
+    "toggle": "include_cost_authority_v388",
+    "caps": [
+      "CAPEX_industrial_max_MUSD",
+      "OPEX_industrial_max_MUSD_per_y",
+      "LCOE_lite_v388_max_USD_per_MWh"
+    ]
+  },
+  "outputs": {
+    "totals": [
+      "CAPEX_industrial_v388_MUSD",
+      "OPEX_industrial_v388_MUSD_per_y",
+      "LCOE_lite_v388_USD_per_MWh"
+    ],
+    "subsystem_breakdown": [
+      "CAPEX_magnet_v388_MUSD",
+      "CAPEX_blanket_v388_MUSD",
+      "CAPEX_divertor_v388_MUSD",
+      "CAPEX_vacuum_vessel_v388_MUSD",
+      "CAPEX_cryo_v388_MUSD",
+      "CAPEX_bop_v388_MUSD",
+      "CAPEX_fuel_cycle_v388_MUSD",
+      "CAPEX_buildings_installation_v388_MUSD"
+    ],
+    "regime_bins": [
+      "magnet_regime_v388",
+      "B_peak_bin_v388"
+    ],
+    "attribution": [
+      "dominant_cost_driver_v388",
+      "dominant_cost_frac_v388"
+    ]
+  },
+  "defaults": {
+    "notes": "Numerical coefficients are stored in docs/cost_calibration_default.json and are user-overridable. This contract pins the existence of outputs + their interpretation, not the calibration values.",
+    "capacity_factor_fallback": 0.75,
+    "electricity_price_USD_per_MWh_fallback": 60.0,
+    "fixed_charge_rate_fallback": 0.10
+  }
+}

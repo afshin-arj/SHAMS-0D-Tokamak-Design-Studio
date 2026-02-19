@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v387.0.0 — Regulatory Evidence Pack Builder
+**Current version:** v388.0.0 — Cost Authority 3.0 (Industrial Depth)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

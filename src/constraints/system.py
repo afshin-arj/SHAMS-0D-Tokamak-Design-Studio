@@ -228,6 +228,15 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("LCOE-lite (v383)", "LCOE_lite_v383_USD_per_MWh", hi_key="LCOE_lite_max_USD_per_MWh", units="USD/MWh",
         description="Optional cap on deterministic LCOE-lite proxy (v383).")
 
+
+    # Cost Authority 3.0 — Industrial Depth (v388.0.0) — optional caps (NaN disables)
+    add("Industrial CAPEX (v388)", "CAPEX_industrial_v388_MUSD", hi_key="CAPEX_industrial_max_MUSD", units="MUSD",
+        description="Optional cap on industrial-depth CAPEX envelope (v388).")
+    add("Industrial OPEX (v388)", "OPEX_industrial_v388_MUSD_per_y", hi_key="OPEX_industrial_max_MUSD_per_y", units="MUSD/y",
+        description="Optional cap on industrial-depth OPEX envelope (v388).")
+    add("LCOE-lite (v388)", "LCOE_lite_v388_USD_per_MWh", hi_key="LCOE_lite_v388_max_USD_per_MWh", units="USD/MWh",
+        description="Optional cap on deterministic LCOE-lite proxy computed from v388 industrial envelopes.")
+
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")

@@ -1,5 +1,15 @@
 # Release Notes
 
+
+## v388.0.0 — Cost Authority 3.0 (Industrial Depth)
+
+- Added **Cost Authority 3.0 — Industrial Depth** (optional; OFF by default): deterministic subsystem CAPEX envelopes + OPEX + LCOE-lite.
+- Additive to v383: does **not** modify or regress v383 structured economics outputs.
+- New contract: `contracts/economics_v388_contract.json`.
+- New certification: `src/certification/cost_authority_certification_v388.py` (Systems Mode governance-only attachment + certified expander).
+- New optional feasibility caps (NaN disables): `CAPEX_industrial_max_MUSD`, `OPEX_industrial_max_MUSD_per_y`, `LCOE_lite_v388_max_USD_per_MWh`.
+- UI: Point Designer adds expander **“🏭 Cost Authority — Industrial Depth (v388.0.0)”**; Systems Mode adds certified expander.
+- Examples: `examples/cost_authority_v388/`.
 ## v387.0.0 — Regulatory Evidence Pack Builder
 
 - Added one-click **Regulatory Evidence Pack Builder (v387)** (export-only): deterministic ZIP containing cached artifacts, provenance, narrative stub, and SHA-256 manifest.

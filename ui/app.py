@@ -5247,6 +5247,36 @@ if _deck == "🧭 Point Designer":
 
 
 
+                # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional) ---
+                with st.expander("🏭 Cost Authority — Industrial Depth (v388.0.0)", expanded=False):
+                    st.caption("Deterministic, engineering-driven subsystem cost scaling envelopes (industrial depth). Governance-only; OFF by default. Requires the Economics overlay toggle above so cost outputs are computed.")
+                    include_cost_authority_v388 = st.checkbox(
+                        "Enable cost authority 3.0 (v388.0.0)",
+                        value=bool(getattr(defaults, "include_cost_authority_v388", False)),
+                        key="pd_include_cost_authority_v388",
+                    )
+                    cC1, cC2 = st.columns(2)
+                    with cC1:
+                        CAPEX_industrial_max_MUSD = st.number_input(
+                            "Max industrial CAPEX (v388) (MUSD) (NaN disables)",
+                            value=float(getattr(defaults, "CAPEX_industrial_max_MUSD", float('nan'))),
+                            key="pd_CAPEX_industrial_max_MUSD_v388",
+                        )
+                        OPEX_industrial_max_MUSD_per_y = st.number_input(
+                            "Max industrial OPEX (v388) (MUSD/y) (NaN disables)",
+                            value=float(getattr(defaults, "OPEX_industrial_max_MUSD_per_y", float('nan'))),
+                            key="pd_OPEX_industrial_max_MUSD_per_y_v388",
+                        )
+                    with cC2:
+                        LCOE_lite_v388_max_USD_per_MWh = st.number_input(
+                            "Max LCOE-lite (v388) (USD/MWh) (NaN disables)",
+                            value=float(getattr(defaults, "LCOE_lite_v388_max_USD_per_MWh", float('nan'))),
+                            key="pd_LCOE_lite_v388_max_USD_per_MWh_v388",
+                        )
+
+
+
+
                 # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
                 with st.expander("🧱 Materials & Lifetime Tightening (v384.0.0)", expanded=False):
                     st.caption(
@@ -6373,6 +6403,11 @@ if _deck == "🧭 Point Designer":
                         CAPEX_structured_max_MUSD=float(locals().get('CAPEX_structured_max_MUSD', float('nan'))),
                         OPEX_structured_max_MUSD_per_y=float(locals().get('OPEX_structured_max_MUSD_per_y', float('nan'))),
                         LCOE_lite_max_USD_per_MWh=float(locals().get('LCOE_lite_max_USD_per_MWh', float('nan'))),
+
+                        include_cost_authority_v388=bool(locals().get('include_cost_authority_v388', False)),
+                        CAPEX_industrial_max_MUSD=float(locals().get('CAPEX_industrial_max_MUSD', float('nan'))),
+                        OPEX_industrial_max_MUSD_per_y=float(locals().get('OPEX_industrial_max_MUSD_per_y', float('nan'))),
+                        LCOE_lite_v388_max_USD_per_MWh=float(locals().get('LCOE_lite_v388_max_USD_per_MWh', float('nan'))),
 
                         include_materials_lifetime_v384=bool(locals().get('include_materials_lifetime_v384', False)),
                         divertor_life_ref_yr=float(locals().get('divertor_life_ref_yr', 3.0)),
@@ -13269,6 +13304,21 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+            # v388.0.0: Cost Authority 3.0 — Industrial Depth (governance-only)
+            try:
+                from src.certification.cost_authority_certification_v388 import (
+                    evaluate_cost_authority_v388,
+                )
+                _c388 = evaluate_cost_authority_v388(
+                    out_sol,
+                    inputs=(artifact.get('inputs') if isinstance(artifact.get('inputs'), dict) else None),
+                ).to_dict()
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['cost_authority_v388'] = _c388
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -13475,6 +13525,22 @@ if _deck == "🧠 Systems Mode":
                         st.caption(f"Plant economics authority unavailable (non-fatal): {_e}")
 
 
+                # v388.0.0: Cost Authority 3.0 — Industrial Depth (certified)
+                with st.expander("🏭 Cost authority — industrial depth (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _c388 = _certs.get('cost_authority_v388')
+                        if not isinstance(_c388, dict):
+                            st.info("No cached cost authority certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.cost_authority_certification_v388 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_c388)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_c388)
+                    except Exception as _e:
+                        st.caption(f"Cost authority unavailable (non-fatal): {_e}")
+
+
 
         except _SysPrecheckBlocksSolve:
             st.warning(
@@ -13625,6 +13691,22 @@ if _deck == "🧠 Systems Mode":
                                 st.json(_pec)
                     except Exception as _e:
                         st.caption(f"Plant economics authority unavailable (non-fatal): {_e}")
+
+
+                # v388.0.0: Cost Authority 3.0 — Industrial Depth (certified)
+                with st.expander("🏭 Cost authority — industrial depth (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _c388 = _certs.get('cost_authority_v388')
+                        if not isinstance(_c388, dict):
+                            st.info("No cached cost authority certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.cost_authority_certification_v388 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_c388)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_c388)
+                    except Exception as _e:
+                        st.caption(f"Cost authority unavailable (non-fatal): {_e}")
 
         except Exception:
             pass

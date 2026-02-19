@@ -1,0 +1,23 @@
+{
+  "Bt0": 12.0,
+  "Ip": 12.0,
+  "R0": 3.0,
+  "Te0": 15.0,
+  "Ti0": 15.0,
+  "a": 1.0,
+  "delta": 0.3,
+  "kappa": 1.8,
+  "ne_bar": 1e20,
+  "q95": 3.0,
+
+  "include_economics": true,
+  "include_cost_authority_v388": true,
+
+  "CAPEX_industrial_max_MUSD": 25000.0,
+  "OPEX_industrial_max_MUSD_per_y": 2500.0,
+  "LCOE_lite_v388_max_USD_per_MWh": 200.0,
+
+  "magnet_technology": "HTS",
+  "electricity_price_USD_per_MWh": 60.0,
+  "fixed_charge_rate": 0.10
+}
