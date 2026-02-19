@@ -237,6 +237,14 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("LCOE-lite (v388)", "LCOE_lite_v388_USD_per_MWh", hi_key="LCOE_lite_v388_max_USD_per_MWh", units="USD/MWh",
         description="Optional cap on deterministic LCOE-lite proxy computed from v388 industrial envelopes.")
 
+
+    # Structural Stress Authority (v389.0.0) — optional minima (only present when enabled)
+    add("TF structural margin (v389)", "tf_struct_margin_v389", lo_key="tf_struct_margin_min_v389", units="-",
+        description="TF structural margin (allowable/applied). Only computed when Structural Stress Authority is enabled (v389).")
+    add("CS/PF structural margin (v389)", "cs_struct_margin_v389", lo_key="cs_struct_margin_min_v389", units="-",
+        description="CS/PF structural margin from magnetic-pressure thin-shell proxy. Only computed when enabled (v389).")
+    add("VV structural margin (v389)", "vv_struct_margin_v389", lo_key="vv_struct_margin_min_v389", units="-",
+        description="Vacuum vessel external-pressure structural margin (thin-shell proxy). Only computed when enabled (v389).")
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")

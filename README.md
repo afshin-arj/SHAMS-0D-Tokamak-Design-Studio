@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v388.0.0 — Cost Authority 3.0 (Industrial Depth)
+**Current version:** v389.0.0 — Structural Stress Authority (Engineering Margin Ledger v1)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

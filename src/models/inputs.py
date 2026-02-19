@@ -795,6 +795,24 @@ class PointInputs:
     OPEX_industrial_max_MUSD_per_y: float = float('nan')
     LCOE_lite_v388_max_USD_per_MWh: float = float('nan')
 
+    # --- (v389.0.0) Structural Stress Authority (optional; OFF by default) ---
+    # Deterministic, algebraic thin-shell proxies for TF / CS / vacuum vessel.
+    include_structural_stress_v389: bool = False
+
+    # TF structural margin minimum (dimensionless). Applied when authority enabled.
+    tf_struct_margin_min_v389: float = 1.0
+
+    # CS/PF structural proxy inputs
+    t_cs_struct_m_v389: float = 0.20
+    sigma_cs_allow_MPa_v389: float = 300.0
+    cs_struct_margin_min_v389: float = 1.0
+
+    # Vacuum vessel external pressure proxy inputs
+    vv_ext_pressure_MPa_v389: float = 0.101  # ~1 atm
+    sigma_vv_allow_MPa_v389: float = 200.0
+    vv_struct_margin_min_v389: float = 1.0
+
+
     # --- (v384.0.0) Materials & Lifetime Tightening (optional; OFF by default) ---
     include_materials_lifetime_v384: bool = False
     # Divertor lifetime proxy knobs

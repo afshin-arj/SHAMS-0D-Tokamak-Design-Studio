@@ -1,0 +1,32 @@
+{
+  "schema": "contracts.structural_stress.v389",
+  "name": "Structural Stress Authority Contract v389",
+  "version": "v389.0.0",
+  "intent": "Deterministic structural stress proxy certification for TF, CS/PF, and vacuum vessel.",
+  "fields": [
+    {
+      "key": "tf_struct_margin_v389",
+      "units": "-",
+      "description": "TF inner-leg structural margin (allowable/applied) using sigma_vm_MPa and sigma_allow_MPa."
+    },
+    {
+      "key": "cs_struct_margin_v389",
+      "units": "-",
+      "description": "CS/PF structural margin using magnetic pressure thin-shell proxy."
+    },
+    {
+      "key": "vv_struct_margin_v389",
+      "units": "-",
+      "description": "Vacuum vessel external pressure stress margin using thin-shell proxy."
+    },
+    {
+      "key": "structural_margin_ledger_v389",
+      "units": "-",
+      "description": "List of margin ledger entries with applied, allowable, margin, and dominant driver."
+    }
+  ],
+  "limits": {
+    "margin_interpretation": "margin >= 1 indicates allowable >= applied; optional minima enforce feasibility.",
+    "validity": "Screening-only; does not model buckling, fatigue, joints, or detailed geometry."
+  }
+}

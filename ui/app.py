@@ -5277,6 +5277,54 @@ if _deck == "🧭 Point Designer":
 
 
 
+                # --- (v389.0.0) Structural Stress Authority — v389.0.0 (optional) ---
+                with st.expander("🧱 Structural Stress Authority — v389.0.0", expanded=False):
+                    st.caption("Deterministic thin-shell structural stress proxies (TF / CS / vacuum vessel). Governance-only; OFF by default. When enabled, explicit margin-minima constraints are applied in feasibility-first mode.")
+                    include_structural_stress_v389 = st.checkbox(
+                        "Enable structural stress authority (v389.0.0)",
+                        value=bool(getattr(defaults, "include_structural_stress_v389", False)),
+                        key="pd_include_structural_stress_v389",
+                    )
+                    sS1, sS2 = st.columns(2)
+                    with sS1:
+                        tf_struct_margin_min_v389 = st.number_input(
+                            "TF structural margin min (v389) (-)",
+                            value=float(getattr(defaults, "tf_struct_margin_min_v389", 1.0)),
+                            key="pd_tf_struct_margin_min_v389",
+                        )
+                        t_cs_struct_m_v389 = st.number_input(
+                            "CS structural thickness proxy t_cs (v389) (m)",
+                            value=float(getattr(defaults, "t_cs_struct_m_v389", 0.20)),
+                            key="pd_t_cs_struct_m_v389",
+                        )
+                        sigma_cs_allow_MPa_v389 = st.number_input(
+                            "CS allowable stress proxy (v389) (MPa)",
+                            value=float(getattr(defaults, "sigma_cs_allow_MPa_v389", 300.0)),
+                            key="pd_sigma_cs_allow_MPa_v389",
+                        )
+                        cs_struct_margin_min_v389 = st.number_input(
+                            "CS/PF structural margin min (v389) (-)",
+                            value=float(getattr(defaults, "cs_struct_margin_min_v389", 1.0)),
+                            key="pd_cs_struct_margin_min_v389",
+                        )
+                    with sS2:
+                        vv_ext_pressure_MPa_v389 = st.number_input(
+                            "Vacuum vessel external pressure (v389) (MPa)",
+                            value=float(getattr(defaults, "vv_ext_pressure_MPa_v389", 0.101)),
+                            key="pd_vv_ext_pressure_MPa_v389",
+                        )
+                        sigma_vv_allow_MPa_v389 = st.number_input(
+                            "Vacuum vessel allowable stress proxy (v389) (MPa)",
+                            value=float(getattr(defaults, "sigma_vv_allow_MPa_v389", 200.0)),
+                            key="pd_sigma_vv_allow_MPa_v389",
+                        )
+                        vv_struct_margin_min_v389 = st.number_input(
+                            "Vacuum vessel structural margin min (v389) (-)",
+                            value=float(getattr(defaults, "vv_struct_margin_min_v389", 1.0)),
+                            key="pd_vv_struct_margin_min_v389",
+                        )
+
+
                 # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
                 with st.expander("🧱 Materials & Lifetime Tightening (v384.0.0)", expanded=False):
                     st.caption(
@@ -6408,6 +6456,16 @@ if _deck == "🧭 Point Designer":
                         CAPEX_industrial_max_MUSD=float(locals().get('CAPEX_industrial_max_MUSD', float('nan'))),
                         OPEX_industrial_max_MUSD_per_y=float(locals().get('OPEX_industrial_max_MUSD_per_y', float('nan'))),
                         LCOE_lite_v388_max_USD_per_MWh=float(locals().get('LCOE_lite_v388_max_USD_per_MWh', float('nan'))),
+
+                        include_structural_stress_v389=bool(locals().get('include_structural_stress_v389', False)),
+                        tf_struct_margin_min_v389=float(locals().get('tf_struct_margin_min_v389', 1.0)),
+                        t_cs_struct_m_v389=float(locals().get('t_cs_struct_m_v389', 0.20)),
+                        sigma_cs_allow_MPa_v389=float(locals().get('sigma_cs_allow_MPa_v389', 300.0)),
+                        cs_struct_margin_min_v389=float(locals().get('cs_struct_margin_min_v389', 1.0)),
+                        vv_ext_pressure_MPa_v389=float(locals().get('vv_ext_pressure_MPa_v389', 0.101)),
+                        sigma_vv_allow_MPa_v389=float(locals().get('sigma_vv_allow_MPa_v389', 200.0)),
+                        vv_struct_margin_min_v389=float(locals().get('vv_struct_margin_min_v389', 1.0)),
+
 
                         include_materials_lifetime_v384=bool(locals().get('include_materials_lifetime_v384', False)),
                         divertor_life_ref_yr=float(locals().get('divertor_life_ref_yr', 3.0)),
@@ -13319,6 +13377,18 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+            # v389.0.0: Structural Stress Authority (governance-only)
+            try:
+                from src.certification.structural_stress_certification_v389 import (
+                    certify_structural_stress_v389,
+                )
+                _s389 = certify_structural_stress_v389(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['structural_stress_v389'] = _s389
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -13540,6 +13610,19 @@ if _deck == "🧠 Systems Mode":
                     except Exception as _e:
                         st.caption(f"Cost authority unavailable (non-fatal): {_e}")
 
+                # v389.0.0: Structural Stress Authority (certified)
+                with st.expander("🧱 Structural stress authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _s389 = _certs.get('structural_stress_v389')
+                        if isinstance(_s389, dict):
+                            st.json(_s389)
+                        else:
+                            st.caption("Structural stress authority (v389) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
+
+
 
 
         except _SysPrecheckBlocksSolve:
@@ -13707,6 +13790,19 @@ if _deck == "🧠 Systems Mode":
                                 st.json(_c388)
                     except Exception as _e:
                         st.caption(f"Cost authority unavailable (non-fatal): {_e}")
+
+                # v389.0.0: Structural Stress Authority (certified)
+                with st.expander("🧱 Structural stress authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _s389 = _certs.get('structural_stress_v389')
+                        if isinstance(_s389, dict):
+                            st.json(_s389)
+                        else:
+                            st.caption("Structural stress authority (v389) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
+
 
         except Exception:
             pass

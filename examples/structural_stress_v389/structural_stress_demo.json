@@ -1,0 +1,10 @@
+{
+  "include_structural_stress_v389": true,
+  "tf_struct_margin_min_v389": 1.0,
+  "t_cs_struct_m_v389": 0.2,
+  "sigma_cs_allow_MPa_v389": 300.0,
+  "cs_struct_margin_min_v389": 1.0,
+  "vv_ext_pressure_MPa_v389": 0.101,
+  "sigma_vv_allow_MPa_v389": 200.0,
+  "vv_struct_margin_min_v389": 1.0
+}

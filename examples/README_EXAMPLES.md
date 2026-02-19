@@ -81,3 +81,8 @@ python -m tools.sandbox.external_proposer \
 
 See `examples/cost_authority_v388/` for a minimal point JSON that enables the industrial-depth cost authority and shows the new caps.
 
+
+
+## v389 — Structural Stress Authority
+
+- `structural_stress_v389/structural_stress_demo.json` — enables structural stress authority and shows certified margins.

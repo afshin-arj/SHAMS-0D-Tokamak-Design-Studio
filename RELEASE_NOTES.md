@@ -1,5 +1,19 @@
 # Release Notes
 
+## v389.0.0 — Structural Stress Authority (Engineering Margin Ledger v1)
+
+- Added deterministic Structural Stress Authority v389 (governance-only, algebraic; OFF by default).
+- Computes thin-shell stress proxies and margins for:
+  - TF inner-leg (uses existing sigma_vm_MPa vs sigma_allow_MPa)
+  - Central solenoid / PF (magnetic pressure p=B^2/(2μ0) with pR/t)
+  - Vacuum vessel (external pressure pR/t; buckling not modeled)
+- Adds a margin ledger with dominant-driver attribution.
+- Adds optional feasibility minima constraints (only when authority enabled).
+- Adds certified artifact block: `certifications.structural_stress_v389` with contract SHA-256.
+- Adds Point Designer controls and Systems Mode certified view.
+- Adds examples: `examples/structural_stress_v389/`.
+
+
 
 ## v388.0.0 — Cost Authority 3.0 (Industrial Depth)
 

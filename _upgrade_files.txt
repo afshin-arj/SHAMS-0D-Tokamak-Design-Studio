@@ -5,11 +5,11 @@ VERSION
 VERSION.txt
 src/models/inputs.py
 src/constraints/system.py
-src/economics/cost.py
-docs/cost_calibration_default.json
-contracts/economics_v388_contract.json
-src/certification/cost_authority_certification_v388.py
+src/physics/hot_ion.py
+src/engineering/structural_stress_authority_v389.py
+src/certification/structural_stress_certification_v389.py
+contracts/structural_stress_v389_contract.json
 examples/README_EXAMPLES.md
-examples/cost_authority_v388/README.md
-examples/cost_authority_v388/industrial_cost_demo.json
+examples/structural_stress_v389/README.md
+examples/structural_stress_v389/structural_stress_demo.json
 _upgrade_files.txt

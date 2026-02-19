@@ -129,6 +129,7 @@ try:
     )  # type: ignore
     from ..engineering.pf_cs import cs_flux_swing_proxy  # type: ignore
     from ..engineering.coil_thermal import tf_coil_heat_proxy  # type: ignore
+    from ..engineering.structural_stress_authority_v389 import compute_structural_stress_bundle_v389  # type: ignore
     from ..phase1_models import (
         tokamak_volume,
         tokamak_surface_area,
@@ -2038,6 +2039,17 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["cs_flux_margin_min"] = float(getattr(inp, "cs_flux_margin_min", float("nan")))
     except Exception:
         pass
+
+    # =========================================================================
+    # Added: Structural Stress Authority (v389.0.0) — optional, algebraic
+    # =========================================================================
+    try:
+        ss389 = compute_structural_stress_bundle_v389(out, inp)
+        if isinstance(ss389, dict):
+            out.update(ss389)
+    except Exception:
+        pass
+
     out["P_net_min_MW"] = getattr(inp, "P_net_min_MW", float("nan"))
 
     # =========================================================================
