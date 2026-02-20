@@ -529,6 +529,7 @@ class PointInputs:
     # --- (New) Current drive / heating system realism ---
     include_current_drive: bool = False
     include_cd_library_v357: bool = False
+    include_cd_library_v395: bool = False
 
     # Target NI closure (used when include_current_drive=True)
     f_noninductive_target: float = 1.0
@@ -539,8 +540,21 @@ class PointInputs:
     Pcd_max_MW: float = 200.0
 
     # CD model selection
-    cd_model: str = "fixed_gamma"   # fixed_gamma | actuator_scaling | channel_library_v357
+    cd_model: str = "fixed_gamma"   # fixed_gamma | actuator_scaling | channel_library_v357 | channel_library_v395
     cd_actuator: str = "ECCD"      # ECCD | LHCD | NBI | ICRF
+
+    # v395.0 multi-channel mix (fractions of launched P_cd; normalized if sum>0)
+    cd_mix_enable: bool = False
+    cd_mix_frac_eccd: float = 1.0
+    cd_mix_frac_lhcd: float = 0.0
+    cd_mix_frac_nbi: float = 0.0
+    cd_mix_frac_icrf: float = 0.0
+
+    # Optional wall-plug efficiencies per channel (NaN -> use eta_cd_wallplug)
+    eta_cd_wallplug_eccd: float = float('nan')
+    eta_cd_wallplug_lhcd: float = float('nan')
+    eta_cd_wallplug_nbi: float = float('nan')
+    eta_cd_wallplug_icrf: float = float('nan')
 
     # v357.0 channel knobs (used only when include_cd_library_v357=True)
     # LHCD
@@ -827,6 +841,27 @@ class PointInputs:
     fw_life_min_fpy_v390: float = float("nan")
     dpa_per_fpy_max_v390: float = float("nan")
     activation_index_max_v390: float = float("nan")
+
+    # --- (v392.0.0) Neutronics Shield Attenuation Authority (optional; OFF by default) ---
+    # Deterministic ex-vessel fluence + bioshield dose proxy using exponential attenuation lengths.
+    include_neutronics_shield_attenuation_v392: bool = False
+    # Pathlength gaps from FW stack to boundaries (m)
+    gap_to_tf_case_m_v392: float = 0.20
+    gap_to_cryostat_m_v392: float = 0.80
+    gap_to_bioshield_m_v392: float = 1.20
+    # Biological shield thickness (m)
+    t_bioshield_m_v392: float = 1.20
+    # Attenuation length overrides (m). If stack lambda is NaN/<=0, falls back to atten_len_m.
+    atten_len_stack_m_v392: float = float("nan")
+    atten_len_bioshield_m_v392: float = 0.35
+    # Optional inverse-square geometric dilution toggle (screening)
+    use_inv_square_geom_v392: bool = True
+    # Dose conversion proxy: uSv/h per (n/m^2/s)
+    dose_uSv_h_per_flux_n_m2_s_v392: float = 1.0e-20
+    # Optional caps (NaN disables)
+    tf_case_fluence_max_n_m2_per_fpy_v392: float = float("nan")
+    cryostat_fluence_max_n_m2_per_fpy_v392: float = float("nan")
+    bioshield_dose_rate_max_uSv_h_v392: float = float("nan")
 
     # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional; OFF by default) ---
     # Deterministic algebraic availability envelope driven by explicit MTBF/MTTR + planned/maintenance downtime.

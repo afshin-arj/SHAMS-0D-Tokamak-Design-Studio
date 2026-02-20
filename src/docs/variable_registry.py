@@ -81,6 +81,14 @@ VARIABLES: List[Dict[str, Any]] = [
 
 # Heating / current drive
 {"key":"P_cd_launch_MW","units":"MW","category":"Heating/CD","meaning":"Launched current drive power required to meet f_noninductive_target (proxy).","source":"physics/hot_ion.py"},
+{"key":"P_cd_ECCD_MW","units":"MW","category":"Heating/CD","meaning":"Portion of launched P_cd assigned to ECCD (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"P_cd_LHCD_MW","units":"MW","category":"Heating/CD","meaning":"Portion of launched P_cd assigned to LHCD (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"P_cd_NBI_MW","units":"MW","category":"Heating/CD","meaning":"Portion of launched P_cd assigned to NBI (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"P_cd_ICRF_MW","units":"MW","category":"Heating/CD","meaning":"Portion of launched P_cd assigned to ICRF/FWCD (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"I_cd_ECCD_MA","units":"MA","category":"Heating/CD","meaning":"Externally driven current from ECCD (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"I_cd_LHCD_MA","units":"MA","category":"Heating/CD","meaning":"Externally driven current from LHCD (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"I_cd_NBI_MA","units":"MA","category":"Heating/CD","meaning":"Externally driven current from NBI (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
+{"key":"I_cd_ICRF_MA","units":"MA","category":"Heating/CD","meaning":"Externally driven current from ICRF/FWCD (v395 mix bookkeeping).","source":"physics/hot_ion.py"},
 {"key":"I_cd_MA","units":"MA","category":"Heating/CD","meaning":"Driven current corresponding to P_cd_launch_MW using gamma_cd.","source":"physics/hot_ion.py"},
 {"key":"f_noninductive","units":"-","category":"Heating/CD","meaning":"Non-inductive fraction f_bs + I_cd/Ip (proxy).","source":"physics/hot_ion.py"},
 

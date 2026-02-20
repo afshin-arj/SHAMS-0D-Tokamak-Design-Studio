@@ -1805,6 +1805,19 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     except Exception:
         pass
 
+    # =========================================================================
+    # Added: Neutronics Shield Attenuation Authority (v392.0.0) — optional, algebraic
+    # =========================================================================
+    try:
+        from ..engineering.neutronics_shield_attenuation_authority_v392 import (
+            compute_neutronics_shield_attenuation_bundle_v392,
+        )
+        na392 = compute_neutronics_shield_attenuation_bundle_v392(out, inp)
+        if isinstance(na392, dict):
+            out.update(na392)
+    except Exception:
+        pass
+
     # Optional screening cap (NaN disables)
     out["neutron_wall_load_max_MW_m2"] = float(getattr(inp, "neutron_wall_load_max_MW_m2", float("nan")))
 
@@ -1840,7 +1853,30 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["P_cd_required_MW"] = float(Pcd_req_MW)
             Pcd_launch = min(max(Pcd_req_MW, 0.0), max(Pcd_max, 0.0))
             out["cd_power_saturated"] = 1.0 if (Pcd_req_MW > Pcd_max + 1e-9) else 0.0
-            Icd_A = Pcd_launch * 1e6 * max(gamma, 0.0)
+            # v395: optional multi-channel mix. If present, compute per-channel currents explicitly.
+            Icd_A = 0.0
+            if getattr(cd, "channels", None):
+                ch = dict(getattr(cd, "channels") or {})
+                for name, meta in ch.items():
+                    try:
+                        frac = float(meta.get("frac", 0.0))
+                        gch = float(meta.get("gamma_A_per_W", 0.0))
+                        if frac <= 0.0 or gch <= 0.0:
+                            continue
+                        Pch_MW = Pcd_launch * frac
+                        Ich_A = Pch_MW * 1e6 * gch
+                        Icd_A += Ich_A
+                        out[f"P_cd_{name}_MW"] = float(Pch_MW)
+                        out[f"I_cd_{name}_MA"] = float(Ich_A / 1e6)
+                        out[f"gamma_cd_{name}_A_per_W"] = float(gch)
+                        try:
+                            out[f"eta_cd_wallplug_{name}"] = float(meta.get("eta_wallplug", float('nan')))
+                        except Exception:
+                            out[f"eta_cd_wallplug_{name}"] = float('nan')
+                    except Exception:
+                        continue
+            else:
+                Icd_A = Pcd_launch * 1e6 * max(gamma, 0.0)
             f_NI = f_bs + Icd_A / Ip_A
             out["P_cd_launch_MW"] = float(Pcd_launch)
 
@@ -1880,6 +1916,11 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["I_cd_MA"] = float(Icd_A / 1e6)
             out["f_noninductive"] = float(f_NI)
             out["f_noninductive_target"] = float(f_target)
+
+            # Aggregate bookkeeping for v395 (safe even if single-channel)
+            out.setdefault("P_CD_MW", float(Pcd_launch))
+            out.setdefault("P_CD_launch_MW", float(Pcd_launch))
+            out["eta_CD_A_W"] = float(max(gamma, 0.0))
 
             # v357.0 CD library diagnostics (pure algebraic bookkeeping)
             out["include_cd_library_v357"] = bool(getattr(inp, "include_cd_library_v357", False))

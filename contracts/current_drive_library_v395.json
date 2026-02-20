@@ -1,0 +1,9 @@
+{
+  "schema": "current_drive_library.v395.contract",
+  "version": "v395.0.0",
+  "defaults": {
+    "gamma_min_A_per_W": 0.0005,
+    "mix_frac_sum_tol": 0.10,
+    "required_channels_when_mix": ["ECCD", "LHCD", "NBI", "ICRF"]
+  }
+}

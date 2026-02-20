@@ -1,15 +1,13 @@
-ui/app.py
-README.md
-RELEASE_NOTES.md
-VERSION
-VERSION.txt
-src/models/inputs.py
-src/constraints/system.py
-src/physics/hot_ion.py
-src/engineering/structural_stress_authority_v389.py
-src/certification/structural_stress_certification_v389.py
-contracts/structural_stress_v389_contract.json
-examples/README_EXAMPLES.md
-examples/structural_stress_v389/README.md
-examples/structural_stress_v389/structural_stress_demo.json
-_upgrade_files.txt
+# v395.0.0 (Current Drive Library Expansion 1.0)
+
+Added/modified:
+- src/models/inputs.py
+- src/physics/current_drive.py
+- src/physics/hot_ion.py
+- contracts/current_drive_library_v395.json
+- src/certification/current_drive_library_certification_v395.py
+- ui/app.py
+- README.md
+- RELEASE_NOTES.md
+- VERSION / VERSION.txt
+

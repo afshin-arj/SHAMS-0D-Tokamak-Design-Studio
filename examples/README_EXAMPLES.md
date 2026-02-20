@@ -86,3 +86,8 @@ See `examples/cost_authority_v388/` for a minimal point JSON that enables the in
 ## v389 — Structural Stress Authority
 
 - `structural_stress_v389/structural_stress_demo.json` — enables structural stress authority and shows certified margins.
+
+
+## v394 — Design Family Governance (Scan Lab)
+
+See `examples/design_family_governance_v394/` for UI steps to build deterministic design families from a Scan Lab cartography run and export the family artifact JSON.

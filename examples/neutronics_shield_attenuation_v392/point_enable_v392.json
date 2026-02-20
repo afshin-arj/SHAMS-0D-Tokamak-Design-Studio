@@ -1,0 +1,31 @@
+{
+  "R0_m": 6.2,
+  "a_m": 2.0,
+  "kappa": 1.75,
+  "delta": 0.35,
+  "Bt_T": 5.3,
+  "Ip_MA": 15.0,
+  "fG": 0.85,
+  "Paux_MW": 50.0,
+  "T0_keV": 16.0,
+  "n0_20": 1.0,
+
+  "t_blanket_m": 0.70,
+  "t_shield_m": 0.35,
+  "t_vv_m": 0.06,
+  "atten_len_m": 0.25,
+
+  "include_neutronics_shield_attenuation_v392": true,
+
+  "gap_to_tf_case_m_v392": 0.2,
+  "gap_to_cryostat_m_v392": 0.8,
+  "gap_to_bioshield_m_v392": 1.2,
+  "t_bioshield_m_v392": 1.2,
+  "atten_len_bioshield_m_v392": 0.35,
+  "use_inv_square_geom_v392": true,
+  "dose_uSv_h_per_flux_n_m2_s_v392": 1.0e-20,
+
+  "tf_case_fluence_max_n_m2_per_fpy_v392": 5.0e21,
+  "cryostat_fluence_max_n_m2_per_fpy_v392": 1.0e21,
+  "bioshield_dose_rate_max_uSv_h_v392": 2.5
+}

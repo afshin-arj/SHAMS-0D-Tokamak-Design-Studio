@@ -256,6 +256,14 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Activation index (v390)", "activation_index_v390", hi_key="activation_index_max_v390", units="-",
         description="Activation index proxy controlling cooldown/maintenance bin (v390). Optional cap.")
 
+    # Neutronics Shield Attenuation Authority (v392.0.0) — optional caps (NaN disables)
+    add("TF case fluence (v392)", "tf_case_fluence_n_m2_per_fpy_v392", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392",
+        units="n/m^2/FPY", description="Ex-vessel fluence proxy at TF case boundary using attenuation lengths (v392).")
+    add("Cryostat fluence (v392)", "cryostat_fluence_n_m2_per_fpy_v392", hi_key="cryostat_fluence_max_n_m2_per_fpy_v392",
+        units="n/m^2/FPY", description="Ex-vessel fluence proxy at cryostat boundary using attenuation lengths (v392).")
+    add("Bioshield dose rate (v392)", "bioshield_dose_rate_uSv_h_v392", hi_key="bioshield_dose_rate_max_uSv_h_v392",
+        units="uSv/h", description="Dose-rate proxy outside biological shield (v392). Optional cap.")
+
     # Availability 2.0 — Reliability Envelope Authority (v391.0.0) — optional caps/minima (NaN disables)
     add("Availability certified (v391)", "availability_cert_v391", lo_key="availability_min_v391", units="-",
         description="Certified availability envelope from MTBF/MTTR product proxy + planned/maintenance downtime (v391).")
