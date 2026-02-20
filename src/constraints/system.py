@@ -255,6 +255,16 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         description="First-wall lifetime proxy in full-power-years derived from DPA-lite (v390). Optional minimum.")
     add("Activation index (v390)", "activation_index_v390", hi_key="activation_index_max_v390", units="-",
         description="Activation index proxy controlling cooldown/maintenance bin (v390). Optional cap.")
+
+    # Availability 2.0 — Reliability Envelope Authority (v391.0.0) — optional caps/minima (NaN disables)
+    add("Availability certified (v391)", "availability_cert_v391", lo_key="availability_min_v391", units="-",
+        description="Certified availability envelope from MTBF/MTTR product proxy + planned/maintenance downtime (v391).")
+    add("Planned outage fraction (v391)", "planned_outage_frac_v391", hi_key="planned_outage_max_frac_v391", units="-",
+        description="Planned outage fraction from explicit planned_outage_days_per_y_v391 input (v391). Optional cap.")
+    add("Unplanned downtime fraction (v391)", "unplanned_downtime_frac_v391", hi_key="unplanned_downtime_max_frac_v391", units="-",
+        description="Unplanned downtime fraction from product of per-subsystem availability factors A_i=MTBF/(MTBF+MTTR) (v391). Optional cap.")
+    add("Maintenance downtime fraction (v391)", "maint_downtime_frac_v391", hi_key="maint_downtime_max_frac_v391", units="-",
+        description="Maintenance downtime fraction: replacement downtime (v368/v359) scaled by burden + cooldown (v390) (v391). Optional cap.")
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")

@@ -71,6 +71,7 @@ try:
     from ..analysis.plasma_regime import evaluate_plasma_regime  # type: ignore
     from ..analysis.availability import compute_availability  # type: ignore
     from ..availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
+    from ..availability.reliability_v391 import compute_availability_reliability_bundle_v391  # type: ignore
     from ..maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
     # v367.0 module is under repo-root `analysis/` namespace for test/runtime wiring
     from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
@@ -88,6 +89,7 @@ except Exception:
     from analysis.plasma_regime import evaluate_plasma_regime  # type: ignore
     from analysis.availability import compute_availability  # type: ignore
     from availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
+    from availability.reliability_v391 import compute_availability_reliability_bundle_v391  # type: ignore
     from maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
     from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
     from analysis.materials_lifetime_v384 import compute_materials_lifetime_tightening_v384  # type: ignore
@@ -2442,6 +2444,23 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             # Pass-through caps for visibility
             out["outage_fraction_v368_max"] = float(getattr(inp, "outage_fraction_v368_max", float("nan")))
             out["availability_v368_min"] = float(getattr(inp, "availability_v368_min", float("nan")))
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional)
+    # -----------------------------------------------------------------
+    try:
+        # Pass-through optional caps/minima for constraint visibility
+        out["include_availability_reliability_v391"] = bool(getattr(inp, "include_availability_reliability_v391", False))
+        out["availability_min_v391"] = float(getattr(inp, "availability_min_v391", float("nan")))
+        out["planned_outage_max_frac_v391"] = float(getattr(inp, "planned_outage_max_frac_v391", float("nan")))
+        out["unplanned_downtime_max_frac_v391"] = float(getattr(inp, "unplanned_downtime_max_frac_v391", float("nan")))
+        out["maint_downtime_max_frac_v391"] = float(getattr(inp, "maint_downtime_max_frac_v391", float("nan")))
+        if bool(getattr(inp, "include_availability_reliability_v391", False)):
+            ar391 = compute_availability_reliability_bundle_v391(out, inp)
+            if isinstance(ar391, dict):
+                out.update(ar391)
     except Exception:
         pass
 

@@ -5180,6 +5180,65 @@ if _deck == "🧭 Point Designer":
                             value=float(getattr(defaults, "maintenance_planning_horizon_yr", float('nan'))),
                             step=1.0,
                         )
+
+                # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional) ---
+                with st.expander("🧩 Availability & reliability envelope (v391.0.0)", expanded=False):
+                    st.caption(
+                        "Deterministic availability envelope driven by explicit MTBF/MTTR proxies plus planned and maintenance downtime. "
+                        "Governance-only; OFF by default. No RAMI simulation (no Monte Carlo / Markov chains)."
+                    )
+                    include_availability_reliability_v391 = st.checkbox(
+                        "Enable availability reliability envelope authority (v391.0.0)",
+                        value=bool(getattr(defaults, "include_availability_reliability_v391", False)),
+                        help="Adds availability_cert_v391 plus explicit downtime decomposition and a subsystem ledger.",
+                    )
+                    planned_outage_days_per_y_v391 = st.number_input(
+                        "Planned outage (days/year)",
+                        min_value=0.0,
+                        max_value=365.0,
+                        value=float(getattr(defaults, "planned_outage_days_per_y_v391", 30.0) or 30.0),
+                        step=1.0,
+                        help="Deterministic planned outage allocation. Converted to planned_outage_frac_v391 = days/365.",
+                    )
+                    st.markdown("**MTBF/MTTR (hours) — subsystem proxies**")
+                    cR1, cR2 = st.columns(2)
+                    with cR1:
+                        mtbf_tf_h_v391 = st.number_input("TF MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_tf_h_v391", 80000.0) or 80000.0), step=1000.0)
+                        mttr_tf_h_v391 = st.number_input("TF MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_tf_h_v391", 240.0) or 240.0), step=24.0)
+                        mtbf_pfcs_h_v391 = st.number_input("PF/CS MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_pfcs_h_v391", 60000.0) or 60000.0), step=1000.0)
+                        mttr_pfcs_h_v391 = st.number_input("PF/CS MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_pfcs_h_v391", 168.0) or 168.0), step=24.0)
+                        mtbf_cryo_h_v391 = st.number_input("Cryoplant MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_cryo_h_v391", 40000.0) or 40000.0), step=1000.0)
+                        mttr_cryo_h_v391 = st.number_input("Cryoplant MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_cryo_h_v391", 120.0) or 120.0), step=24.0)
+                        mtbf_bop_h_v391 = st.number_input("BOP MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_bop_h_v391", 50000.0) or 50000.0), step=1000.0)
+                        mttr_bop_h_v391 = st.number_input("BOP MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_bop_h_v391", 72.0) or 72.0), step=24.0)
+                    with cR2:
+                        mtbf_divertor_h_v391 = st.number_input("Divertor MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_divertor_h_v391", 20000.0) or 20000.0), step=1000.0)
+                        mttr_divertor_h_v391 = st.number_input("Divertor MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_divertor_h_v391", 336.0) or 336.0), step=24.0)
+                        mtbf_blanket_h_v391 = st.number_input("Blanket MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_blanket_h_v391", 25000.0) or 25000.0), step=1000.0)
+                        mttr_blanket_h_v391 = st.number_input("Blanket MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_blanket_h_v391", 504.0) or 504.0), step=24.0)
+                        mtbf_hcd_h_v391 = st.number_input("HCD MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_hcd_h_v391", 30000.0) or 30000.0), step=1000.0)
+                        mttr_hcd_h_v391 = st.number_input("HCD MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_hcd_h_v391", 168.0) or 168.0), step=24.0)
+
+                    st.markdown("**Optional caps/minima (NaN disables)**")
+                    cR3, cR4 = st.columns(2)
+                    with cR3:
+                        availability_min_v391 = st.number_input(
+                            "Min availability (v391) (NaN disables)",
+                            value=float(getattr(defaults, "availability_min_v391", float('nan'))),
+                        )
+                        planned_outage_max_frac_v391 = st.number_input(
+                            "Max planned outage fraction (v391) (NaN disables)",
+                            value=float(getattr(defaults, "planned_outage_max_frac_v391", float('nan'))),
+                        )
+                    with cR4:
+                        unplanned_downtime_max_frac_v391 = st.number_input(
+                            "Max unplanned downtime fraction (v391) (NaN disables)",
+                            value=float(getattr(defaults, "unplanned_downtime_max_frac_v391", float('nan'))),
+                        )
+                        maint_downtime_max_frac_v391 = st.number_input(
+                            "Max maintenance downtime fraction (v391) (NaN disables)",
+                            value=float(getattr(defaults, "maint_downtime_max_frac_v391", float('nan'))),
+                        )
                 # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
                 with st.expander("💰 Plant Economics Authority (v360.0)", expanded=False):
                     st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
@@ -6117,6 +6176,26 @@ if _deck == "🧭 Point Designer":
                             replacement_rate_per_year=float(locals().get("replacement_rate_per_year", 0.0)),
                             include_maintenance_scheduling_v368=bool(locals().get("include_maintenance_scheduling_v368", False)),
                             maint_capacity_factor=float(locals().get("maint_capacity_factor", 1.0)),
+                            include_availability_reliability_v391=bool(locals().get("include_availability_reliability_v391", False)),
+                            planned_outage_days_per_y_v391=float(locals().get("planned_outage_days_per_y_v391", 30.0)),
+                            mtbf_tf_h_v391=float(locals().get("mtbf_tf_h_v391", 80000.0)),
+                            mttr_tf_h_v391=float(locals().get("mttr_tf_h_v391", 240.0)),
+                            mtbf_pfcs_h_v391=float(locals().get("mtbf_pfcs_h_v391", 60000.0)),
+                            mttr_pfcs_h_v391=float(locals().get("mttr_pfcs_h_v391", 168.0)),
+                            mtbf_divertor_h_v391=float(locals().get("mtbf_divertor_h_v391", 20000.0)),
+                            mttr_divertor_h_v391=float(locals().get("mttr_divertor_h_v391", 336.0)),
+                            mtbf_blanket_h_v391=float(locals().get("mtbf_blanket_h_v391", 25000.0)),
+                            mttr_blanket_h_v391=float(locals().get("mttr_blanket_h_v391", 504.0)),
+                            mtbf_cryo_h_v391=float(locals().get("mtbf_cryo_h_v391", 40000.0)),
+                            mttr_cryo_h_v391=float(locals().get("mttr_cryo_h_v391", 120.0)),
+                            mtbf_hcd_h_v391=float(locals().get("mtbf_hcd_h_v391", 30000.0)),
+                            mttr_hcd_h_v391=float(locals().get("mttr_hcd_h_v391", 168.0)),
+                            mtbf_bop_h_v391=float(locals().get("mtbf_bop_h_v391", 50000.0)),
+                            mttr_bop_h_v391=float(locals().get("mttr_bop_h_v391", 72.0)),
+                            availability_min_v391=float(locals().get("availability_min_v391", float('nan'))),
+                            planned_outage_max_frac_v391=float(locals().get("planned_outage_max_frac_v391", float('nan'))),
+                            unplanned_downtime_max_frac_v391=float(locals().get("unplanned_downtime_max_frac_v391", float('nan'))),
+                            maint_downtime_max_frac_v391=float(locals().get("maint_downtime_max_frac_v391", float('nan'))),
                             include_plant_economics_v360=bool(locals().get("include_plant_economics_v360", False)),
                             discount_rate=float(locals().get("discount_rate", 0.07)),
                             wallplug_eff=float(locals().get("wallplug_eff", 0.3)),
@@ -6503,6 +6582,27 @@ if _deck == "🧭 Point Designer":
                         forced_outage_mode_v368=str(locals().get('forced_outage_mode_v368', 'max')),
                         outage_fraction_v368_max=float(locals().get('outage_fraction_v368_max', float('nan'))),
                         availability_v368_min=float(locals().get('availability_v368_min', float('nan'))),
+
+                        include_availability_reliability_v391=bool(locals().get('include_availability_reliability_v391', False)),
+                        planned_outage_days_per_y_v391=float(locals().get('planned_outage_days_per_y_v391', 30.0)),
+                        mtbf_tf_h_v391=float(locals().get('mtbf_tf_h_v391', 80000.0)),
+                        mttr_tf_h_v391=float(locals().get('mttr_tf_h_v391', 240.0)),
+                        mtbf_pfcs_h_v391=float(locals().get('mtbf_pfcs_h_v391', 60000.0)),
+                        mttr_pfcs_h_v391=float(locals().get('mttr_pfcs_h_v391', 168.0)),
+                        mtbf_divertor_h_v391=float(locals().get('mtbf_divertor_h_v391', 20000.0)),
+                        mttr_divertor_h_v391=float(locals().get('mttr_divertor_h_v391', 336.0)),
+                        mtbf_blanket_h_v391=float(locals().get('mtbf_blanket_h_v391', 25000.0)),
+                        mttr_blanket_h_v391=float(locals().get('mttr_blanket_h_v391', 504.0)),
+                        mtbf_cryo_h_v391=float(locals().get('mtbf_cryo_h_v391', 40000.0)),
+                        mttr_cryo_h_v391=float(locals().get('mttr_cryo_h_v391', 120.0)),
+                        mtbf_hcd_h_v391=float(locals().get('mtbf_hcd_h_v391', 30000.0)),
+                        mttr_hcd_h_v391=float(locals().get('mttr_hcd_h_v391', 168.0)),
+                        mtbf_bop_h_v391=float(locals().get('mtbf_bop_h_v391', 50000.0)),
+                        mttr_bop_h_v391=float(locals().get('mttr_bop_h_v391', 72.0)),
+                        availability_min_v391=float(locals().get('availability_min_v391', float('nan'))),
+                        planned_outage_max_frac_v391=float(locals().get('planned_outage_max_frac_v391', float('nan'))),
+                        unplanned_downtime_max_frac_v391=float(locals().get('unplanned_downtime_max_frac_v391', float('nan'))),
+                        maint_downtime_max_frac_v391=float(locals().get('maint_downtime_max_frac_v391', float('nan'))),
 
                         include_economics_v360=bool(locals().get('include_economics_v360', False)),
                         opex_fixed_MUSD_per_y=float(locals().get('opex_fixed_MUSD_per_y', 0.0)),
@@ -7344,6 +7444,46 @@ if _deck == "🧭 Point Designer":
                                         c3.metric("LCOE (v359) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}"))
                                         c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v359", "{:.2f}"))
                                         st.caption("v359 ledger uses planned_outage_base + forced_outage_base + replacement downtime; it does not modify truth or legacy economics outputs.")
+
+                                    # (v368.0) Maintenance scheduling authority quicklook (optional)
+                                    try:
+                                        _av368 = float(out.get("availability_v368", float('nan')))
+                                    except Exception:
+                                        _av368 = float('nan')
+                                    if _av368 == _av368:
+                                        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+                                        c1.metric("Availability (v368)", _m("availability_v368", "{:.2f}"))
+                                        c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.2f}"))
+                                        c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+                                        c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.2f}"))
+                                        st.caption("v368 adds a deterministic maintenance event ledger and schedule-dominated availability; no time simulation.")
+
+                                    # (v391.0.0) Availability 2.0 — Reliability envelope (optional)
+                                    try:
+                                        _av391 = float(out.get("availability_cert_v391", float('nan')))
+                                    except Exception:
+                                        _av391 = float('nan')
+                                    if _av391 == _av391:
+                                        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+                                        c1.metric("Availability (v391)", _m("availability_cert_v391", "{:.3f}"))
+                                        c2.metric("Planned (v391)", _m("planned_outage_frac_v391", "{:.3f}"))
+                                        c3.metric("Maint (v391)", _m("maint_downtime_frac_v391", "{:.3f}"))
+                                        c4.metric("Unplanned (v391)", _m("unplanned_downtime_frac_v391", "{:.3f}"))
+                                        drv = str(out.get("availability_driver_v391", ""))
+                                        reg = str(out.get("availability_regime_v391", ""))
+                                        if drv or reg:
+                                            st.caption(f"v391 driver={drv or 'n/a'}; regime={reg or 'n/a'}. Uses MTBF/MTTR product proxy + planned outage + maintenance burden (v368/v359 + v390).")
+                                        led = out.get("availability_ledger_v391")
+                                        with st.expander("Availability reliability ledger (v391)", expanded=False):
+                                            try:
+                                                if isinstance(led, list) and led:
+                                                    import pandas as _pd
+                                                    _df = _pd.DataFrame(led)
+                                                    st.dataframe(_df, use_container_width=True, height=320, hide_index=True)
+                                                else:
+                                                    st.info("No availability_ledger_v391 found (enable v391 and re-run).")
+                                            except Exception as e:
+                                                st.caption(f"Ledger render failed: {e}")
 
 
                                     lims = []
@@ -13464,6 +13604,18 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+            # v391.0.0: Availability 2.0 — Reliability Envelope Authority (governance-only)
+            try:
+                from src.certification.availability_reliability_certification_v391 import (
+                    certify_availability_reliability_v391,
+                )
+                _a391 = certify_availability_reliability_v391(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['availability_reliability_v391'] = _a391
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -13712,6 +13864,18 @@ if _deck == "🧠 Systems Mode":
                             st.caption("Neutronics & activation authority (v390) not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Neutronics & activation authority unavailable (non-fatal): {_e}")
+
+                # v391.0.0: Availability 2.0 — Reliability Envelope Authority (certified)
+                with st.expander("🧩 Availability & reliability envelope (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _a391 = _certs.get('availability_reliability_v391')
+                        if isinstance(_a391, dict):
+                            st.json(_a391)
+                        else:
+                            st.caption("Availability reliability envelope (v391) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Availability reliability envelope unavailable (non-fatal): {_e}")
 
         except _SysPrecheckBlocksSolve:
             st.warning(

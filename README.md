@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v390.0.0 — Neutronics & Activation Authority 3.0 (Deterministic Tightening)
+**Current version:** v391.0.0 — Availability 2.0 (Reliability Envelope Authority)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

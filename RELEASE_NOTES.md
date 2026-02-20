@@ -1,5 +1,20 @@
 # Release Notes
 
+## v391.0.0 — Availability 2.0 (Reliability Envelope Authority)
+
+- Added deterministic **Availability 2.0 — Reliability Envelope Authority** (v391) (governance-only, algebraic; OFF by default).
+- Provides an audit-friendly availability envelope:
+  - per-subsystem MTBF/MTTR proxies → product availability factor (unplanned downtime)
+  - explicit planned outage days/year
+  - maintenance downtime informed by v368/v359 (replacement downtime) and v390 (cooldown + maintenance burden)
+- Adds optional feasibility constraints (NaN disables):
+  - `availability_min_v391`
+  - `planned_outage_max_frac_v391`
+  - `unplanned_downtime_max_frac_v391`
+  - `maint_downtime_max_frac_v391`
+- Adds contract: `contracts/availability_reliability_v391_contract.json` and certified artifact block `certifications.availability_reliability_v391` (with contract SHA-256).
+- UI: Point Designer adds expander **“🧩 Availability & reliability envelope (v391.0.0)”**; Telemetry adds ledger table; Systems Mode adds certified expander.
+
 ## v390.0.0 — Neutronics & Activation Authority 3.0 (Deterministic Tightening)
 
 - Added deterministic **Neutronics & Activation Authority 3.0** (v390) (governance-only, algebraic; OFF by default).

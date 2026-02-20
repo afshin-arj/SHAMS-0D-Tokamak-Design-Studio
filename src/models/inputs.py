@@ -828,6 +828,33 @@ class PointInputs:
     dpa_per_fpy_max_v390: float = float("nan")
     activation_index_max_v390: float = float("nan")
 
+    # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional; OFF by default) ---
+    # Deterministic algebraic availability envelope driven by explicit MTBF/MTTR + planned/maintenance downtime.
+    include_availability_reliability_v391: bool = False
+    planned_outage_days_per_y_v391: float = 30.0
+
+    # MTBF/MTTR (hours) by subsystem class (deterministic proxies; user-tunable)
+    mtbf_tf_h_v391: float = 80000.0
+    mttr_tf_h_v391: float = 240.0
+    mtbf_pfcs_h_v391: float = 60000.0
+    mttr_pfcs_h_v391: float = 168.0
+    mtbf_divertor_h_v391: float = 20000.0
+    mttr_divertor_h_v391: float = 336.0
+    mtbf_blanket_h_v391: float = 25000.0
+    mttr_blanket_h_v391: float = 504.0
+    mtbf_cryo_h_v391: float = 40000.0
+    mttr_cryo_h_v391: float = 120.0
+    mtbf_hcd_h_v391: float = 30000.0
+    mttr_hcd_h_v391: float = 168.0
+    mtbf_bop_h_v391: float = 50000.0
+    mttr_bop_h_v391: float = 72.0
+
+    # Optional caps/minima (NaN disables)
+    availability_min_v391: float = float("nan")
+    planned_outage_max_frac_v391: float = float("nan")
+    unplanned_downtime_max_frac_v391: float = float("nan")
+    maint_downtime_max_frac_v391: float = float("nan")
+
 
     # --- (v384.0.0) Materials & Lifetime Tightening (optional; OFF by default) ---
     include_materials_lifetime_v384: bool = False
