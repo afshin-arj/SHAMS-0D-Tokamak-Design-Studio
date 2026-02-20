@@ -245,6 +245,16 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         description="CS/PF structural margin from magnetic-pressure thin-shell proxy. Only computed when enabled (v389).")
     add("VV structural margin (v389)", "vv_struct_margin_v389", lo_key="vv_struct_margin_min_v389", units="-",
         description="Vacuum vessel external-pressure structural margin (thin-shell proxy). Only computed when enabled (v389).")
+
+    # Neutronics & Activation Authority 3.0 (v390.0.0) — optional caps/minima (NaN disables)
+    add("Shield margin (v390)", "shield_margin_cm_v390", lo_key="shield_margin_min_cm_v390", units="cm",
+        description="Effective shielding thickness margin (t_eff - t_req) for activation/shielding envelope (v390).")
+    add("FW DPA rate (v390)", "dpa_per_fpy_v390", hi_key="dpa_per_fpy_max_v390", units="DPA/FPY",
+        description="First-wall DPA-lite rate proxy (v390). Optional cap.")
+    add("FW lifetime (v390)", "fw_life_fpy_v390", lo_key="fw_life_min_fpy_v390", units="FPY",
+        description="First-wall lifetime proxy in full-power-years derived from DPA-lite (v390). Optional minimum.")
+    add("Activation index (v390)", "activation_index_v390", hi_key="activation_index_max_v390", units="-",
+        description="Activation index proxy controlling cooldown/maintenance bin (v390). Optional cap.")
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")

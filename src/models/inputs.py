@@ -812,6 +812,22 @@ class PointInputs:
     sigma_vv_allow_MPa_v389: float = 200.0
     vv_struct_margin_min_v389: float = 1.0
 
+    # --- (v390.0.0) Neutronics & Activation Authority 3.0 (optional; OFF by default) ---
+    # Deterministic shielding envelope + activation + FW damage proxies (governance-only).
+    include_neutronics_activation_v390: bool = False
+    blanket_class_v390: str = "STANDARD"
+    # Shield requirement envelope exponents
+    shield_req_Pfus_exp_v390: float = 0.25
+    shield_req_qwall_exp_v390: float = 0.50
+    # FW damage proxy parameters
+    fw_dpa_per_fpy_per_MWm2_v390: float = 15.0
+    fw_dpa_limit_v390: float = 20.0
+    # Optional constraints (NaN disables)
+    shield_margin_min_cm_v390: float = float("nan")
+    fw_life_min_fpy_v390: float = float("nan")
+    dpa_per_fpy_max_v390: float = float("nan")
+    activation_index_max_v390: float = float("nan")
+
 
     # --- (v384.0.0) Materials & Lifetime Tightening (optional; OFF by default) ---
     include_materials_lifetime_v384: bool = False

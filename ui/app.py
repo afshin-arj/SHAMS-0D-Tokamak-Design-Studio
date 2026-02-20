@@ -5325,6 +5325,69 @@ if _deck == "🧭 Point Designer":
                         )
 
 
+                # --- (v390.0.0) Neutronics & Activation Authority 3.0 (optional) ---
+                with st.expander("☢️ Neutronics & Activation Authority — v390.0.0", expanded=False):
+                    st.caption("Deterministic shielding envelope + activation index + FW damage proxies. Governance-only; OFF by default. Optional minima/caps are explicit; NaN disables.")
+                    include_neutronics_activation_v390 = st.checkbox(
+                        "Enable neutronics & activation authority (v390.0.0)",
+                        value=bool(getattr(defaults, "include_neutronics_activation_v390", False)),
+                        key="pd_include_neutronics_activation_v390",
+                    )
+                    blanket_class_v390 = st.selectbox(
+                        "Blanket class (v390)",
+                        options=["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"],
+                        index=["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"].index(str(getattr(defaults, "blanket_class_v390", "STANDARD") or "STANDARD").upper()) if str(getattr(defaults, "blanket_class_v390", "STANDARD") or "STANDARD").upper() in ["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"] else 0,
+                        key="pd_blanket_class_v390",
+                        help="Selects conservative regime multipliers for shielding/activation envelope.",
+                    )
+                    nA1, nA2 = st.columns(2)
+                    with nA1:
+                        shield_req_Pfus_exp_v390 = st.number_input(
+                            "Shield requirement exponent a for Pfus (v390) (-)",
+                            value=float(getattr(defaults, "shield_req_Pfus_exp_v390", 0.25)),
+                            key="pd_shield_req_Pfus_exp_v390",
+                        )
+                        shield_req_qwall_exp_v390 = st.number_input(
+                            "Shield requirement exponent b for q_wall (v390) (-)",
+                            value=float(getattr(defaults, "shield_req_qwall_exp_v390", 0.50)),
+                            key="pd_shield_req_qwall_exp_v390",
+                        )
+                        fw_dpa_per_fpy_per_MWm2_v390 = st.number_input(
+                            "FW DPA rate coefficient k (DPA/FPY per MW/m²) (v390)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "fw_dpa_per_fpy_per_MWm2_v390", 15.0)),
+                            key="pd_fw_dpa_per_fpy_per_MWm2_v390",
+                        )
+                        fw_dpa_limit_v390 = st.number_input(
+                            "FW DPA total limit (v390) (DPA)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "fw_dpa_limit_v390", 20.0)),
+                            key="pd_fw_dpa_limit_v390",
+                        )
+                    with nA2:
+                        shield_margin_min_cm_v390 = st.number_input(
+                            "Min shield margin (t_eff - t_req) (v390) (cm) (NaN disables)",
+                            value=float(getattr(defaults, "shield_margin_min_cm_v390", float('nan'))),
+                            key="pd_shield_margin_min_cm_v390",
+                        )
+                        fw_life_min_fpy_v390 = st.number_input(
+                            "Min FW lifetime (v390) (FPY) (NaN disables)",
+                            value=float(getattr(defaults, "fw_life_min_fpy_v390", float('nan'))),
+                            key="pd_fw_life_min_fpy_v390",
+                        )
+                        dpa_per_fpy_max_v390 = st.number_input(
+                            "Max FW DPA rate (v390) (DPA/FPY) (NaN disables)",
+                            value=float(getattr(defaults, "dpa_per_fpy_max_v390", float('nan'))),
+                            key="pd_dpa_per_fpy_max_v390",
+                        )
+                        activation_index_max_v390 = st.number_input(
+                            "Max activation index (v390) (-) (NaN disables)",
+                            value=float(getattr(defaults, "activation_index_max_v390", float('nan'))),
+                            key="pd_activation_index_max_v390",
+                        )
+
+
+
                 # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
                 with st.expander("🧱 Materials & Lifetime Tightening (v384.0.0)", expanded=False):
                     st.caption(
@@ -13389,6 +13452,18 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+            # v390.0.0: Neutronics & Activation Authority 3.0 (governance-only)
+            try:
+                from src.certification.neutronics_activation_certification_v390 import (
+                    certify_neutronics_activation_v390,
+                )
+                _n390 = certify_neutronics_activation_v390(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['neutronics_activation_v390'] = _n390
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -13624,6 +13699,19 @@ if _deck == "🧠 Systems Mode":
 
 
 
+
+
+                # v390.0.0: Neutronics & Activation Authority 3.0 (certified)
+                with st.expander("☢️ Neutronics & activation authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _n390 = _certs.get('neutronics_activation_v390')
+                        if isinstance(_n390, dict):
+                            st.json(_n390)
+                        else:
+                            st.caption("Neutronics & activation authority (v390) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Neutronics & activation authority unavailable (non-fatal): {_e}")
 
         except _SysPrecheckBlocksSolve:
             st.warning(

@@ -1,5 +1,22 @@
 # Release Notes
 
+## v390.0.0 — Neutronics & Activation Authority 3.0 (Deterministic Tightening)
+
+- Added deterministic **Neutronics & Activation Authority 3.0** (v390) (governance-only, algebraic; OFF by default).
+- Computes screening proxies:
+  - effective shielding thickness vs regime-binned requirement (margin in cm)
+  - first-wall DPA-lite rate (DPA/FPY) and derived FW lifetime (FPY)
+  - activation index proxy and cooldown/maintenance bin
+- Adds optional feasibility constraints (NaN disables):
+  - `shield_margin_min_cm_v390` (minimum shielding margin)
+  - `dpa_per_fpy_max_v390` (maximum FW DPA-lite rate)
+  - `fw_life_min_fpy_v390` (minimum FW lifetime in FPY)
+  - `activation_index_max_v390` (maximum activation index)
+- Adds contract: `contracts/neutronics_activation_v390_contract.json` and certified artifact block `certifications.neutronics_activation_v390` (with contract SHA-256).
+- UI: Point Designer adds expander **“☢️ Neutronics & Activation Authority — v390.0.0”**; Systems Mode adds certified expander.
+- Examples: `examples/neutronics_activation_v390/`.
+
+
 ## v389.0.0 — Structural Stress Authority (Engineering Margin Ledger v1)
 
 - Added deterministic Structural Stress Authority v389 (governance-only, algebraic; OFF by default).

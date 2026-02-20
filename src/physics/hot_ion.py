@@ -130,6 +130,7 @@ try:
     from ..engineering.pf_cs import cs_flux_swing_proxy  # type: ignore
     from ..engineering.coil_thermal import tf_coil_heat_proxy  # type: ignore
     from ..engineering.structural_stress_authority_v389 import compute_structural_stress_bundle_v389  # type: ignore
+    from ..engineering.neutronics_activation_authority_v390 import compute_neutronics_activation_bundle_v390  # type: ignore
     from ..phase1_models import (
         tokamak_volume,
         tokamak_surface_area,
@@ -194,6 +195,7 @@ except Exception:
     )  # type: ignore
     from engineering.pf_cs import cs_flux_swing_proxy  # type: ignore
     from engineering.coil_thermal import tf_coil_heat_proxy  # type: ignore
+    from engineering.neutronics_activation_authority_v390 import compute_neutronics_activation_bundle_v390  # type: ignore
     from phase1_models import (
         tokamak_volume,
         tokamak_surface_area,
@@ -1789,6 +1791,17 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         # keep conservative behavior; the canonical proxy remains available above
         out.setdefault("neutron_attenuation_factor", float("nan"))
         out.setdefault("P_nuc_total_MW", float("nan"))
+
+
+    # =========================================================================
+    # Added: Neutronics & Activation Authority 3.0 (v390.0.0) — optional, algebraic
+    # =========================================================================
+    try:
+        na390 = compute_neutronics_activation_bundle_v390(out, inp)
+        if isinstance(na390, dict):
+            out.update(na390)
+    except Exception:
+        pass
 
     # Optional screening cap (NaN disables)
     out["neutron_wall_load_max_MW_m2"] = float(getattr(inp, "neutron_wall_load_max_MW_m2", float("nan")))

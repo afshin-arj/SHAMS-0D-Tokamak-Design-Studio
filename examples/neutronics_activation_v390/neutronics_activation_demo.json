@@ -1,0 +1,23 @@
+{
+  "R0_m": 6.2,
+  "a_m": 2.0,
+  "kappa": 1.75,
+  "delta": 0.35,
+  "Bt_T": 5.3,
+  "Ip_MA": 15.0,
+  "fG": 0.85,
+  "Paux_MW": 50.0,
+  "T0_keV": 16.0,
+  "n0_20": 1.0,
+
+  "t_blanket_m": 0.70,
+  "t_shield_m": 0.35,
+  "t_vv_m": 0.06,
+
+  "include_neutronics_activation_v390": true,
+  "blanket_class_v390": "DEMO",
+
+  "shield_margin_min_cm_v390": 0.0,
+  "fw_life_min_fpy_v390": 1.0,
+  "activation_index_max_v390": 2.0
+}
