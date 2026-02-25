@@ -1,5 +1,106 @@
 # Release Notes
 
+## v393.0.0 — Irradiation Damage→Strength Coupling Authority (Deterministic, Algebraic)
+
+Adds a deterministic coupling overlay that **propagates v390 DPA-rate proxy into degraded structural allowables**, producing *derived* degraded margins alongside v389 structural proxies.
+
+- New module: `src/engineering/damage_strength_coupling_authority_v393.py` (algebraic, no iteration).
+- New contract: `contracts/damage_strength_coupling_v393_contract.json` (schema pinned + sha256 in certifications).
+- New certification: `src/certification/damage_strength_coupling_certification_v393.py`.
+- New optional constraints (NaN disables):
+  - `tf_struct_margin_degraded_v393 >= tf_struct_margin_degraded_min_v393`
+  - `cs_struct_margin_degraded_v393 >= cs_struct_margin_degraded_min_v393`
+  - `vv_struct_margin_degraded_v393 >= vv_struct_margin_degraded_min_v393`
+- UI wiring:
+  - Point Designer adds expander **“🧬 Irradiation damage → strength coupling — v393.0.0”**.
+  - Systems Mode adds certified expander **“🧬 Damage → strength coupling (certified)”**.
+  - Systems Solve attaches certification `damage_strength_coupling_v393` into artifact cache.
+
+Frozen-truth discipline preserved: this authority computes **derived** degraded allowables/margins and does **not** mutate upstream truth outputs.
+
+## v392.0.0 — Neutronics Shield Attenuation Authority (Deterministic Tightening)
+
+Adds a deterministic **attenuation-length** neutronics tightening overlay to quantify ex-vessel fluence and outside-bioshield dose proxies.
+
+- New module: `src/engineering/neutronics_shield_attenuation_authority_v392.py` (algebraic, no iteration).
+- New contract: `contracts/neutronics_shield_attenuation_v392_contract.json` (schema pinned + sha256 in certifications).
+- New certification: `src/certification/neutronics_shield_attenuation_certification_v392.py` (governance-only).
+- New optional constraints (NaN disables):
+  - `tf_case_fluence_n_m2_per_fpy_v392 <= tf_case_fluence_max_n_m2_per_fpy_v392`
+  - `cryostat_fluence_n_m2_per_fpy_v392 <= cryostat_fluence_max_n_m2_per_fpy_v392`
+  - `bioshield_dose_rate_uSv_h_v392 <= bioshield_dose_rate_max_uSv_h_v392`
+- UI wiring:
+  - Point Designer adds expander **“🛡️ Neutronics Shield Attenuation Authority — v392.0.0”**.
+  - Systems Mode adds certified expander **“🛡️ Neutronics shield attenuation (certified)”**.
+  - Fix: Point Designer now correctly passes **v390** Neutronics & Activation toggles/params into `make_point_inputs` (previously defined in UI but not wired into inputs).
+
+Frozen-truth discipline preserved: this authority **does not mutate** evaluation truth; it exposes additional, explicit, audit-ready envelopes.
+
+## v391.0.0 — Availability 2.0 (Reliability Envelope Authority)
+
+- Added deterministic **Availability 2.0 — Reliability Envelope Authority** (v391) (governance-only, algebraic; OFF by default).
+- Provides an audit-friendly availability envelope:
+  - per-subsystem MTBF/MTTR proxies → product availability factor (unplanned downtime)
+  - explicit planned outage days/year
+  - maintenance downtime informed by v368/v359 (replacement downtime) and v390 (cooldown + maintenance burden)
+- Adds optional feasibility constraints (NaN disables):
+  - `availability_min_v391`
+  - `planned_outage_max_frac_v391`
+  - `unplanned_downtime_max_frac_v391`
+  - `maint_downtime_max_frac_v391`
+- Adds contract: `contracts/availability_reliability_v391_contract.json` and certified artifact block `certifications.availability_reliability_v391` (with contract SHA-256).
+- UI: Point Designer adds expander **“🧩 Availability & reliability envelope (v391.0.0)”**; Telemetry adds ledger table; Systems Mode adds certified expander.
+
+## v390.0.0 — Neutronics & Activation Authority 3.0 (Deterministic Tightening)
+
+- Added deterministic **Neutronics & Activation Authority 3.0** (v390) (governance-only, algebraic; OFF by default).
+- Computes screening proxies:
+  - effective shielding thickness vs regime-binned requirement (margin in cm)
+  - first-wall DPA-lite rate (DPA/FPY) and derived FW lifetime (FPY)
+  - activation index proxy and cooldown/maintenance bin
+- Adds optional feasibility constraints (NaN disables):
+  - `shield_margin_min_cm_v390` (minimum shielding margin)
+  - `dpa_per_fpy_max_v390` (maximum FW DPA-lite rate)
+  - `fw_life_min_fpy_v390` (minimum FW lifetime in FPY)
+  - `activation_index_max_v390` (maximum activation index)
+- Adds contract: `contracts/neutronics_activation_v390_contract.json` and certified artifact block `certifications.neutronics_activation_v390` (with contract SHA-256).
+- UI: Point Designer adds expander **“☢️ Neutronics & Activation Authority — v390.0.0”**; Systems Mode adds certified expander.
+- Examples: `examples/neutronics_activation_v390/`.
+
+
+## v389.0.0 — Structural Stress Authority (Engineering Margin Ledger v1)
+
+- Added deterministic Structural Stress Authority v389 (governance-only, algebraic; OFF by default).
+- Computes thin-shell stress proxies and margins for:
+  - TF inner-leg (uses existing sigma_vm_MPa vs sigma_allow_MPa)
+  - Central solenoid / PF (magnetic pressure p=B^2/(2μ0) with pR/t)
+  - Vacuum vessel (external pressure pR/t; buckling not modeled)
+- Adds a margin ledger with dominant-driver attribution.
+- Adds optional feasibility minima constraints (only when authority enabled).
+- Adds certified artifact block: `certifications.structural_stress_v389` with contract SHA-256.
+- Adds Point Designer controls and Systems Mode certified view.
+- Adds examples: `examples/structural_stress_v389/`.
+
+
+
+## v388.0.0 — Cost Authority 3.0 (Industrial Depth)
+
+- Added **Cost Authority 3.0 — Industrial Depth** (optional; OFF by default): deterministic subsystem CAPEX envelopes + OPEX + LCOE-lite.
+- Additive to v383: does **not** modify or regress v383 structured economics outputs.
+- New contract: `contracts/economics_v388_contract.json`.
+- New certification: `src/certification/cost_authority_certification_v388.py` (Systems Mode governance-only attachment + certified expander).
+- New optional feasibility caps (NaN disables): `CAPEX_industrial_max_MUSD`, `OPEX_industrial_max_MUSD_per_y`, `LCOE_lite_v388_max_USD_per_MWh`.
+- UI: Point Designer adds expander **“🏭 Cost Authority — Industrial Depth (v388.0.0)”**; Systems Mode adds certified expander.
+- Examples: `examples/cost_authority_v388/`.
+## v387.0.0 — Regulatory Evidence Pack Builder
+
+- Added one-click **Regulatory Evidence Pack Builder (v387)** (export-only): deterministic ZIP containing cached artifacts, provenance, narrative stub, and SHA-256 manifest.
+- New module: `src/tools/evidence_pack_v387.py`.
+- New schema: `schemas/evidence_pack_v387.schema.json`.
+- New contract: `contracts/evidence_pack_v387_contract.json`.
+- UI: Publication Benchmarks adds tab **“🧾 Regulatory Evidence Pack Builder (v387)”**.
+- Preserves frozen truth and UI laws: compute only on button, cache-only render, no new solver/iteration.
+
 ## v386.0.0 — Feasible-First Surrogate Accelerator (non-authoritative)
 
 - Added deterministic ridge surrogate builder from cached artifacts (scan/pareto/extopt/opt records).
@@ -987,3 +1088,31 @@ Truth outputs unchanged.
 - New contract: `contracts/transport_profile_authority_v382.json`.
 - Systems Mode: added collapsed panel **“🧩 Transport profile authority (certified) — 1.5D-lite proxies”** with cache-only compute and JSON export.
 - Version bump + regenerated repo manifests.
+
+
+## v394.0.0 — Design Family Governance Engine 1.0 (Scan Lab Families)
+
+- New deterministic, exploration-only engine to extract **design families** from Scan Lab cartography:
+  - regime-signature labeling (infeasible by dominant blocking constraint; feasible by active limiting constraint + robustness)
+  - connected-component family extraction for reviewer-safe region segmentation
+- New contract: `contracts/design_family_governance_v394_contract.json`
+- New certification (exploration-level): `src/certification/design_family_governance_certification_v394.py`
+- Scan Lab UI: added collapsed expander **“👪 Design family governance (v394.0.0)”** with:
+  - Build/Clear buttons (compute only on button press)
+  - Certified JSON + compact family table
+  - Download button for the family artifact
+- No changes to frozen evaluator truth, constraints, or feasibility semantics.
+
+
+## v395.0.0 — Current Drive Library Expansion 1.0 (Multi-Channel Mix)
+
+- Added deterministic **multi-channel current-drive library** option `cd_model=channel_library_v395` supporting a power split across **ECCD/LHCD/NBI/ICRF**.
+- New input knobs (Point Designer wired):
+  - `include_cd_library_v395`, `cd_mix_enable`, `cd_mix_frac_{eccd,lhcd,nbi,icrf}`
+  - optional per-channel wall-plug efficiencies `eta_cd_wallplug_{eccd,lhcd,nbi,icrf}`
+- Systems truth remains algebraic: the NI closure uses an effective power-weighted \(\gamma_{cd}\) with explicit per-channel bookkeeping outputs:
+  - `P_cd_<TECH>_MW`, `I_cd_<TECH>_MA`, `gamma_cd_<TECH>_A_per_W`
+- New contract: `contracts/current_drive_library_v395.json`
+- New governance-only certification: `src/certification/current_drive_library_certification_v395.py`
+- Systems Mode UI: added collapsed panel **“📡 Current drive library (v395) — multi-channel mix bookkeeping (certified)”** with cache-only compute and JSON export.
+- No solvers, no iteration, no hidden optimization; frozen truth discipline preserved.

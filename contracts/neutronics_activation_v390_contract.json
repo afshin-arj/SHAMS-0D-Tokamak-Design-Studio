@@ -1,0 +1,34 @@
+{
+  "schema": "neutronics_activation_authority.v390",
+  "name": "Neutronics & Activation Authority 3.0 (Deterministic Tightening)",
+  "version": "v390.0.0",
+  "hard_laws": {
+    "frozen_truth": true,
+    "algebraic_only": true,
+    "no_monte_carlo": true,
+    "no_iteration": true
+  },
+  "notes": [
+    "Screening-level proxies only. Not a replacement for neutronics MC or activation codes.",
+    "Effective shielding thickness is an ex-vessel activation/shielding envelope; first-wall damage is driven by wall load.",
+    "All caps/minima are optional; NaN disables constraints."
+  ],
+  "defaults": {
+    "blanket_class_v390": "STANDARD",
+    "shield_req_Pfus_exp_v390": 0.25,
+    "shield_req_qwall_exp_v390": 0.5,
+    "fw_dpa_per_fpy_per_MWm2_v390": 15.0,
+    "fw_dpa_limit_v390": 20.0,
+    "shield_margin_min_cm_v390": 0.0,
+    "fw_life_min_fpy_v390": null,
+    "dpa_per_fpy_max_v390": null,
+    "activation_index_max_v390": null
+  },
+  "regime_bins": {
+    "neutron_wall_load_MW_m2": {
+      "LOW": "<1.0",
+      "MID": "[1.0,2.5)",
+      "HIGH": ">=2.5"
+    }
+  }
+}

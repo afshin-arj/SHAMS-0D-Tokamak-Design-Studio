@@ -1,0 +1,35 @@
+{
+  "schema": "contracts.availability_reliability.v391",
+  "version": "v391.0.0",
+  "purpose": "Deterministic availability reliability envelope authority (governance-only).",
+  "frozen_truth": true,
+  "notes": [
+    "No Monte Carlo, no Markov chains, no time-domain RAMI simulation.",
+    "Outputs are algebraic and audit-friendly.",
+    "Enforcement is via explicit optional caps/minima (NaN disables)."
+  ],
+  "inputs": {
+    "include_availability_reliability_v391": "bool",
+    "planned_outage_days_per_y_v391": "days/year",
+    "mtbf_*_h_v391": "hours",
+    "mttr_*_h_v391": "hours",
+    "availability_min_v391": "fraction (NaN disables)",
+    "planned_outage_max_frac_v391": "fraction (NaN disables)",
+    "unplanned_downtime_max_frac_v391": "fraction (NaN disables)",
+    "maint_downtime_max_frac_v391": "fraction (NaN disables)"
+  },
+  "dependencies": {
+    "v368": "If maintenance scheduling authority is enabled, its replacement outage fraction may inform maintenance downtime.",
+    "v359": "If availability+replacement ledger is enabled, its replacement downtime fraction may inform maintenance downtime.",
+    "v390": "If neutronics/activation authority is enabled, cooldown and maintenance burden factor may increase maintenance downtime."
+  },
+  "outputs": {
+    "availability_cert_v391": "fraction",
+    "unplanned_downtime_frac_v391": "fraction",
+    "planned_outage_frac_v391": "fraction",
+    "maint_downtime_frac_v391": "fraction",
+    "availability_driver_v391": "string",
+    "availability_regime_v391": "GREEN|YELLOW|RED",
+    "availability_ledger_v391": "list[dict]"
+  }
+}

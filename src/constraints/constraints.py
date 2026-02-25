@@ -232,6 +232,20 @@ def evaluate_constraints(
         if Hrob == Hrob and float(Hrob) > 0.0:
             le("H_required_rob", Hreq, float(Hrob), units="-", note="Transport contract cap (robust)", group="plasma")
 
+    # --- Transport envelope spread (v396) ---
+    spread = outputs.get("transport_spread_ratio_v396", float("nan"))
+    if spread == spread:
+        spread_cap = outputs.get("transport_spread_max_v396", float("nan"))
+        if spread_cap == spread_cap and float(spread_cap) > 0.0:
+            le(
+                "transport_spread",
+                float(spread),
+                float(spread_cap),
+                units="-",
+                note="Transport Envelope 2.0 spread cap: tauE_max/tauE_min",
+                group="plasma",
+            )
+
     # -------- Heat exhaust --------
     if "q_div_MW_m2" in outputs:
         qmax = outputs.get("q_div_max_MW_m2", 10.0)

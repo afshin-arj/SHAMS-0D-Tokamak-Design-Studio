@@ -492,6 +492,204 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
     except Exception:
         econ_v383 = {}
 
+
+    # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional; OFF by default) ---
+    # Deterministic, algebraic subsystem scaling envelopes; does NOT modify v383 outputs.
+    econ_v388: Dict[str, Any] = {}
+    try:
+        if inputs is not None and bool(getattr(inputs, 'include_cost_authority_v388', False)):
+            econ_contract_sha = ''
+            try:
+                econ_contract_path = (Path(__file__).resolve().parents[2] / 'contracts' / 'economics_v388_contract.json')
+                if econ_contract_path.exists():
+                    econ_contract_sha = hashlib.sha256(econ_contract_path.read_bytes()).hexdigest()
+            except Exception:
+                econ_contract_sha = ''
+
+            # ---- regime bins ----
+            try:
+                from ..contracts.magnet_tech_contract import infer_magnet_regime
+            except Exception:
+                def infer_magnet_regime(_t: str) -> str:
+                    return 'HTS'
+
+            magnet_tech = str(getattr(inputs, 'magnet_technology', '') or '')
+            magnet_regime = str(outputs.get('magnet_regime', outputs.get('magnet_tech_regime', infer_magnet_regime(magnet_tech))))
+            magnet_regime = magnet_regime.strip().upper() or infer_magnet_regime(magnet_tech)
+
+            Bbin = 'MID'
+            if (Bpk == Bpk) and math.isfinite(Bpk):
+                if Bpk < float(coeffs.get('v388_Bpk_low_T', 12.0)):
+                    Bbin = 'LOW'
+                elif Bpk > float(coeffs.get('v388_Bpk_high_T', 16.0)):
+                    Bbin = 'HIGH'
+
+            # ---- geometry-derived mass proxies ----
+            rho_map = {
+                'HTS': float(coeffs.get('v388_rho_hts_kg_m3', 7000.0)),
+                'LTS': float(coeffs.get('v388_rho_lts_kg_m3', 7500.0)),
+                'CU':  float(coeffs.get('v388_rho_cu_kg_m3', 8900.0)),
+            }
+            rho_mag = float(rho_map.get(magnet_regime, rho_map['HTS']))
+            magnet_mass_kg = max(V_coil, 0.0) * max(rho_mag, 1.0)
+
+            # Blanket/vessel masses (simple area*thickness*density)
+            rho_struct = float(coeffs.get('v388_rho_struct_kg_m3', 8000.0))
+            t_blank = float(coeffs.get('v388_t_blanket_m', max(float(t_shield), 0.1)))
+            blanket_mass_kg = max(area, 0.0) * max(t_blank, 0.01) * max(rho_struct, 1.0)
+            t_vv = float(coeffs.get('v388_t_vv_m', 0.06))
+            vv_mass_kg = max(area, 0.0) * max(t_vv, 0.005) * max(rho_struct, 1.0)
+
+            # ---- subsystem CAPEX envelopes (MUSD) ----
+            tech_mult = {
+                'HTS': float(coeffs.get('v388_tech_mult_hts', 1.60)),
+                'LTS': float(coeffs.get('v388_tech_mult_lts', 1.20)),
+                'CU':  float(coeffs.get('v388_tech_mult_cu', 0.80)),
+            }.get(magnet_regime, 1.0)
+            b_mult = {
+                'LOW':  float(coeffs.get('v388_Bbin_mult_low', 1.00)),
+                'MID':  float(coeffs.get('v388_Bbin_mult_mid', 1.25)),
+                'HIGH': float(coeffs.get('v388_Bbin_mult_high', 1.60)),
+            }.get(Bbin, 1.25)
+
+            usd_per_kg_magnet = float(coeffs.get('v388_magnet_usd_per_kg', 220.0))
+            capex_magnet = (magnet_mass_kg * max(usd_per_kg_magnet, 0.0) * max(tech_mult, 0.0) * max(b_mult, 0.0)) / 1e6
+
+            usd_per_kg_blanket = float(coeffs.get('v388_blanket_usd_per_kg', 75.0))
+            capex_blanket = (blanket_mass_kg * max(usd_per_kg_blanket, 0.0)) / 1e6
+
+            # Divertor module scaling: fraction of blanket with q_div regime multiplier
+            div_frac = float(coeffs.get('v388_divertor_frac_of_blanket', 0.12))
+            q_div = float(outputs.get('q_div_MW_m2', float('nan')))
+            div_mult = 1.0
+            if (q_div == q_div) and math.isfinite(q_div):
+                if q_div > float(coeffs.get('v388_qdiv_high_MW_m2', 15.0)):
+                    div_mult = float(coeffs.get('v388_divertor_mult_highq', 1.50))
+                elif q_div < float(coeffs.get('v388_qdiv_low_MW_m2', 7.0)):
+                    div_mult = float(coeffs.get('v388_divertor_mult_lowq', 0.90))
+            capex_divertor = capex_blanket * max(div_frac, 0.0) * max(div_mult, 0.0)
+
+            usd_per_kg_vv = float(coeffs.get('v388_vv_usd_per_kg', 18.0))
+            capex_vv = (vv_mass_kg * max(usd_per_kg_vv, 0.0)) / 1e6
+
+            # Cryoplant scaling (20 K plant)
+            k_cryo_MUSD_per_MW20K = float(coeffs.get('v388_cryo_MUSD_per_MW20K', 25.0))
+            capex_cryo_ind = k_cryo_MUSD_per_MW20K * max(float(Pcryo), 0.0)
+
+            # Balance of plant scaling with thermal power
+            k_bop_MUSD_per_MWth = float(coeffs.get('v388_bop_MUSD_per_MWth', 0.45))
+            capex_bop_ind = k_bop_MUSD_per_MWth * max(Pth if (Pth == Pth and math.isfinite(Pth)) else 0.0, 0.0)
+
+            # Fuel cycle / tritium plant scaling with throughput
+            T_burn_kg_per_day = float(outputs.get('T_burn_kg_per_day', float('nan')))
+            if not (T_burn_kg_per_day == T_burn_kg_per_day):
+                T_burn_kg_per_day = 0.0
+            k_fc_MUSD_per_kg_day = float(coeffs.get('v388_fuelcycle_MUSD_per_kg_day', 55.0))
+            capex_fuelcycle = k_fc_MUSD_per_kg_day * max(T_burn_kg_per_day, 0.0)
+
+            # Buildings / installation envelope: fraction of (major equipment)
+            install_frac = float(coeffs.get('v388_installation_fraction', 0.18))
+            major = capex_magnet + capex_blanket + capex_divertor + capex_vv + capex_cryo_ind + capex_bop_ind + capex_fuelcycle
+            capex_buildings = max(install_frac, 0.0) * max(major, 0.0)
+
+            capex_industrial = major + capex_buildings
+
+            # Dominant driver
+            comp388 = {
+                'magnet': capex_magnet,
+                'blanket': capex_blanket,
+                'divertor': capex_divertor,
+                'vacuum_vessel': capex_vv,
+                'cryo': capex_cryo_ind,
+                'bop': capex_bop_ind,
+                'fuel_cycle': capex_fuelcycle,
+                'buildings_installation': capex_buildings,
+            }
+            domk = max(comp388, key=lambda k: float(comp388.get(k, 0.0))) if comp388 else ''
+            domf = (float(comp388.get(domk, 0.0)) / capex_industrial) if (capex_industrial and capex_industrial > 0) else float('nan')
+
+            # ---- OPEX + LCOE-lite (industrial) ----
+            # Reuse v383 capacity factor if present; else fall back to a nominal CF.
+            cf = float(outputs.get('capacity_factor_used_v383', float('nan')))
+            if not (cf == cf) or not math.isfinite(cf):
+                cf = float(coeffs.get('capacity_factor', 0.75))
+            cf = max(0.0, min(0.95, cf))
+            hours_cf = 8760.0 * cf
+
+            elec_price = float(getattr(inputs, 'electricity_price_USD_per_MWh', 60.0))
+            opex_elec_recirc = (elec_price * max(Precirc_total, 0.0) * hours_cf) / 1e6 if (Precirc_total == Precirc_total) else 0.0
+            cryo_mult = float(getattr(inputs, 'cryo_wallplug_multiplier', 250.0))
+            Pcryo_wp_MW = max(float(Pcryo), 0.0) * max(cryo_mult, 0.0)
+            opex_elec_cryo = (elec_price * Pcryo_wp_MW * hours_cf) / 1e6
+
+            P_cd = float(outputs.get('P_cd_MW', outputs.get('Pcd_MW', outputs.get('P_CD_MW', 0.0))))
+            eta_wp = float(outputs.get('eta_cd_wallplug', getattr(inputs, 'eta_cd_wallplug', 0.35)))
+            eta_wp = max(min(eta_wp, 1.0), 1e-6)
+            P_cd_wp = max(P_cd, 0.0) / eta_wp
+            opex_elec_cd = (elec_price * P_cd_wp * hours_cf) / 1e6
+
+            T_proc_g_per_day = float(outputs.get('T_processing_required_g_per_day', float('nan')))
+            if not (T_proc_g_per_day == T_proc_g_per_day):
+                T_proc_g_per_day = max(T_burn_kg_per_day, 0.0) * 1000.0
+            T_cost = float(getattr(inputs, 'tritium_processing_cost_USD_per_g', 0.05))
+            opex_trit = (max(T_proc_g_per_day, 0.0) * 365.0 * max(T_cost, 0.0)) / 1e6
+
+            opex_maint_struct = float(opex_maint)
+            repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v384', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v368', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = float(outputs.get('replacement_cost_MUSD_per_year_v359', float('nan')))
+            if not (repl_MUSD_per_y == repl_MUSD_per_y):
+                repl_MUSD_per_y = 0.0
+
+            opex_fixed = float(getattr(inputs, 'opex_fixed_MUSD_per_y', 0.0))
+            opex_industrial = float(opex_fixed + opex_elec_recirc + opex_elec_cryo + opex_elec_cd + opex_trit + opex_maint_struct + max(repl_MUSD_per_y, 0.0))
+
+            # Net MWh/y: prefer authoritative maintenance ledger, else compute from Pnet and CF.
+            net_mwh = float(outputs.get('net_electric_MWh_per_year_v368', float('nan')))
+            if not (net_mwh == net_mwh):
+                net_mwh = float(outputs.get('net_electric_MWh_per_year_v359', float('nan')))
+            if not (net_mwh == net_mwh):
+                duty = float(outputs.get('duty_factor', 1.0))
+                duty = max(0.0, min(1.0, duty)) if (duty == duty) else 1.0
+                Pnet_eff = float(Pnet) if (Pnet == Pnet) else float('nan')
+                net_mwh = (max(Pnet_eff, 0.0) * 8760.0 * cf * duty) if (Pnet_eff == Pnet_eff) else float('nan')
+
+            fcr = float(getattr(inputs, 'fixed_charge_rate', fcr_default))
+            fcr = max(0.0, min(0.30, fcr))
+            if (net_mwh == net_mwh) and net_mwh > 1e-9 and math.isfinite(net_mwh):
+                lcoe_lite = ((fcr * capex_industrial) + opex_industrial) * 1e6 / net_mwh
+            else:
+                lcoe_lite = float('inf')
+
+            econ_v388 = {
+                'economics_v388_contract_sha256': str(econ_contract_sha),
+                'magnet_regime_v388': str(magnet_regime),
+                'B_peak_bin_v388': str(Bbin),
+                'magnet_mass_proxy_v388_kg': float(magnet_mass_kg),
+                'CAPEX_magnet_v388_MUSD': float(capex_magnet),
+                'CAPEX_blanket_v388_MUSD': float(capex_blanket),
+                'CAPEX_divertor_v388_MUSD': float(capex_divertor),
+                'CAPEX_vacuum_vessel_v388_MUSD': float(capex_vv),
+                'CAPEX_cryo_v388_MUSD': float(capex_cryo_ind),
+                'CAPEX_bop_v388_MUSD': float(capex_bop_ind),
+                'CAPEX_fuel_cycle_v388_MUSD': float(capex_fuelcycle),
+                'CAPEX_buildings_installation_v388_MUSD': float(capex_buildings),
+                'CAPEX_industrial_v388_MUSD': float(capex_industrial),
+                'OPEX_industrial_v388_MUSD_per_y': float(opex_industrial),
+                'capacity_factor_used_v388': float(cf),
+                'net_electric_MWh_per_year_used_v388': float(net_mwh) if (net_mwh == net_mwh) else float('nan'),
+                'LCOE_lite_v388_USD_per_MWh': float(lcoe_lite),
+                'dominant_cost_driver_v388': str(domk),
+                'dominant_cost_frac_v388': float(domf),
+                'CAPEX_industrial_max_MUSD': float(getattr(inputs, 'CAPEX_industrial_max_MUSD', float('nan'))),
+                'OPEX_industrial_max_MUSD_per_y': float(getattr(inputs, 'OPEX_industrial_max_MUSD_per_y', float('nan'))),
+                'LCOE_lite_v388_max_USD_per_MWh': float(getattr(inputs, 'LCOE_lite_v388_max_USD_per_MWh', float('nan'))),
+            }
+    except Exception:
+        econ_v388 = {}
+
     return {
         "cost_magnet_MUSD": float(cost_magnet),
         "cost_blanket_MUSD": float(cost_blanket),
@@ -525,6 +723,7 @@ def cost_proxies(*args: Any, **kwargs: Any) -> Dict[str, float]:
         **(comp if isinstance(comp, dict) else {}),
         **(econ_v360 if isinstance(econ_v360, dict) else {}),
         **(econ_v383 if isinstance(econ_v383, dict) else {}),
+        **(econ_v388 if isinstance(econ_v388, dict) else {}),
         # structured economics for artifact (optional consumer)
         "_economics": lifecycle,
     }

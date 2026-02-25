@@ -1,0 +1,17 @@
+{
+  "include_structural_stress_v389": true,
+  "include_neutronics_activation_v390": true,
+  "include_damage_strength_coupling_v393": true,
+
+  "design_life_fpy_v393": 10.0,
+  "k_allow_deg_per_dpa_v393": 0.003,
+  "min_allow_frac_v393": 0.50,
+
+  "dpa_factor_tf_v393": 0.05,
+  "dpa_factor_cs_v393": 0.05,
+  "dpa_factor_vv_v393": 0.20,
+
+  "tf_struct_margin_degraded_min_v393": 1.2,
+  "cs_struct_margin_degraded_min_v393": "NaN",
+  "vv_struct_margin_degraded_min_v393": "NaN"
+}

@@ -228,6 +228,51 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("LCOE-lite (v383)", "LCOE_lite_v383_USD_per_MWh", hi_key="LCOE_lite_max_USD_per_MWh", units="USD/MWh",
         description="Optional cap on deterministic LCOE-lite proxy (v383).")
 
+
+    # Cost Authority 3.0 — Industrial Depth (v388.0.0) — optional caps (NaN disables)
+    add("Industrial CAPEX (v388)", "CAPEX_industrial_v388_MUSD", hi_key="CAPEX_industrial_max_MUSD", units="MUSD",
+        description="Optional cap on industrial-depth CAPEX envelope (v388).")
+    add("Industrial OPEX (v388)", "OPEX_industrial_v388_MUSD_per_y", hi_key="OPEX_industrial_max_MUSD_per_y", units="MUSD/y",
+        description="Optional cap on industrial-depth OPEX envelope (v388).")
+    add("LCOE-lite (v388)", "LCOE_lite_v388_USD_per_MWh", hi_key="LCOE_lite_v388_max_USD_per_MWh", units="USD/MWh",
+        description="Optional cap on deterministic LCOE-lite proxy computed from v388 industrial envelopes.")
+
+
+    # Structural Stress Authority (v389.0.0) — optional minima (only present when enabled)
+    add("TF structural margin (v389)", "tf_struct_margin_v389", lo_key="tf_struct_margin_min_v389", units="-",
+        description="TF structural margin (allowable/applied). Only computed when Structural Stress Authority is enabled (v389).")
+    add("CS/PF structural margin (v389)", "cs_struct_margin_v389", lo_key="cs_struct_margin_min_v389", units="-",
+        description="CS/PF structural margin from magnetic-pressure thin-shell proxy. Only computed when enabled (v389).")
+    add("VV structural margin (v389)", "vv_struct_margin_v389", lo_key="vv_struct_margin_min_v389", units="-",
+        description="Vacuum vessel external-pressure structural margin (thin-shell proxy). Only computed when enabled (v389).")
+
+    # Neutronics & Activation Authority 3.0 (v390.0.0) — optional caps/minima (NaN disables)
+    add("Shield margin (v390)", "shield_margin_cm_v390", lo_key="shield_margin_min_cm_v390", units="cm",
+        description="Effective shielding thickness margin (t_eff - t_req) for activation/shielding envelope (v390).")
+    add("FW DPA rate (v390)", "dpa_per_fpy_v390", hi_key="dpa_per_fpy_max_v390", units="DPA/FPY",
+        description="First-wall DPA-lite rate proxy (v390). Optional cap.")
+    add("FW lifetime (v390)", "fw_life_fpy_v390", lo_key="fw_life_min_fpy_v390", units="FPY",
+        description="First-wall lifetime proxy in full-power-years derived from DPA-lite (v390). Optional minimum.")
+    add("Activation index (v390)", "activation_index_v390", hi_key="activation_index_max_v390", units="-",
+        description="Activation index proxy controlling cooldown/maintenance bin (v390). Optional cap.")
+
+    # Neutronics Shield Attenuation Authority (v392.0.0) — optional caps (NaN disables)
+    add("TF case fluence (v392)", "tf_case_fluence_n_m2_per_fpy_v392", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392",
+        units="n/m^2/FPY", description="Ex-vessel fluence proxy at TF case boundary using attenuation lengths (v392).")
+    add("Cryostat fluence (v392)", "cryostat_fluence_n_m2_per_fpy_v392", hi_key="cryostat_fluence_max_n_m2_per_fpy_v392",
+        units="n/m^2/FPY", description="Ex-vessel fluence proxy at cryostat boundary using attenuation lengths (v392).")
+    add("Bioshield dose rate (v392)", "bioshield_dose_rate_uSv_h_v392", hi_key="bioshield_dose_rate_max_uSv_h_v392",
+        units="uSv/h", description="Dose-rate proxy outside biological shield (v392). Optional cap.")
+
+    # Availability 2.0 — Reliability Envelope Authority (v391.0.0) — optional caps/minima (NaN disables)
+    add("Availability certified (v391)", "availability_cert_v391", lo_key="availability_min_v391", units="-",
+        description="Certified availability envelope from MTBF/MTTR product proxy + planned/maintenance downtime (v391).")
+    add("Planned outage fraction (v391)", "planned_outage_frac_v391", hi_key="planned_outage_max_frac_v391", units="-",
+        description="Planned outage fraction from explicit planned_outage_days_per_y_v391 input (v391). Optional cap.")
+    add("Unplanned downtime fraction (v391)", "unplanned_downtime_frac_v391", hi_key="unplanned_downtime_max_frac_v391", units="-",
+        description="Unplanned downtime fraction from product of per-subsystem availability factors A_i=MTBF/(MTBF+MTTR) (v391). Optional cap.")
+    add("Maintenance downtime fraction (v391)", "maint_downtime_frac_v391", hi_key="maint_downtime_max_frac_v391", units="-",
+        description="Maintenance downtime fraction: replacement downtime (v368/v359) scaled by burden + cooldown (v390) (v391). Optional cap.")
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
         description="TBR must exceed the fuel-cycle-required proxy (contract).")

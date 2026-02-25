@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v386.0.0 — Certified External Optimizer Orchestrator 2.0
+**Current version:** v395.0.0 — Current Drive Library Expansion 1.0 (Multi-Channel Mix)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

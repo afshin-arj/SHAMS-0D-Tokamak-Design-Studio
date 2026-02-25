@@ -107,6 +107,30 @@ class PointInputs:
     H_required_max_robust: float = float("nan")
 
     # ------------------------------------------------------------------
+    # v396.0: Transport Envelope 2.0 Authority (governance only)
+    # ------------------------------------------------------------------
+    # Computes τE envelope over multiple scalings (min/max), spread ratio, and a
+    # deterministic credibility tier. Does NOT modify truth.
+    include_transport_envelope_v396: bool = True
+
+    # Optional feasibility cap on transport scaling spread ratio:
+    #   spread = tauE_max / tauE_min
+    # NaN disables (default). If set (>0), becomes an explicit feasibility constraint.
+    transport_spread_max_v396: float = float("nan")
+
+    # Optional user scaling vector (generic power-law). Disabled by default.
+    include_tauE_user_scaling_v396: bool = False
+    tauE_user_C_v396: float = float("nan")
+    tauE_user_exp_Ip_v396: float = float("nan")
+    tauE_user_exp_Bt_v396: float = float("nan")
+    tauE_user_exp_ne_v396: float = float("nan")
+    tauE_user_exp_Ploss_v396: float = float("nan")
+    tauE_user_exp_R_v396: float = float("nan")
+    tauE_user_exp_eps_v396: float = float("nan")
+    tauE_user_exp_kappa_v396: float = float("nan")
+    tauE_user_exp_M_v396: float = float("nan")
+
+    # ------------------------------------------------------------------
     # v372.0: Neutronics–Materials Coupling Authority 2.0 (governance only)
     # ------------------------------------------------------------------
     include_neutronics_materials_coupling_v372: bool = False
@@ -529,6 +553,7 @@ class PointInputs:
     # --- (New) Current drive / heating system realism ---
     include_current_drive: bool = False
     include_cd_library_v357: bool = False
+    include_cd_library_v395: bool = False
 
     # Target NI closure (used when include_current_drive=True)
     f_noninductive_target: float = 1.0
@@ -539,8 +564,21 @@ class PointInputs:
     Pcd_max_MW: float = 200.0
 
     # CD model selection
-    cd_model: str = "fixed_gamma"   # fixed_gamma | actuator_scaling | channel_library_v357
+    cd_model: str = "fixed_gamma"   # fixed_gamma | actuator_scaling | channel_library_v357 | channel_library_v395
     cd_actuator: str = "ECCD"      # ECCD | LHCD | NBI | ICRF
+
+    # v395.0 multi-channel mix (fractions of launched P_cd; normalized if sum>0)
+    cd_mix_enable: bool = False
+    cd_mix_frac_eccd: float = 1.0
+    cd_mix_frac_lhcd: float = 0.0
+    cd_mix_frac_nbi: float = 0.0
+    cd_mix_frac_icrf: float = 0.0
+
+    # Optional wall-plug efficiencies per channel (NaN -> use eta_cd_wallplug)
+    eta_cd_wallplug_eccd: float = float('nan')
+    eta_cd_wallplug_lhcd: float = float('nan')
+    eta_cd_wallplug_nbi: float = float('nan')
+    eta_cd_wallplug_icrf: float = float('nan')
 
     # v357.0 channel knobs (used only when include_cd_library_v357=True)
     # LHCD
@@ -787,6 +825,95 @@ class PointInputs:
     CAPEX_structured_max_MUSD: float = float('nan')
     OPEX_structured_max_MUSD_per_y: float = float('nan')
     LCOE_lite_max_USD_per_MWh: float = float('nan')
+
+    # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional; OFF by default) ---
+    # Deterministic, algebraic subsystem scaling envelopes. Governance-only.
+    include_cost_authority_v388: bool = False
+    CAPEX_industrial_max_MUSD: float = float('nan')
+    OPEX_industrial_max_MUSD_per_y: float = float('nan')
+    LCOE_lite_v388_max_USD_per_MWh: float = float('nan')
+
+    # --- (v389.0.0) Structural Stress Authority (optional; OFF by default) ---
+    # Deterministic, algebraic thin-shell proxies for TF / CS / vacuum vessel.
+    include_structural_stress_v389: bool = False
+
+    # TF structural margin minimum (dimensionless). Applied when authority enabled.
+    tf_struct_margin_min_v389: float = 1.0
+
+    # CS/PF structural proxy inputs
+    t_cs_struct_m_v389: float = 0.20
+    sigma_cs_allow_MPa_v389: float = 300.0
+    cs_struct_margin_min_v389: float = 1.0
+
+    # Vacuum vessel external pressure proxy inputs
+    vv_ext_pressure_MPa_v389: float = 0.101  # ~1 atm
+    sigma_vv_allow_MPa_v389: float = 200.0
+    vv_struct_margin_min_v389: float = 1.0
+
+    # --- (v390.0.0) Neutronics & Activation Authority 3.0 (optional; OFF by default) ---
+    # Deterministic shielding envelope + activation + FW damage proxies (governance-only).
+    include_neutronics_activation_v390: bool = False
+    blanket_class_v390: str = "STANDARD"
+    # Shield requirement envelope exponents
+    shield_req_Pfus_exp_v390: float = 0.25
+    shield_req_qwall_exp_v390: float = 0.50
+    # FW damage proxy parameters
+    fw_dpa_per_fpy_per_MWm2_v390: float = 15.0
+    fw_dpa_limit_v390: float = 20.0
+    # Optional constraints (NaN disables)
+    shield_margin_min_cm_v390: float = float("nan")
+    fw_life_min_fpy_v390: float = float("nan")
+    dpa_per_fpy_max_v390: float = float("nan")
+    activation_index_max_v390: float = float("nan")
+
+    # --- (v392.0.0) Neutronics Shield Attenuation Authority (optional; OFF by default) ---
+    # Deterministic ex-vessel fluence + bioshield dose proxy using exponential attenuation lengths.
+    include_neutronics_shield_attenuation_v392: bool = False
+    # Pathlength gaps from FW stack to boundaries (m)
+    gap_to_tf_case_m_v392: float = 0.20
+    gap_to_cryostat_m_v392: float = 0.80
+    gap_to_bioshield_m_v392: float = 1.20
+    # Biological shield thickness (m)
+    t_bioshield_m_v392: float = 1.20
+    # Attenuation length overrides (m). If stack lambda is NaN/<=0, falls back to atten_len_m.
+    atten_len_stack_m_v392: float = float("nan")
+    atten_len_bioshield_m_v392: float = 0.35
+    # Optional inverse-square geometric dilution toggle (screening)
+    use_inv_square_geom_v392: bool = True
+    # Dose conversion proxy: uSv/h per (n/m^2/s)
+    dose_uSv_h_per_flux_n_m2_s_v392: float = 1.0e-20
+    # Optional caps (NaN disables)
+    tf_case_fluence_max_n_m2_per_fpy_v392: float = float("nan")
+    cryostat_fluence_max_n_m2_per_fpy_v392: float = float("nan")
+    bioshield_dose_rate_max_uSv_h_v392: float = float("nan")
+
+    # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional; OFF by default) ---
+    # Deterministic algebraic availability envelope driven by explicit MTBF/MTTR + planned/maintenance downtime.
+    include_availability_reliability_v391: bool = False
+    planned_outage_days_per_y_v391: float = 30.0
+
+    # MTBF/MTTR (hours) by subsystem class (deterministic proxies; user-tunable)
+    mtbf_tf_h_v391: float = 80000.0
+    mttr_tf_h_v391: float = 240.0
+    mtbf_pfcs_h_v391: float = 60000.0
+    mttr_pfcs_h_v391: float = 168.0
+    mtbf_divertor_h_v391: float = 20000.0
+    mttr_divertor_h_v391: float = 336.0
+    mtbf_blanket_h_v391: float = 25000.0
+    mttr_blanket_h_v391: float = 504.0
+    mtbf_cryo_h_v391: float = 40000.0
+    mttr_cryo_h_v391: float = 120.0
+    mtbf_hcd_h_v391: float = 30000.0
+    mttr_hcd_h_v391: float = 168.0
+    mtbf_bop_h_v391: float = 50000.0
+    mttr_bop_h_v391: float = 72.0
+
+    # Optional caps/minima (NaN disables)
+    availability_min_v391: float = float("nan")
+    planned_outage_max_frac_v391: float = float("nan")
+    unplanned_downtime_max_frac_v391: float = float("nan")
+    maint_downtime_max_frac_v391: float = float("nan")
+
 
     # --- (v384.0.0) Materials & Lifetime Tightening (optional; OFF by default) ---
     include_materials_lifetime_v384: bool = False

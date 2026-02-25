@@ -71,6 +71,7 @@ try:
     from ..analysis.plasma_regime import evaluate_plasma_regime  # type: ignore
     from ..analysis.availability import compute_availability  # type: ignore
     from ..availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
+    from ..availability.reliability_v391 import compute_availability_reliability_bundle_v391  # type: ignore
     from ..maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
     # v367.0 module is under repo-root `analysis/` namespace for test/runtime wiring
     from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
@@ -88,6 +89,7 @@ except Exception:
     from analysis.plasma_regime import evaluate_plasma_regime  # type: ignore
     from analysis.availability import compute_availability  # type: ignore
     from availability.ledger_v359 import compute_availability_replacement_v359  # type: ignore
+    from availability.reliability_v391 import compute_availability_reliability_bundle_v391  # type: ignore
     from maintenance.scheduling_v368 import compute_maintenance_schedule_v368  # type: ignore
     from analysis.materials_lifetime_v367 import compute_materials_lifetime_closure_v367  # type: ignore
     from analysis.materials_lifetime_v384 import compute_materials_lifetime_tightening_v384  # type: ignore
@@ -105,6 +107,11 @@ try:
     from analysis.transport_contracts_v371 import evaluate_transport_contracts_v371  # type: ignore
 except Exception:
     evaluate_transport_contracts_v371 = None  # type: ignore
+
+try:
+    from analysis.transport_envelope_v396 import evaluate_transport_envelope_v396  # type: ignore
+except Exception:
+    evaluate_transport_envelope_v396 = None  # type: ignore
 
 try:
     from analysis.neutronics_materials_coupling_v372 import evaluate_neutronics_materials_coupling_v372  # type: ignore
@@ -129,6 +136,8 @@ try:
     )  # type: ignore
     from ..engineering.pf_cs import cs_flux_swing_proxy  # type: ignore
     from ..engineering.coil_thermal import tf_coil_heat_proxy  # type: ignore
+    from ..engineering.structural_stress_authority_v389 import compute_structural_stress_bundle_v389  # type: ignore
+    from ..engineering.neutronics_activation_authority_v390 import compute_neutronics_activation_bundle_v390  # type: ignore
     from ..phase1_models import (
         tokamak_volume,
         tokamak_surface_area,
@@ -193,6 +202,7 @@ except Exception:
     )  # type: ignore
     from engineering.pf_cs import cs_flux_swing_proxy  # type: ignore
     from engineering.coil_thermal import tf_coil_heat_proxy  # type: ignore
+    from engineering.neutronics_activation_authority_v390 import compute_neutronics_activation_bundle_v390  # type: ignore
     from phase1_models import (
         tokamak_volume,
         tokamak_surface_area,
@@ -822,7 +832,32 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             "transport_contracts_v371_error": f"{type(e).__name__}: {e}",
         }
 
-    # ---------------------------
+    
+    # -----------------------------------------------------------------
+    # v396.0: Transport Envelope 2.0 (governance-only; no truth edits)
+    # -----------------------------------------------------------------
+    transport_envelope_v396: Dict[str, Any] = {}
+    try:
+        if evaluate_transport_envelope_v396 is None:
+            raise RuntimeError("transport envelope module not importable")
+        transport_envelope_v396 = evaluate_transport_envelope_v396(
+            inp=inp,
+            out_partial={
+                "ne20": ne20,
+                "P_SOL_MW": Ploss_MW,
+                "Pin_MW": Pin_MW,
+                "tauIPB_s": tauIPB_s,
+                "tauE_required_s": tauE_required_s,
+                "H_required": H_required,
+            },
+        )
+    except Exception as e:
+        transport_envelope_v396 = {
+            "transport_envelope_v396_enabled": False,
+            "transport_envelope_v396_error": f"{type(e).__name__}: {e}",
+        }
+
+# ---------------------------
     # Particle sustainability (optional diagnostic closure)
     # ---------------------------
     tau_p_s = float("nan")
@@ -1789,6 +1824,30 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out.setdefault("neutron_attenuation_factor", float("nan"))
         out.setdefault("P_nuc_total_MW", float("nan"))
 
+
+    # =========================================================================
+    # Added: Neutronics & Activation Authority 3.0 (v390.0.0) — optional, algebraic
+    # =========================================================================
+    try:
+        na390 = compute_neutronics_activation_bundle_v390(out, inp)
+        if isinstance(na390, dict):
+            out.update(na390)
+    except Exception:
+        pass
+
+    # =========================================================================
+    # Added: Neutronics Shield Attenuation Authority (v392.0.0) — optional, algebraic
+    # =========================================================================
+    try:
+        from ..engineering.neutronics_shield_attenuation_authority_v392 import (
+            compute_neutronics_shield_attenuation_bundle_v392,
+        )
+        na392 = compute_neutronics_shield_attenuation_bundle_v392(out, inp)
+        if isinstance(na392, dict):
+            out.update(na392)
+    except Exception:
+        pass
+
     # Optional screening cap (NaN disables)
     out["neutron_wall_load_max_MW_m2"] = float(getattr(inp, "neutron_wall_load_max_MW_m2", float("nan")))
 
@@ -1824,7 +1883,30 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["P_cd_required_MW"] = float(Pcd_req_MW)
             Pcd_launch = min(max(Pcd_req_MW, 0.0), max(Pcd_max, 0.0))
             out["cd_power_saturated"] = 1.0 if (Pcd_req_MW > Pcd_max + 1e-9) else 0.0
-            Icd_A = Pcd_launch * 1e6 * max(gamma, 0.0)
+            # v395: optional multi-channel mix. If present, compute per-channel currents explicitly.
+            Icd_A = 0.0
+            if getattr(cd, "channels", None):
+                ch = dict(getattr(cd, "channels") or {})
+                for name, meta in ch.items():
+                    try:
+                        frac = float(meta.get("frac", 0.0))
+                        gch = float(meta.get("gamma_A_per_W", 0.0))
+                        if frac <= 0.0 or gch <= 0.0:
+                            continue
+                        Pch_MW = Pcd_launch * frac
+                        Ich_A = Pch_MW * 1e6 * gch
+                        Icd_A += Ich_A
+                        out[f"P_cd_{name}_MW"] = float(Pch_MW)
+                        out[f"I_cd_{name}_MA"] = float(Ich_A / 1e6)
+                        out[f"gamma_cd_{name}_A_per_W"] = float(gch)
+                        try:
+                            out[f"eta_cd_wallplug_{name}"] = float(meta.get("eta_wallplug", float('nan')))
+                        except Exception:
+                            out[f"eta_cd_wallplug_{name}"] = float('nan')
+                    except Exception:
+                        continue
+            else:
+                Icd_A = Pcd_launch * 1e6 * max(gamma, 0.0)
             f_NI = f_bs + Icd_A / Ip_A
             out["P_cd_launch_MW"] = float(Pcd_launch)
 
@@ -1864,6 +1946,11 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out["I_cd_MA"] = float(Icd_A / 1e6)
             out["f_noninductive"] = float(f_NI)
             out["f_noninductive_target"] = float(f_target)
+
+            # Aggregate bookkeeping for v395 (safe even if single-channel)
+            out.setdefault("P_CD_MW", float(Pcd_launch))
+            out.setdefault("P_CD_launch_MW", float(Pcd_launch))
+            out["eta_CD_A_W"] = float(max(gamma, 0.0))
 
             # v357.0 CD library diagnostics (pure algebraic bookkeeping)
             out["include_cd_library_v357"] = bool(getattr(inp, "include_cd_library_v357", False))
@@ -2038,6 +2125,17 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["cs_flux_margin_min"] = float(getattr(inp, "cs_flux_margin_min", float("nan")))
     except Exception:
         pass
+
+    # =========================================================================
+    # Added: Structural Stress Authority (v389.0.0) — optional, algebraic
+    # =========================================================================
+    try:
+        ss389 = compute_structural_stress_bundle_v389(out, inp)
+        if isinstance(ss389, dict):
+            out.update(ss389)
+    except Exception:
+        pass
+
     out["P_net_min_MW"] = getattr(inp, "P_net_min_MW", float("nan"))
 
     # =========================================================================
@@ -2417,6 +2515,23 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             # Pass-through caps for visibility
             out["outage_fraction_v368_max"] = float(getattr(inp, "outage_fraction_v368_max", float("nan")))
             out["availability_v368_min"] = float(getattr(inp, "availability_v368_min", float("nan")))
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional)
+    # -----------------------------------------------------------------
+    try:
+        # Pass-through optional caps/minima for constraint visibility
+        out["include_availability_reliability_v391"] = bool(getattr(inp, "include_availability_reliability_v391", False))
+        out["availability_min_v391"] = float(getattr(inp, "availability_min_v391", float("nan")))
+        out["planned_outage_max_frac_v391"] = float(getattr(inp, "planned_outage_max_frac_v391", float("nan")))
+        out["unplanned_downtime_max_frac_v391"] = float(getattr(inp, "unplanned_downtime_max_frac_v391", float("nan")))
+        out["maint_downtime_max_frac_v391"] = float(getattr(inp, "maint_downtime_max_frac_v391", float("nan")))
+        if bool(getattr(inp, "include_availability_reliability_v391", False)):
+            ar391 = compute_availability_reliability_bundle_v391(out, inp)
+            if isinstance(ar391, dict):
+                out.update(ar391)
     except Exception:
         pass
 
@@ -3014,6 +3129,21 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     except Exception:
         pass
 
+
+    # v396.0 transport envelope 2.0 (governance-only diagnostics)
+    try:
+        if isinstance(transport_envelope_v396, dict):
+            for k, v in transport_envelope_v396.items():
+                if k not in out:
+                    out[k] = v
+                else:
+                    try:
+                        if (out.get(k) != out.get(k)) and (v == v):
+                            out[k] = v
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
     # v372.0 neutronics–materials coupling (governance-only diagnostics)
     try:

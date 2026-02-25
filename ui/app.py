@@ -910,6 +910,20 @@ PD_KEYS = {
     "include_transport_contracts_v371": "pd_include_transport_contracts_v371",
     "H_required_max_optimistic": "pd_H_required_max_optimistic",
     "H_required_max_robust": "pd_H_required_max_robust",
+
+    # v396.0 transport envelope 2.0 keys
+    "include_transport_envelope_v396": "pd_include_transport_envelope_v396",
+    "transport_spread_max_v396": "pd_transport_spread_max_v396",
+    "include_tauE_user_scaling_v396": "pd_include_tauE_user_scaling_v396",
+    "tauE_user_C_v396": "pd_tauE_user_C_v396",
+    "tauE_user_exp_Ip_v396": "pd_tauE_user_exp_Ip_v396",
+    "tauE_user_exp_Bt_v396": "pd_tauE_user_exp_Bt_v396",
+    "tauE_user_exp_ne_v396": "pd_tauE_user_exp_ne_v396",
+    "tauE_user_exp_Ploss_v396": "pd_tauE_user_exp_Ploss_v396",
+    "tauE_user_exp_R_v396": "pd_tauE_user_exp_R_v396",
+    "tauE_user_exp_eps_v396": "pd_tauE_user_exp_eps_v396",
+    "tauE_user_exp_kappa_v396": "pd_tauE_user_exp_kappa_v396",
+    "tauE_user_exp_M_v396": "pd_tauE_user_exp_M_v396",
     # v372.0 neutronics–materials coupling keys
     "include_neutronics_materials_coupling_v372": "pd_include_nm_coupling_v372",
     "nm_material_class_v372": "pd_nm_material_class_v372",
@@ -3122,7 +3136,13 @@ if _deck == "📚 Publication Benchmarks":
     st.header(" Benchmarks")
     st.caption("Benchmark suite: publication tables and the Tokamak Constitutional Atlas (preset-driven, intent-aware).")
 
-    _pb_tabs = st.tabs(["🗺️ Tokamak Constitutional Atlas", "🧭 Cross‑Code Constitutions", "📦 Publication Benchmarks", "🧾 Contract Studio"])
+    _pb_tabs = st.tabs([
+        "🗺️ Tokamak Constitutional Atlas",
+        "🧭 Cross‑Code Constitutions",
+        "📦 Publication Benchmarks",
+        "🧾 Contract Studio",
+        "🧾 Regulatory Evidence Pack Builder (v387)",
+    ])
     with _pb_tabs[0]:
         st.subheader("🗺️ Tokamak Constitutional Atlas")
         st.caption("Select a famous tokamak preset and evaluate under **Research** or **Reactor** intent. No tuning. Deterministic, reviewer-safe.")
@@ -3541,6 +3561,86 @@ if _deck == "📚 Publication Benchmarks":
                 st.error(f"Contract Studio import failed: {e}")
             except Exception:
                 pass
+
+    with _pb_tabs[4]:
+        st.subheader("🧾 Regulatory Evidence Pack Builder (v387)")
+        st.caption("Deterministic, hash-locked evidence ZIP from cached runs (export-only).")
+
+        try:
+            from src.tools.evidence_pack_v387 import build_evidence_pack_v387
+        except Exception as _e:
+            st.error(f"Evidence pack builder import failed: {_e}")
+        else:
+            # Cache-only: do not compute here; export whatever is already in session cache.
+            cache_sources = {
+                "pd_last_outputs": st.session_state.get("pd_last_outputs"),
+                "systems_last_solution": st.session_state.get("systems_last_solution"),
+                "scan_last_artifact": st.session_state.get("scan_last_artifact"),
+                "pareto_last_front": st.session_state.get("pareto_last_front"),
+                "extopt_last_run": st.session_state.get("extopt_last_run"),
+                "surrogate_v386_last_screening_run": st.session_state.get("surrogate_v386_last_screening_run"),
+            }
+
+            st.markdown("### Select cached sources")
+            include_flags: Dict[str, bool] = {}
+            cols = st.columns(2)
+            for i, k in enumerate(sorted(cache_sources.keys())):
+                v = cache_sources.get(k)
+                avail = isinstance(v, (dict, list))
+                with cols[i % 2]:
+                    include_flags[k] = st.checkbox(
+                        f"Include `{k}`{' ✅' if avail else ' (missing)'}",
+                        value=bool(avail),
+                        disabled=not avail,
+                        key=f"pb_v387_inc_{k}",
+                    )
+
+            notes = st.text_area(
+                "Reviewer notes (optional)",
+                value=str(st.session_state.get("pb_v387_notes", "")),
+                key="pb_v387_notes",
+                height=120,
+            )
+            st.session_state["pb_v387_notes"] = notes
+
+            run_btn = st.button("▶ Build Evidence Pack", type="primary", key="pb_v387_build")
+            if run_btn:
+                shams_version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0]
+                out_dir = REPO_ROOT / "ui_runs" / "evidence_packs_v387"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                out_zip = out_dir / "evidence_pack_v387.zip"
+                with st.spinner("Building deterministic evidence ZIP…"):
+                    res = build_evidence_pack_v387(
+                        out_zip,
+                        shams_version=shams_version,
+                        sources=cache_sources,
+                        include=include_flags,
+                        notes=notes,
+                    )
+                st.session_state["evidence_pack_v387_last_zip"] = str(res.zip_path)
+                st.session_state["evidence_pack_v387_last_index"] = res.index
+
+            # Render from cache
+            idx = st.session_state.get("evidence_pack_v387_last_index")
+            zpath = st.session_state.get("evidence_pack_v387_last_zip")
+            if isinstance(idx, dict):
+                with st.expander("Pack index", expanded=False):
+                    st.json(idx, expanded=False)
+            if isinstance(zpath, str) and zpath:
+                try:
+                    from pathlib import Path
+                    p = Path(zpath)
+                    if p.exists():
+                        st.download_button(
+                            "⬇️ Download Evidence Pack (ZIP)",
+                            data=p.read_bytes(),
+                            file_name=p.name,
+                            mime="application/zip",
+                            use_container_width=True,
+                            key="pb_v387_dl",
+                        )
+                except Exception as _e:
+                    st.error(f"Unable to load evidence ZIP: {_e}")
 
 if _deck == "🎛️ Control Room":
     st.header("🛡️ Control Room")
@@ -4377,6 +4477,58 @@ if _deck == "🧭 Point Designer":
                         )
                     st.caption("These caps are explicit constraints (no smoothing): if set, infeasible points are reported as transport-limited.")
 
+
+                # -----------------------------------------------------------------
+                # v396.0: Transport Envelope 2.0 (governance-only)
+                # -----------------------------------------------------------------
+                with st.expander("Transport Envelope 2.0 (v396)", expanded=False):
+                    include_transport_envelope_v396 = st.checkbox(
+                        "Enable Transport Envelope 2.0 diagnostics",
+                        value=bool(getattr(_base_pd, "include_transport_envelope_v396", True)),
+                        key=PD_KEYS["include_transport_envelope_v396"],
+                        help=(
+                            "Computes τE envelope over IPB98(y,2) and ITER89-P (and optional user scaling), "
+                            "then reports spread ratio and a deterministic credibility tier. "
+                            "Governance-only: does not change frozen truth unless you set a spread cap as a constraint."
+                        ),
+                    )
+
+                    _spread_base = getattr(_base_pd, "transport_spread_max_v396", float("nan"))
+                    transport_spread_max_v396 = st.number_input(
+                        "Max transport spread ratio (tauE_max/tauE_min) [optional constraint]",
+                        min_value=1.0,
+                        max_value=20.0,
+                        value=float(_spread_base) if (float(_spread_base)==float(_spread_base) and float(_spread_base)>0) else 4.0,
+                        step=0.1,
+                        key=PD_KEYS["transport_spread_max_v396"],
+                        disabled=not include_transport_envelope_v396,
+                        help="If set (finite), enforces tauE_max/tauE_min ≤ cap as an explicit feasibility constraint.",
+                    )
+                    st.caption("Set to NaN in advanced inputs to disable as a feasibility constraint (diagnostics still computed).")
+
+                    st.divider()
+                    include_tauE_user_scaling_v396 = st.checkbox(
+                        "Include user scaling vector (generic power-law) [optional]",
+                        value=bool(getattr(_base_pd, "include_tauE_user_scaling_v396", False)),
+                        key=PD_KEYS["include_tauE_user_scaling_v396"],
+                        disabled=not include_transport_envelope_v396,
+                        help="Adds USER(v396) τE scaling to the envelope. Provide C and exponents; otherwise it is ignored.",
+                    )
+
+                    cU1, cU2, cU3 = st.columns(3)
+                    with cU1:
+                        tauE_user_C_v396 = st.number_input("C", value=float(getattr(_base_pd, "tauE_user_C_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_C_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                        tauE_user_exp_Ip_v396 = st.number_input("exp_Ip", value=float(getattr(_base_pd, "tauE_user_exp_Ip_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_Ip_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                        tauE_user_exp_Bt_v396 = st.number_input("exp_Bt", value=float(getattr(_base_pd, "tauE_user_exp_Bt_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_Bt_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                    with cU2:
+                        tauE_user_exp_ne_v396 = st.number_input("exp_ne", value=float(getattr(_base_pd, "tauE_user_exp_ne_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_ne_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                        tauE_user_exp_Ploss_v396 = st.number_input("exp_Ploss", value=float(getattr(_base_pd, "tauE_user_exp_Ploss_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_Ploss_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                        tauE_user_exp_R_v396 = st.number_input("exp_R", value=float(getattr(_base_pd, "tauE_user_exp_R_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_R_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                    with cU3:
+                        tauE_user_exp_eps_v396 = st.number_input("exp_eps", value=float(getattr(_base_pd, "tauE_user_exp_eps_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_eps_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                        tauE_user_exp_kappa_v396 = st.number_input("exp_kappa", value=float(getattr(_base_pd, "tauE_user_exp_kappa_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_kappa_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+                        tauE_user_exp_M_v396 = st.number_input("exp_M", value=float(getattr(_base_pd, "tauE_user_exp_M_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_M_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
+
                 # -----------------------------------------------------------------
                 # v372.0: Neutronics–Materials coupling (governance-only)
                 # -----------------------------------------------------------------
@@ -5094,6 +5246,65 @@ if _deck == "🧭 Point Designer":
                             value=float(getattr(defaults, "maintenance_planning_horizon_yr", float('nan'))),
                             step=1.0,
                         )
+
+                # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional) ---
+                with st.expander("🧩 Availability & reliability envelope (v391.0.0)", expanded=False):
+                    st.caption(
+                        "Deterministic availability envelope driven by explicit MTBF/MTTR proxies plus planned and maintenance downtime. "
+                        "Governance-only; OFF by default. No RAMI simulation (no Monte Carlo / Markov chains)."
+                    )
+                    include_availability_reliability_v391 = st.checkbox(
+                        "Enable availability reliability envelope authority (v391.0.0)",
+                        value=bool(getattr(defaults, "include_availability_reliability_v391", False)),
+                        help="Adds availability_cert_v391 plus explicit downtime decomposition and a subsystem ledger.",
+                    )
+                    planned_outage_days_per_y_v391 = st.number_input(
+                        "Planned outage (days/year)",
+                        min_value=0.0,
+                        max_value=365.0,
+                        value=float(getattr(defaults, "planned_outage_days_per_y_v391", 30.0) or 30.0),
+                        step=1.0,
+                        help="Deterministic planned outage allocation. Converted to planned_outage_frac_v391 = days/365.",
+                    )
+                    st.markdown("**MTBF/MTTR (hours) — subsystem proxies**")
+                    cR1, cR2 = st.columns(2)
+                    with cR1:
+                        mtbf_tf_h_v391 = st.number_input("TF MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_tf_h_v391", 80000.0) or 80000.0), step=1000.0)
+                        mttr_tf_h_v391 = st.number_input("TF MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_tf_h_v391", 240.0) or 240.0), step=24.0)
+                        mtbf_pfcs_h_v391 = st.number_input("PF/CS MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_pfcs_h_v391", 60000.0) or 60000.0), step=1000.0)
+                        mttr_pfcs_h_v391 = st.number_input("PF/CS MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_pfcs_h_v391", 168.0) or 168.0), step=24.0)
+                        mtbf_cryo_h_v391 = st.number_input("Cryoplant MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_cryo_h_v391", 40000.0) or 40000.0), step=1000.0)
+                        mttr_cryo_h_v391 = st.number_input("Cryoplant MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_cryo_h_v391", 120.0) or 120.0), step=24.0)
+                        mtbf_bop_h_v391 = st.number_input("BOP MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_bop_h_v391", 50000.0) or 50000.0), step=1000.0)
+                        mttr_bop_h_v391 = st.number_input("BOP MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_bop_h_v391", 72.0) or 72.0), step=24.0)
+                    with cR2:
+                        mtbf_divertor_h_v391 = st.number_input("Divertor MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_divertor_h_v391", 20000.0) or 20000.0), step=1000.0)
+                        mttr_divertor_h_v391 = st.number_input("Divertor MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_divertor_h_v391", 336.0) or 336.0), step=24.0)
+                        mtbf_blanket_h_v391 = st.number_input("Blanket MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_blanket_h_v391", 25000.0) or 25000.0), step=1000.0)
+                        mttr_blanket_h_v391 = st.number_input("Blanket MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_blanket_h_v391", 504.0) or 504.0), step=24.0)
+                        mtbf_hcd_h_v391 = st.number_input("HCD MTBF (h)", min_value=1.0, value=float(getattr(defaults, "mtbf_hcd_h_v391", 30000.0) or 30000.0), step=1000.0)
+                        mttr_hcd_h_v391 = st.number_input("HCD MTTR (h)", min_value=0.0, value=float(getattr(defaults, "mttr_hcd_h_v391", 168.0) or 168.0), step=24.0)
+
+                    st.markdown("**Optional caps/minima (NaN disables)**")
+                    cR3, cR4 = st.columns(2)
+                    with cR3:
+                        availability_min_v391 = st.number_input(
+                            "Min availability (v391) (NaN disables)",
+                            value=float(getattr(defaults, "availability_min_v391", float('nan'))),
+                        )
+                        planned_outage_max_frac_v391 = st.number_input(
+                            "Max planned outage fraction (v391) (NaN disables)",
+                            value=float(getattr(defaults, "planned_outage_max_frac_v391", float('nan'))),
+                        )
+                    with cR4:
+                        unplanned_downtime_max_frac_v391 = st.number_input(
+                            "Max unplanned downtime fraction (v391) (NaN disables)",
+                            value=float(getattr(defaults, "unplanned_downtime_max_frac_v391", float('nan'))),
+                        )
+                        maint_downtime_max_frac_v391 = st.number_input(
+                            "Max maintenance downtime fraction (v391) (NaN disables)",
+                            value=float(getattr(defaults, "maint_downtime_max_frac_v391", float('nan'))),
+                        )
                 # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
                 with st.expander("💰 Plant Economics Authority (v360.0)", expanded=False):
                     st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
@@ -5157,6 +5368,299 @@ if _deck == "🧭 Point Designer":
                             "Max LCOE-lite (v383) (USD/MWh) (NaN disables)",
                             value=float(getattr(defaults, "LCOE_lite_max_USD_per_MWh", float('nan'))),
                             key="pd_LCOE_lite_max_USD_per_MWh_v383",
+                        )
+
+
+
+                # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional) ---
+                with st.expander("🏭 Cost Authority — Industrial Depth (v388.0.0)", expanded=False):
+                    st.caption("Deterministic, engineering-driven subsystem cost scaling envelopes (industrial depth). Governance-only; OFF by default. Requires the Economics overlay toggle above so cost outputs are computed.")
+                    include_cost_authority_v388 = st.checkbox(
+                        "Enable cost authority 3.0 (v388.0.0)",
+                        value=bool(getattr(defaults, "include_cost_authority_v388", False)),
+                        key="pd_include_cost_authority_v388",
+                    )
+                    cC1, cC2 = st.columns(2)
+                    with cC1:
+                        CAPEX_industrial_max_MUSD = st.number_input(
+                            "Max industrial CAPEX (v388) (MUSD) (NaN disables)",
+                            value=float(getattr(defaults, "CAPEX_industrial_max_MUSD", float('nan'))),
+                            key="pd_CAPEX_industrial_max_MUSD_v388",
+                        )
+                        OPEX_industrial_max_MUSD_per_y = st.number_input(
+                            "Max industrial OPEX (v388) (MUSD/y) (NaN disables)",
+                            value=float(getattr(defaults, "OPEX_industrial_max_MUSD_per_y", float('nan'))),
+                            key="pd_OPEX_industrial_max_MUSD_per_y_v388",
+                        )
+                    with cC2:
+                        LCOE_lite_v388_max_USD_per_MWh = st.number_input(
+                            "Max LCOE-lite (v388) (USD/MWh) (NaN disables)",
+                            value=float(getattr(defaults, "LCOE_lite_v388_max_USD_per_MWh", float('nan'))),
+                            key="pd_LCOE_lite_v388_max_USD_per_MWh_v388",
+                        )
+
+
+
+
+                # --- (v389.0.0) Structural Stress Authority — v389.0.0 (optional) ---
+                with st.expander("🧱 Structural Stress Authority — v389.0.0", expanded=False):
+                    st.caption("Deterministic thin-shell structural stress proxies (TF / CS / vacuum vessel). Governance-only; OFF by default. When enabled, explicit margin-minima constraints are applied in feasibility-first mode.")
+                    include_structural_stress_v389 = st.checkbox(
+                        "Enable structural stress authority (v389.0.0)",
+                        value=bool(getattr(defaults, "include_structural_stress_v389", False)),
+                        key="pd_include_structural_stress_v389",
+                    )
+                    sS1, sS2 = st.columns(2)
+                    with sS1:
+                        tf_struct_margin_min_v389 = st.number_input(
+                            "TF structural margin min (v389) (-)",
+                            value=float(getattr(defaults, "tf_struct_margin_min_v389", 1.0)),
+                            key="pd_tf_struct_margin_min_v389",
+                        )
+                        t_cs_struct_m_v389 = st.number_input(
+                            "CS structural thickness proxy t_cs (v389) (m)",
+                            value=float(getattr(defaults, "t_cs_struct_m_v389", 0.20)),
+                            key="pd_t_cs_struct_m_v389",
+                        )
+                        sigma_cs_allow_MPa_v389 = st.number_input(
+                            "CS allowable stress proxy (v389) (MPa)",
+                            value=float(getattr(defaults, "sigma_cs_allow_MPa_v389", 300.0)),
+                            key="pd_sigma_cs_allow_MPa_v389",
+                        )
+                        cs_struct_margin_min_v389 = st.number_input(
+                            "CS/PF structural margin min (v389) (-)",
+                            value=float(getattr(defaults, "cs_struct_margin_min_v389", 1.0)),
+                            key="pd_cs_struct_margin_min_v389",
+                        )
+                    with sS2:
+                        vv_ext_pressure_MPa_v389 = st.number_input(
+                            "Vacuum vessel external pressure (v389) (MPa)",
+                            value=float(getattr(defaults, "vv_ext_pressure_MPa_v389", 0.101)),
+                            key="pd_vv_ext_pressure_MPa_v389",
+                        )
+                        sigma_vv_allow_MPa_v389 = st.number_input(
+                            "Vacuum vessel allowable stress proxy (v389) (MPa)",
+                            value=float(getattr(defaults, "sigma_vv_allow_MPa_v389", 200.0)),
+                            key="pd_sigma_vv_allow_MPa_v389",
+                        )
+                        vv_struct_margin_min_v389 = st.number_input(
+                            "Vacuum vessel structural margin min (v389) (-)",
+                            value=float(getattr(defaults, "vv_struct_margin_min_v389", 1.0)),
+                            key="pd_vv_struct_margin_min_v389",
+                        )
+
+
+                # --- (v393.0.0) Damage→Strength Coupling Authority (optional) ---
+                with st.expander("🧬 Irradiation damage → strength coupling — v393.0.0", expanded=False):
+                    st.caption(
+                        "Deterministic degradation envelope that couples v390 DPA-rate proxy to v389 structural allowables, "
+                        "yielding *derived* degraded margins (truth remains immutable). OFF by default. "
+                        "Optional degraded-margin minima are explicit; NaN disables."
+                    )
+                    include_damage_strength_coupling_v393 = st.checkbox(
+                        "Enable damage → strength coupling (v393.0.0)",
+                        value=bool(getattr(defaults, "include_damage_strength_coupling_v393", False)),
+                        key="pd_include_damage_strength_coupling_v393",
+                    )
+                    dS1, dS2 = st.columns(2)
+                    with dS1:
+                        design_life_fpy_v393 = st.number_input(
+                            "Design life for damage accumulation (v393) (FPY)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "design_life_fpy_v393", 10.0)),
+                            key="pd_design_life_fpy_v393",
+                        )
+                        k_allow_deg_per_dpa_v393 = st.number_input(
+                            "Degradation slope k (v393) (1/DPA)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "k_allow_deg_per_dpa_v393", 0.003)),
+                            key="pd_k_allow_deg_per_dpa_v393",
+                        )
+                        min_allow_frac_v393 = st.number_input(
+                            "Minimum allowable fraction floor (v393) (-)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "min_allow_frac_v393", 0.50)),
+                            key="pd_min_allow_frac_v393",
+                        )
+                        tf_struct_margin_degraded_min_v393 = st.number_input(
+                            "TF degraded margin min (v393) (-) (NaN disables)",
+                            value=float(getattr(defaults, "tf_struct_margin_degraded_min_v393", float('nan'))),
+                            key="pd_tf_struct_margin_degraded_min_v393",
+                        )
+                        cs_struct_margin_degraded_min_v393 = st.number_input(
+                            "CS degraded margin min (v393) (-) (NaN disables)",
+                            value=float(getattr(defaults, "cs_struct_margin_degraded_min_v393", float('nan'))),
+                            key="pd_cs_struct_margin_degraded_min_v393",
+                        )
+                        vv_struct_margin_degraded_min_v393 = st.number_input(
+                            "VV degraded margin min (v393) (-) (NaN disables)",
+                            value=float(getattr(defaults, "vv_struct_margin_degraded_min_v393", float('nan'))),
+                            key="pd_vv_struct_margin_degraded_min_v393",
+                        )
+                    with dS2:
+                        dpa_factor_tf_v393 = st.number_input(
+                            "DPA shielding factor TF (v393) (-)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "dpa_factor_tf_v393", 0.05)),
+                            key="pd_dpa_factor_tf_v393",
+                            help="Proxy: DPA_TF = DPA_rate(v390) × life × factor.",
+                        )
+                        dpa_factor_cs_v393 = st.number_input(
+                            "DPA shielding factor CS/PF (v393) (-)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "dpa_factor_cs_v393", 0.05)),
+                            key="pd_dpa_factor_cs_v393",
+                        )
+                        dpa_factor_vv_v393 = st.number_input(
+                            "DPA shielding factor vacuum vessel (v393) (-)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "dpa_factor_vv_v393", 0.20)),
+                            key="pd_dpa_factor_vv_v393",
+                        )
+
+
+                # --- (v390.0.0) Neutronics & Activation Authority 3.0 (optional) ---
+                with st.expander("☢️ Neutronics & Activation Authority — v390.0.0", expanded=False):
+                    st.caption("Deterministic shielding envelope + activation index + FW damage proxies. Governance-only; OFF by default. Optional minima/caps are explicit; NaN disables.")
+                    include_neutronics_activation_v390 = st.checkbox(
+                        "Enable neutronics & activation authority (v390.0.0)",
+                        value=bool(getattr(defaults, "include_neutronics_activation_v390", False)),
+                        key="pd_include_neutronics_activation_v390",
+                    )
+                    blanket_class_v390 = st.selectbox(
+                        "Blanket class (v390)",
+                        options=["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"],
+                        index=["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"].index(str(getattr(defaults, "blanket_class_v390", "STANDARD") or "STANDARD").upper()) if str(getattr(defaults, "blanket_class_v390", "STANDARD") or "STANDARD").upper() in ["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"] else 0,
+                        key="pd_blanket_class_v390",
+                        help="Selects conservative regime multipliers for shielding/activation envelope.",
+                    )
+                    nA1, nA2 = st.columns(2)
+                    with nA1:
+                        shield_req_Pfus_exp_v390 = st.number_input(
+                            "Shield requirement exponent a for Pfus (v390) (-)",
+                            value=float(getattr(defaults, "shield_req_Pfus_exp_v390", 0.25)),
+                            key="pd_shield_req_Pfus_exp_v390",
+                        )
+                        shield_req_qwall_exp_v390 = st.number_input(
+                            "Shield requirement exponent b for q_wall (v390) (-)",
+                            value=float(getattr(defaults, "shield_req_qwall_exp_v390", 0.50)),
+                            key="pd_shield_req_qwall_exp_v390",
+                        )
+                        fw_dpa_per_fpy_per_MWm2_v390 = st.number_input(
+                            "FW DPA rate coefficient k (DPA/FPY per MW/m²) (v390)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "fw_dpa_per_fpy_per_MWm2_v390", 15.0)),
+                            key="pd_fw_dpa_per_fpy_per_MWm2_v390",
+                        )
+                        fw_dpa_limit_v390 = st.number_input(
+                            "FW DPA total limit (v390) (DPA)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "fw_dpa_limit_v390", 20.0)),
+                            key="pd_fw_dpa_limit_v390",
+                        )
+                    with nA2:
+                        shield_margin_min_cm_v390 = st.number_input(
+                            "Min shield margin (t_eff - t_req) (v390) (cm) (NaN disables)",
+                            value=float(getattr(defaults, "shield_margin_min_cm_v390", float('nan'))),
+                            key="pd_shield_margin_min_cm_v390",
+                        )
+                        fw_life_min_fpy_v390 = st.number_input(
+                            "Min FW lifetime (v390) (FPY) (NaN disables)",
+                            value=float(getattr(defaults, "fw_life_min_fpy_v390", float('nan'))),
+                            key="pd_fw_life_min_fpy_v390",
+                        )
+                        dpa_per_fpy_max_v390 = st.number_input(
+                            "Max FW DPA rate (v390) (DPA/FPY) (NaN disables)",
+                            value=float(getattr(defaults, "dpa_per_fpy_max_v390", float('nan'))),
+                            key="pd_dpa_per_fpy_max_v390",
+                        )
+                        activation_index_max_v390 = st.number_input(
+                            "Max activation index (v390) (-) (NaN disables)",
+                            value=float(getattr(defaults, "activation_index_max_v390", float('nan'))),
+                            key="pd_activation_index_max_v390",
+                        )
+
+
+
+                # --- (v392.0.0) Neutronics Shield Attenuation Authority (optional) ---
+                with st.expander("🛡️ Neutronics Shield Attenuation Authority — v392.0.0", expanded=False):
+                    st.caption(
+                        "Deterministic attenuation-length envelope for ex-vessel fluence (TF case / cryostat) and outside-bioshield dose proxy. "
+                        "Governance-only; OFF by default. Optional caps are explicit; NaN disables."
+                    )
+                    include_neutronics_shield_attenuation_v392 = st.checkbox(
+                        "Enable neutronics shield attenuation authority (v392.0.0)",
+                        value=bool(getattr(defaults, "include_neutronics_shield_attenuation_v392", False)),
+                        key="pd_include_neutronics_shield_attenuation_v392",
+                    )
+                    nS1, nS2 = st.columns(2)
+                    with nS1:
+                        gap_to_tf_case_m_v392 = st.number_input(
+                            "Gap to TF case (v392) (m)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "gap_to_tf_case_m_v392", 0.20)),
+                            key="pd_gap_to_tf_case_m_v392",
+                        )
+                        gap_to_cryostat_m_v392 = st.number_input(
+                            "Gap to cryostat (v392) (m)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "gap_to_cryostat_m_v392", 0.80)),
+                            key="pd_gap_to_cryostat_m_v392",
+                        )
+                        gap_to_bioshield_m_v392 = st.number_input(
+                            "Gap to bioshield (v392) (m)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "gap_to_bioshield_m_v392", 1.20)),
+                            key="pd_gap_to_bioshield_m_v392",
+                        )
+                        t_bioshield_m_v392 = st.number_input(
+                            "Bioshield thickness (v392) (m)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "t_bioshield_m_v392", 1.20)),
+                            key="pd_t_bioshield_m_v392",
+                        )
+                        use_inv_square_geom_v392 = st.checkbox(
+                            "Use inverse-square geometric dilution (v392)",
+                            value=bool(getattr(defaults, "use_inv_square_geom_v392", True)),
+                            key="pd_use_inv_square_geom_v392",
+                            help="Screening-only 1/r^2 dilution using R0 as reference; disable for conservative (no dilution) envelope.",
+                        )
+                    with nS2:
+                        atten_len_stack_m_v392 = st.number_input(
+                            "Attenuation length (stack) override (v392) (m) (NaN -> use atten_len_m)",
+                            value=float(getattr(defaults, "atten_len_stack_m_v392", float('nan'))),
+                            key="pd_atten_len_stack_m_v392",
+                        )
+                        atten_len_bioshield_m_v392 = st.number_input(
+                            "Attenuation length (bioshield) (v392) (m)",
+                            min_value=1e-6,
+                            value=float(getattr(defaults, "atten_len_bioshield_m_v392", 0.35)),
+                            key="pd_atten_len_bioshield_m_v392",
+                        )
+                        dose_uSv_h_per_flux_n_m2_s_v392 = st.number_input(
+                            "Dose conversion proxy (v392) (uSv/h per n/m²/s)",
+                            min_value=0.0,
+                            value=float(getattr(defaults, "dose_uSv_h_per_flux_n_m2_s_v392", 1.0e-20)),
+                            format="%.3e",
+                            key="pd_dose_uSv_h_per_flux_n_m2_s_v392",
+                        )
+                        tf_case_fluence_max_n_m2_per_fpy_v392 = st.number_input(
+                            "Max TF-case fluence (v392) (n/m²/FPY) (NaN disables)",
+                            value=float(getattr(defaults, "tf_case_fluence_max_n_m2_per_fpy_v392", float('nan'))),
+                            format="%.3e",
+                            key="pd_tf_case_fluence_max_n_m2_per_fpy_v392",
+                        )
+                        cryostat_fluence_max_n_m2_per_fpy_v392 = st.number_input(
+                            "Max cryostat fluence (v392) (n/m²/FPY) (NaN disables)",
+                            value=float(getattr(defaults, "cryostat_fluence_max_n_m2_per_fpy_v392", float('nan'))),
+                            format="%.3e",
+                            key="pd_cryostat_fluence_max_n_m2_per_fpy_v392",
+                        )
+                        bioshield_dose_rate_max_uSv_h_v392 = st.number_input(
+                            "Max bioshield dose rate (v392) (uSv/h) (NaN disables)",
+                            value=float(getattr(defaults, "bioshield_dose_rate_max_uSv_h_v392", float('nan'))),
+                            key="pd_bioshield_dose_rate_max_uSv_h_v392",
                         )
 
 
@@ -5519,6 +6023,12 @@ if _deck == "🧭 Point Designer":
                         disabled=False,
                         help="Adds explicit channel feasibility diagnostics and optional hard caps for LH accessibility, ECCD launcher power density, and NBI shine-through.",
                     )),
+                    "include_cd_library_v395": bool(st.checkbox(
+                        "CD multi-channel library (v395.0) — ECCD/LHCD/NBI/ICRF mix",
+                        value=False,
+                        disabled=False,
+                        help="Enables the v395 multi-channel CD library (power split across actuators) when cd_model=channel_library_v395 and cd_mix_enable=True. Purely algebraic; no solvers.",
+                    )),
 
                     "f_noninductive_target": float(_num(
                         "Target non-inductive fraction f_NI,target (–)",
@@ -5559,10 +6069,34 @@ if _deck == "🧭 Point Designer":
                     )),
                     "cd_model": str(st.selectbox(
                         "CD efficiency model",
-                        options=["fixed_gamma", "actuator_scaling", "channel_library_v357"],
+                        options=["fixed_gamma", "actuator_scaling", "channel_library_v357", "channel_library_v395"],
                         index=2,
                         help="Deterministic CD efficiency proxy model.",
                     )),
+
+                    # v395 multi-channel mix knobs (used only when cd_model=channel_library_v395)
+                    "cd_mix_enable": bool(st.checkbox(
+                        "Enable CD actuator mix (v395)",
+                        value=False,
+                        help="If enabled and cd_model=channel_library_v395, SHAMS splits launched P_cd across ECCD/LHCD/NBI/ICRF using the fractions below and computes a power-weighted effective γ_cd.",
+                    )),
+                    "cd_mix_frac_eccd": float(_num("Mix fraction: ECCD", 1.0, 0.05, min_value=0.0, max_value=1.0,
+                        help="Fraction of launched P_cd assigned to ECCD (will be normalized with other fractions if their sum>0).")),
+                    "cd_mix_frac_lhcd": float(_num("Mix fraction: LHCD", 0.0, 0.05, min_value=0.0, max_value=1.0,
+                        help="Fraction of launched P_cd assigned to LHCD.")),
+                    "cd_mix_frac_nbi": float(_num("Mix fraction: NBI", 0.0, 0.05, min_value=0.0, max_value=1.0,
+                        help="Fraction of launched P_cd assigned to NBI.")),
+                    "cd_mix_frac_icrf": float(_num("Mix fraction: ICRF", 0.0, 0.05, min_value=0.0, max_value=1.0,
+                        help="Fraction of launched P_cd assigned to ICRF/FWCD.")),
+
+                    "eta_cd_wallplug_eccd": float(_num("Wall-plug η: ECCD (optional)", float('nan'), 0.02, min_value=0.0, max_value=1.0,
+                        help="Optional per-channel wall-plug efficiency. Leave NaN to use global η_cd,wall.")),
+                    "eta_cd_wallplug_lhcd": float(_num("Wall-plug η: LHCD (optional)", float('nan'), 0.02, min_value=0.0, max_value=1.0,
+                        help="Optional per-channel wall-plug efficiency. Leave NaN to use global η_cd,wall.")),
+                    "eta_cd_wallplug_nbi": float(_num("Wall-plug η: NBI (optional)", float('nan'), 0.02, min_value=0.0, max_value=1.0,
+                        help="Optional per-channel wall-plug efficiency. Leave NaN to use global η_cd,wall.")),
+                    "eta_cd_wallplug_icrf": float(_num("Wall-plug η: ICRF (optional)", float('nan'), 0.02, min_value=0.0, max_value=1.0,
+                        help="Optional per-channel wall-plug efficiency. Leave NaN to use global η_cd,wall.")),
 
                     # LHCD knobs + optional bounds (caps are disabled by default via NaN)
                     "lhcd_n_parallel": float(_num(
@@ -5845,6 +6379,18 @@ if _deck == "🧭 Point Designer":
                             include_transport_contracts_v371=bool(include_transport_contracts_v371),
                             H_required_max_optimistic=float(H_required_max_optimistic) if bool(include_transport_contracts_v371) else float("nan"),
                             H_required_max_robust=float(H_required_max_robust) if bool(include_transport_contracts_v371) else float("nan"),
+                            include_transport_envelope_v396=bool(include_transport_envelope_v396),
+                            transport_spread_max_v396=float(transport_spread_max_v396) if bool(include_transport_envelope_v396) else float("nan"),
+                            include_tauE_user_scaling_v396=bool(include_tauE_user_scaling_v396) if bool(include_transport_envelope_v396) else False,
+                            tauE_user_C_v396=float(tauE_user_C_v396),
+                            tauE_user_exp_Ip_v396=float(tauE_user_exp_Ip_v396),
+                            tauE_user_exp_Bt_v396=float(tauE_user_exp_Bt_v396),
+                            tauE_user_exp_ne_v396=float(tauE_user_exp_ne_v396),
+                            tauE_user_exp_Ploss_v396=float(tauE_user_exp_Ploss_v396),
+                            tauE_user_exp_R_v396=float(tauE_user_exp_R_v396),
+                            tauE_user_exp_eps_v396=float(tauE_user_exp_eps_v396),
+                            tauE_user_exp_kappa_v396=float(tauE_user_exp_kappa_v396),
+                            tauE_user_exp_M_v396=float(tauE_user_exp_M_v396),
                             include_neutronics_materials_coupling_v372=bool(include_neutronics_materials_coupling_v372),
                             nm_material_class_v372=str(nm_material_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, "nm_material_class_v372", "RAFM")),
                             nm_spectrum_class_v372=str(nm_spectrum_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, "nm_spectrum_class_v372", "nominal")),
@@ -5890,6 +6436,26 @@ if _deck == "🧭 Point Designer":
                             replacement_rate_per_year=float(locals().get("replacement_rate_per_year", 0.0)),
                             include_maintenance_scheduling_v368=bool(locals().get("include_maintenance_scheduling_v368", False)),
                             maint_capacity_factor=float(locals().get("maint_capacity_factor", 1.0)),
+                            include_availability_reliability_v391=bool(locals().get("include_availability_reliability_v391", False)),
+                            planned_outage_days_per_y_v391=float(locals().get("planned_outage_days_per_y_v391", 30.0)),
+                            mtbf_tf_h_v391=float(locals().get("mtbf_tf_h_v391", 80000.0)),
+                            mttr_tf_h_v391=float(locals().get("mttr_tf_h_v391", 240.0)),
+                            mtbf_pfcs_h_v391=float(locals().get("mtbf_pfcs_h_v391", 60000.0)),
+                            mttr_pfcs_h_v391=float(locals().get("mttr_pfcs_h_v391", 168.0)),
+                            mtbf_divertor_h_v391=float(locals().get("mtbf_divertor_h_v391", 20000.0)),
+                            mttr_divertor_h_v391=float(locals().get("mttr_divertor_h_v391", 336.0)),
+                            mtbf_blanket_h_v391=float(locals().get("mtbf_blanket_h_v391", 25000.0)),
+                            mttr_blanket_h_v391=float(locals().get("mttr_blanket_h_v391", 504.0)),
+                            mtbf_cryo_h_v391=float(locals().get("mtbf_cryo_h_v391", 40000.0)),
+                            mttr_cryo_h_v391=float(locals().get("mttr_cryo_h_v391", 120.0)),
+                            mtbf_hcd_h_v391=float(locals().get("mtbf_hcd_h_v391", 30000.0)),
+                            mttr_hcd_h_v391=float(locals().get("mttr_hcd_h_v391", 168.0)),
+                            mtbf_bop_h_v391=float(locals().get("mtbf_bop_h_v391", 50000.0)),
+                            mttr_bop_h_v391=float(locals().get("mttr_bop_h_v391", 72.0)),
+                            availability_min_v391=float(locals().get("availability_min_v391", float('nan'))),
+                            planned_outage_max_frac_v391=float(locals().get("planned_outage_max_frac_v391", float('nan'))),
+                            unplanned_downtime_max_frac_v391=float(locals().get("unplanned_downtime_max_frac_v391", float('nan'))),
+                            maint_downtime_max_frac_v391=float(locals().get("maint_downtime_max_frac_v391", float('nan'))),
                             include_plant_economics_v360=bool(locals().get("include_plant_economics_v360", False)),
                             discount_rate=float(locals().get("discount_rate", 0.07)),
                             wallplug_eff=float(locals().get("wallplug_eff", 0.3)),
@@ -6277,6 +6843,27 @@ if _deck == "🧭 Point Designer":
                         outage_fraction_v368_max=float(locals().get('outage_fraction_v368_max', float('nan'))),
                         availability_v368_min=float(locals().get('availability_v368_min', float('nan'))),
 
+                        include_availability_reliability_v391=bool(locals().get('include_availability_reliability_v391', False)),
+                        planned_outage_days_per_y_v391=float(locals().get('planned_outage_days_per_y_v391', 30.0)),
+                        mtbf_tf_h_v391=float(locals().get('mtbf_tf_h_v391', 80000.0)),
+                        mttr_tf_h_v391=float(locals().get('mttr_tf_h_v391', 240.0)),
+                        mtbf_pfcs_h_v391=float(locals().get('mtbf_pfcs_h_v391', 60000.0)),
+                        mttr_pfcs_h_v391=float(locals().get('mttr_pfcs_h_v391', 168.0)),
+                        mtbf_divertor_h_v391=float(locals().get('mtbf_divertor_h_v391', 20000.0)),
+                        mttr_divertor_h_v391=float(locals().get('mttr_divertor_h_v391', 336.0)),
+                        mtbf_blanket_h_v391=float(locals().get('mtbf_blanket_h_v391', 25000.0)),
+                        mttr_blanket_h_v391=float(locals().get('mttr_blanket_h_v391', 504.0)),
+                        mtbf_cryo_h_v391=float(locals().get('mtbf_cryo_h_v391', 40000.0)),
+                        mttr_cryo_h_v391=float(locals().get('mttr_cryo_h_v391', 120.0)),
+                        mtbf_hcd_h_v391=float(locals().get('mtbf_hcd_h_v391', 30000.0)),
+                        mttr_hcd_h_v391=float(locals().get('mttr_hcd_h_v391', 168.0)),
+                        mtbf_bop_h_v391=float(locals().get('mtbf_bop_h_v391', 50000.0)),
+                        mttr_bop_h_v391=float(locals().get('mttr_bop_h_v391', 72.0)),
+                        availability_min_v391=float(locals().get('availability_min_v391', float('nan'))),
+                        planned_outage_max_frac_v391=float(locals().get('planned_outage_max_frac_v391', float('nan'))),
+                        unplanned_downtime_max_frac_v391=float(locals().get('unplanned_downtime_max_frac_v391', float('nan'))),
+                        maint_downtime_max_frac_v391=float(locals().get('maint_downtime_max_frac_v391', float('nan'))),
+
                         include_economics_v360=bool(locals().get('include_economics_v360', False)),
                         opex_fixed_MUSD_per_y=float(locals().get('opex_fixed_MUSD_per_y', 0.0)),
                         tritium_processing_cost_USD_per_g=float(locals().get('tritium_processing_cost_USD_per_g', 0.05)),
@@ -6287,6 +6874,56 @@ if _deck == "🧭 Point Designer":
                         CAPEX_structured_max_MUSD=float(locals().get('CAPEX_structured_max_MUSD', float('nan'))),
                         OPEX_structured_max_MUSD_per_y=float(locals().get('OPEX_structured_max_MUSD_per_y', float('nan'))),
                         LCOE_lite_max_USD_per_MWh=float(locals().get('LCOE_lite_max_USD_per_MWh', float('nan'))),
+
+                        include_cost_authority_v388=bool(locals().get('include_cost_authority_v388', False)),
+                        CAPEX_industrial_max_MUSD=float(locals().get('CAPEX_industrial_max_MUSD', float('nan'))),
+                        OPEX_industrial_max_MUSD_per_y=float(locals().get('OPEX_industrial_max_MUSD_per_y', float('nan'))),
+                        LCOE_lite_v388_max_USD_per_MWh=float(locals().get('LCOE_lite_v388_max_USD_per_MWh', float('nan'))),
+
+                        include_structural_stress_v389=bool(locals().get('include_structural_stress_v389', False)),
+                        tf_struct_margin_min_v389=float(locals().get('tf_struct_margin_min_v389', 1.0)),
+                        t_cs_struct_m_v389=float(locals().get('t_cs_struct_m_v389', 0.20)),
+                        sigma_cs_allow_MPa_v389=float(locals().get('sigma_cs_allow_MPa_v389', 300.0)),
+                        cs_struct_margin_min_v389=float(locals().get('cs_struct_margin_min_v389', 1.0)),
+                        vv_ext_pressure_MPa_v389=float(locals().get('vv_ext_pressure_MPa_v389', 0.101)),
+                        sigma_vv_allow_MPa_v389=float(locals().get('sigma_vv_allow_MPa_v389', 200.0)),
+                        vv_struct_margin_min_v389=float(locals().get('vv_struct_margin_min_v389', 1.0)),
+
+                        include_damage_strength_coupling_v393=bool(locals().get('include_damage_strength_coupling_v393', False)),
+                        design_life_fpy_v393=float(locals().get('design_life_fpy_v393', 10.0)),
+                        k_allow_deg_per_dpa_v393=float(locals().get('k_allow_deg_per_dpa_v393', 0.003)),
+                        min_allow_frac_v393=float(locals().get('min_allow_frac_v393', 0.50)),
+                        dpa_factor_tf_v393=float(locals().get('dpa_factor_tf_v393', 0.05)),
+                        dpa_factor_cs_v393=float(locals().get('dpa_factor_cs_v393', 0.05)),
+                        dpa_factor_vv_v393=float(locals().get('dpa_factor_vv_v393', 0.20)),
+                        tf_struct_margin_degraded_min_v393=float(locals().get('tf_struct_margin_degraded_min_v393', float('nan'))),
+                        cs_struct_margin_degraded_min_v393=float(locals().get('cs_struct_margin_degraded_min_v393', float('nan'))),
+                        vv_struct_margin_degraded_min_v393=float(locals().get('vv_struct_margin_degraded_min_v393', float('nan'))),
+
+                        include_neutronics_activation_v390=bool(locals().get('include_neutronics_activation_v390', False)),
+                        blanket_class_v390=str(locals().get('blanket_class_v390', 'STANDARD')),
+                        shield_req_Pfus_exp_v390=float(locals().get('shield_req_Pfus_exp_v390', 0.25)),
+                        shield_req_qwall_exp_v390=float(locals().get('shield_req_qwall_exp_v390', 0.50)),
+                        fw_dpa_per_fpy_per_MWm2_v390=float(locals().get('fw_dpa_per_fpy_per_MWm2_v390', 15.0)),
+                        fw_dpa_limit_v390=float(locals().get('fw_dpa_limit_v390', 20.0)),
+                        shield_margin_min_cm_v390=float(locals().get('shield_margin_min_cm_v390', float('nan'))),
+                        fw_life_min_fpy_v390=float(locals().get('fw_life_min_fpy_v390', float('nan'))),
+                        dpa_per_fpy_max_v390=float(locals().get('dpa_per_fpy_max_v390', float('nan'))),
+                        activation_index_max_v390=float(locals().get('activation_index_max_v390', float('nan'))),
+
+                        include_neutronics_shield_attenuation_v392=bool(locals().get('include_neutronics_shield_attenuation_v392', False)),
+                        gap_to_tf_case_m_v392=float(locals().get('gap_to_tf_case_m_v392', 0.20)),
+                        gap_to_cryostat_m_v392=float(locals().get('gap_to_cryostat_m_v392', 0.80)),
+                        gap_to_bioshield_m_v392=float(locals().get('gap_to_bioshield_m_v392', 1.20)),
+                        t_bioshield_m_v392=float(locals().get('t_bioshield_m_v392', 1.20)),
+                        atten_len_stack_m_v392=float(locals().get('atten_len_stack_m_v392', float('nan'))),
+                        atten_len_bioshield_m_v392=float(locals().get('atten_len_bioshield_m_v392', 0.35)),
+                        use_inv_square_geom_v392=bool(locals().get('use_inv_square_geom_v392', True)),
+                        dose_uSv_h_per_flux_n_m2_s_v392=float(locals().get('dose_uSv_h_per_flux_n_m2_s_v392', 1.0e-20)),
+                        tf_case_fluence_max_n_m2_per_fpy_v392=float(locals().get('tf_case_fluence_max_n_m2_per_fpy_v392', float('nan'))),
+                        cryostat_fluence_max_n_m2_per_fpy_v392=float(locals().get('cryostat_fluence_max_n_m2_per_fpy_v392', float('nan'))),
+                        bioshield_dose_rate_max_uSv_h_v392=float(locals().get('bioshield_dose_rate_max_uSv_h_v392', float('nan'))),
+
 
                         include_materials_lifetime_v384=bool(locals().get('include_materials_lifetime_v384', False)),
                         divertor_life_ref_yr=float(locals().get('divertor_life_ref_yr', 3.0)),
@@ -7102,6 +7739,46 @@ if _deck == "🧭 Point Designer":
                                         c3.metric("LCOE (v359) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}"))
                                         c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v359", "{:.2f}"))
                                         st.caption("v359 ledger uses planned_outage_base + forced_outage_base + replacement downtime; it does not modify truth or legacy economics outputs.")
+
+                                    # (v368.0) Maintenance scheduling authority quicklook (optional)
+                                    try:
+                                        _av368 = float(out.get("availability_v368", float('nan')))
+                                    except Exception:
+                                        _av368 = float('nan')
+                                    if _av368 == _av368:
+                                        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+                                        c1.metric("Availability (v368)", _m("availability_v368", "{:.2f}"))
+                                        c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.2f}"))
+                                        c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+                                        c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.2f}"))
+                                        st.caption("v368 adds a deterministic maintenance event ledger and schedule-dominated availability; no time simulation.")
+
+                                    # (v391.0.0) Availability 2.0 — Reliability envelope (optional)
+                                    try:
+                                        _av391 = float(out.get("availability_cert_v391", float('nan')))
+                                    except Exception:
+                                        _av391 = float('nan')
+                                    if _av391 == _av391:
+                                        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+                                        c1.metric("Availability (v391)", _m("availability_cert_v391", "{:.3f}"))
+                                        c2.metric("Planned (v391)", _m("planned_outage_frac_v391", "{:.3f}"))
+                                        c3.metric("Maint (v391)", _m("maint_downtime_frac_v391", "{:.3f}"))
+                                        c4.metric("Unplanned (v391)", _m("unplanned_downtime_frac_v391", "{:.3f}"))
+                                        drv = str(out.get("availability_driver_v391", ""))
+                                        reg = str(out.get("availability_regime_v391", ""))
+                                        if drv or reg:
+                                            st.caption(f"v391 driver={drv or 'n/a'}; regime={reg or 'n/a'}. Uses MTBF/MTTR product proxy + planned outage + maintenance burden (v368/v359 + v390).")
+                                        led = out.get("availability_ledger_v391")
+                                        with st.expander("Availability reliability ledger (v391)", expanded=False):
+                                            try:
+                                                if isinstance(led, list) and led:
+                                                    import pandas as _pd
+                                                    _df = _pd.DataFrame(led)
+                                                    st.dataframe(_df, use_container_width=True, height=320, hide_index=True)
+                                                else:
+                                                    st.info("No availability_ledger_v391 found (enable v391 and re-run).")
+                                            except Exception as e:
+                                                st.caption(f"Ledger render failed: {e}")
 
 
                                     lims = []
@@ -8314,11 +8991,26 @@ if _deck == "🧭 Point Designer":
                                     "H_required": out.get("H_required"),
                                     "tauE_env_min [s]": out.get("tauE_envelope_min_s"),
                                     "tauE_env_max [s]": out.get("tauE_envelope_max_s"),
+                                    "tauE_env_min_v396 [s]": out.get("tauE_envelope_min_s_v396"),
+                                    "tauE_env_max_v396 [s]": out.get("tauE_envelope_max_s_v396"),
+                                    "spread_v396": out.get("transport_spread_ratio_v396"),
+                                    "tier_v396": out.get("transport_credibility_tier_v396"),
                                     "transport_pass_opt": out.get("transport_pass_optimistic"),
                                     "transport_pass_rob": out.get("transport_pass_robust"),
                                     "power_balance_residual [MW]": out.get("power_balance_residual_MW"),
                                 }
                                 plot_bars(conf_vals, "Confinement / H metrics")
+                                with st.expander("Transport Envelope 2.0 scalings (v396)", expanded=False):
+                                    d = out.get("tauE_scalings_v396", {}) if isinstance(out, dict) else {}
+                                    if isinstance(d, dict) and len(d) > 0:
+                                        try:
+                                            import pandas as pd
+                                            df = pd.DataFrame([{"scaling": k, "tauE_s": v} for k, v in d.items()])
+                                            st.dataframe(df, use_container_width=True, hide_index=True)
+                                        except Exception:
+                                            st.json(d)
+                                    else:
+                                        st.caption("No v396 scaling dictionary available for this run (module disabled or invalid inputs).")
                                 with st.expander("Notes", expanded=False):
                                     st.markdown("H98 is defined as tauE_eff / tauE_IPB98(y,2). H_scaling compares against the selected reference scaling. See also the IPB98(y,2) and ITER89-P scaling references.")
 
@@ -10700,6 +11392,59 @@ if _deck == "🧠 Systems Mode":
                         mime='application/json',
                         use_container_width=True,
                         key='systems_dl_current_drive_cert_json',
+                    )
+                except Exception:
+                    pass
+
+                with st.expander('Certification details (JSON)', expanded=False):
+                    st.json(cert)
+
+    # -----------------------------
+    # Current drive multi-channel library certification (v395.0)
+    # -----------------------------
+    with st.expander('📡 Current drive library (v395) — multi-channel mix bookkeeping (certified)', expanded=False):
+        st.caption(
+            "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
+            "Summarizes v395 multi-channel (ECCD/LHCD/NBI/ICRF) CD bookkeeping if present; otherwise reports UNAVAILABLE."
+        )
+
+        st.session_state.setdefault('systems_current_drive_lib_v395_cert', None)
+        can_compute = isinstance(last_sys_art, dict) and isinstance(last_sys_art.get('outputs'), dict)
+        if not can_compute:
+            st.info('No Systems artifact available yet. Run a Systems solve first.')
+        else:
+            if st.button('Compute certification (cache)', use_container_width=True, key='systems_compute_current_drive_lib_v395_cert_btn'):
+                try:
+                    from src.certification.current_drive_library_certification_v395 import certify_current_drive_library_v395
+
+                    outs = dict(last_sys_art.get('outputs') or {})
+                    _cert = certify_current_drive_library_v395(outs).to_dict()
+                    st.session_state['systems_current_drive_lib_v395_cert'] = _cert
+                    st.success('Certification computed and cached (systems_current_drive_lib_v395_cert).')
+                except Exception as _e:
+                    st.error(f'Certification failed: {_e}')
+
+            cert = st.session_state.get('systems_current_drive_lib_v395_cert', None)
+            if isinstance(cert, dict):
+                try:
+                    import pandas as _pd
+                    from src.certification.current_drive_library_certification_v395 import certification_table_rows
+                    rows, cols = certification_table_rows(cert)
+                    st.dataframe(_pd.DataFrame(rows, columns=cols), use_container_width=True, hide_index=True)
+                    tier = str(cert.get('tier') or '')
+                    if tier in ('BLOCK', 'TIGHT'):
+                        st.warning('Current-drive library authority is tight/blocking (proxy). Treat as governance risk; truth is unchanged.')
+                except Exception:
+                    st.json(cert)
+
+                try:
+                    st.download_button(
+                        'Download certification JSON',
+                        data=json.dumps(cert, indent=2, sort_keys=True, default=str),
+                        file_name='systems_current_drive_library_certification_v395.json',
+                        mime='application/json',
+                        use_container_width=True,
+                        key='systems_dl_current_drive_lib_v395_cert_json',
                     )
                 except Exception:
                     pass
@@ -13183,6 +13928,81 @@ if _deck == "🧠 Systems Mode":
             except Exception:
                 pass
 
+            # v388.0.0: Cost Authority 3.0 — Industrial Depth (governance-only)
+            try:
+                from src.certification.cost_authority_certification_v388 import (
+                    evaluate_cost_authority_v388,
+                )
+                _c388 = evaluate_cost_authority_v388(
+                    out_sol,
+                    inputs=(artifact.get('inputs') if isinstance(artifact.get('inputs'), dict) else None),
+                ).to_dict()
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['cost_authority_v388'] = _c388
+            except Exception:
+                pass
+
+            # v389.0.0: Structural Stress Authority (governance-only)
+            try:
+                from src.certification.structural_stress_certification_v389 import (
+                    certify_structural_stress_v389,
+                )
+                _s389 = certify_structural_stress_v389(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['structural_stress_v389'] = _s389
+            except Exception:
+                pass
+
+            # v393.0.0: Damage→Strength Coupling (governance-only)
+            try:
+                from src.certification.damage_strength_coupling_certification_v393 import (
+                    certify_damage_strength_coupling_v393,
+                )
+                _d393 = certify_damage_strength_coupling_v393(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['damage_strength_coupling_v393'] = _d393
+            except Exception:
+                pass
+
+            # v390.0.0: Neutronics & Activation Authority 3.0 (governance-only)
+            try:
+                from src.certification.neutronics_activation_certification_v390 import (
+                    certify_neutronics_activation_v390,
+                )
+                _n390 = certify_neutronics_activation_v390(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['neutronics_activation_v390'] = _n390
+            except Exception:
+                pass
+
+            # v391.0.0: Availability 2.0 — Reliability Envelope Authority (governance-only)
+            try:
+                from src.certification.availability_reliability_certification_v391 import (
+                    certify_availability_reliability_v391,
+                )
+                _a391 = certify_availability_reliability_v391(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['availability_reliability_v391'] = _a391
+            except Exception:
+                pass
+
+            # v392.0.0: Neutronics Shield Attenuation Authority (governance-only)
+            try:
+                from src.certification.neutronics_shield_attenuation_certification_v392 import (
+                    certify_neutronics_shield_attenuation_v392,
+                )
+                _n392 = certify_neutronics_shield_attenuation_v392(out_sol)
+                artifact.setdefault('certifications', {})
+                if isinstance(artifact.get('certifications'), dict):
+                    artifact['certifications']['neutronics_shield_attenuation_v392'] = _n392
+            except Exception:
+                pass
+
             # v176.2: attach lightweight telemetry so users can verify performance changes
             try:
                 precheck_s = st.session_state.get("systems_precheck_seconds", None)
@@ -13389,6 +14209,84 @@ if _deck == "🧠 Systems Mode":
                         st.caption(f"Plant economics authority unavailable (non-fatal): {_e}")
 
 
+                # v388.0.0: Cost Authority 3.0 — Industrial Depth (certified)
+                with st.expander("🏭 Cost authority — industrial depth (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _c388 = _certs.get('cost_authority_v388')
+                        if not isinstance(_c388, dict):
+                            st.info("No cached cost authority certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.cost_authority_certification_v388 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_c388)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_c388)
+                    except Exception as _e:
+                        st.caption(f"Cost authority unavailable (non-fatal): {_e}")
+
+                # v389.0.0: Structural Stress Authority (certified)
+                with st.expander("🧱 Structural stress authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _s389 = _certs.get('structural_stress_v389')
+                        if isinstance(_s389, dict):
+                            st.json(_s389)
+                        else:
+                            st.caption("Structural stress authority (v389) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
+
+                # v393.0.0: Damage→Strength Coupling (certified)
+                with st.expander("🧬 Damage → strength coupling (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _d393 = _certs.get('damage_strength_coupling_v393')
+                        if isinstance(_d393, dict):
+                            st.json(_d393)
+                        else:
+                            st.caption("Damage → strength coupling (v393) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Damage → strength coupling unavailable (non-fatal): {_e}")
+
+
+
+
+
+                # v390.0.0: Neutronics & Activation Authority 3.0 (certified)
+                with st.expander("☢️ Neutronics & activation authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _n390 = _certs.get('neutronics_activation_v390')
+                        if isinstance(_n390, dict):
+                            st.json(_n390)
+                        else:
+                            st.caption("Neutronics & activation authority (v390) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Neutronics & activation authority unavailable (non-fatal): {_e}")
+
+                # v392.0.0: Neutronics Shield Attenuation Authority (certified)
+                with st.expander("🛡️ Neutronics shield attenuation (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _n392 = _certs.get('neutronics_shield_attenuation_v392')
+                        if isinstance(_n392, dict):
+                            st.json(_n392)
+                        else:
+                            st.caption("Neutronics shield attenuation (v392) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Neutronics shield attenuation unavailable (non-fatal): {_e}")
+
+                # v391.0.0: Availability 2.0 — Reliability Envelope Authority (certified)
+                with st.expander("🧩 Availability & reliability envelope (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _a391 = _certs.get('availability_reliability_v391')
+                        if isinstance(_a391, dict):
+                            st.json(_a391)
+                        else:
+                            st.caption("Availability reliability envelope (v391) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Availability reliability envelope unavailable (non-fatal): {_e}")
 
         except _SysPrecheckBlocksSolve:
             st.warning(
@@ -13540,6 +14438,35 @@ if _deck == "🧠 Systems Mode":
                     except Exception as _e:
                         st.caption(f"Plant economics authority unavailable (non-fatal): {_e}")
 
+
+                # v388.0.0: Cost Authority 3.0 — Industrial Depth (certified)
+                with st.expander("🏭 Cost authority — industrial depth (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _c388 = _certs.get('cost_authority_v388')
+                        if not isinstance(_c388, dict):
+                            st.info("No cached cost authority certification yet. Re-run Systems Solve to generate it.")
+                        else:
+                            from src.certification.cost_authority_certification_v388 import certification_table_rows
+                            st.dataframe(pd.DataFrame([certification_table_rows(_c388)]), use_container_width=True)
+                            with st.expander("Details", expanded=False):
+                                st.json(_c388)
+                    except Exception as _e:
+                        st.caption(f"Cost authority unavailable (non-fatal): {_e}")
+
+                # v389.0.0: Structural Stress Authority (certified)
+                with st.expander("🧱 Structural stress authority (certified)", expanded=False):
+                    try:
+                        _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
+                        _s389 = _certs.get('structural_stress_v389')
+                        if isinstance(_s389, dict):
+                            st.json(_s389)
+                        else:
+                            st.caption("Structural stress authority (v389) not enabled or unavailable in this artifact.")
+                    except Exception as _e:
+                        st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
+
+
         except Exception:
             pass
 
@@ -13666,6 +14593,12 @@ if _deck == "🗺️ Scan Lab":
     except Exception as _e:
         build_signature_atlas_pdf_bytes = None  # type: ignore
         _scan_import_errors.append(f"scan_signature_atlas import failed: {_e}")
+
+    try:
+        from tools.design_family_governance_v394 import build_design_families_from_scan_cartography
+    except Exception as _e:
+        build_design_families_from_scan_cartography = None  # type: ignore
+        _scan_import_errors.append(f"design_family_governance_v394 import failed: {_e}")
 
     try:
         from tools.scan_artifact_schema import (
@@ -14262,6 +15195,84 @@ if _deck == "🗺️ Scan Lab":
             st.caption("A lightweight self-check for freeze readiness. This is optional and does not affect results.")
             st.checkbox("After one scan, I learned something fundamental about what limits this design space.", key="scan_benchmark_learned")
             st.text_area("If yes: what was it? (optional)", value="", height=90, key="scan_benchmark_note")
+
+        # --- Design Family Governance Engine (v394.0.0) ---
+        # Exploration-only: does not affect truth. Deterministic labeling + connected components.
+        with st.expander("👪 Design family governance (v394.0.0)", expanded=False):
+            st.caption("Extract deterministic design families from the current cartography report (regime-signature labeling + connected components).")
+            it_opts = list(intents_strip or ["Reactor"])
+            it_sel = st.selectbox("Intent lens", options=it_opts, index=0, key="scan_df_intent_v394")
+            min_pts = int(st.slider("Minimum points per family", 4, 80, int(st.session_state.get("scan_df_min_pts_v394", 12)), 1, key="scan_df_min_pts_v394"))
+            c1, c2 = st.columns(2)
+            with c1:
+                run_df = st.button("Build families", type="secondary", use_container_width=True, key="scan_df_build_v394")
+            with c2:
+                clear_df = st.button("Clear", use_container_width=True, key="scan_df_clear_v394")
+            if clear_df:
+                st.session_state.pop("scan_design_families_v394", None)
+                st.session_state.pop("scan_design_families_v394_cert", None)
+                st.success("Cleared design family artifacts.")
+
+            if run_df:
+                if not callable(build_design_families_from_scan_cartography):
+                    st.error("Design family engine unavailable (import error).")
+                else:
+                    try:
+                        art = build_design_families_from_scan_cartography(rep, intent=str(it_sel), min_points=int(min_pts))
+                        # Attach common metadata and record
+                        art = _attach_common_metadata(art)
+                        st.session_state["scan_design_families_v394"] = art
+                        try:
+                            from src.certification.design_family_governance_certification_v394 import certify_design_families_v394
+                            cert = certify_design_families_v394(artifact=art)
+                        except Exception:
+                            cert = {"name": "design_family_governance_v394", "verdict": "UNKNOWN"}
+                        st.session_state["scan_design_families_v394_cert"] = cert
+                        try:
+                            _v98_record_run("scan_design_families_v394", {"artifact": art, "cert": cert}, mode="scan_lab")
+                        except Exception:
+                            pass
+                        st.success(f"Built {len(art.get('families') or [])} families.")
+                    except Exception as e:
+                        st.error(f"Family build failed: {e}")
+
+            art = st.session_state.get("scan_design_families_v394")
+            if isinstance(art, dict) and (art.get("families") is not None):
+                cert = st.session_state.get("scan_design_families_v394_cert")
+                if isinstance(cert, dict):
+                    st.markdown("**Certification**")
+                    st.json(cert)
+                fams = art.get("families") or []
+                if isinstance(fams, list) and fams:
+                    # Compact table view (avoid scroll walls; default collapsed via expander)
+                    rows = []
+                    for f in fams:
+                        if not isinstance(f, dict):
+                            continue
+                        rows.append({
+                            "family_id": f.get("family_id"),
+                            "label": f.get("label"),
+                            "n_points": f.get("n_points"),
+                            "feasible_frac": f.get("feasible_frac"),
+                            "x_range": f"[{f.get('x_min'):.3g}, {f.get('x_max'):.3g}]" if isinstance(f.get('x_min'), (int,float)) and isinstance(f.get('x_max'), (int,float)) else "",
+                            "y_range": f"[{f.get('y_min'):.3g}, {f.get('y_max'):.3g}]" if isinstance(f.get('y_min'), (int,float)) and isinstance(f.get('y_max'), (int,float)) else "",
+                        })
+                    try:
+                        import pandas as pd
+                        df = pd.DataFrame(rows)
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                    except Exception:
+                        st.json(rows[:20])
+                st.download_button(
+                    "Download families JSON",
+                    data=json.dumps(art, indent=2, default=str).encode("utf-8"),
+                    file_name="shams_scan_design_families_v394.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="scan_df_dl_v394",
+                )
+            else:
+                st.info("No design family artifact yet. Run ‘Build families’ after a cartography scan.")
 
         # Make absence intentional (no-feasible region)
         try:

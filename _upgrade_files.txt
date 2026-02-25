@@ -1,6 +1,13 @@
-ui/app.py
-README.md
-RELEASE_NOTES.md
-VERSION
-VERSION.txt
-_upgrade_files.txt
+# v395.0.0 (Current Drive Library Expansion 1.0)
+
+Added/modified:
+- src/models/inputs.py
+- src/physics/current_drive.py
+- src/physics/hot_ion.py
+- contracts/current_drive_library_v395.json
+- src/certification/current_drive_library_certification_v395.py
+- ui/app.py
+- README.md
+- RELEASE_NOTES.md
+- VERSION / VERSION.txt
+

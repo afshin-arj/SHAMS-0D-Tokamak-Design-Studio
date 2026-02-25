@@ -1,0 +1,29 @@
+{
+  "schema": "neutronics_shield_attenuation_authority.v392",
+  "name": "Neutronics Shield Attenuation Authority (Deterministic Tightening)",
+  "version": "v392.0.0",
+  "hard_laws": {
+    "frozen_truth": true,
+    "algebraic_only": true,
+    "no_monte_carlo": true,
+    "no_iteration": true
+  },
+  "notes": [
+    "Screening-level attenuation-length envelopes only. Not a replacement for Monte Carlo transport.",
+    "Fluence is propagated from a FW source term via exp(-t/lambda) and optional inverse-square dilution.",
+    "All caps are optional; NaN disables constraints. This authority does not mutate truth." 
+  ],
+  "defaults": {
+    "gap_to_tf_case_m_v392": 0.2,
+    "gap_to_cryostat_m_v392": 0.8,
+    "gap_to_bioshield_m_v392": 1.2,
+    "t_bioshield_m_v392": 1.2,
+    "atten_len_stack_m_v392": null,
+    "atten_len_bioshield_m_v392": 0.35,
+    "use_inv_square_geom_v392": true,
+    "dose_uSv_h_per_flux_n_m2_s_v392": 1.0e-20,
+    "tf_case_fluence_max_n_m2_per_fpy_v392": null,
+    "cryostat_fluence_max_n_m2_per_fpy_v392": null,
+    "bioshield_dose_rate_max_uSv_h_v392": null
+  }
+}
