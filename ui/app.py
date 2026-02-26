@@ -895,6 +895,15 @@ PD_KEYS = {
     "Paux_for_Q": "pd_Paux_for_Q",
     "magnet_technology": "pd_magnet_technology",
     "Tcoil_K": "pd_Tcoil_K",
+    "include_magnet_technology_authority_v400": "pd_include_magnet_technology_authority_v400",
+    "magnet_margin_min_v400": "pd_magnet_margin_min_v400",
+    "b_margin_min_v400": "pd_b_margin_min_v400",
+    "j_margin_min_v400": "pd_j_margin_min_v400",
+    "stress_margin_min_v400": "pd_stress_margin_min_v400",
+    "sc_margin_min_v400": "pd_sc_margin_min_v400",
+    "t_margin_min_v400": "pd_t_margin_min_v400",
+    "p_tf_ohmic_margin_min_v400": "pd_p_tf_ohmic_margin_min_v400",
+
 
     # v318.0 profile bundle knobs (stable keys for presets and promotion)
     "profile_mode": "pd_profile_mode",
@@ -4424,6 +4433,71 @@ if _deck == "🧭 Point Designer":
                     ),
                     key=PD_KEYS["Tcoil_K"],
                 )
+
+                with st.expander("Magnet Technology Authority (v400) — explicit ledger caps", expanded=False):
+                    include_magnet_technology_authority_v400 = st.checkbox(
+                        "Enable v400 magnet margin ledger overlay",
+                        value=bool(getattr(_base_pd, "include_magnet_technology_authority_v400", True)),
+                        key=PD_KEYS["include_magnet_technology_authority_v400"],
+                        help="Governance-only: computes explicit B/J/stress/SC/T-window (and Cu ohmic) margin ledger; does not mutate truth.",
+                    )
+                    st.caption("Optional explicit caps (set NaN to disable each). All are feasibility-first constraints when finite.")
+                    magnet_margin_min_v400 = _num(
+                        "Combined magnet margin min (v400)",
+                        float(getattr(_base_pd, "magnet_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["magnet_margin_min_v400"],
+                    )
+                    b_margin_min_v400 = _num(
+                        "B margin min (v400): B_allow/B_peak - 1",
+                        float(getattr(_base_pd, "b_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["b_margin_min_v400"],
+                    )
+                    j_margin_min_v400 = _num(
+                        "J margin min (v400): J_allow/J_req - 1",
+                        float(getattr(_base_pd, "j_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["j_margin_min_v400"],
+                    )
+                    stress_margin_min_v400 = _num(
+                        "Stress margin min (v400): sigma_allow/sigma - 1",
+                        float(getattr(_base_pd, "stress_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["stress_margin_min_v400"],
+                    )
+                    sc_margin_min_v400 = _num(
+                        "SC operating margin min (v400): (sc_margin/sc_min)-1",
+                        float(getattr(_base_pd, "sc_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["sc_margin_min_v400"],
+                    )
+                    t_margin_min_v400 = _num(
+                        "T-window margin min (v400)",
+                        float(getattr(_base_pd, "t_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["t_margin_min_v400"],
+                    )
+                    p_tf_ohmic_margin_min_v400 = _num(
+                        "Cu ohmic power margin min (v400): P_max/P_ohmic - 1",
+                        float(getattr(_base_pd, "p_tf_ohmic_margin_min_v400", float("nan"))),
+                        0.01,
+                        min_value=-2.0,
+                        max_value=5.0,
+                        key=PD_KEYS["p_tf_ohmic_margin_min_v400"],
+                    )
         with st.expander("Model options (transparent (systems-code-inspired))", expanded=False):
                 confinement_scaling_label = st.selectbox(
                     "H-factor reference scaling (for H_scaling)",
@@ -5846,6 +5920,76 @@ if _deck == "🧭 Point Designer":
 
 
 
+                # --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
+                with st.expander("🧾 Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
+                    st.caption(
+                        "Governance-only overlay that applies explicit OPTIMISTIC/NOMINAL/ROBUST contracts to already-computed "
+                        "neutronics/materials + activation + shield-attenuation proxies. Reports margins and dominant limiter; OFF by default."
+                    )
+                    include_neutronics_materials_authority_v401 = st.checkbox(
+                        "Enable neutronics/materials contract tiers (v401.0.0)",
+                        value=bool(getattr(defaults, "include_neutronics_materials_authority_v401", False)),
+                        key="pd_include_neutronics_materials_authority_v401",
+                    )
+                    nm_contract_tier_v401 = st.selectbox(
+                        "Contract tier (v401)",
+                        options=["OPTIMISTIC", "NOMINAL", "ROBUST"],
+                        index=["OPTIMISTIC", "NOMINAL", "ROBUST"].index(str(getattr(defaults, "nm_contract_tier_v401", "NOMINAL") or "NOMINAL").upper())
+                        if str(getattr(defaults, "nm_contract_tier_v401", "NOMINAL") or "NOMINAL").upper() in ["OPTIMISTIC", "NOMINAL", "ROBUST"] else 1,
+                        key="pd_nm_contract_tier_v401",
+                    )
+                    nm_fragile_margin_frac_v401 = st.number_input(
+                        "Fragile threshold on min margin (v401) (-)",
+                        min_value=0.0,
+                        max_value=0.50,
+                        value=float(getattr(defaults, "nm_fragile_margin_frac_v401", 0.10)),
+                        step=0.01,
+                        key="pd_nm_fragile_margin_frac_v401",
+                        help="Min normalized margin below this is classified FRAGILE; below 0 is INFEASIBLE.",
+                    )
+                    st.markdown("**Optional per-item overrides (NaN disables override)**")
+                    o1, o2 = st.columns(2)
+                    with o1:
+                        tf_case_fluence_max_n_m2_per_fpy_override_v401 = st.number_input(
+                            "TF-case fluence max override (n/m²/FPY)",
+                            value=float(getattr(defaults, "tf_case_fluence_max_n_m2_per_fpy_override_v401", float('nan'))),
+                            format="%.3e",
+                            key="pd_tf_case_fluence_max_n_m2_per_fpy_override_v401",
+                        )
+                        bioshield_dose_rate_max_uSv_h_override_v401 = st.number_input(
+                            "Bioshield dose-rate max override (uSv/h)",
+                            value=float(getattr(defaults, "bioshield_dose_rate_max_uSv_h_override_v401", float('nan'))),
+                            key="pd_bioshield_dose_rate_max_uSv_h_override_v401",
+                        )
+                        P_nuc_TF_max_MW_override_v401 = st.number_input(
+                            "TF nuclear heating max override (MW)",
+                            value=float(getattr(defaults, "P_nuc_TF_max_MW_override_v401", float('nan'))),
+                            key="pd_P_nuc_TF_max_MW_override_v401",
+                        )
+                        dpa_per_fpy_max_override_v401 = st.number_input(
+                            "FW DPA-rate max override (DPA/FPY)",
+                            value=float(getattr(defaults, "dpa_per_fpy_max_override_v401", float('nan'))),
+                            key="pd_dpa_per_fpy_max_override_v401",
+                        )
+                    with o2:
+                        fw_He_total_limit_appm_override_v401 = st.number_input(
+                            "FW He total max override (appm)",
+                            value=float(getattr(defaults, "fw_He_total_limit_appm_override_v401", float('nan'))),
+                            key="pd_fw_He_total_limit_appm_override_v401",
+                        )
+                        activation_index_max_override_v401 = st.number_input(
+                            "Activation index max override (-)",
+                            value=float(getattr(defaults, "activation_index_max_override_v401", float('nan'))),
+                            key="pd_activation_index_max_override_v401",
+                        )
+                        TBR_min_override_v401 = st.number_input(
+                            "TBR min override (-)",
+                            value=float(getattr(defaults, "TBR_min_override_v401", float('nan'))),
+                            key="pd_TBR_min_override_v401",
+                        )
+
+
+
                 # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
                 with st.expander("🧱 Materials & Lifetime Tightening (v384.0.0)", expanded=False):
                     st.caption(
@@ -6687,6 +6831,14 @@ if _deck == "🧭 Point Designer":
                             vs_budget_margin_min_v398=float(locals().get("vs_budget_margin_min_v398", float('nan'))),
                             vde_headroom_min_v398=float(locals().get("vde_headroom_min_v398", float('nan'))),
                             rwm_proximity_index_max_v398=float(locals().get("rwm_proximity_index_max_v398", float('nan'))),
+                            include_magnet_technology_authority_v400=bool(locals().get("include_magnet_technology_authority_v400", True)),
+                            magnet_margin_min_v400=float(locals().get("magnet_margin_min_v400", float('nan'))),
+                            b_margin_min_v400=float(locals().get("b_margin_min_v400", float('nan'))),
+                            j_margin_min_v400=float(locals().get("j_margin_min_v400", float('nan'))),
+                            stress_margin_min_v400=float(locals().get("stress_margin_min_v400", float('nan'))),
+                            sc_margin_min_v400=float(locals().get("sc_margin_min_v400", float('nan'))),
+                            t_margin_min_v400=float(locals().get("t_margin_min_v400", float('nan'))),
+                            p_tf_ohmic_margin_min_v400=float(locals().get("p_tf_ohmic_margin_min_v400", float('nan'))),
                             planned_outage_max_frac_v391=float(locals().get("planned_outage_max_frac_v391", float('nan'))),
                             unplanned_downtime_max_frac_v391=float(locals().get("unplanned_downtime_max_frac_v391", float('nan'))),
                             maint_downtime_max_frac_v391=float(locals().get("maint_downtime_max_frac_v391", float('nan'))),
@@ -7157,6 +7309,17 @@ if _deck == "🧭 Point Designer":
                         tf_case_fluence_max_n_m2_per_fpy_v392=float(locals().get('tf_case_fluence_max_n_m2_per_fpy_v392', float('nan'))),
                         cryostat_fluence_max_n_m2_per_fpy_v392=float(locals().get('cryostat_fluence_max_n_m2_per_fpy_v392', float('nan'))),
                         bioshield_dose_rate_max_uSv_h_v392=float(locals().get('bioshield_dose_rate_max_uSv_h_v392', float('nan'))),
+
+                        include_neutronics_materials_authority_v401=bool(locals().get('include_neutronics_materials_authority_v401', False)),
+                        nm_contract_tier_v401=str(locals().get('nm_contract_tier_v401', 'NOMINAL')),
+                        nm_fragile_margin_frac_v401=float(locals().get('nm_fragile_margin_frac_v401', 0.10)),
+                        tf_case_fluence_max_n_m2_per_fpy_override_v401=float(locals().get('tf_case_fluence_max_n_m2_per_fpy_override_v401', float('nan'))),
+                        bioshield_dose_rate_max_uSv_h_override_v401=float(locals().get('bioshield_dose_rate_max_uSv_h_override_v401', float('nan'))),
+                        P_nuc_TF_max_MW_override_v401=float(locals().get('P_nuc_TF_max_MW_override_v401', float('nan'))),
+                        dpa_per_fpy_max_override_v401=float(locals().get('dpa_per_fpy_max_override_v401', float('nan'))),
+                        fw_He_total_limit_appm_override_v401=float(locals().get('fw_He_total_limit_appm_override_v401', float('nan'))),
+                        activation_index_max_override_v401=float(locals().get('activation_index_max_override_v401', float('nan'))),
+                        TBR_min_override_v401=float(locals().get('TBR_min_override_v401', float('nan'))),
 
 
                         include_materials_lifetime_v384=bool(locals().get('include_materials_lifetime_v384', False)),
@@ -7835,6 +7998,24 @@ if _deck == "🧭 Point Designer":
                                         cC.metric("HTS lifetime (yr)", f"{_safe_num('hts_lifetime_yr'):.1f}" if _safe_num('hts_lifetime_yr') == _safe_num('hts_lifetime_yr') else "n/a")
                                         cD.metric("FW dpa/y", f"{_safe_num('fw_dpa_per_year'):.2f}" if _safe_num('fw_dpa_per_year') == _safe_num('fw_dpa_per_year') else "n/a")
                                         st.caption(f"**Neutronics/Materials regime:** `{out.get('neutronics_materials_regime', 'unknown')}`  |  **Fragility:** `{out.get('neutronics_materials_fragility_class', 'UNKNOWN')}`  |  **Min margin:** {out.get('neutronics_materials_min_margin_frac', float('nan')):.3f}  |  **Contract:** `{str(out.get('neutronics_materials_contract_sha256', ''))[:10]}`")
+
+                                        # v401.0.0: contract-tier overlay (governance-only)
+                                        if bool(out.get("include_neutronics_materials_authority_v401", False)):
+                                            st.caption(
+                                                f"**NM contract tier (v401):** `{out.get('nm_contract_tier_v401','NOMINAL')}`  |  "
+                                                f"**Fragility:** `{out.get('nm_fragility_class_v401','UNKNOWN')}`  |  "
+                                                f"**Min margin:** {float(out.get('nm_min_margin_frac_v401', float('nan'))):+.3f}  |  "
+                                                f"**Dominant driver:** `{out.get('nm_dominant_driver_v401','unknown')}`"
+                                            )
+                                            with st.expander("🧾 v401 contract items (margins)", expanded=False):
+                                                rows = out.get("nm_contract_items_v401", [])
+                                                if isinstance(rows, list) and rows:
+                                                    st.dataframe(rows, use_container_width=True, hide_index=True)
+                                                else:
+                                                    st.info("v401 enabled but no contract items were found in this artifact.")
+                                            sha401 = str(out.get("nm_contract_sha256_v401", "") or "")
+                                            if sha401:
+                                                st.caption(f"v401 contract hash (SHA-256): {sha401[:16]}…")
                                         st.divider()
                                         d1, d2, d3, d4 = st.columns([1.0, 1.0, 1.0, 1.0])
                                         d1.metric("Stack attenuation", f"{_safe_num('neutron_attenuation_factor'):.3g}" if _safe_num('neutron_attenuation_factor') == _safe_num('neutron_attenuation_factor') else "n/a")
@@ -8699,6 +8880,34 @@ if _deck == "🧭 Point Designer":
                                                 "P_margin_MW": m.get("rwm_control_power_margin_MW"),
                                             }]), use_container_width=True, hide_index=True)
     
+
+                                    with st.expander("v400 Magnet Technology Authority (B–T–J–stress–quench ledger)", expanded=False):
+                                        if bool(out.get("magnet_v400_enabled", False)):
+                                            c1, c2, c3, c4 = st.columns(4)
+                                            c1.metric("Combined margin", _fmt(out.get("magnet_v400_margin")))
+                                            c2.metric("Tier", str(out.get("magnet_v400_tier", "unknown")))
+                                            c3.metric("Dominant", str(out.get("magnet_v400_dominant_limiter", "unknown")))
+                                            c4.metric("Dominant margin", _fmt(out.get("magnet_v400_dominant_margin")))
+                                            st.markdown("**Per-aspect margins**")
+                                            st.write({
+                                                "B margin (allow/req - 1)": out.get("magnet_v400_b_margin"),
+                                                "J margin (allow/req - 1)": out.get("magnet_v400_j_margin"),
+                                                "Stress margin (allow/req - 1)": out.get("magnet_v400_stress_margin"),
+                                                "SC operating margin ((sc/sc_min)-1)": out.get("magnet_v400_sc_oper_margin"),
+                                                "T-window margin (normalized)": out.get("magnet_v400_t_window_margin"),
+                                                "Cu ohmic power margin (Pmax/Pohmic - 1)": out.get("magnet_v400_p_tf_ohmic_margin"),
+                                            })
+                                            st.markdown("**Per-aspect tiers**")
+                                            st.write({
+                                                "B tier": out.get("magnet_v400_b_tier"),
+                                                "J tier": out.get("magnet_v400_j_tier"),
+                                                "Stress tier": out.get("magnet_v400_stress_tier"),
+                                                "SC tier": out.get("magnet_v400_sc_tier"),
+                                                "T-window tier": out.get("magnet_v400_t_window_tier"),
+                                                "Cu ohmic tier": out.get("magnet_v400_p_tf_ohmic_tier"),
+                                            })
+                                        else:
+                                            st.info("v400 magnet ledger is disabled or unavailable for this run.")
                         if _pd_tel_view == "⚡ Mission Snapshot":
                             with st.expander("🧭 Regime Compass - Sanity Dashboard", expanded=False):
                                 st.caption("Expert quick-check panel. Values are diagnostic unless explicitly constrained.")

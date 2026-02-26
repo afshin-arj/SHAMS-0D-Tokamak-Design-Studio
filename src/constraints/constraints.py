@@ -452,6 +452,43 @@ def evaluate_constraints(
         # soft screen: prefer at least ~5 years
         ge("HTS lifetime", outputs["hts_lifetime_yr"], 5.0, units="yr", note="Fluence-based HTS lifetime proxy", severity="soft", group="magnets")
 
+    # Magnet Technology Authority v400 explicit margin caps (optional)
+    if "magnet_v400_margin" in outputs:
+        lim = outputs.get("magnet_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("MAG margin v400", outputs["magnet_v400_margin"], lim, units="-",
+               note="Combined TF magnet margin ledger (min of B/J/stress/SC/T-window[/ohmic])", group="magnets")
+
+    if "magnet_v400_b_margin" in outputs:
+        lim = outputs.get("b_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("B margin v400", outputs["magnet_v400_b_margin"], lim, units="-", note="B_allow/B_peak - 1", group="magnets")
+
+    if "magnet_v400_j_margin" in outputs:
+        lim = outputs.get("j_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("J margin v400", outputs["magnet_v400_j_margin"], lim, units="-", note="J_allow/J_req - 1", group="magnets")
+
+    if "magnet_v400_stress_margin" in outputs:
+        lim = outputs.get("stress_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("Stress margin v400", outputs["magnet_v400_stress_margin"], lim, units="-", note="sigma_allow/sigma - 1", group="magnets")
+
+    if "magnet_v400_sc_oper_margin" in outputs:
+        lim = outputs.get("sc_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("SC margin v400", outputs["magnet_v400_sc_oper_margin"], lim, units="-", note="(sc_margin/sc_margin_min) - 1", group="magnets")
+
+    if "magnet_v400_t_window_margin" in outputs:
+        lim = outputs.get("t_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("T window v400", outputs["magnet_v400_t_window_margin"], lim, units="-", note="Normalized distance to coil T window edges", group="magnets")
+
+    if "magnet_v400_p_tf_ohmic_margin" in outputs:
+        lim = outputs.get("p_tf_ohmic_margin_min_v400", float("nan"))
+        if lim == lim:
+            ge("P_tf_ohmic margin v400", outputs["magnet_v400_p_tf_ohmic_margin"], lim, units="-", note="P_max/P_ohmic - 1 (copper)", severity="soft", group="magnets")
+
     # -------- Neutronics --------
     if "TBR" in outputs:
         tbr_min = outputs.get("TBR_min", 1.05)

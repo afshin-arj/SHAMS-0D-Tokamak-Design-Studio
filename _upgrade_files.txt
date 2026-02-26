@@ -11,3 +11,16 @@ Added/modified:
 - RELEASE_NOTES.md
 - VERSION / VERSION.txt
 
+
+# v400.0.0 (Magnet Technology Authority — LTS/HTS/Cu margin ledger)
+
+Added/modified:
+- src/analysis/magnet_technology_authority_v400.py
+- analysis/magnet_technology_authority_v400.py
+- src/physics/hot_ion.py
+- src/models/inputs.py
+- src/constraints/constraints.py
+- ui/app.py
+- README.md
+- RELEASE_NOTES.md
+- VERSION / VERSION.txt

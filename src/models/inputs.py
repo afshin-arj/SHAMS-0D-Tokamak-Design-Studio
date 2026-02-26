@@ -88,6 +88,21 @@ class PointInputs:
     # Used as: P_tf_el = P_tf_ohmic / eta_tf_wallplug
     eta_tf_wallplug: float = 0.95
 
+    # ------------------------------------------------------------------
+    # v400.0: Magnet Technology Authority (margin ledger overlay)
+    # ------------------------------------------------------------------
+    include_magnet_technology_authority_v400: bool = True
+
+    # Optional explicit caps (NaN disables). These are evaluated as explicit constraints.
+    magnet_margin_min_v400: float = float("nan")
+    b_margin_min_v400: float = float("nan")
+    j_margin_min_v400: float = float("nan")
+    stress_margin_min_v400: float = float("nan")
+    sc_margin_min_v400: float = float("nan")
+    t_margin_min_v400: float = float("nan")
+    p_tf_ohmic_margin_min_v400: float = float("nan")
+
+
     # Multiplicative uncertainty / calibration factors (default 1.0)
     confinement_mult: float = 1.0   # scales effective energy confinement time (tauE)
     lambda_q_mult: float = 1.0      # scales SOL width proxy (lambda_q)
@@ -935,6 +950,21 @@ class PointInputs:
     tf_case_fluence_max_n_m2_per_fpy_v392: float = float("nan")
     cryostat_fluence_max_n_m2_per_fpy_v392: float = float("nan")
     bioshield_dose_rate_max_uSv_h_v392: float = float("nan")
+
+    # --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional; OFF by default) ---
+    # Governance-only overlay on top of existing neutronics/materials and activation/attenuation proxies.
+    # Applies deterministic tiered contracts (OPTIMISTIC / NOMINAL / ROBUST) and reports margins + dominance.
+    include_neutronics_materials_authority_v401: bool = False
+    nm_contract_tier_v401: str = "NOMINAL"
+    nm_fragile_margin_frac_v401: float = 0.10
+    # Optional per-item overrides (NaN disables, otherwise replaces tier default)
+    tf_case_fluence_max_n_m2_per_fpy_override_v401: float = float("nan")
+    bioshield_dose_rate_max_uSv_h_override_v401: float = float("nan")
+    P_nuc_TF_max_MW_override_v401: float = float("nan")
+    dpa_per_fpy_max_override_v401: float = float("nan")
+    fw_He_total_limit_appm_override_v401: float = float("nan")
+    activation_index_max_override_v401: float = float("nan")
+    TBR_min_override_v401: float = float("nan")
 
     # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional; OFF by default) ---
     # Deterministic algebraic availability envelope driven by explicit MTBF/MTTR + planned/maintenance downtime.

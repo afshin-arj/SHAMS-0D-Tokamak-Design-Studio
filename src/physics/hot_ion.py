@@ -126,6 +126,11 @@ except Exception:
     evaluate_control_stability_v398 = None  # type: ignore
 
 try:
+    from analysis.magnet_technology_authority_v400 import evaluate_magnet_technology_authority_v400  # type: ignore
+except Exception:
+    evaluate_magnet_technology_authority_v400 = None  # type: ignore
+
+try:
     from analysis.neutronics_materials_coupling_v372 import evaluate_neutronics_materials_coupling_v372  # type: ignore
 except Exception:
     evaluate_neutronics_materials_coupling_v372 = None  # type: ignore
@@ -1474,7 +1479,28 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["magnet_fragility_class"] = "UNKNOWN"
 
 
-# Stored energy / dump voltage proxy (TF system)
+    out.setdefault("fragile_margin_frac", float(getattr(inp, "fragile_margin_frac", 0.05)))
+
+    # -----------------------------------------------------------------
+    # v400.0: Magnet Technology Authority (margin ledger overlay; no truth edits)
+    # -----------------------------------------------------------------
+    magnet_v400: Dict[str, Any] = {}
+    try:
+        if evaluate_magnet_technology_authority_v400 is None:
+            raise RuntimeError("magnet technology v400 module not importable")
+        magnet_v400 = evaluate_magnet_technology_authority_v400(inp=inp, out_partial=out)
+    except Exception as e:
+        magnet_v400 = {
+            "magnet_v400_enabled": False,
+            "magnet_v400_error": f"{type(e).__name__}: {e}",
+        }
+    try:
+        for k, v in magnet_v400.items():
+            out[k] = v
+    except Exception:
+        pass
+
+    # Stored energy / dump voltage proxy (TF system)
     # Effective magnetic volume proxy:
     #   - take toroidal circumference ~ 2πR0
     #   - vertical extent ~ 2 κ a
@@ -1991,6 +2017,20 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         na392 = compute_neutronics_shield_attenuation_bundle_v392(out, inp)
         if isinstance(na392, dict):
             out.update(na392)
+    except Exception:
+        pass
+
+    # =========================================================================
+    # Added: Neutronics & Materials Authority 3.0 — Contract Tiers (v401.0.0)
+    # Governance-only overlay: computes tiered margins + dominance.
+    # =========================================================================
+    try:
+        from ..analysis.neutronics_materials_authority_v401 import (
+            evaluate_neutronics_materials_authority_v401,
+        )
+        nm401 = evaluate_neutronics_materials_authority_v401(out, inp)
+        if isinstance(nm401, dict):
+            out.update(nm401)
     except Exception:
         pass
 

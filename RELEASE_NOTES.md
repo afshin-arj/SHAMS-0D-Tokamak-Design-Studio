@@ -1122,3 +1122,11 @@ Truth outputs unchanged.
 - New governance-only certification: `src/certification/current_drive_library_certification_v395.py`
 - Systems Mode UI: added collapsed panel **“📡 Current drive library (v395) — multi-channel mix bookkeeping (certified)”** with cache-only compute and JSON export.
 - No solvers, no iteration, no hidden optimization; frozen truth discipline preserved.
+
+
+## v400.0.0 — Magnet Technology Authority (LTS/HTS/Cu margin ledger)
+
+- Adds deterministic governance-only overlay `magnet_technology_authority_v400` producing explicit B–T–J–stress–SC–T-window (and Cu ohmic) margin ledger and tiers.
+- Adds optional explicit feasibility caps (NaN disables) for combined and per-aspect magnet margins.
+- UI: adds v400 input expander (caps) and v400 results expander.
+- Updates README current version line.

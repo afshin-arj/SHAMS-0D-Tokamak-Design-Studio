@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "project": "SHAMS\u2013FUSION-X",
-  "ran_unix": 1771493667.0042136,
-  "elapsed_s": 10.023784875869751,
+  "ran_unix": 1772102817.7167144,
+  "elapsed_s": 11.023369789123535,
   "overall_ok": true,
   "requirements": [
     {
       "id": "REQ-REG-001",
       "title": "Regression benchmarks must pass",
       "ok": true,
-      "seconds": 3.515383005142212,
+      "seconds": 4.047133684158325,
       "model_cards": [
         "plasma.hot_ion_point"
       ],
@@ -19,7 +19,7 @@
       "id": "REQ-GEO-001",
       "title": "Inboard radial stack closure must be computed and reported",
       "ok": true,
-      "seconds": 0.04231095314025879,
+      "seconds": 0.06681990623474121,
       "model_cards": [
         "engineering.radial_stack"
       ],
@@ -29,7 +29,7 @@
       "id": "REQ-GEO-002",
       "title": "Baseline case should have a closing inboard stack",
       "ok": true,
-      "seconds": 0.002301931381225586,
+      "seconds": 0.002506732940673828,
       "model_cards": [
         "engineering.radial_stack"
       ],
@@ -39,7 +39,7 @@
       "id": "REQ-GEO-003",
       "title": "A deliberately overbuilt coil case should fail inboard stack closure",
       "ok": true,
-      "seconds": 0.05325198173522949,
+      "seconds": 0.019965410232543945,
       "model_cards": [
         "engineering.radial_stack"
       ],
@@ -61,7 +61,7 @@
       "id": "REQ-TOPO-001",
       "title": "Feasibility topology regression must remain stable",
       "ok": true,
-      "seconds": 6.095418214797974,
+      "seconds": 6.567992925643921,
       "model_cards": [
         "cartography.topology_slice"
       ],
@@ -71,7 +71,7 @@
       "id": "REQ-IMP-001",
       "title": "Import policy: forbid legacy shams_v1941 imports in runtime paths",
       "ok": true,
-      "seconds": 0.31507253646850586,
+      "seconds": 0.3189053535461426,
       "model_cards": [],
       "note": ""
     }

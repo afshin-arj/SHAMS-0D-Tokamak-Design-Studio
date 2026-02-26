@@ -264,6 +264,11 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Bioshield dose rate (v392)", "bioshield_dose_rate_uSv_h_v392", hi_key="bioshield_dose_rate_max_uSv_h_v392",
         units="uSv/h", description="Dose-rate proxy outside biological shield (v392). Optional cap.")
 
+    # Neutronics & Materials Authority 3.0 — Contract Tiers (v401.0.0) — governance overlay
+    # Note: v401 does not introduce new truth quantities; it scores margins on existing proxies.
+    add("NM contract min margin (v401)", "nm_min_margin_frac_v401", lo_key="nm_fragile_margin_frac_v401", units="-",
+        description="Minimum normalized margin across tiered neutronics/materials contract items (v401). Values <0 infeasible; <fragile threshold indicates fragile.")
+
     # Availability 2.0 — Reliability Envelope Authority (v391.0.0) — optional caps/minima (NaN disables)
     add("Availability certified (v391)", "availability_cert_v391", lo_key="availability_min_v391", units="-",
         description="Certified availability envelope from MTBF/MTTR product proxy + planned/maintenance downtime (v391).")

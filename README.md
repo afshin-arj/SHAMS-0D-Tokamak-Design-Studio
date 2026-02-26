@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v395.0.0 — Current Drive Library Expansion 1.0 (Multi-Channel Mix)
+**Current version:** v401.0.0 — Neutronics & Materials Authority 3.0 (tiered contract governance)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -91,7 +91,7 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 | Exhaust / divertor | **Authority-grade heat flux & detachment** | Approximate |
 | Control & stability | **VS, RWM, PF, CS budgets** | Largely absent |
 | Disruptions | **Deterministic risk tiering (non-predictive)** | Minimal |
-| Neutronics & materials | **Domain-tightened authority** | Approximate |
+| Neutronics & materials | **Domain-tightened authority + tiered contract governance (v401)** | Approximate |
 | Fuel cycle / tritium | **Explicit authority** | Simplified |
 | Plant power ledger | **Explicit energy accounting** | Aggregated |
 
