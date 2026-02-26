@@ -56,6 +56,7 @@ from .radiation import (
     total_core_radiation_W,
 )
 from .impurities.species_library import ImpurityContract, evaluate_impurity_radiation_partition
+from .impurities.species_library_v399 import ImpurityMixContractV399, evaluate_impurity_radiation_partition_v399
 from .plant import plant_power_closure, electric_efficiency
 from .current_drive import cd_gamma_and_efficiency
 try:
@@ -112,6 +113,17 @@ try:
     from analysis.transport_envelope_v396 import evaluate_transport_envelope_v396  # type: ignore
 except Exception:
     evaluate_transport_envelope_v396 = None  # type: ignore
+
+try:
+    from analysis.profile_proxy_v397 import evaluate_profile_proxy_v397  # type: ignore
+except Exception:
+    evaluate_profile_proxy_v397 = None  # type: ignore
+
+
+try:
+    from analysis.control_stability_v398 import evaluate_control_stability_v398  # type: ignore
+except Exception:
+    evaluate_control_stability_v398 = None  # type: ignore
 
 try:
     from analysis.neutronics_materials_coupling_v372 import evaluate_neutronics_materials_coupling_v372  # type: ignore
@@ -857,6 +869,66 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             "transport_envelope_v396_error": f"{type(e).__name__}: {e}",
         }
 
+    # -----------------------------------------------------------------
+    # v397.0: 1.5D Profile Proxy Authority (governance-only; no truth edits)
+    # -----------------------------------------------------------------
+    profile_proxy_v397: Dict[str, Any] = {}
+    try:
+        if evaluate_profile_proxy_v397 is None:
+            raise RuntimeError("profile proxy module not importable")
+        profile_proxy_v397 = evaluate_profile_proxy_v397(
+            inp=inp,
+            out_partial={
+                "q95": q95,
+            },
+        )
+    except Exception as e:
+        profile_proxy_v397 = {
+            "profile_proxy_v397_enabled": False,
+            "profile_proxy_v397_error": f"{type(e).__name__}: {e}",
+        }
+
+
+    # -----------------------------------------------------------------
+    # v398.0: Control & Stability Ledger Authority (governance-only; no truth edits)
+    # -----------------------------------------------------------------
+    control_stability_v398: Dict[str, Any] = {}
+    try:
+        if evaluate_control_stability_v398 is None:
+            raise RuntimeError("control stability v398 module not importable")
+        control_stability_v398 = evaluate_control_stability_v398(
+            inp=inp,
+            out_partial={
+                # CS flux swing (volt-second budget)
+                "cs_flux_required_Wb": out.get("cs_flux_required_Wb"),
+                "cs_flux_available_Wb": out.get("cs_flux_available_Wb"),
+                "cs_flux_margin": out.get("cs_flux_margin"),
+                # VS contracts
+                "vs_margin": out.get("vs_margin"),
+                "vs_control_power_req_MW": out.get("vs_control_power_req_MW"),
+                "vs_control_power_max_MW": out.get("vs_control_power_max_MW"),
+                "vs_bandwidth_req_Hz": out.get("vs_bandwidth_req_Hz"),
+                "vs_bandwidth_max_Hz": out.get("vs_bandwidth_max_Hz"),
+                # RWM contracts
+                "rwm_chi": out.get("rwm_chi"),
+                "rwm_control_power_req_MW": out.get("rwm_control_power_req_MW"),
+                "rwm_control_power_max_MW": out.get("rwm_control_power_max_MW"),
+                "rwm_bandwidth_req_Hz": out.get("rwm_bandwidth_req_Hz"),
+                "rwm_bandwidth_max_Hz": out.get("rwm_bandwidth_max_Hz"),
+                # v397 profile proxies (optional)
+                "q0_proxy_v397": out.get("q0_proxy_v397"),
+                "q95_proxy_v397": out.get("q95_proxy_v397"),
+                "li_proxy_v397": out.get("li_proxy_v397"),
+                "profile_peaking_p_v397": out.get("profile_peaking_p_v397"),
+                "bootstrap_localization_index_v397": out.get("bootstrap_localization_index_v397"),
+            },
+        )
+    except Exception as e:
+        control_stability_v398 = {
+            "control_stability_v398_enabled": False,
+            "control_stability_v398_error": f"{type(e).__name__}: {e}",
+        }
+
 # ---------------------------
     # Particle sustainability (optional diagnostic closure)
     # ---------------------------
@@ -1555,6 +1627,80 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["impurity_zeff_proxy"] = float(rp.zeff_proxy)
         out["impurity_fuel_ion_fraction"] = float(rp.fuel_ion_fraction)
         out["impurity_validity"] = dict(rp.validity)
+
+        # --- (v399.0) Multi-species impurity & radiation partition authority ---
+        out["include_impurity_v399"] = float(bool(getattr(inp, "include_impurity_v399", False)))
+        mix_json = str(getattr(inp, "impurity_mix_json_v399", "") or "").strip()
+        if bool(getattr(inp, "include_impurity_v399", False)):
+            try:
+                # Default mix: carry over v320 single-species knob if JSON is empty.
+                if not mix_json:
+                    mix_json = json.dumps({
+                        "species_fz": {str(_sp): float(_fz)},
+                        "f_core": float(_f_core),
+                        "f_edge": float(_f_edge),
+                        "f_sol": float(_f_sol),
+                        "f_divertor": float(_f_div),
+                    }, sort_keys=True, separators=(",", ":"))
+                mix = ImpurityMixContractV399.from_json(mix_json)
+                rp399 = evaluate_impurity_radiation_partition_v399(
+                    mix,
+                    ne20=float(ne20),
+                    volume_m3=float(V),
+                    t_keV=float(Ti),
+                )
+                out["impurity_v399_mix_json"] = mix_json
+                out["impurity_v399_prad_total_MW"] = float(rp399.prad_total_MW)
+                out["impurity_v399_prad_core_MW"] = float(rp399.prad_core_MW)
+                out["impurity_v399_prad_edge_MW"] = float(rp399.prad_edge_MW)
+                out["impurity_v399_prad_sol_MW"] = float(rp399.prad_sol_MW)
+                out["impurity_v399_prad_div_MW"] = float(rp399.prad_div_MW)
+                out["impurity_v399_zeff"] = float(rp399.zeff)
+                out["impurity_v399_fuel_ion_fraction"] = float(rp399.fuel_ion_fraction)
+                out["impurity_v399_by_species_MW"] = dict(rp399.by_species_MW)
+                out["impurity_v399_validity"] = dict(rp399.validity)
+
+                # Achieved detachment margin vs required (if required present).
+                prad_sol_div = float(rp399.prad_sol_MW + rp399.prad_div_MW)
+                prad_req = float(out.get("detachment_prad_sol_div_required_MW", float("nan")))
+                if math.isfinite(prad_req) and prad_req > 0.0:
+                    out["detachment_prad_sol_div_achieved_MW_v399"] = prad_sol_div
+                    out["detachment_margin_v399"] = float(prad_sol_div / prad_req - 1.0)
+                else:
+                    out["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
+                    out["detachment_margin_v399"] = float("nan")
+            except Exception as e:
+                out["impurity_v399_mix_json"] = mix_json
+                out["impurity_v399_validity"] = {"error": str(e)}
+                out["impurity_v399_prad_total_MW"] = float("nan")
+                out["impurity_v399_prad_core_MW"] = float("nan")
+                out["impurity_v399_prad_edge_MW"] = float("nan")
+                out["impurity_v399_prad_sol_MW"] = float("nan")
+                out["impurity_v399_prad_div_MW"] = float("nan")
+                out["impurity_v399_zeff"] = float("nan")
+                out["impurity_v399_fuel_ion_fraction"] = float("nan")
+                out["impurity_v399_by_species_MW"] = {}
+                out["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
+                out["detachment_margin_v399"] = float("nan")
+        else:
+            out["impurity_v399_mix_json"] = mix_json
+            out["impurity_v399_prad_total_MW"] = float("nan")
+            out["impurity_v399_prad_core_MW"] = float("nan")
+            out["impurity_v399_prad_edge_MW"] = float("nan")
+            out["impurity_v399_prad_sol_MW"] = float("nan")
+            out["impurity_v399_prad_div_MW"] = float("nan")
+            out["impurity_v399_zeff"] = float("nan")
+            out["impurity_v399_fuel_ion_fraction"] = float("nan")
+            out["impurity_v399_by_species_MW"] = {}
+            out["impurity_v399_validity"] = {}
+            out["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
+            out["detachment_margin_v399"] = float("nan")
+
+        # Pass through v399 caps (for explicit constraints; NaN disables)
+        out["zeff_max_v399"] = float(getattr(inp, "zeff_max_v399", float("nan")))
+        out["prad_core_frac_max_v399"] = float(getattr(inp, "prad_core_frac_max_v399", float("nan")))
+        out["prad_total_frac_max_v399"] = float(getattr(inp, "prad_total_frac_max_v399", float("nan")))
+        out["detachment_margin_min_v399"] = float(getattr(inp, "detachment_margin_min_v399", float("nan")))
 
         # Detachment authority: invert q_div target -> required SOL+div radiation and implied f_z.
         q_target = float(getattr(inp, "q_div_target_MW_m2", float("nan")))
@@ -3134,6 +3280,37 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     try:
         if isinstance(transport_envelope_v396, dict):
             for k, v in transport_envelope_v396.items():
+                if k not in out:
+                    out[k] = v
+                else:
+                    try:
+                        if (out.get(k) != out.get(k)) and (v == v):
+                            out[k] = v
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    # v397.0 profile proxy authority (governance-only diagnostics)
+    try:
+        if isinstance(profile_proxy_v397, dict):
+            for k, v in profile_proxy_v397.items():
+                if k not in out:
+                    out[k] = v
+                else:
+                    try:
+                        if (out.get(k) != out.get(k)) and (v == v):
+                            out[k] = v
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+
+    # v398.0 control & stability ledger authority (governance-only diagnostics)
+    try:
+        if isinstance(control_stability_v398, dict):
+            for k, v in control_stability_v398.items():
                 if k not in out:
                     out[k] = v
                 else:

@@ -6,6 +6,64 @@
   },
   "notes": "Deterministic impurity species and radiation partition authority. Conservative thresholds; algebraic only.",
   "schema_version": "1.0",
+  "species_defs_v399": {
+    "Ar": {
+      "Z": 18,
+      "floor_Wm3": 8e-35,
+      "mu_logT": 0.0,
+      "peak_Wm3": 8e-33,
+      "sigma": 0.6
+    },
+    "C": {
+      "Z": 6,
+      "floor_Wm3": 8e-35,
+      "mu_logT": -1.3862943611198906,
+      "peak_Wm3": 2.5e-33,
+      "sigma": 0.5
+    },
+    "He": {
+      "Z": 2,
+      "floor_Wm3": 1e-35,
+      "mu_logT": 0.0,
+      "peak_Wm3": 2e-34,
+      "sigma": 0.8
+    },
+    "Kr": {
+      "Z": 36,
+      "floor_Wm3": 5e-35,
+      "mu_logT": 0.6931471805599453,
+      "peak_Wm3": 1.6e-32,
+      "sigma": 0.7
+    },
+    "N": {
+      "Z": 7,
+      "floor_Wm3": 8e-35,
+      "mu_logT": -1.0498221244986778,
+      "peak_Wm3": 3e-33,
+      "sigma": 0.52
+    },
+    "Ne": {
+      "Z": 10,
+      "floor_Wm3": 8e-35,
+      "mu_logT": -0.6931471805599453,
+      "peak_Wm3": 5e-33,
+      "sigma": 0.55
+    },
+    "W": {
+      "Z": 74,
+      "floor_Wm3": 5e-35,
+      "mu_logT": 1.3862943611198906,
+      "peak_Wm3": 3e-32,
+      "sigma": 0.85
+    },
+    "Xe": {
+      "Z": 54,
+      "floor_Wm3": 5e-35,
+      "mu_logT": 0.9162907318741551,
+      "peak_Wm3": 2.2e-32,
+      "sigma": 0.75
+    }
+  },
   "species_library": {
     "allowed": [
       "none",
@@ -29,6 +87,7 @@
   "thresholds": {
     "Zeff_max": 2.5,
     "core_line_frac_max": 0.6,
+    "detachment_margin_min": 0.0,
     "f_SOL_rad_max": 0.95,
     "f_core_rad_max": 0.75,
     "f_total_rad_max": 0.85

@@ -246,6 +246,62 @@ def evaluate_constraints(
                 group="plasma",
             )
 
+    # --- Profile proxy feasibility caps (v397) ---
+    # These are governance-only diagnostics unless explicit caps are set.
+    fp0 = outputs.get("profile_peaking_p_v397", float("nan"))
+    if fp0 == fp0:
+        fp0_cap = outputs.get("profile_peaking_p_max_v397", float("nan"))
+        if fp0_cap == fp0_cap and float(fp0_cap) > 0.0:
+            le(
+                "profile_peaking_p",
+                float(fp0),
+                float(fp0_cap),
+                units="-",
+                note="v397 profile proxy cap: pressure peaking f_p0",
+                group="plasma",
+            )
+
+    q95p = outputs.get("q95_proxy_v397", float("nan"))
+    if q95p == q95p:
+        q95_min = outputs.get("q95_proxy_min_v397", float("nan"))
+        if q95_min == q95_min and float(q95_min) > 0.0:
+            ge(
+                "q95_proxy_v397",
+                float(q95p),
+                float(q95_min),
+                units="-",
+                note="v397 proxy q95 lower bound",
+                group="plasma",
+            )
+
+    q0p = outputs.get("q0_proxy_v397", float("nan"))
+    if q0p == q0p:
+        q0_min = outputs.get("q0_proxy_min_v397", float("nan"))
+        if q0_min == q0_min and float(q0_min) > 0.0:
+            ge(
+                "q0_proxy_v397",
+                float(q0p),
+                float(q0_min),
+                units="-",
+                note="v397 proxy q0 lower bound",
+                group="plasma",
+                severity="soft",
+            )
+
+    bl = outputs.get("bootstrap_localization_index_v397", float("nan"))
+    if bl == bl:
+        bl_cap = outputs.get("bootstrap_localization_max_v397", float("nan"))
+        if bl_cap == bl_cap and float(bl_cap) > 0.0:
+            le(
+                "bootstrap_localization_v397",
+                float(bl),
+                float(bl_cap),
+                units="-",
+                note="v397 proxy cap: bootstrap localization index",
+                group="plasma",
+                severity="soft",
+            )
+
     # -------- Heat exhaust --------
     if "q_div_MW_m2" in outputs:
         qmax = outputs.get("q_div_max_MW_m2", 10.0)
@@ -273,6 +329,70 @@ def evaluate_constraints(
                 group="exhaust",
                 severity="soft",
             )
+
+
+    # --- (v399.0) Multi-species impurity / radiation feasibility caps (optional) ---
+    # These constraints are explicit *screening caps*; they do not mutate truth.
+    if float(outputs.get("include_impurity_v399", 0.0)) > 0.5:
+        # Zeff cap
+        zeff_max = outputs.get("zeff_max_v399", float("nan"))
+        zeff = outputs.get("impurity_v399_zeff", float("nan"))
+        if zeff_max == zeff_max and zeff == zeff:
+            le(
+                "zeff_v399",
+                zeff,
+                zeff_max,
+                units="-",
+                note="v399 Zeff proxy from multi-species impurity mix",
+                group="exhaust",
+                severity="soft",
+            )
+
+        # Core radiation fraction cap
+        Pin = outputs.get("Pin_MW", outputs.get("P_in_MW", float("nan")))
+        prad_core = outputs.get("impurity_v399_prad_core_MW", float("nan"))
+        prad_total = outputs.get("impurity_v399_prad_total_MW", float("nan"))
+
+        f_core_max = outputs.get("prad_core_frac_max_v399", float("nan"))
+        if Pin == Pin and Pin > 0 and prad_core == prad_core and f_core_max == f_core_max:
+            f_core = prad_core / Pin
+            le(
+                "prad_core_frac_v399",
+                f_core,
+                f_core_max,
+                units="-",
+                note="v399 Prad_core/Pin cap (radiative collapse screening)",
+                group="exhaust",
+                severity="soft",
+            )
+
+        f_tot_max = outputs.get("prad_total_frac_max_v399", float("nan"))
+        if Pin == Pin and Pin > 0 and prad_total == prad_total and f_tot_max == f_tot_max:
+            f_tot = prad_total / Pin
+            le(
+                "prad_total_frac_v399",
+                f_tot,
+                f_tot_max,
+                units="-",
+                note="v399 Prad_total/Pin cap (radiative collapse screening)",
+                group="exhaust",
+                severity="soft",
+            )
+
+        # Detachment achieved margin cap (achieved/required - 1)
+        det_min = outputs.get("detachment_margin_min_v399", float("nan"))
+        det_margin = outputs.get("detachment_margin_v399", float("nan"))
+        if det_min == det_min and det_margin == det_margin:
+            ge(
+                "detachment_margin_v399",
+                det_margin,
+                det_min,
+                units="-",
+                note="v399 detachment margin: (Prad_SOL+div achieved)/(required) - 1",
+                group="exhaust",
+                severity="soft",
+            )
+
 
 
     # -------- Magnets / TF coil --------
@@ -486,7 +606,50 @@ def evaluate_constraints(
         lim = outputs.get("neutron_wall_load_max_MW_m2", 4.0)
         le("NWL", outputs["neutron_wall_load_MW_m2"], lim, units="MW/m²", note="Neutron wall load proxy", group="neutronics")
 
-    # v372.0 neutronics–materials coupling (optional; explicit caps activate)
+    # 
+
+    # --- Control & Stability Ledger Authority caps (v398) ---
+    # Governance-only diagnostics unless explicit caps are set.
+    vsm = outputs.get("vs_budget_margin_v398", float("nan"))
+    if vsm == vsm:
+        vsm_min = outputs.get("vs_budget_margin_min_v398", float("nan"))
+        if vsm_min == vsm_min:
+            ge(
+                "vs_budget_margin_v398",
+                float(vsm),
+                float(vsm_min),
+                units="-",
+                note="v398 control ledger: CS volt-second budget margin lower bound",
+                group="control",
+            )
+
+    vde_h = outputs.get("vde_headroom_v398", float("nan"))
+    if vde_h == vde_h:
+        vde_min = outputs.get("vde_headroom_min_v398", float("nan"))
+        if vde_min == vde_min:
+            ge(
+                "vde_headroom_v398",
+                float(vde_h),
+                float(vde_min),
+                units="-",
+                note="v398 control ledger: vertical control headroom lower bound",
+                group="control",
+            )
+
+    rwm_idx = outputs.get("rwm_proximity_index_v398", float("nan"))
+    if rwm_idx == rwm_idx:
+        rwm_max = outputs.get("rwm_proximity_index_max_v398", float("nan"))
+        if rwm_max == rwm_max and float(rwm_max) >= 0.0:
+            le(
+                "rwm_proximity_index_v398",
+                float(rwm_idx),
+                float(rwm_max),
+                units="-",
+                note="v398 control ledger: RWM proximity index upper bound",
+                group="control",
+            )
+
+# v372.0 neutronics–materials coupling (optional; explicit caps activate)
     if outputs.get("nm_coupling_v372_enabled", False) and ("dpa_rate_eff_per_fpy_v372" in outputs):
         dpa = outputs.get("dpa_rate_eff_per_fpy_v372", float("nan"))
         dpa_max = outputs.get("dpa_rate_eff_max_v372", float("nan"))

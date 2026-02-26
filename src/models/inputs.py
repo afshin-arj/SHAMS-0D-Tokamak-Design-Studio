@@ -131,6 +131,43 @@ class PointInputs:
     tauE_user_exp_M_v396: float = float("nan")
 
     # ------------------------------------------------------------------
+    # v397.0: 1.5D Profile Proxy Authority (governance only)
+    # ------------------------------------------------------------------
+    # Analytic profile family + derived proxy metrics (peaking, li, q0/q95 proxies,
+    # bootstrap localization). Deterministic, non-iterative; does not modify truth.
+    include_profile_proxy_v397: bool = False
+    # Core profile shapes: s(ρ) = (1-ρ^α)^β, with s(0)=1
+    profile_alpha_T_v397: float = 1.5
+    profile_beta_T_v397: float = 1.0
+    profile_alpha_n_v397: float = 1.0
+    profile_beta_n_v397: float = 1.0
+    # Current density shape (proxy)
+    profile_alpha_j_v397: float = 1.5
+    profile_beta_j_v397: float = 1.0
+    # Shear-shape knob (0..1): larger => more favorable q0_proxy (stabilizing)
+    profile_shear_shape_v397: float = 0.5
+
+    # Optional explicit feasibility caps (NaN disables)
+    profile_peaking_p_max_v397: float = float("nan")
+    q95_proxy_min_v397: float = float("nan")
+    q0_proxy_min_v397: float = float("nan")
+    bootstrap_localization_max_v397: float = float("nan")
+
+
+    # ------------------------------------------------------------------
+    # v398.0: Control & Stability Ledger Authority (governance only)
+    # ------------------------------------------------------------------
+    # Consolidated, audit-ready control ledger that wraps existing VS/PF/RWM/CS proxies
+    # into explicit margins and tiers. Deterministic; no iteration; does not modify truth.
+    include_control_stability_authority_v398: bool = False
+
+    # Optional explicit feasibility caps (NaN disables). When set, become explicit constraints.
+    vs_budget_margin_min_v398: float = float("nan")  # (psi_av-psi_req)/psi_req >= min
+    vde_headroom_min_v398: float = float("nan")      # min headroom for VS power/bandwidth
+    rwm_proximity_index_max_v398: float = float("nan")  # 0..1 (benign->critical)
+
+
+    # ------------------------------------------------------------------
     # v372.0: Neutronics–Materials Coupling Authority 2.0 (governance only)
     # ------------------------------------------------------------------
     include_neutronics_materials_coupling_v372: bool = False
@@ -310,6 +347,18 @@ class PointInputs:
     # Optional feasibility cap: require implied f_z to be <= this value (NaN disables)
     detachment_fz_max: float = float('nan')
 
+
+    # --- (v399.0) Multi-species impurity & radiation partition authority (deterministic) ---
+    include_impurity_v399: bool = False
+    # JSON contract for species mix and partitions.
+    # Example:
+    # {"species_fz":{"Ne":3e-4,"Ar":0.0,"W":0.0},"f_core":0.50,"f_edge":0.20,"f_sol":0.20,"f_divertor":0.10}
+    impurity_mix_json_v399: str = ""
+    # Optional explicit feasibility caps (NaN disables)
+    zeff_max_v399: float = float('nan')
+    prad_core_frac_max_v399: float = float('nan')     # Prad_core / Pin
+    prad_total_frac_max_v399: float = float('nan')    # Prad_total / Pin
+    detachment_margin_min_v399: float = float('nan')  # achieved/required - 1
     # Screening proxy knob
     C_bs: float = 0.15
 

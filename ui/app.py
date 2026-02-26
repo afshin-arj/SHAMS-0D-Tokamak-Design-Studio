@@ -924,6 +924,20 @@ PD_KEYS = {
     "tauE_user_exp_eps_v396": "pd_tauE_user_exp_eps_v396",
     "tauE_user_exp_kappa_v396": "pd_tauE_user_exp_kappa_v396",
     "tauE_user_exp_M_v396": "pd_tauE_user_exp_M_v396",
+
+    # v397.0 profile proxy authority keys
+    "include_profile_proxy_v397": "pd_include_profile_proxy_v397",
+    "profile_alpha_T_v397": "pd_profile_alpha_T_v397",
+    "profile_beta_T_v397": "pd_profile_beta_T_v397",
+    "profile_alpha_n_v397": "pd_profile_alpha_n_v397",
+    "profile_beta_n_v397": "pd_profile_beta_n_v397",
+    "profile_alpha_j_v397": "pd_profile_alpha_j_v397",
+    "profile_beta_j_v397": "pd_profile_beta_j_v397",
+    "profile_shear_shape_v397": "pd_profile_shear_shape_v397",
+    "profile_peaking_p_max_v397": "pd_profile_peaking_p_max_v397",
+    "q95_proxy_min_v397": "pd_q95_proxy_min_v397",
+    "q0_proxy_min_v397": "pd_q0_proxy_min_v397",
+    "bootstrap_localization_max_v397": "pd_bootstrap_localization_max_v397",
     # v372.0 neutronics–materials coupling keys
     "include_neutronics_materials_coupling_v372": "pd_include_nm_coupling_v372",
     "nm_material_class_v372": "pd_nm_material_class_v372",
@@ -4530,6 +4544,134 @@ if _deck == "🧭 Point Designer":
                         tauE_user_exp_M_v396 = st.number_input("exp_M", value=float(getattr(_base_pd, "tauE_user_exp_M_v396", float("nan"))), step=0.01, key=PD_KEYS["tauE_user_exp_M_v396"], disabled=not (include_transport_envelope_v396 and include_tauE_user_scaling_v396))
 
                 # -----------------------------------------------------------------
+                # v397.0: 1.5D Profile Proxy Authority (governance-only)
+                # -----------------------------------------------------------------
+                with st.expander("Profile Proxy Authority (v397)", expanded=False):
+                    include_profile_proxy_v397 = st.checkbox(
+                        "Enable Profile Proxy Authority diagnostics",
+                        value=bool(getattr(_base_pd, "include_profile_proxy_v397", False)),
+                        key=PD_KEYS["include_profile_proxy_v397"],
+                        help=(
+                            "Deterministic analytic profile families (n,T,j) with derived proxy metrics: peaking factors, "
+                            "q0/li proxies, and bootstrap localization index. Governance-only unless you set explicit caps."
+                        ),
+                    )
+
+                    cP1, cP2, cP3 = st.columns(3)
+                    with cP1:
+                        profile_alpha_n_v397 = st.number_input(
+                            "n profile α",
+                            min_value=0.5,
+                            max_value=6.0,
+                            value=float(getattr(_base_pd, "profile_alpha_n_v397", 1.0)),
+                            step=0.1,
+                            key=PD_KEYS["profile_alpha_n_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                        profile_beta_n_v397 = st.number_input(
+                            "n profile β",
+                            min_value=0.5,
+                            max_value=6.0,
+                            value=float(getattr(_base_pd, "profile_beta_n_v397", 1.0)),
+                            step=0.1,
+                            key=PD_KEYS["profile_beta_n_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                    with cP2:
+                        profile_alpha_T_v397 = st.number_input(
+                            "T profile α",
+                            min_value=0.5,
+                            max_value=6.0,
+                            value=float(getattr(_base_pd, "profile_alpha_T_v397", 1.5)),
+                            step=0.1,
+                            key=PD_KEYS["profile_alpha_T_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                        profile_beta_T_v397 = st.number_input(
+                            "T profile β",
+                            min_value=0.5,
+                            max_value=6.0,
+                            value=float(getattr(_base_pd, "profile_beta_T_v397", 1.0)),
+                            step=0.1,
+                            key=PD_KEYS["profile_beta_T_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                    with cP3:
+                        profile_alpha_j_v397 = st.number_input(
+                            "j profile α",
+                            min_value=0.5,
+                            max_value=8.0,
+                            value=float(getattr(_base_pd, "profile_alpha_j_v397", 1.5)),
+                            step=0.1,
+                            key=PD_KEYS["profile_alpha_j_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                        profile_beta_j_v397 = st.number_input(
+                            "j profile β",
+                            min_value=0.5,
+                            max_value=8.0,
+                            value=float(getattr(_base_pd, "profile_beta_j_v397", 1.0)),
+                            step=0.1,
+                            key=PD_KEYS["profile_beta_j_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+
+                    profile_shear_shape_v397 = st.slider(
+                        "Shear-shape knob (0..1)",
+                        min_value=0.0,
+                        max_value=1.0,
+                        value=float(getattr(_base_pd, "profile_shear_shape_v397", 0.5)),
+                        step=0.05,
+                        key=PD_KEYS["profile_shear_shape_v397"],
+                        disabled=not include_profile_proxy_v397,
+                        help="Higher values modestly increase q0_proxy (stabilizing) in the v397 proxy mapping.",
+                    )
+
+                    st.divider()
+                    st.caption("Optional explicit feasibility caps (set NaN to disable):")
+                    cC1, cC2, cC3, cC4 = st.columns(4)
+                    with cC1:
+                        profile_peaking_p_max_v397 = st.number_input(
+                            "Max pressure peaking f_p0",
+                            min_value=1.0,
+                            max_value=10.0,
+                            value=float(getattr(_base_pd, "profile_peaking_p_max_v397", float("nan"))) if float(getattr(_base_pd, "profile_peaking_p_max_v397", float("nan")))==float(getattr(_base_pd, "profile_peaking_p_max_v397", float("nan"))) else 4.0,
+                            step=0.1,
+                            key=PD_KEYS["profile_peaking_p_max_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                    with cC2:
+                        q95_proxy_min_v397 = st.number_input(
+                            "Min q95_proxy",
+                            min_value=1.0,
+                            max_value=10.0,
+                            value=float(getattr(_base_pd, "q95_proxy_min_v397", float("nan"))) if float(getattr(_base_pd, "q95_proxy_min_v397", float("nan")))==float(getattr(_base_pd, "q95_proxy_min_v397", float("nan"))) else 2.0,
+                            step=0.1,
+                            key=PD_KEYS["q95_proxy_min_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                    with cC3:
+                        q0_proxy_min_v397 = st.number_input(
+                            "Min q0_proxy (soft)",
+                            min_value=0.5,
+                            max_value=5.0,
+                            value=float(getattr(_base_pd, "q0_proxy_min_v397", float("nan"))) if float(getattr(_base_pd, "q0_proxy_min_v397", float("nan")))==float(getattr(_base_pd, "q0_proxy_min_v397", float("nan"))) else 1.0,
+                            step=0.1,
+                            key=PD_KEYS["q0_proxy_min_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+                    with cC4:
+                        bootstrap_localization_max_v397 = st.number_input(
+                            "Max bootstrap localization (soft)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(_base_pd, "bootstrap_localization_max_v397", float("nan"))) if float(getattr(_base_pd, "bootstrap_localization_max_v397", float("nan")))==float(getattr(_base_pd, "bootstrap_localization_max_v397", float("nan"))) else 0.6,
+                            step=0.05,
+                            key=PD_KEYS["bootstrap_localization_max_v397"],
+                            disabled=not include_profile_proxy_v397,
+                        )
+
+                # -----------------------------------------------------------------
                 # v372.0: Neutronics–Materials coupling (governance-only)
                 # -----------------------------------------------------------------
                 with st.expander("🧬 Neutronics–Materials coupling (v372)", expanded=False):
@@ -4786,6 +4928,13 @@ if _deck == "🧭 Point Designer":
                 T_sol_keV = 0.08
                 f_V_sol_div = 0.12
                 detachment_fz_max = float('nan')
+                # v399 multi-species impurity mix authority defaults
+                include_impurity_v399 = False
+                impurity_mix_json_v399 = ""
+                zeff_max_v399 = float('nan')
+                prad_core_frac_max_v399 = float('nan')
+                prad_total_frac_max_v399 = float('nan')
+                detachment_margin_min_v399 = float('nan')
                 include_edge_core_coupled_exhaust = False
                 edge_core_coupling_chi_core = 0.25
                 f_rad_core_edge_core_max = float('nan')
@@ -4908,6 +5057,38 @@ if _deck == "🧭 Point Designer":
                             T_sol_keV = _num("T_SOL proxy (keV)", float(T_sol_keV), 0.01, min_value=0.03, max_value=1.0)
                         with c4:
                             f_V_sol_div = _num("Effective radiating volume fraction V_SOL+div / V", float(f_V_sol_div), 0.01, min_value=0.005, max_value=0.5)
+
+                        # --- (v399.0) Multi-species impurity & radiation authority ---
+                        with st.expander("v399 Multi-species impurity & radiation (Zeff + partitions)", expanded=False):
+                            st.caption("Deterministic multi-species impurity mix → Zeff + Prad partitions (core/edge/SOL/div). "
+                                       "This is a *proxy* authority: algebraic, bounded, audit-friendly.")
+                            include_impurity_v399 = st.checkbox(
+                                "Enable v399 impurity mix authority",
+                                value=bool(st.session_state.get("include_impurity_v399_default", False)),
+                                help="When enabled, SHAMS computes v399 multi-species Zeff and radiation partitions (no feedback into truth).",
+                            )
+                            default_json = '{"species_fz":{"Ne":3e-4,"Ar":0.0,"W":0.0},"f_core":0.50,"f_edge":0.20,"f_sol":0.20,"f_divertor":0.10}'
+                            impurity_mix_json_v399 = st.text_area(
+                                "Impurity mix JSON (v399)",
+                                value=str(impurity_mix_json_v399).strip() if str(impurity_mix_json_v399).strip() else default_json,
+                                height=90,
+                                help="Fractions are f_z = n_z / n_e. Partitions apply to total impurity radiation. Unknown species map conservatively to Ne.",
+                            )
+                            st.markdown("**Optional feasibility caps (soft constraints; NaN disables)**")
+                            cA, cB, cC, cD = st.columns(4)
+                            with cA:
+                                zeff_max_v399 = _num("Zeff max (v399)", float(zeff_max_v399) if zeff_max_v399==zeff_max_v399 else float('nan'),
+                                                    0.1, min_value=1.0, max_value=10.0)
+                            with cB:
+                                prad_core_frac_max_v399 = _num("Prad_core/Pin max (v399)", float(prad_core_frac_max_v399) if prad_core_frac_max_v399==prad_core_frac_max_v399 else float('nan'),
+                                                               0.01, min_value=0.0, max_value=1.0)
+                            with cC:
+                                prad_total_frac_max_v399 = _num("Prad_total/Pin max (v399)", float(prad_total_frac_max_v399) if prad_total_frac_max_v399==prad_total_frac_max_v399 else float('nan'),
+                                                                0.01, min_value=0.0, max_value=1.0)
+                            with cD:
+                                detachment_margin_min_v399 = _num("Detachment margin min (v399)", float(detachment_margin_min_v399) if detachment_margin_min_v399==detachment_margin_min_v399 else float('nan'),
+                                                                  0.05, min_value=-1.0, max_value=5.0,
+                                                                  help="Margin = (Prad_SOL+div achieved)/(required) - 1 (>=0 means meets required budget).")
 
                         st.markdown('**Edge–core coupled exhaust (v348)**')
                         include_edge_core_coupled_exhaust = st.checkbox(
@@ -6215,6 +6396,36 @@ if _deck == "🧭 Point Designer":
                         value=False,
                         help="When enabled, SHAMS computes VS/PF/RWM control requirements and checks optional caps (no physics mutation).",
                     )),
+
+                    # ---------------------------------------------------------
+                    # v398.0 Control & Stability Ledger Authority (optional)
+                    # ---------------------------------------------------------
+                    "include_control_stability_authority_v398": bool(st.checkbox(
+                        "Enable v398 control ledger (VS budget + headroom + RWM proximity overlay)",
+                        value=False,
+                        help="Governance-only overlay that consolidates CS flux budget and VS/RWM headroom into explicit margins/tiers (no physics mutation).",
+                    )),
+                    "vs_budget_margin_min_v398": float(_num(
+                        "Min VS budget margin (v398) (optional)",
+                        float("nan"),
+                        0.0,
+                        help="Optional feasibility bound on VS/CS flux margin: (psi_av-psi_req)/psi_req >= min. Leave NaN to disable.",
+                    )),
+                    "vde_headroom_min_v398": float(_num(
+                        "Min vertical control headroom (v398) (optional)",
+                        float("nan"),
+                        0.0,
+                        help="Optional feasibility bound on min(VS power headroom, VS bandwidth headroom). Leave NaN to disable.",
+                    )),
+                    "rwm_proximity_index_max_v398": float(_num(
+                        "Max RWM proximity index (v398) (optional)",
+                        float("nan"),
+                        0.66,
+                        min_value=0.0,
+                        max_value=1.0,
+                        help="Optional feasibility cap on v398 RWM proximity index (0 benign → 1 critical). Leave NaN to disable.",
+                    )),
+
                     "cs_V_loop_max_V": float(_num(
                         "Max CS loop voltage during ramp V_loop,max (V) (optional)",
                         float("nan"),
@@ -6372,6 +6583,12 @@ if _deck == "🧭 Point Designer":
                             T_sol_keV=float(T_sol_keV),
                             f_V_sol_div=float(f_V_sol_div),
                             detachment_fz_max=float(detachment_fz_max),
+                            include_impurity_v399=bool(include_impurity_v399),
+                            impurity_mix_json_v399=str(impurity_mix_json_v399),
+                            zeff_max_v399=float(zeff_max_v399),
+                            prad_core_frac_max_v399=float(prad_core_frac_max_v399),
+                            prad_total_frac_max_v399=float(prad_total_frac_max_v399),
+                            detachment_margin_min_v399=float(detachment_margin_min_v399),
                             include_edge_core_coupled_exhaust=bool(include_edge_core_coupled_exhaust and include_sol_radiation_control),
                             edge_core_coupling_chi_core=float(edge_core_coupling_chi_core),
                             f_rad_core_edge_core_max=float(f_rad_core_edge_core_max),
@@ -6391,6 +6608,18 @@ if _deck == "🧭 Point Designer":
                             tauE_user_exp_eps_v396=float(tauE_user_exp_eps_v396),
                             tauE_user_exp_kappa_v396=float(tauE_user_exp_kappa_v396),
                             tauE_user_exp_M_v396=float(tauE_user_exp_M_v396),
+                            include_profile_proxy_v397=bool(include_profile_proxy_v397),
+                            profile_alpha_T_v397=float(profile_alpha_T_v397),
+                            profile_beta_T_v397=float(profile_beta_T_v397),
+                            profile_alpha_n_v397=float(profile_alpha_n_v397),
+                            profile_beta_n_v397=float(profile_beta_n_v397),
+                            profile_alpha_j_v397=float(profile_alpha_j_v397),
+                            profile_beta_j_v397=float(profile_beta_j_v397),
+                            profile_shear_shape_v397=float(profile_shear_shape_v397),
+                            profile_peaking_p_max_v397=float(profile_peaking_p_max_v397) if bool(include_profile_proxy_v397) else float("nan"),
+                            q95_proxy_min_v397=float(q95_proxy_min_v397) if bool(include_profile_proxy_v397) else float("nan"),
+                            q0_proxy_min_v397=float(q0_proxy_min_v397) if bool(include_profile_proxy_v397) else float("nan"),
+                            bootstrap_localization_max_v397=float(bootstrap_localization_max_v397) if bool(include_profile_proxy_v397) else float("nan"),
                             include_neutronics_materials_coupling_v372=bool(include_neutronics_materials_coupling_v372),
                             nm_material_class_v372=str(nm_material_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, "nm_material_class_v372", "RAFM")),
                             nm_spectrum_class_v372=str(nm_spectrum_class_v372) if bool(include_neutronics_materials_coupling_v372) else str(getattr(_base_pd, "nm_spectrum_class_v372", "nominal")),
@@ -6453,6 +6682,11 @@ if _deck == "🧭 Point Designer":
                             mtbf_bop_h_v391=float(locals().get("mtbf_bop_h_v391", 50000.0)),
                             mttr_bop_h_v391=float(locals().get("mttr_bop_h_v391", 72.0)),
                             availability_min_v391=float(locals().get("availability_min_v391", float('nan'))),
+
+                            include_control_stability_authority_v398=bool(locals().get("include_control_stability_authority_v398", False)),
+                            vs_budget_margin_min_v398=float(locals().get("vs_budget_margin_min_v398", float('nan'))),
+                            vde_headroom_min_v398=float(locals().get("vde_headroom_min_v398", float('nan'))),
+                            rwm_proximity_index_max_v398=float(locals().get("rwm_proximity_index_max_v398", float('nan'))),
                             planned_outage_max_frac_v391=float(locals().get("planned_outage_max_frac_v391", float('nan'))),
                             unplanned_downtime_max_frac_v391=float(locals().get("unplanned_downtime_max_frac_v391", float('nan'))),
                             maint_downtime_max_frac_v391=float(locals().get("maint_downtime_max_frac_v391", float('nan'))),
@@ -8358,6 +8592,31 @@ if _deck == "🧭 Point Designer":
                                     }
                                     st.dataframe(pd.DataFrame([_cs_row]), use_container_width=True, hide_index=True)
                                     st.caption("Canonical ramp–flat–ramp waveform; V ≈ L_eff·dI/dt + R_eff·I. L_eff is inferred from CS flux requirement if not provided.")
+                                    with st.expander("v398 Control Ledger (VS budget + headroom + RWM overlay)", expanded=False):
+                                        if bool(out.get("control_stability_v398_enabled", False)):
+                                            c1, c2, c3 = st.columns(3)
+                                            c1.metric("VS budget margin", _fmt(out.get("vs_budget_margin_v398")))
+                                            c2.metric("VDE headroom", _fmt(out.get("vde_headroom_v398")))
+                                            c3.metric("RWM proximity idx", _fmt(out.get("rwm_proximity_index_v398")))
+                                            st.markdown("**Tiers**")
+                                            st.write({
+                                                "vde_headroom_tier": out.get("vde_headroom_tier_v398"),
+                                                "rwm_proximity_tier": out.get("rwm_proximity_tier_v398"),
+                                            })
+                                            st.markdown("**Ledger table**")
+                                            _v398_row = {
+                                                "psi_req_Vs": out.get("psi_required_Vs_v398"),
+                                                "psi_av_Vs": out.get("psi_available_Vs_v398"),
+                                                "vs_budget_margin": out.get("vs_budget_margin_v398"),
+                                                "vde_power_headroom": out.get("vde_power_headroom_v398"),
+                                                "vde_bw_headroom": out.get("vde_bw_headroom_v398"),
+                                                "rwm_index": out.get("rwm_proximity_index_v398"),
+                                            }
+                                            st.dataframe(pd.DataFrame([_v398_row]), use_container_width=True, hide_index=True)
+                                            st.caption("v398 is a governance-only overlay: no PF circuit solve; no transport/equilibrium iteration.")
+                                        else:
+                                            st.info("v398 control ledger is disabled for this run (enable in inputs).")
+
                                     st.markdown("**Caps (optional)**")
                                     d2 = {
                                         "I_peak": out.get("pf_I_peak_MA"),
@@ -8998,6 +9257,10 @@ if _deck == "🧭 Point Designer":
                                     "transport_pass_opt": out.get("transport_pass_optimistic"),
                                     "transport_pass_rob": out.get("transport_pass_robust"),
                                     "power_balance_residual [MW]": out.get("power_balance_residual_MW"),
+                                    "fp0_v397": out.get("profile_peaking_p_v397"),
+                                    "q0_proxy_v397": out.get("q0_proxy_v397"),
+                                    "li_proxy_v397": out.get("li_proxy_v397"),
+                                    "boot_loc_v397": out.get("bootstrap_localization_index_v397"),
                                 }
                                 plot_bars(conf_vals, "Confinement / H metrics")
                                 with st.expander("Transport Envelope 2.0 scalings (v396)", expanded=False):
@@ -9013,6 +9276,32 @@ if _deck == "🧭 Point Designer":
                                         st.caption("No v396 scaling dictionary available for this run (module disabled or invalid inputs).")
                                 with st.expander("Notes", expanded=False):
                                     st.markdown("H98 is defined as tauE_eff / tauE_IPB98(y,2). H_scaling compares against the selected reference scaling. See also the IPB98(y,2) and ITER89-P scaling references.")
+
+                                with st.expander("Profile Proxy Authority (v397)", expanded=False):
+                                    if bool(out.get("profile_proxy_v397_enabled", False)):
+                                        st.caption("Deterministic 1.5D proxy diagnostics (no solvers).")
+                                        st.write(
+                                            {
+                                                "peaking_n": out.get("profile_peaking_n_v397"),
+                                                "peaking_T": out.get("profile_peaking_T_v397"),
+                                                "peaking_p": out.get("profile_peaking_p_v397"),
+                                                "peaking_j": out.get("profile_peaking_j_v397"),
+                                                "q95_proxy": out.get("q95_proxy_v397"),
+                                                "q0_proxy": out.get("q0_proxy_v397"),
+                                                "li_proxy": out.get("li_proxy_v397"),
+                                                "bootstrap_localization": out.get("bootstrap_localization_index_v397"),
+                                            }
+                                        )
+                                        samp = out.get("profile_proxy_v397_sample", {})
+                                        if isinstance(samp, dict) and len(samp) > 0:
+                                            try:
+                                                import pandas as pd
+                                                df = pd.DataFrame(samp)
+                                                st.dataframe(df, use_container_width=True, hide_index=True)
+                                            except Exception:
+                                                st.json(samp)
+                                    else:
+                                        st.caption("v397 profile proxy is disabled for this run (enable in Point Designer).")
 
                             st.markdown("### Raw telemetry")
                             st.dataframe(pd.DataFrame([out]).T.rename(columns={0: "value"}), use_container_width=True)
@@ -23443,13 +23732,34 @@ if _deck == "🎛️ Control Room":
                 {"metric":"tag", "value": out.get("profile_assumption_tag")},
             ]
             st.dataframe(rows, use_container_width=True, hide_index=True)
+
+            st.markdown("### v399 Multi-species impurity mix (if enabled)")
+            rows_v399 = [
+                {"metric":"include_impurity_v399", "value": out.get("include_impurity_v399")},
+                {"metric":"impurity_v399_mix_json", "value": out.get("impurity_v399_mix_json")},
+                {"metric":"impurity_v399_prad_total_MW", "value": out.get("impurity_v399_prad_total_MW")},
+                {"metric":"impurity_v399_prad_core_MW", "value": out.get("impurity_v399_prad_core_MW")},
+                {"metric":"impurity_v399_prad_edge_MW", "value": out.get("impurity_v399_prad_edge_MW")},
+                {"metric":"impurity_v399_prad_sol_MW", "value": out.get("impurity_v399_prad_sol_MW")},
+                {"metric":"impurity_v399_prad_div_MW", "value": out.get("impurity_v399_prad_div_MW")},
+                {"metric":"impurity_v399_zeff", "value": out.get("impurity_v399_zeff")},
+                {"metric":"impurity_v399_fuel_ion_fraction", "value": out.get("impurity_v399_fuel_ion_fraction")},
+                {"metric":"detachment_prad_sol_div_achieved_MW_v399", "value": out.get("detachment_prad_sol_div_achieved_MW_v399")},
+                {"metric":"detachment_margin_v399", "value": out.get("detachment_margin_v399")},
+            ]
+            st.dataframe(rows_v399, use_container_width=True, hide_index=True)
+            with st.expander("v399 Per-species radiation (MW)", expanded=False):
+                st.json(out.get("impurity_v399_by_species_MW", {}))
+            with st.expander("v399 Validity flags", expanded=False):
+                st.json(out.get("impurity_v399_validity", {}))
+
             with st.expander("Validity flags", expanded=False):
                 st.json(out.get("profile_validity", {}))
 
 if _deck == "🎛️ Control Room":
     with tab_impurity:
         st.header("Impurity & Radiation")
-        st.caption("v320 authority: impurity radiation partitions (core/edge/SOL/div) + detachment inversion (q_div target → required SOL+div radiation → implied f_z).")
+        st.caption("v320 authority: single-species partitions + detachment inversion. v399: multi-species mix → Zeff + partitions + achieved detachment margin (diagnostic; no truth feedback).")
         out = st.session_state.get("last_point_out")
         if not isinstance(out, dict):
             st.info("Run a point in Point Designer first.")

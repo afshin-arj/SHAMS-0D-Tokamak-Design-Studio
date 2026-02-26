@@ -1,3 +1,9 @@
+## v399.0.0 — Impurity Species & Radiation Partition Authority (Multi-species, Zeff, detachment margin)
+- Added v399 multi-species impurity mix authority (proxy Lz envelopes) with explicit Zeff and core/edge/SOL/div partitions.
+- Added detachment achieved margin diagnostic vs required SOL+div radiation budget.
+- Added optional explicit feasibility caps: Zeff, Prad_core/Pin, Prad_total/Pin, detachment margin.
+- UI: new v399 expander in Point Designer and extended Impurity & Radiation tab outputs.
+
 # Release Notes
 
 ## v393.0.0 — Irradiation Damage→Strength Coupling Authority (Deterministic, Algebraic)

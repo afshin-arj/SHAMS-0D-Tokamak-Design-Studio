@@ -1,10 +1,6 @@
 {
   "atol": 1e-06,
-<<<<<<< HEAD
-  "created_unix": 1772015530.7405972,
-=======
-  "created_unix": 1771614772.3220842,
->>>>>>> 29e8a66dc9bd0b28219c83a3659f9e04b548c21e
+  "created_unix": 1772047542.3953285,
   "n_failed": 0,
   "n_rows": 104,
   "rows": [
