@@ -15,7 +15,7 @@ def render_external_optimizer_suite(repo_root: Path):
     st.markdown("## 📦 External Optimizer Suite")
     st.caption("Reference firewalled optimizers (NSGA2-lite, CMAES-lite) + repair kernel. Produces audit bundles.")
 
-    tabs = st.tabs(["📦 Orchestrator 2.0 (import & verify)", "⚡ Feasible-first surrogate accelerator (v386)", "🧪 Lite optimizers (reference)"])
+    tabs = st.tabs(["📦 Orchestrator 2.0 (import & verify)", "🧭 Frontier Intake (v406)", "⚡ Feasible-first surrogate accelerator (v386)", "🧪 Lite optimizers (reference)"])
 
     # --- v385 Orchestrator 2.0 ---
     with tabs[0]:
@@ -120,6 +120,168 @@ def render_external_optimizer_suite(repo_root: Path):
     # --- Existing reference suite ---
     
     # --- v386 Feasible-first surrogate accelerator ---
+
+
+
+    # --- v406 Frontier Intake (CSV/JSON -> deterministic verification + Pareto + lanes) ---
+    with tabs[1]:
+        st.markdown("### 🧭 Frontier Intake (v406) — External Candidate Sets")
+        st.caption(
+            "Upload a base_inputs.json and a candidate set (CSV or JSON). SHAMS re-evaluates every candidate through frozen truth, "
+            "applies optimistic/robust uncertainty lanes, detects mirages, and reconstructs feasible-only Pareto fronts. "
+            "No optimization occurs inside SHAMS."
+        )
+
+        st.markdown("#### Inputs")
+        up_base = st.file_uploader(
+            "Upload base_inputs.json (PointInputs-compatible)",
+            type=["json"],
+            key="v406_base_inputs_upload",
+        )
+        up_cands = st.file_uploader(
+            "Upload candidate set (CSV or JSON)",
+            type=["csv", "json"],
+            key="v406_candidate_set_upload",
+            help="CSV: header row are variable names, optional 'id' column. JSON: {schema_version, candidates:[{id, overrides:{...}}]}",
+        )
+
+        evaluator_label = st.text_input("Evaluator label", value="hot_ion_point", key="v406_eval_label")
+        intent = st.selectbox("Design intent", options=["research", "reactor"], index=1, key="v406_intent")
+
+        st.markdown("#### Objectives (Pareto reconstruction)")
+        st.caption('Provide a JSON list of objectives: [{"key":"lcoe_lite","sense":"min"}, ...]. Keys can be KPI names.')
+        default_obj = json.dumps([{"key": "lcoe_lite", "sense": "min"}, {"key": "P_fus_MW", "sense": "max"}], indent=2)
+        obj_text = st.text_area("objectives.json", value=default_obj, height=120, key="v406_obj_text")
+
+        st.markdown("#### Lane evaluation (UQ-lite)")
+        st.caption("Uses deterministic interval corners. For speed, corner artifacts are omitted by default.")
+        include_lane_artifacts = st.toggle("Include lane corner artifacts (heavier)", value=False, key="v406_lane_artifacts")
+        include_run_artifacts = st.toggle("Include nominal run_artifact in report (larger JSON)", value=True, key="v406_run_artifacts")
+
+        optimistic_spec_text = st.text_area(
+            "optimistic_uncertainty_spec.json",
+            value=json.dumps({"schema_version": "uncertainty_contract_spec.v1", "name": "optimistic", "intervals": {}}, indent=2),
+            height=140,
+            key="v406_opt_spec_text",
+        )
+        robust_spec_text = st.text_area(
+            "robust_uncertainty_spec.json",
+            value=json.dumps({"schema_version": "uncertainty_contract_spec.v1", "name": "robust", "intervals": {}}, indent=2),
+            height=140,
+            key="v406_rob_spec_text",
+        )
+
+        out_dir = repo_root / "ui_runs" / "extopt_frontier_intake_v406"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        if st.button("Run v406 intake + deterministic verification", use_container_width=True, key="v406_run_btn"):
+            if up_base is None or up_cands is None:
+                st.error("Please upload both base_inputs.json and a candidate set (CSV or JSON).")
+                st.stop()
+
+            try:
+                base_inputs = json.loads(up_base.getvalue().decode("utf-8"))
+            except Exception as e:
+                st.error(f"Invalid base_inputs.json: {e}")
+                st.stop()
+
+            cand_name = up_cands.name
+            cand_bytes = up_cands.getvalue()
+
+            try:
+                from src.extopt.frontier_intake_v406 import (
+                    FrontierIntakeRunSpec,
+                    ParetoObjective,
+                    parse_candidate_set_csv,
+                    parse_candidate_set_json,
+                    run_frontier_intake_v406,
+                )
+                from src.uq_contracts.spec import UncertaintyContractSpec
+            except Exception as e:
+                st.error(f"v406 import failed: {e}")
+                st.stop()
+
+            try:
+                if cand_name.lower().endswith(".csv"):
+                    cand_set = parse_candidate_set_csv(cand_bytes)
+                else:
+                    cand_set = parse_candidate_set_json(json.loads(cand_bytes.decode("utf-8")))
+            except Exception as e:
+                st.error(f"Invalid candidate set: {e}")
+                st.stop()
+
+            try:
+                obj_list = json.loads(obj_text)
+                objectives = [ParetoObjective(key=str(o["key"]), sense=str(o.get("sense", "min"))) for o in obj_list]
+            except Exception as e:
+                st.error(f"Invalid objectives JSON: {e}")
+                st.stop()
+
+            try:
+                opt_spec = UncertaintyContractSpec.from_dict(json.loads(optimistic_spec_text))
+                rob_spec = UncertaintyContractSpec.from_dict(json.loads(robust_spec_text))
+            except Exception as e:
+                st.error(f"Invalid uncertainty spec JSON: {e}")
+                st.stop()
+
+            run_spec = FrontierIntakeRunSpec(
+                evaluator_label=str(evaluator_label),
+                intent=str(intent),
+                include_run_artifacts=bool(include_run_artifacts),
+                include_lane_artifacts=bool(include_lane_artifacts),
+            )
+
+            try:
+                report = run_frontier_intake_v406(
+                    repo_root=repo_root,
+                    base_inputs=base_inputs,
+                    candidate_set=cand_set,
+                    objectives=objectives,
+                    run_spec=run_spec,
+                    optimistic_spec=opt_spec,
+                    robust_spec=rob_spec,
+                )
+            except Exception as e:
+                st.error(f"v406 run failed: {e}")
+                st.stop()
+
+            rep_path = out_dir / "extopt_frontier_intake_report_v406.json"
+            rep_path.write_text(json.dumps(report, sort_keys=True, indent=2), encoding="utf-8")
+
+            st.success("v406 intake report generated.")
+            st.markdown("#### Candidate summary")
+            cands = report.get("candidates") if isinstance(report, dict) else []
+            if isinstance(cands, list) and cands:
+                rows = []
+                for c in cands:
+                    if not isinstance(c, dict):
+                        continue
+                    nom = c.get("nominal", {}) if isinstance(c.get("nominal"), dict) else {}
+                    ipf = c.get("in_pareto_front", {}) if isinstance(c.get("in_pareto_front"), dict) else {}
+                    objs = c.get("objectives", {}) if isinstance(c.get("objectives"), dict) else {}
+                    rows.append({
+                        "id": c.get("id"),
+                        "nominal_verdict": nom.get("verdict"),
+                        "min_hard_margin": nom.get("min_hard_margin"),
+                        "dominant_authority": nom.get("dominant_authority"),
+                        "dominant_constraint": nom.get("dominant_constraint"),
+                        "lane_opt": (c.get("lane_optimistic", {}) or {}).get("verdict"),
+                        "lane_rob": (c.get("lane_robust", {}) or {}).get("verdict"),
+                        "mirage": c.get("mirage"),
+                        "pareto_opt": ipf.get("optimistic"),
+                        "pareto_rob": ipf.get("robust"),
+                        **{f"obj:{k}": v for k, v in objs.items()},
+                    })
+                st.dataframe(rows, use_container_width=True, hide_index=True)
+
+            st.download_button(
+                "Download extopt_frontier_intake_report_v406.json",
+                data=rep_path.read_bytes(),
+                file_name=rep_path.name,
+                mime="application/json",
+                use_container_width=True,
+                key="v406_download_report_btn",
+            )
     with tabs[2]:
         st.markdown("### ⚡ Feasible-First Surrogate Accelerator (v386)")
         st.caption(
@@ -249,7 +411,7 @@ def render_external_optimizer_suite(repo_root: Path):
             )
 
 
-    with tabs[2]:
+    with tabs[3]:
 
         ex_dir = repo_root / "examples" / "concept_families"
         yaml_files = sorted([p for p in ex_dir.glob("*.y*ml")]) if ex_dir.exists() else []

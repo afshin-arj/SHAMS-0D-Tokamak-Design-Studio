@@ -158,3 +158,30 @@ class UncertaintyContractSpec:
             "policy_overrides": dict(self.policy_overrides or {}),
             "notes": str(self.notes or ""),
         }
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "UncertaintyContractSpec":
+        if not isinstance(d, dict):
+            raise TypeError("UncertaintyContractSpec.from_dict expects a dict")
+        schema = str(d.get("schema_version", "") or d.get("schema", ""))
+        if schema not in {"uncertainty_contract_spec.v1", "uncertainty_contract_spec"}:
+            raise ValueError(f"Unsupported uncertainty contract schema_version: {schema}")
+        name = str(d.get("name", d.get("label", "contract")))
+        intervals_in = d.get("intervals") or {}
+        if not isinstance(intervals_in, dict):
+            raise TypeError("uncertainty_contract_spec.intervals must be a dict")
+        intervals: Dict[str, Interval] = {}
+        for k, v in intervals_in.items():
+            if not isinstance(v, dict):
+                continue
+            try:
+                lo = float(v.get("lo"))
+                hi = float(v.get("hi"))
+                intervals[str(k)] = Interval(lo=lo, hi=hi)
+            except Exception:
+                continue
+        pol = d.get("policy_overrides")
+        if pol is not None and not isinstance(pol, dict):
+            pol = None
+        notes = str(d.get("notes", "") or "")
+        return UncertaintyContractSpec(name=name, intervals=intervals, policy_overrides=pol, notes=notes)

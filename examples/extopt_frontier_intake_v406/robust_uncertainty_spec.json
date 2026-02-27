@@ -1,0 +1,5 @@
+{
+  "schema_version": "uncertainty_contract_spec.v1",
+  "name": "robust",
+  "intervals": {}
+}

@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v405.0.0 — Certified Search Orchestrator 3.0 (Feasible-first Pareto + Lane Evidence Packs)
+**Current version:** v406.0.0 — External Optimizer Interpretation Layer: Frontier Intake (Firewalled CSV/JSON → Certified Verification + Pareto + Lanes)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 

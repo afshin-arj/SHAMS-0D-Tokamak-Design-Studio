@@ -1,0 +1,10 @@
+[
+  {
+    "key": "lcoe_lite",
+    "sense": "min"
+  },
+  {
+    "key": "P_fus_MW",
+    "sense": "max"
+  }
+]

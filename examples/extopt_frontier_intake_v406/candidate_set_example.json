@@ -1,0 +1,32 @@
+{
+  "candidates": [
+    {
+      "id": "A",
+      "overrides": {
+        "Bt_T": 12.0,
+        "R0_m": 1.85,
+        "a_m": 0.57
+      }
+    },
+    {
+      "id": "B",
+      "overrides": {
+        "Bt_T": 12.2,
+        "R0_m": 1.75,
+        "a_m": 0.55
+      }
+    },
+    {
+      "id": "C",
+      "overrides": {
+        "Bt_T": 11.8,
+        "R0_m": 1.9,
+        "a_m": 0.6
+      }
+    }
+  ],
+  "meta": {
+    "source": "example"
+  },
+  "schema_version": "shams.extopt_candidate_set.v1"
+}
