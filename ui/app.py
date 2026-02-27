@@ -5920,6 +5920,82 @@ if _deck == "🧭 Point Designer":
 
 
 
+                # --- (v403.0.0) Neutronics & Materials Authority 4.0 — Library Stack (optional) ---
+                with st.expander("🧱 Neutronics & Materials Library Stack — v403.0.0", expanded=False):
+                    st.caption(
+                        "Deterministic governance overlay: explicit multi-layer shielding/blanket stack (material+thickness) with "
+                        "3-group attenuation ledger and derived DPA/He/activation + TBR-lite proxy. OFF by default. "
+                        "No Monte Carlo; no solvers; truth unchanged."
+                    )
+                    include_neutronics_materials_library_v403 = st.checkbox(
+                        "Enable NM library stack authority (v403.0.0)",
+                        value=bool(getattr(defaults, "include_neutronics_materials_library_v403", False)),
+                        key="pd_include_neutronics_materials_library_v403",
+                    )
+                    cS1, cS2 = st.columns([1.0, 1.0])
+                    with cS1:
+                        nm_group_frac_fast_v403 = st.number_input(
+                            "Incident fast-group fraction (v403)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "nm_group_frac_fast_v403", 0.90)),
+                            step=0.01,
+                            key="pd_nm_group_frac_fast_v403",
+                        )
+                        nm_group_frac_epi_v403 = st.number_input(
+                            "Incident epi-group fraction (v403)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "nm_group_frac_epi_v403", 0.08)),
+                            step=0.01,
+                            key="pd_nm_group_frac_epi_v403",
+                        )
+                        nm_group_frac_therm_v403 = st.number_input(
+                            "Incident thermal-group fraction (v403)",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(getattr(defaults, "nm_group_frac_therm_v403", 0.02)),
+                            step=0.01,
+                            key="pd_nm_group_frac_therm_v403",
+                        )
+                    with cS2:
+                        dpa_fw_max_v403 = st.number_input(
+                            "FW DPA max (v403) (DPA/FPY) (NaN disables)",
+                            value=float(getattr(defaults, "dpa_fw_max_v403", float('nan'))),
+                            key="pd_dpa_fw_max_v403",
+                        )
+                        he_appm_fw_max_v403 = st.number_input(
+                            "FW He max (v403) (appm/FPY) (NaN disables)",
+                            value=float(getattr(defaults, "he_appm_fw_max_v403", float('nan'))),
+                            key="pd_he_appm_fw_max_v403",
+                        )
+                        cooldown_burden_max_days_v403 = st.number_input(
+                            "Cooldown burden max (v403) (days) (NaN disables)",
+                            value=float(getattr(defaults, "cooldown_burden_max_days_v403", float('nan'))),
+                            key="pd_cooldown_burden_max_days_v403",
+                        )
+                        tbr_proxy_min_v403 = st.number_input(
+                            "TBR proxy min (v403) (-) (NaN disables)",
+                            value=float(getattr(defaults, "tbr_proxy_min_v403", float('nan'))),
+                            key="pd_tbr_proxy_min_v403",
+                        )
+                        fast_attenuation_min_v403 = st.number_input(
+                            "Fast attenuation min (v403) (-) (NaN disables)",
+                            value=float(getattr(defaults, "fast_attenuation_min_v403", float('nan'))),
+                            key="pd_fast_attenuation_min_v403",
+                        )
+
+                    st.markdown("**Stack JSON (layers from plasma-side outward)**")
+                    st.caption("Materials available in v403 library: SS316, W, H2O, B4C, LiPb, FLiBe.")
+                    nm_stack_json_v403 = st.text_area(
+                        "nm_stack_json_v403",
+                        value=str(getattr(defaults, "nm_stack_json_v403", "")),
+                        height=180,
+                        key="pd_nm_stack_json_v403",
+                        help="JSON list of {material, thickness_m, density_factor}. Deterministic; parsed only when compute is pressed.",
+                    )
+
+
                 # --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
                 with st.expander("🧾 Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
                     st.caption(
@@ -5986,6 +6062,165 @@ if _deck == "🧭 Point Designer":
                             "TBR min override (-)",
                             value=float(getattr(defaults, "TBR_min_override_v401", float('nan'))),
                             key="pd_TBR_min_override_v401",
+                        )
+
+
+                
+
+                # --- (v404.0.0) Structural Life Authority 3.0 (optional) ---
+                with st.expander("🧱 Structural Life Authority — v404.0.0", expanded=False):
+                    st.caption(
+                        "Deterministic structural life envelopes: irradiation+temperature degraded allowables, "
+                        "fatigue (Miner proxy), creep-rupture proxy, and optional buckling margins. "
+                        "Governance-only overlay (no truth mutation)."
+                    )
+                    include_structural_life_v404 = st.checkbox(
+                        "Enable structural life authority (v404)",
+                        value=bool(getattr(defaults, "include_structural_life_v404", False)),
+                        key="pd_include_structural_life_v404",
+                    )
+                    struct_min_margin_frac_v404 = st.number_input(
+                        "Minimum structural life margin (v404) (NaN disables)",
+                        value=float(getattr(defaults, "struct_min_margin_frac_v404", float('nan'))),
+                        key="pd_struct_min_margin_frac_v404",
+                    )
+                    colA, colB, colC = st.columns(3)
+                    with colA:
+                        pulse_count_v404 = st.number_input(
+                            "Pulse count (v404) (NaN -> default)",
+                            value=float(getattr(defaults, "pulse_count_v404", float('nan'))),
+                            key="pd_pulse_count_v404",
+                        )
+                    with colB:
+                        hot_fraction_v404 = st.number_input(
+                            "Hot fraction (v404)",
+                            value=float(getattr(defaults, "hot_fraction_v404", 0.2)),
+                            min_value=0.0, max_value=1.0,
+                            key="pd_hot_fraction_v404",
+                        )
+                    with colC:
+                        service_years_v404 = st.number_input(
+                            "Service years (v404)",
+                            value=float(getattr(defaults, "service_years_v404", 1.0)),
+                            min_value=0.1, max_value=60.0,
+                            key="pd_service_years_v404",
+                        )
+
+                    st.markdown("**Materials**")
+                    colM1, colM2, colM3 = st.columns(3)
+                    with colM1:
+                        material_fw_v404 = st.selectbox(
+                            "FW material (v404)",
+                            options=["EUROFER","SS316","INCONEL","W","CuCrZr"],
+                            index=["EUROFER","SS316","INCONEL","W","CuCrZr"].index(str(getattr(defaults,"material_fw_v404","EUROFER"))),
+                            key="pd_material_fw_v404",
+                        )
+                    with colM2:
+                        material_vv_v404 = st.selectbox(
+                            "VV material (v404)",
+                            options=["SS316","EUROFER","INCONEL","W","CuCrZr"],
+                            index=["SS316","EUROFER","INCONEL","W","CuCrZr"].index(str(getattr(defaults,"material_vv_v404","SS316"))),
+                            key="pd_material_vv_v404",
+                        )
+                    with colM3:
+                        material_tf_v404 = st.selectbox(
+                            "TF material (v404)",
+                            options=["INCONEL","SS316","EUROFER","W","CuCrZr"],
+                            index=["INCONEL","SS316","EUROFER","W","CuCrZr"].index(str(getattr(defaults,"material_tf_v404","INCONEL"))),
+                            key="pd_material_tf_v404",
+                        )
+
+                    st.markdown("**Temperatures [K]**")
+                    colT1, colT2, colT3 = st.columns(3)
+                    with colT1:
+                        T_fw_K_v404 = st.number_input(
+                            "T_fw [K] (v404)",
+                            value=float(getattr(defaults, "T_fw_K_v404", 700.0)),
+                            key="pd_T_fw_K_v404",
+                        )
+                    with colT2:
+                        T_vv_K_v404 = st.number_input(
+                            "T_vv [K] (v404)",
+                            value=float(getattr(defaults, "T_vv_K_v404", 450.0)),
+                            key="pd_T_vv_K_v404",
+                        )
+                    with colT3:
+                        T_tf_K_v404 = st.number_input(
+                            "T_tf [K] (v404)",
+                            value=float(getattr(defaults, "T_tf_K_v404", 350.0)),
+                            key="pd_T_tf_K_v404",
+                        )
+
+                    st.markdown("**Buckling geometry proxies (optional)**")
+                    colG1, colG2, colG3 = st.columns(3)
+                    with colG1:
+                        vv_t_m_v404 = st.number_input(
+                            "VV thickness [m] (v404) (NaN disables)",
+                            value=float(getattr(defaults, "vv_t_m_v404", float('nan'))),
+                            key="pd_vv_t_m_v404",
+                        )
+                        vv_R_m_v404 = st.number_input(
+                            "VV radius [m] (v404)",
+                            value=float(getattr(defaults, "vv_R_m_v404", float('nan'))),
+                            key="pd_vv_R_m_v404",
+                        )
+                    with colG2:
+                        tf_t_m_v404 = st.number_input(
+                            "TF case thickness [m] (v404)",
+                            value=float(getattr(defaults, "tf_t_m_v404", float('nan'))),
+                            key="pd_tf_t_m_v404",
+                        )
+                        tf_R_m_v404 = st.number_input(
+                            "TF case radius [m] (v404)",
+                            value=float(getattr(defaults, "tf_R_m_v404", float('nan'))),
+                            key="pd_tf_R_m_v404",
+                        )
+                    with colG3:
+                        fw_t_m_v404 = st.number_input(
+                            "FW panel thickness [m] (v404)",
+                            value=float(getattr(defaults, "fw_t_m_v404", float('nan'))),
+                            key="pd_fw_t_m_v404",
+                        )
+                        fw_R_m_v404 = st.number_input(
+                            "FW panel radius [m] (v404)",
+                            value=float(getattr(defaults, "fw_R_m_v404", float('nan'))),
+                            key="pd_fw_R_m_v404",
+                        )
+
+# --- (v402.0.0) Authority Dominance Engine 2.0 (global regime & ranking) ---
+                with st.expander("🏁 Global Authority Dominance — v402.0.0", expanded=False):
+                    st.caption(
+                        "Deterministic governance overlay: aggregates major authority margins into a global dominance ranking, "
+                        "classifies the limiting regime (MAGNET/EXHAUST/CONTROL/TRANSPORT/PROFILE/NM), and flags feasibility mirages "
+                        "(feasible but credibility-fragile). No solvers; truth is unchanged."
+                    )
+                    include_authority_dominance_v402 = st.checkbox(
+                        "Enable global authority dominance engine (v402.0.0)",
+                        value=bool(getattr(defaults, "include_authority_dominance_v402", True)),
+                        key="pd_include_authority_dominance_v402",
+                    )
+                    cD1, cD2, cD3 = st.columns(3)
+                    with cD1:
+                        transport_spread_ref_v402 = st.number_input(
+                            "Transport spread ref (τE_max/τE_min)",
+                            min_value=1.1,
+                            value=float(getattr(defaults, "transport_spread_ref_v402", 3.0) or 3.0),
+                            step=0.1,
+                            key="pd_transport_spread_ref_v402",
+                        )
+                    with cD2:
+                        profile_peaking_p_ref_v402 = st.number_input(
+                            "Profile p-peaking ref", min_value=1.1,
+                            value=float(getattr(defaults, "profile_peaking_p_ref_v402", 3.0) or 3.0),
+                            step=0.1,
+                            key="pd_profile_peaking_p_ref_v402",
+                        )
+                    with cD3:
+                        zeff_ref_max_v402 = st.number_input(
+                            "Zeff ref max", min_value=1.1,
+                            value=float(getattr(defaults, "zeff_ref_max_v402", 2.5) or 2.5),
+                            step=0.1,
+                            key="pd_zeff_ref_max_v402",
                         )
 
 
@@ -7310,6 +7545,17 @@ if _deck == "🧭 Point Designer":
                         cryostat_fluence_max_n_m2_per_fpy_v392=float(locals().get('cryostat_fluence_max_n_m2_per_fpy_v392', float('nan'))),
                         bioshield_dose_rate_max_uSv_h_v392=float(locals().get('bioshield_dose_rate_max_uSv_h_v392', float('nan'))),
 
+                        include_neutronics_materials_library_v403=bool(locals().get('include_neutronics_materials_library_v403', False)),
+                        nm_stack_json_v403=str(locals().get('nm_stack_json_v403', getattr(defaults, 'nm_stack_json_v403', ''))),
+                        nm_group_frac_fast_v403=float(locals().get('nm_group_frac_fast_v403', 0.90)),
+                        nm_group_frac_epi_v403=float(locals().get('nm_group_frac_epi_v403', 0.08)),
+                        nm_group_frac_therm_v403=float(locals().get('nm_group_frac_therm_v403', 0.02)),
+                        dpa_fw_max_v403=float(locals().get('dpa_fw_max_v403', float('nan'))),
+                        he_appm_fw_max_v403=float(locals().get('he_appm_fw_max_v403', float('nan'))),
+                        cooldown_burden_max_days_v403=float(locals().get('cooldown_burden_max_days_v403', float('nan'))),
+                        tbr_proxy_min_v403=float(locals().get('tbr_proxy_min_v403', float('nan'))),
+                        fast_attenuation_min_v403=float(locals().get('fast_attenuation_min_v403', float('nan'))),
+
                         include_neutronics_materials_authority_v401=bool(locals().get('include_neutronics_materials_authority_v401', False)),
                         nm_contract_tier_v401=str(locals().get('nm_contract_tier_v401', 'NOMINAL')),
                         nm_fragile_margin_frac_v401=float(locals().get('nm_fragile_margin_frac_v401', 0.10)),
@@ -7320,6 +7566,36 @@ if _deck == "🧭 Point Designer":
                         fw_He_total_limit_appm_override_v401=float(locals().get('fw_He_total_limit_appm_override_v401', float('nan'))),
                         activation_index_max_override_v401=float(locals().get('activation_index_max_override_v401', float('nan'))),
                         TBR_min_override_v401=float(locals().get('TBR_min_override_v401', float('nan'))),
+
+                        
+                        include_structural_life_v404=bool(locals().get('include_structural_life_v404', False)),
+                        pulse_count_v404=float(locals().get('pulse_count_v404', float('nan'))),
+                        hot_fraction_v404=float(locals().get('hot_fraction_v404', 0.2)),
+                        service_years_v404=float(locals().get('service_years_v404', 1.0)),
+                        material_fw_v404=str(locals().get('material_fw_v404', 'EUROFER')),
+                        material_vv_v404=str(locals().get('material_vv_v404', 'SS316')),
+                        material_tf_v404=str(locals().get('material_tf_v404', 'INCONEL')),
+                        T_fw_K_v404=float(locals().get('T_fw_K_v404', 700.0)),
+                        T_vv_K_v404=float(locals().get('T_vv_K_v404', 450.0)),
+                        T_tf_K_v404=float(locals().get('T_tf_K_v404', 350.0)),
+                        fw_delta_sigma_MPa_v404=float(locals().get('fw_delta_sigma_MPa_v404', float('nan'))),
+                        vv_delta_sigma_MPa_v404=float(locals().get('vv_delta_sigma_MPa_v404', float('nan'))),
+                        tf_delta_sigma_MPa_v404=float(locals().get('tf_delta_sigma_MPa_v404', float('nan'))),
+                        fw_t_m_v404=float(locals().get('fw_t_m_v404', float('nan'))),
+                        fw_R_m_v404=float(locals().get('fw_R_m_v404', float('nan'))),
+                        fw_panel_span_m_v404=float(locals().get('fw_panel_span_m_v404', float('nan'))),
+                        vv_t_m_v404=float(locals().get('vv_t_m_v404', float('nan'))),
+                        vv_R_m_v404=float(locals().get('vv_R_m_v404', float('nan'))),
+                        vv_span_m_v404=float(locals().get('vv_span_m_v404', float('nan'))),
+                        tf_t_m_v404=float(locals().get('tf_t_m_v404', float('nan'))),
+                        tf_R_m_v404=float(locals().get('tf_R_m_v404', float('nan'))),
+                        tf_span_m_v404=float(locals().get('tf_span_m_v404', float('nan'))),
+                        struct_min_margin_frac_v404=float(locals().get('struct_min_margin_frac_v404', float('nan'))),
+
+include_authority_dominance_v402=bool(locals().get('include_authority_dominance_v402', True)),
+                        transport_spread_ref_v402=float(locals().get('transport_spread_ref_v402', 3.0)),
+                        profile_peaking_p_ref_v402=float(locals().get('profile_peaking_p_ref_v402', 3.0)),
+                        zeff_ref_max_v402=float(locals().get('zeff_ref_max_v402', 2.5)),
 
 
                         include_materials_lifetime_v384=bool(locals().get('include_materials_lifetime_v384', False)),
@@ -7796,6 +8072,7 @@ if _deck == "🧭 Point Designer":
                                         "Select deck",
                                         options=[
                                             "Regime & Confinement",
+                                            "Global Dominance & Regime (v402)",
                                             "Current Profile & Current Drive",
                                             "Bootstrap–Pressure Self-Consistency Authority",
                                             "Current Drive Tech Authority",
@@ -7823,6 +8100,63 @@ if _deck == "🧭 Point Designer":
                                         cC.metric("H_regime", f"{_safe_num('H_regime'):.2f}" if _safe_num('H_regime') == _safe_num('H_regime') else "n/a")
                                         cD.metric("P_LH (MW)", f"{_safe_num('P_LH_MW'):.1f}" if _safe_num('P_LH_MW') == _safe_num('P_LH_MW') else "n/a")
                                         st.caption("H_regime is reported only when couple_regime_to_confinement=True; it uses IPB98 for H-regime and ITER89P for L-regime.")
+
+                                    elif _deep_view == "Global Dominance & Regime (v402)":
+                                        st.caption(
+                                            "v402 aggregates governance-only authority margins into a global dominance ranking (worst→best), "
+                                            "labels the limiting regime, and flags feasibility mirages (feasible but credibility-fragile)."
+                                        )
+                                        if not bool(out.get("include_authority_dominance_v402", False)):
+                                            st.info("v402 is OFF. Enable it in Point Designer → Global Authority Dominance (v402.0.0).")
+                                        else:
+                                            g1, g2, g3, g4 = st.columns([1.0, 1.0, 1.0, 1.0])
+                                            _m = _safe_num("global_min_margin_v402")
+                                            g1.metric("Regime class", str(out.get("regime_class_v402", "unknown")))
+                                            g2.metric("Dominant authority", str(out.get("global_dominant_authority_v402", "unknown")))
+                                            g3.metric("Min margin (frac)", f"{_m:+.3f}" if _m == _m else "n/a")
+                                            _gap = _safe_num("dominance_gap_to_second_v402")
+                                            g4.metric("Gap to #2", f"{_gap:+.3f}" if _gap == _gap else "n/a")
+
+                                            mir = bool(out.get("mirage_flag_v402", False))
+                                            if mir:
+                                                st.warning("Feasibility mirage flagged (v402): credible-feasibility is fragile.")
+                                                rs = out.get("mirage_reasons_v402", [])
+                                                if isinstance(rs, list) and rs:
+                                                    st.caption("Reasons: " + ", ".join([str(x) for x in rs][:10]))
+                                            else:
+                                                st.success("No mirage flagged by v402.")
+
+                                            
+                                            # v404.0.0: Structural Life Authority (summary)
+                                            if bool(out.get("include_structural_life_v404", False)):
+                                                with st.expander("🧱 Structural life summary (v404)", expanded=False):
+                                                    st.caption(
+                                                        f"**Global min margin:** {float(out.get('struct_global_min_margin_v404', float('nan'))):+.3f}  |  "
+                                                        f"**Dominant:** {str(out.get('struct_dominant_component_v404','?'))} / {str(out.get('struct_dominant_mode_v404','?'))}"
+                                                    )
+                                                    tbl = out.get("struct_margin_table_v404", [])
+                                                    if isinstance(tbl, list) and tbl:
+                                                        st.dataframe(tbl, use_container_width=True, hide_index=True)
+                                                    else:
+                                                        st.info("No v404 structural table rows available.")
+                                            else:
+                                                # show hint only if user enabled dominance engine (they are here)
+                                                pass
+
+                                            with st.expander("📉 Dominance ranking table (v402)", expanded=False):
+                                                rows = out.get("dominance_order_v402", [])
+                                                if isinstance(rows, list) and rows:
+                                                    st.dataframe(rows, use_container_width=True, hide_index=True)
+                                                else:
+                                                    st.info("No dominance rows found (check that at least one authority produced finite margins).")
+
+                                            refs = out.get("authority_dominance_refs_v402", {})
+                                            if isinstance(refs, dict) and refs:
+                                                st.caption(
+                                                    f"Refs: transport_spread_ref={refs.get('transport_spread_ref', 'n/a')}, "
+                                                    f"profile_peaking_p_ref={refs.get('profile_peaking_p_ref', 'n/a')}, "
+                                                    f"zeff_ref_max={refs.get('zeff_ref_max', 'n/a')}"
+                                                )
                                         # v336.0: plasma regime authority
                                         if str(out.get("plasma_regime", "")):
                                             st.divider()
@@ -7998,6 +8332,33 @@ if _deck == "🧭 Point Designer":
                                         cC.metric("HTS lifetime (yr)", f"{_safe_num('hts_lifetime_yr'):.1f}" if _safe_num('hts_lifetime_yr') == _safe_num('hts_lifetime_yr') else "n/a")
                                         cD.metric("FW dpa/y", f"{_safe_num('fw_dpa_per_year'):.2f}" if _safe_num('fw_dpa_per_year') == _safe_num('fw_dpa_per_year') else "n/a")
                                         st.caption(f"**Neutronics/Materials regime:** `{out.get('neutronics_materials_regime', 'unknown')}`  |  **Fragility:** `{out.get('neutronics_materials_fragility_class', 'UNKNOWN')}`  |  **Min margin:** {out.get('neutronics_materials_min_margin_frac', float('nan')):.3f}  |  **Contract:** `{str(out.get('neutronics_materials_contract_sha256', ''))[:10]}`")
+
+                                        # v403.0.0: library-backed stack authority (governance-only)
+                                        if bool(out.get("include_neutronics_materials_library_v403", False)):
+                                            st.caption(
+                                                f"**NM library tier (v403):** `{out.get('nm_regime_tier_v403','UNKNOWN')}`  |  "
+                                                f"**Min margin:** {float(out.get('nm_min_margin_frac_v403', float('nan'))):+.3f}  |  "
+                                                f"**Dominant driver:** `{out.get('nm_dominant_driver_v403','unknown')}`  |  "
+                                                f"**TBR proxy:** {float(out.get('tbr_proxy_v403', float('nan'))):.2f}  |  "
+                                                f"**FW DPA:** {float(out.get('dpa_fw_v403', float('nan'))):.2f}  |  "
+                                                f"**FW He:** {float(out.get('he_appm_fw_v403', float('nan'))):.1f}"
+                                            )
+                                            with st.expander("🧱 v403 stack ledger (layers, attenuation, contract items)", expanded=False):
+                                                st.markdown("**Layers**")
+                                                layers = out.get("nm_stack_layers_v403", [])
+                                                if isinstance(layers, list) and layers:
+                                                    st.dataframe(layers, use_container_width=True, hide_index=True)
+                                                else:
+                                                    st.info("No v403 layers were found in this artifact.")
+                                                st.markdown("**Attenuation factors**")
+                                                st.json(out.get("nm_attenuation_factor_v403", {}))
+                                                st.markdown("**Contract items (margins)**")
+                                                rows = out.get("nm_contract_items_v403", [])
+                                                if isinstance(rows, list) and rows:
+                                                    st.dataframe(rows, use_container_width=True, hide_index=True)
+                                                sha403 = str(out.get("nm_contract_sha256_v403", "") or "")
+                                                if sha403:
+                                                    st.caption(f"v403 contract hash (SHA-256): {sha403[:16]}…")
 
                                         # v401.0.0: contract-tier overlay (governance-only)
                                         if bool(out.get("include_neutronics_materials_authority_v401", False)):

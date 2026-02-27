@@ -1,8 +1,42 @@
+## v403.0.0 — Neutronics & Materials Authority 4.0 (Library Stack)
+
+- Added deterministic library-backed stack authority `src/analysis/neutronics_materials_library_v403.py`.
+- Explicit user-declared multi-layer stack (JSON): material + thickness + density factor.
+- 3-group attenuation ledger (fast/epi/therm) and transmitted fractions.
+- Derived deterministic ledgers:
+  - `dpa_fw_v403` (DPA/FPY proxy)
+  - `he_appm_fw_v403` (appm/FPY proxy)
+  - `activation_index_v403` and `cooldown_burden_days_v403`
+  - `tbr_proxy_v403` (TBR-lite proxy from breeder layers)
+- Constraint-ready margins and dominance attribution:
+  - `nm_contract_items_v403`, `nm_min_margin_frac_v403`, `nm_dominant_driver_v403`, `nm_regime_tier_v403`
+- UI wiring:
+  - Point Designer adds expander **“🧱 Neutronics & Materials Library Stack — v403.0.0”**.
+  - Physics deck → **Neutronics & Nuclear Loads** shows v403 tier, margins, and stack ledger.
+- Governance integration:
+  - v402 Authority Dominance Engine now prefers v403 NM margin when enabled (fallback to v401).
+
+Frozen-truth discipline preserved: v403 is governance-only and does **not** alter upstream TRUTH outputs.
+
 ## v399.0.0 — Impurity Species & Radiation Partition Authority (Multi-species, Zeff, detachment margin)
 - Added v399 multi-species impurity mix authority (proxy Lz envelopes) with explicit Zeff and core/edge/SOL/div partitions.
 - Added detachment achieved margin diagnostic vs required SOL+div radiation budget.
 - Added optional explicit feasibility caps: Zeff, Prad_core/Pin, Prad_total/Pin, detachment margin.
 - UI: new v399 expander in Point Designer and extended Impurity & Radiation tab outputs.
+
+## v402.0.0 — Authority Dominance Engine 2.0 (Global regime & dominance ranking)
+
+- Added deterministic cross-authority dominance overlay `src/analysis/authority_dominance_v402.py`.
+- Aggregates major authority margins (transport/profile/control/exhaust-radiation/magnet/neutronics-materials) into:
+  - `dominance_order_v402` (worst→best),
+  - `global_dominant_authority_v402` + `global_min_margin_v402`,
+  - `regime_class_v402` (limiting regime label),
+  - `mirage_flag_v402` + reasons (feasible but credibility-fragile).
+- UI wiring:
+  - Point Designer adds expander **“🏁 Global Authority Dominance — v402.0.0”**.
+  - Physics deck adds **“Global Dominance & Regime (v402)”** view with ranking table.
+
+Frozen-truth discipline preserved: v402 is governance-only and does **not** alter upstream TRUTH outputs.
 
 # Release Notes
 
@@ -1130,3 +1164,10 @@ Truth outputs unchanged.
 - Adds optional explicit feasibility caps (NaN disables) for combined and per-aspect magnet margins.
 - UI: adds v400 input expander (caps) and v400 results expander.
 - Updates README current version line.
+
+## v404.0.0 — Structural Life Authority 3.0 (Fatigue/Creep/Buckling)
+- Added deterministic structural life authority (governance-only): stress allowables degraded by temperature + irradiation (DPA/He), fatigue Miner proxy, creep-rupture proxy, and optional buckling margins.
+- Integrated into evaluator post-processing overlay and v402 global dominance engine as STRUCTURAL authority.
+- Added Point Designer controls and results expander for v404.
+- Added explicit constraint hook struct_min_margin_frac_v404 (NaN disables enforcement).
+

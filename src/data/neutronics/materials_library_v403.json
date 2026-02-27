@@ -1,0 +1,60 @@
+{
+  "version": "v403.0.0",
+  "groups": ["fast", "epi", "therm"],
+  "materials": {
+    "SS316": {
+      "rho_kg_m3": 8000,
+      "Sigma_r_1_m": {"fast": 0.60, "epi": 0.90, "therm": 1.20},
+      "k_dpa_per_MWyr_m2": {"fast": 6.0, "epi": 2.0, "therm": 0.5},
+      "k_he_appm_per_MWyr_m2": {"fast": 80.0, "epi": 25.0, "therm": 5.0},
+      "act_severity": {"fast": 1.0, "epi": 0.7, "therm": 0.3},
+      "tbr_alpha": 0.0,
+      "tbr_beta_1_m": 0.0
+    },
+    "W": {
+      "rho_kg_m3": 19300,
+      "Sigma_r_1_m": {"fast": 0.85, "epi": 1.10, "therm": 1.35},
+      "k_dpa_per_MWyr_m2": {"fast": 5.0, "epi": 1.8, "therm": 0.4},
+      "k_he_appm_per_MWyr_m2": {"fast": 120.0, "epi": 40.0, "therm": 10.0},
+      "act_severity": {"fast": 1.2, "epi": 0.8, "therm": 0.4},
+      "tbr_alpha": 0.0,
+      "tbr_beta_1_m": 0.0
+    },
+    "H2O": {
+      "rho_kg_m3": 1000,
+      "Sigma_r_1_m": {"fast": 0.25, "epi": 0.65, "therm": 1.80},
+      "k_dpa_per_MWyr_m2": {"fast": 0.2, "epi": 0.05, "therm": 0.01},
+      "k_he_appm_per_MWyr_m2": {"fast": 1.0, "epi": 0.3, "therm": 0.1},
+      "act_severity": {"fast": 0.05, "epi": 0.03, "therm": 0.02},
+      "tbr_alpha": 0.0,
+      "tbr_beta_1_m": 0.0
+    },
+    "B4C": {
+      "rho_kg_m3": 2520,
+      "Sigma_r_1_m": {"fast": 0.45, "epi": 1.20, "therm": 3.50},
+      "k_dpa_per_MWyr_m2": {"fast": 0.3, "epi": 0.1, "therm": 0.02},
+      "k_he_appm_per_MWyr_m2": {"fast": 2.0, "epi": 0.8, "therm": 0.2},
+      "act_severity": {"fast": 0.10, "epi": 0.08, "therm": 0.05},
+      "tbr_alpha": 0.0,
+      "tbr_beta_1_m": 0.0
+    },
+    "LiPb": {
+      "rho_kg_m3": 9300,
+      "Sigma_r_1_m": {"fast": 0.35, "epi": 0.55, "therm": 0.75},
+      "k_dpa_per_MWyr_m2": {"fast": 0.4, "epi": 0.15, "therm": 0.05},
+      "k_he_appm_per_MWyr_m2": {"fast": 5.0, "epi": 1.5, "therm": 0.5},
+      "act_severity": {"fast": 0.25, "epi": 0.18, "therm": 0.10},
+      "tbr_alpha": 0.65,
+      "tbr_beta_1_m": 7.5
+    },
+    "FLiBe": {
+      "rho_kg_m3": 2000,
+      "Sigma_r_1_m": {"fast": 0.30, "epi": 0.55, "therm": 0.95},
+      "k_dpa_per_MWyr_m2": {"fast": 0.25, "epi": 0.10, "therm": 0.03},
+      "k_he_appm_per_MWyr_m2": {"fast": 3.5, "epi": 1.2, "therm": 0.4},
+      "act_severity": {"fast": 0.20, "epi": 0.14, "therm": 0.08},
+      "tbr_alpha": 0.55,
+      "tbr_beta_1_m": 6.0
+    }
+  }
+}

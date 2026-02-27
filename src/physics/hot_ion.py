@@ -2021,6 +2021,37 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         pass
 
     # =========================================================================
+    # Added: Neutronics & Materials Authority 4.0 — Library Stack (v403.0.0)
+    # Deterministic multi-layer + 3-group attenuation + DPA/He/activation + TBR-lite.
+    # Governance-only overlay; no truth edits.
+    # =========================================================================
+    try:
+        from ..analysis.neutronics_materials_library_v403 import (
+            evaluate_neutronics_materials_library_v403,
+        )
+        nm403 = evaluate_neutronics_materials_library_v403(out, inp)
+        if isinstance(nm403, dict):
+            out.update(nm403)
+    except Exception:
+        out.setdefault("include_neutronics_materials_library_v403", False)
+
+    # =========================================================================
+    # Added: Structural Life Authority 3.0 (v404.0.0)
+    # Fatigue / creep / buckling envelopes + irradiation–temperature allowables.
+    # Governance-only overlay; no truth edits.
+    # =========================================================================
+    try:
+        from ..analysis.structural_life_authority_v404 import (
+            evaluate_structural_life_authority_v404,
+        )
+        st404 = evaluate_structural_life_authority_v404(out, inp)
+        if isinstance(st404, dict):
+            out.update(st404)
+    except Exception:
+        out.setdefault("include_structural_life_v404", False)
+
+
+    # =========================================================================
     # Added: Neutronics & Materials Authority 3.0 — Contract Tiers (v401.0.0)
     # Governance-only overlay: computes tiered margins + dominance.
     # =========================================================================
@@ -3379,6 +3410,21 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
                         pass
     except Exception:
         out.setdefault('nm_coupling_v372_enabled', False)
+
+    # =========================================================================
+    # Added: Authority Dominance Engine 2.0 (v402.0.0)
+    # Global cross-authority dominance ranking + regime classification.
+    # Governance-only overlay; deterministic; no truth edits.
+    # =========================================================================
+    try:
+        from ..analysis.authority_dominance_v402 import (
+            evaluate_authority_dominance_v402,
+        )
+        dom402 = evaluate_authority_dominance_v402(out=out, inp=inp)
+        if isinstance(dom402, dict):
+            out.update(dom402)
+    except Exception:
+        out.setdefault('include_authority_dominance_v402', False)
 
     return out
 

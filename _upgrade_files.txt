@@ -1,26 +1,12 @@
-# v395.0.0 (Current Drive Library Expansion 1.0)
-
-Added/modified:
-- src/models/inputs.py
-- src/physics/current_drive.py
-- src/physics/hot_ion.py
-- contracts/current_drive_library_v395.json
-- src/certification/current_drive_library_certification_v395.py
-- ui/app.py
-- README.md
-- RELEASE_NOTES.md
-- VERSION / VERSION.txt
-
-
-# v400.0.0 (Magnet Technology Authority — LTS/HTS/Cu margin ledger)
-
-Added/modified:
-- src/analysis/magnet_technology_authority_v400.py
-- analysis/magnet_technology_authority_v400.py
-- src/physics/hot_ion.py
-- src/models/inputs.py
-- src/constraints/constraints.py
-- ui/app.py
-- README.md
-- RELEASE_NOTES.md
-- VERSION / VERSION.txt
+VERSION
+VERSION.txt
+README.md
+RELEASE_NOTES.md
+src/analysis/structural_life_authority_v404.py
+analysis/structural_life_authority_v404.py
+src/physics/hot_ion.py
+src/models/inputs.py
+src/constraints/constraints.py
+src/analysis/authority_dominance_v402.py
+ui/app.py
+tests/test_structural_life_authority_v404.py

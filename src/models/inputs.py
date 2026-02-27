@@ -966,6 +966,33 @@ class PointInputs:
     activation_index_max_override_v401: float = float("nan")
     TBR_min_override_v401: float = float("nan")
 
+    # --- (v403.0.0) Neutronics & Materials Authority 4.0 — Library Stack (optional; OFF by default) ---
+    # Deterministic multi-layer stack + 3-group attenuation + derived DPA/He/activation + TBR-lite.
+    # Governance-only overlay; never mutates core truth.
+    include_neutronics_materials_library_v403: bool = False
+    # JSON list of layers: [{"material":"SS316","thickness_m":0.02,"density_factor":1.0}, ...]
+    nm_stack_json_v403: str = (
+        '[\n'
+        '  {"material":"W","thickness_m":0.01,"density_factor":1.0},\n'
+        '  {"material":"SS316","thickness_m":0.05,"density_factor":1.0},\n'
+        '  {"material":"H2O","thickness_m":0.10,"density_factor":1.0},\n'
+        '  {"material":"B4C","thickness_m":0.05,"density_factor":1.0},\n'
+        '  {"material":"SS316","thickness_m":0.20,"density_factor":1.0},\n'
+        '  {"material":"LiPb","thickness_m":0.40,"density_factor":1.0}\n'
+        ']'
+    )
+    # Incident group fractions (normalized internally)
+    nm_group_frac_fast_v403: float = 0.90
+    nm_group_frac_epi_v403: float = 0.08
+    nm_group_frac_therm_v403: float = 0.02
+
+    # Optional caps/floors (NaN disables)
+    dpa_fw_max_v403: float = float("nan")
+    he_appm_fw_max_v403: float = float("nan")
+    cooldown_burden_max_days_v403: float = float("nan")
+    tbr_proxy_min_v403: float = float("nan")
+    fast_attenuation_min_v403: float = float("nan")
+
     # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional; OFF by default) ---
     # Deterministic algebraic availability envelope driven by explicit MTBF/MTTR + planned/maintenance downtime.
     include_availability_reliability_v391: bool = False
@@ -1021,6 +1048,57 @@ class PointInputs:
     magnet_lifetime_min_yr_v384: float = float('nan')
     replacement_cost_max_MUSD_per_y_v384: float = float('nan')
     capacity_factor_min_v384: float = float('nan')
+
+
+    # ------------------------------------------------------------------
+    # 
+    # --- (v404.0.0) Structural Life Authority 3.0 (optional) ---
+    include_structural_life_v404: bool = False
+    # Service/cycling (if pulse_count not provided, conservative default used)
+    pulse_count_v404: float = float("nan")
+    hot_fraction_v404: float = 0.2
+    service_years_v404: float = 1.0
+
+    # Component material selectors (library keys: SS316, EUROFER, INCONEL, W, CuCrZr)
+    material_fw_v404: str = "EUROFER"
+    material_vv_v404: str = "SS316"
+    material_tf_v404: str = "INCONEL"
+
+    # Component temperatures [K]
+    T_fw_K_v404: float = 700.0
+    T_vv_K_v404: float = 450.0
+    T_tf_K_v404: float = 350.0
+
+    # Cyclic stress range proxies [MPa] (NaN -> auto-proxy = 0.3*sigma)
+    fw_delta_sigma_MPa_v404: float = float("nan")
+    vv_delta_sigma_MPa_v404: float = float("nan")
+    tf_delta_sigma_MPa_v404: float = float("nan")
+
+    # Buckling geometry proxies (thickness and radius) [m] (NaN disables buckling mode)
+    fw_t_m_v404: float = float("nan")
+    fw_R_m_v404: float = float("nan")
+    fw_panel_span_m_v404: float = float("nan")
+
+    vv_t_m_v404: float = float("nan")
+    vv_R_m_v404: float = float("nan")
+    vv_span_m_v404: float = float("nan")
+
+    tf_t_m_v404: float = float("nan")
+    tf_R_m_v404: float = float("nan")
+    tf_span_m_v404: float = float("nan")
+
+    # Global structural minimum margin requirement (fractional), NaN disables
+    struct_min_margin_frac_v404: float = float("nan")
+
+# --- (v402.0.0: Authority Dominance Engine 2.0 (governance only)) ---
+    # ------------------------------------------------------------------
+    # Global, cross-authority dominance ranking + regime classification.
+    # Deterministic post-processing overlay; does not mutate truth.
+    include_authority_dominance_v402: bool = True
+    # Reference thresholds used only when an explicit cap is not supplied.
+    transport_spread_ref_v402: float = 3.0
+    profile_peaking_p_ref_v402: float = 3.0
+    zeff_ref_max_v402: float = 2.5
 
 
     @staticmethod

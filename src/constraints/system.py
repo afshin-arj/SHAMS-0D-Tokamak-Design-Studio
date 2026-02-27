@@ -269,6 +269,21 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("NM contract min margin (v401)", "nm_min_margin_frac_v401", lo_key="nm_fragile_margin_frac_v401", units="-",
         description="Minimum normalized margin across tiered neutronics/materials contract items (v401). Values <0 infeasible; <fragile threshold indicates fragile.")
 
+    # Neutronics & Materials Authority 4.0 — Library Stack (v403.0.0) — governance overlay
+    # Deterministic multi-layer + 3-group attenuation + derived DPA/He/activation + TBR-lite.
+    add("NM library min margin (v403)", "nm_min_margin_frac_v403", units="-",
+        description="Minimum normalized margin across v403 library stack contract items (DPA/He/cooldown/TBR/fast attenuation when enabled).")
+    add("FW DPA (v403)", "dpa_fw_v403", hi_key="dpa_fw_max_v403", units="DPA/FPY",
+        description="First-wall DPA proxy derived from 3-group attenuation + material coefficients (v403). Optional cap.")
+    add("FW He appm (v403)", "he_appm_fw_v403", hi_key="he_appm_fw_max_v403", units="appm/FPY",
+        description="First-wall helium production proxy (appm/FPY) (v403). Optional cap.")
+    add("Cooldown burden (v403)", "cooldown_burden_days_v403", hi_key="cooldown_burden_max_days_v403", units="days",
+        description="Cooldown/maintenance burden proxy derived from activation severity index (v403). Optional cap.")
+    add("TBR proxy (v403)", "tbr_proxy_v403", lo_key="tbr_proxy_min_v403", units="-",
+        description="TBR-lite proxy from breeder layers in the v403 stack library. Optional minimum.")
+    add("Fast attenuation (v403)", "nm_fast_attenuation_v403", lo_key="fast_attenuation_min_v403", units="-",
+        description="Transmitted fast-group fraction after the declared stack. Optional minimum (screening for adequate shielding).")
+
     # Availability 2.0 — Reliability Envelope Authority (v391.0.0) — optional caps/minima (NaN disables)
     add("Availability certified (v391)", "availability_cert_v391", lo_key="availability_min_v391", units="-",
         description="Certified availability envelope from MTBF/MTTR product proxy + planned/maintenance downtime (v391).")

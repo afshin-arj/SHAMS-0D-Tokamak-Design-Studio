@@ -914,4 +914,18 @@ def evaluate_constraints(
         ge("P_sep_nonneg", outputs["P_sep_MW"], 0.0, units="MW", note="Power crossing separatrix non-negative", group="profiles")
         le("Prad_frac", outputs["P_rad_frac"], 0.95, units="-", note="Radiated power fraction not near 1", severity="soft", group="profiles")
 
+    
+    # -------------------------------------------------------------------------
+    # Structural Life Authority 3.0 (v404.0.0) — fatigue/creep/buckling margins
+    # -------------------------------------------------------------------------
+    if bool(outputs.get("include_structural_life_v404", False)):
+        mmin = outputs.get("struct_global_min_margin_v404", float("nan"))
+        req = outputs.get("struct_min_margin_frac_v404", float("nan"))
+        # If user provided a finite requirement, enforce it; otherwise report as diagnostic only.
+        if req == req:
+            ge("struct_min_margin_v404", mmin, req, units="-", note="Structural life minimum margin (stress/fatigue/creep/buckling) meets requirement", group="structural")
+        else:
+            # soft diagnostic: should not be strongly negative
+            ge("struct_min_margin_v404_diag", mmin, -0.2, units="-", note="Structural life minimum margin not deeply negative (diagnostic)", severity="soft", group="structural")
+
     return cs
