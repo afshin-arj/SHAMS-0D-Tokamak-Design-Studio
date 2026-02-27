@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v404.0.0 — Structural Life Authority 3.0 (Fatigue/Creep/Buckling)
+**Current version:** v405.0.0 — Certified Search Orchestrator 3.0 (Feasible-first Pareto + Lane Evidence Packs)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,18 +26,17 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v403.0.0 (Neutronics & Materials Authority 4.0 — Library Stack)
+## Latest upgrade — v405.0.0 (Certified Search Orchestrator 3.0)
 
-v403 closes the largest remaining **physics depth** delta vs PROCESS while preserving frozen-truth discipline by adding a deterministic, library-backed neutronics/materials stack authority:
+v405 upgrades SHAMS' **external-to-truth exploration** layer to a reviewer-grade, feasibility-first frontier workflow:
 
-- Explicit multi-layer stack specification (material + thickness + density factor)
-- 3-group attenuation ledger (fast / epithermal / thermal) with transmitted fractions
-- Deterministic derived ledgers: FW DPA proxy, FW He appm proxy, activation/cooldown burden proxy
-- TBR-lite proxy from breeder layers using explicit library coefficients
-- Constraint-ready margins + dominant driver attribution (governance-only; no truth edits)
-- Integrated into the Global Authority Dominance Engine (v402): **NEUTRONICS_MATERIALS** prefers v403 margins when enabled
+- **Feasible-first Pareto exploration** (multi-objective, nondominated frontier extraction)
+- **Authority-aware ranking context** per candidate via the global dominance overlay (v402)
+- **Optimistic vs Robust lane separation** using deterministic interval contracts (no Monte Carlo)
+- **Mirage filtering** (lane-based) and explicit mirage flags surfaced in the UI
+- **Per-frontier-candidate evidence pack export** (nominal run artifact + lane contract artifacts)
 
-This is intentionally a **screening authority** (audit-ready, deterministic). It does *not* replace Monte Carlo neutronics.
+This remains strictly outside frozen truth: it is a deterministic, budgeted candidate generator + verifier (not an optimizer).
 
 ## SHAMS vs PROCESS — Complete Comparison
 

@@ -52,8 +52,16 @@ def run_uncertainty_contract_for_point(
     *,
     label_prefix: str = "uq",
     max_dims: int = 16,
+    include_corner_artifacts: bool = True,
 ) -> Dict[str, Any]:
-    """Evaluate feasibility across deterministic interval corners."""
+    """Evaluate feasibility across deterministic interval corners.
+
+    Performance / determinism:
+    - When include_corner_artifacts=False, the function still evaluates every
+      corner deterministically, but avoids building full per-corner run artifacts.
+      This is useful for diagnostic probes (e.g., mirage pathfinding scans) where
+      only the summary verdict + worst margin is required.
+    """
     intervals = dict(spec.intervals or {})
     if not intervals:
         raise ValueError("spec.intervals must be non-empty")
@@ -95,19 +103,20 @@ def run_uncertainty_contract_for_point(
             worst_margin = float(wmf)
             worst_corner = i
 
-        art = build_run_artifact(
-            inputs=dict(inp.__dict__),
-            outputs=dict(out),
-            constraints=cons,
-            meta={"mode": "uncertainty_contract", "label": f"{label_prefix}:{spec.name}:corner{i:04d}"},
-            solver={"message": "uncertainty_contract_corner"},
-            economics=dict((out or {}).get("_economics", {})) if isinstance(out, dict) else {},
-        )
-        art["uncertainty_contract"] = spec.to_dict()
-        art["corner_index"] = int(i)
-        art["corner_overrides"] = dict(corner)
-        art["corner_constraints_summary"] = cs
-        corner_arts.append(art)
+        if include_corner_artifacts:
+            art = build_run_artifact(
+                inputs=dict(inp.__dict__),
+                outputs=dict(out),
+                constraints=cons,
+                meta={"mode": "uncertainty_contract", "label": f"{label_prefix}:{spec.name}:corner{i:04d}"},
+                solver={"message": "uncertainty_contract_corner"},
+                economics=dict((out or {}).get("_economics", {})) if isinstance(out, dict) else {},
+            )
+            art["uncertainty_contract"] = spec.to_dict()
+            art["corner_index"] = int(i)
+            art["corner_overrides"] = dict(corner)
+            art["corner_constraints_summary"] = cs
+            corner_arts.append(art)
 
     n = len(corners)
     n_feas = sum(1 for f in feas_flags if f)

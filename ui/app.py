@@ -24419,7 +24419,13 @@ if _deck == "🎛️ Control Room":
 
         from dataclasses import replace
         from solvers.budgeted_search import SearchVar
-        from solvers.certified_search_orchestrator import OrchestratorSpec, SearchStage, run_orchestrated_certified_search
+        from solvers.certified_search_orchestrator import (
+            OrchestratorSpec,
+            SearchStage,
+            ParetoObjective,
+            run_orchestrated_certified_search,
+            run_orchestrated_certified_pareto_search,
+        )
 
         base = st.session_state.get("last_point_inp")
         if base is None:
@@ -24436,11 +24442,59 @@ if _deck == "🎛️ Control Room":
                 ("a_m", 0.2, 3.0),
                 ("R0_m", 0.8, 12.0),
             ]
-            cols = st.columns(2)
+            cols = st.columns(3)
             with cols[0]:
-                chosen = st.multiselect("Select up to 4 knobs", [k[0] for k in knob_options], default=["Bt_T","Ip_MA"], max_selections=4)
+                chosen = st.multiselect(
+                    "Select up to 4 knobs",
+                    [k[0] for k in knob_options],
+                    default=["Bt_T", "Ip_MA"],
+                    max_selections=4,
+                )
             with cols[1]:
-                objective = st.selectbox("Score objective (PASS-only)", ["Q_DT_eqv","P_fus_MW","P_net_MW"], index=0)
+                mode = st.selectbox(
+                    "Mode",
+                    ["Single objective (v340 compat)", "Pareto frontier (v405)",],
+                    index=0,
+                    key="cs_mode",
+                )
+            with cols[2]:
+                objective = st.selectbox(
+                    "Score objective (PASS-only)",
+                    ["Q_DT_eqv", "P_fus_MW", "P_net_MW"],
+                    index=0,
+                    key="cs_single_obj",
+                    disabled=(str(mode) != "Single objective (v340 compat)"),
+                )
+
+            pareto_objectives = []
+            if str(mode) == "Pareto frontier (v405)":
+                st.subheader("Pareto objectives")
+                # Deterministic, compact objective menu
+                obj_menu = [
+                    ("R0_m", "min"),
+                    ("B_peak_T", "min"),
+                    ("P_e_net_MW", "max"),
+                    ("q_div_MW_m2", "min"),
+                    ("sigma_vm_MPa", "min"),
+                    ("TBR", "max"),
+                    ("Q_DT_eqv", "max"),
+                ]
+                ocols = st.columns(3)
+                with ocols[0]:
+                    o1 = st.selectbox("Objective #1", [o[0] for o in obj_menu], index=0, key="cs_p_obj1")
+                with ocols[1]:
+                    o2 = st.selectbox("Objective #2", [o[0] for o in obj_menu], index=2, key="cs_p_obj2")
+                with ocols[2]:
+                    o3 = st.selectbox("Objective #3 (optional)", ["(none)"] + [o[0] for o in obj_menu], index=0, key="cs_p_obj3")
+                senses = {k: s for k, s in obj_menu}
+                for ok in [o1, o2] + ([o3] if str(o3) != "(none)" else []):
+                    pareto_objectives.append(ParetoObjective(key=str(ok), sense=str(senses.get(str(ok), "min"))))
+
+                cpm = st.columns(2)
+                with cpm[0]:
+                    max_frontier = int(st.number_input("Max frontier points", value=30, min_value=5, max_value=200, step=5, key="cs_p_maxfront"))
+                with cpm[1]:
+                    filter_mirage = bool(st.checkbox("Filter mirage (lane)", value=True, key="cs_p_filter_mirage"))
 
             vars_=[]
             for name,lo,hi in knob_options:
@@ -24555,12 +24609,30 @@ if _deck == "🎛️ Control Room":
                                 local_shrink=float(stage2_shrink),
                             )
                         )
-                    art = run_orchestrated_certified_search(
-                        base,
-                        OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
-                        verifier=_verifier,
-                        builder=_builder,
-                    )
+                    if str(mode) == "Pareto frontier (v405)":
+                        def _eval_fn(inp_obj):
+                            return hot_ion_point(inp_obj)
+
+                        def _cons_fn(out_obj, inp_obj):
+                            return evaluate_constraints(out_obj, point_inputs=inp_obj)
+
+                        art = run_orchestrated_certified_pareto_search(
+                            base_inputs=base,
+                            spec=OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
+                            objectives=list(pareto_objectives) if pareto_objectives else [ParetoObjective(key="R0_m", sense="min")],
+                            builder=_builder,
+                            evaluator_fn=_eval_fn,
+                            constraints_fn=_cons_fn,
+                            max_frontier=int(max_frontier),
+                            filter_mirage=bool(filter_mirage),
+                        )
+                    else:
+                        art = run_orchestrated_certified_search(
+                            base,
+                            OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages)),
+                            verifier=_verifier,
+                            builder=_builder,
+                        )
                     st.session_state["last_certified_search_artifact"] = art
                     st.session_state["v340_cert_search_last"] = art
                     try:
@@ -24593,6 +24665,59 @@ if _deck == "🎛️ Control Room":
                 if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
                     with st.expander("Best PASS candidate", expanded=False):
                         st.json(art.get("best"))
+
+                # v405: frontier candidates (Pareto) with per-candidate evidence packs
+                cands = art.get("candidates")
+                if isinstance(cands, list) and len(cands) > 0:
+                    st.subheader("Frontier candidates (v405)")
+                    rows2 = []
+                    for c in cands:
+                        if not isinstance(c, dict):
+                            continue
+                        objm = c.get("objectives") or {}
+                        row = {
+                            "id": str(c.get("id", "")),
+                            "lane_robust": str(c.get("lane_robust_verdict", "")),
+                            "lane_opt": str(c.get("lane_optimistic_verdict", "")),
+                            "is_mirage": bool(c.get("is_mirage_lane", False)),
+                            "global_min_margin_v402": c.get("global_min_margin_v402"),
+                            "dominant_authority": str(c.get("global_dominant_authority_v402", "")),
+                            **(c.get("x") or {}),
+                        }
+                        if isinstance(objm, dict):
+                            for k, v in objm.items():
+                                row[f"obj_{k}"] = v
+                        rows2.append(row)
+                    df2 = pd.DataFrame(rows2)
+                    with st.expander("Frontier table", expanded=False):
+                        st.dataframe(df2, use_container_width=True, hide_index=True)
+
+                    # Evidence pack per candidate
+                    try:
+                        from tools.frontier_candidate_evidence_zip import build_frontier_candidate_evidence_zip_bytes
+
+                        cand_ids = [str(r.get("id")) for r in cands if isinstance(r, dict) and r.get("id")]
+                        sel = st.selectbox("Select candidate for evidence pack", cand_ids, index=0, key="cs_p_sel") if cand_ids else None
+                        if sel and st.button("Build selected candidate evidence pack", use_container_width=True, key="cs_p_build"):
+                            b = build_frontier_candidate_evidence_zip_bytes(
+                                orchestrator_artifact=art,
+                                candidate_id=str(sel),
+                                basename=f"frontier_candidate_{str(sel)}",
+                            )
+                            st.session_state["cs_p_candidate_zip"] = b
+                            st.success("Candidate evidence pack built.")
+                        b = st.session_state.get("cs_p_candidate_zip")
+                        if isinstance(b, (bytes, bytearray)) and len(b) > 0:
+                            st.download_button(
+                                "Download frontier_candidate_evidence.zip",
+                                data=b,
+                                file_name="frontier_candidate_evidence.zip",
+                                mime="application/zip",
+                                use_container_width=True,
+                                key="cs_p_dl",
+                            )
+                    except Exception:
+                        pass
 
                 # v297: export deterministic evidence pack
                 try:

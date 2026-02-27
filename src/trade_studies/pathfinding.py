@@ -24,7 +24,7 @@ from uq_contracts.spec import robust_uncertainty_contract
 
 def _robust_pass(ev: Evaluator, inp: PointInputs) -> Tuple[bool, float, Dict[str, Any]]:
     spec = robust_uncertainty_contract(inp)
-    uq = run_uncertainty_contract_for_point(inp, spec, label_prefix="laneR")
+    uq = run_uncertainty_contract_for_point(inp, spec, label_prefix="laneR", include_corner_artifacts=False)
     summ = dict(uq.get("summary", {}) or {})
     verdict = str(summ.get("verdict", ""))
     wm = summ.get("worst_hard_margin_frac", None)
