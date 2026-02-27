@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v406.0.0 — External Optimizer Interpretation Layer: Frontier Intake (Firewalled CSV/JSON → Certified Verification + Pareto + Lanes)
+**Current version:** v407.0.0 — Nuclear Data Authority Deepening (Multi-group + dataset provenance; screening-only; audit-pinned)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v405.0.0 (Certified Search Orchestrator 3.0)
+## Latest upgrade — v407.0.0 (Nuclear Data Authority Deepening)
+
+- Adds a deterministic **multi-group neutronics screening overlay** using the v403 stack (no transport solver).
+- Introduces an explicit **nuclear dataset registry** with **SHA-256 provenance pinning**.
+- Outputs **per-group attenuation + TF-case fluence** and a bounded **multi-group TBR proxy** (screening only).
+- Integrates with v401 contract tiers by preferring v407 TF-case fluence when enabled.
+
 
 v405 upgrades SHAMS' **external-to-truth exploration** layer to a reviewer-grade, feasibility-first frontier workflow:
 

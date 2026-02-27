@@ -135,6 +135,11 @@ try:
 except Exception:
     evaluate_neutronics_materials_coupling_v372 = None  # type: ignore
 
+try:
+    from analysis.nuclear_data_authority_v407 import evaluate_nuclear_data_authority_v407  # type: ignore
+except Exception:
+    evaluate_nuclear_data_authority_v407 = None  # type: ignore
+
 
 try:
     # Preferred when imported as `src.physics.*`
@@ -2034,6 +2039,19 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out.update(nm403)
     except Exception:
         out.setdefault("include_neutronics_materials_library_v403", False)
+
+    # =========================================================================
+    # Added: Nuclear Data Authority Deepening (v407.0.0) — optional, algebraic
+    # Multi-group attenuation + dataset provenance (screening only).
+    # Governance-only overlay; no truth edits.
+    # =========================================================================
+    try:
+        if evaluate_nuclear_data_authority_v407 is not None:
+            nd407 = evaluate_nuclear_data_authority_v407(out, inp)
+            if isinstance(nd407, dict):
+                out.update(nd407)
+    except Exception:
+        out.setdefault("include_nuclear_data_authority_v407", False)
 
     # =========================================================================
     # Added: Structural Life Authority 3.0 (v404.0.0)

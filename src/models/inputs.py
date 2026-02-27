@@ -993,6 +993,12 @@ class PointInputs:
     tbr_proxy_min_v403: float = float("nan")
     fast_attenuation_min_v403: float = float("nan")
 
+    # --- (v407.0.0) Nuclear Data Authority Deepening (optional; OFF by default) ---
+    # Multi-group attenuation + dataset provenance; screening-only overlay, no transport solves.
+    include_nuclear_data_authority_v407: bool = False
+    nuclear_dataset_id_v407: str = "SCREENING_PROXY_V407"
+    nuclear_group_structure_id_v407: str = "G6_V407"
+
     # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional; OFF by default) ---
     # Deterministic algebraic availability envelope driven by explicit MTBF/MTTR + planned/maintenance downtime.
     include_availability_reliability_v391: bool = False

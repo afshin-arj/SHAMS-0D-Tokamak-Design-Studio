@@ -1,3 +1,13 @@
+## v407.0.0 — Nuclear Data Authority Deepening (multi-group + dataset provenance)
+
+- Added deterministic multi-group neutronics screening overlay `src/analysis/nuclear_data_authority_v407.py`.
+- Introduced nuclear dataset registry (`src/nuclear_data/`) with explicit metadata and **SHA-256 provenance pinning**.
+- Outputs include per-group attenuation, TF-case fluence per group/total, and a bounded multi-group TBR proxy.
+- v401 contract tiers now prefer v407 TF-case fluence when enabled.
+- UI wiring: new Point Designer expander **“📚 Nuclear Data Authority Deepening — v407.0.0”** and Physics deck ledger view.
+
+Frozen-truth discipline preserved: v407 is governance-only and does **not** alter upstream TRUTH outputs.
+
 ## v403.0.0 — Neutronics & Materials Authority 4.0 (Library Stack)
 
 - Added deterministic library-backed stack authority `src/analysis/neutronics_materials_library_v403.py`.

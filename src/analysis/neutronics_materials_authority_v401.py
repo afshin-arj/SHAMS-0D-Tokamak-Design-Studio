@@ -143,7 +143,11 @@ def evaluate_neutronics_materials_authority_v401(out: Dict[str, Any], inp: Any) 
             limits[k] = float(ov)
 
     # Pull values from `out` (already computed upstream)
-    v_tf_flu = _safe_float(out.get("tf_case_fluence_n_m2_per_fpy_v392", out.get("hts_fluence_per_fpy_stack_n_m2")))
+    v_tf_flu = _safe_float(
+        out.get("tf_case_fluence_n_m2_per_fpy_v407",
+                out.get("tf_case_fluence_n_m2_per_fpy_v392",
+                        out.get("hts_fluence_per_fpy_stack_n_m2")))
+    )
     v_dose = _safe_float(out.get("bioshield_dose_rate_uSv_h_v392"))
     v_pnuc_tf = _safe_float(out.get("P_nuc_TF_MW"))
     v_dpa = _safe_float(out.get("dpa_per_fpy_v390", out.get("fw_dpa_per_year")))

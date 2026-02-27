@@ -5996,7 +5996,34 @@ if _deck == "🧭 Point Designer":
                     )
 
 
-                # --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
+                
+
+
+                # --- (v407.0.0) Nuclear Data Authority Deepening (optional) ---
+                with st.expander("📚 Nuclear Data Authority Deepening — v407.0.0", expanded=False):
+                    st.caption(
+                        "Governance-only overlay: multi-group attenuation through the NM stack using an explicitly versioned "
+                        "dataset registry with SHA-256 provenance. Screening proxy only (no MC transport, no spectral iteration)."
+                    )
+                    include_nuclear_data_authority_v407 = st.checkbox(
+                        "Enable nuclear data authority (v407.0.0)",
+                        value=bool(getattr(defaults, "include_nuclear_data_authority_v407", False)),
+                        key="pd_include_nuclear_data_authority_v407",
+                    )
+                    nuclear_dataset_id_v407 = st.selectbox(
+                        "Dataset id (v407)",
+                        options=["SCREENING_PROXY_V407"],
+                        index=0,
+                        key="pd_nuclear_dataset_id_v407",
+                        help="Default dataset is a screening-proxy table for deterministic sensitivity ranking; not ENDF/TENDL-derived.",
+                    )
+                    nuclear_group_structure_id_v407 = st.selectbox(
+                        "Group structure (v407)",
+                        options=["G6_V407"],
+                        index=0,
+                        key="pd_nuclear_group_structure_id_v407",
+                    )
+# --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
                 with st.expander("🧾 Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
                     st.caption(
                         "Governance-only overlay that applies explicit OPTIMISTIC/NOMINAL/ROBUST contracts to already-computed "
@@ -7556,6 +7583,10 @@ if _deck == "🧭 Point Designer":
                         tbr_proxy_min_v403=float(locals().get('tbr_proxy_min_v403', float('nan'))),
                         fast_attenuation_min_v403=float(locals().get('fast_attenuation_min_v403', float('nan'))),
 
+                        include_nuclear_data_authority_v407=bool(locals().get('include_nuclear_data_authority_v407', False)),
+                        nuclear_dataset_id_v407=str(locals().get('nuclear_dataset_id_v407', 'SCREENING_PROXY_V407')),
+                        nuclear_group_structure_id_v407=str(locals().get('nuclear_group_structure_id_v407', 'G6_V407')),
+
                         include_neutronics_materials_authority_v401=bool(locals().get('include_neutronics_materials_authority_v401', False)),
                         nm_contract_tier_v401=str(locals().get('nm_contract_tier_v401', 'NOMINAL')),
                         nm_fragile_margin_frac_v401=float(locals().get('nm_fragile_margin_frac_v401', 0.10)),
@@ -8360,6 +8391,31 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 if sha403:
                                                     st.caption(f"v403 contract hash (SHA-256): {sha403[:16]}…")
 
+
+
+                                        # v407.0.0: nuclear data provenance + multi-group attenuation (screening-only)
+                                        if bool(out.get("include_nuclear_data_authority_v407", False)):
+                                            dsid = str(out.get("nuclear_dataset_id_v407", ""))
+                                            dsha = str(out.get("nuclear_dataset_sha256_v407", ""))
+                                            tf_flu = float(out.get("tf_case_fluence_n_m2_per_fpy_v407", float('nan')))
+                                            tbrmg = float(out.get("tbr_mg_proxy_v407", float('nan')))
+                                            st.caption(
+                                                f"**Nuclear data (v407):** dataset `{dsid}` | hash `{dsha[:12]}…` | "
+                                                f"TF-case fluence {tf_flu:.3e} n/m²/FPY | TBR(mg proxy) {tbrmg:.2f}"
+                                            )
+                                            with st.expander("📚 v407 multi-group ledger (edges, spectrum, attenuation, fluence)", expanded=False):
+                                                st.markdown("**Group edges (MeV)**")
+                                                st.write(out.get("group_edges_MeV_v407", []))
+                                                st.markdown("**FW spectrum fractions (normalized)**")
+                                                st.write(out.get("spectrum_frac_fw_v407", []))
+                                                st.markdown("**Attenuation per group to TF-case**")
+                                                st.write(out.get("attenuation_g_to_tf_v407", []))
+                                                st.markdown("**Fluence per group to TF-case (n/m²/FPY)**")
+                                                st.write(out.get("fluence_g_to_tf_n_m2_per_fpy_v407", []))
+                                                st.markdown("**Layer ledger**")
+                                                rows = out.get("nuclear_data_authority_ledger_v407", [])
+                                                if isinstance(rows, list) and rows:
+                                                    st.dataframe(rows, use_container_width=True, hide_index=True)
                                         # v401.0.0: contract-tier overlay (governance-only)
                                         if bool(out.get("include_neutronics_materials_authority_v401", False)):
                                             st.caption(
