@@ -6010,19 +6010,139 @@ if _deck == "🧭 Point Designer":
                         value=bool(getattr(defaults, "include_nuclear_data_authority_v407", False)),
                         key="pd_include_nuclear_data_authority_v407",
                     )
+                    try:
+                        from src.nuclear_data import list_dataset_ids
+
+                        _dataset_ids_v407 = list_dataset_ids()
+                    except Exception:
+                        _dataset_ids_v407 = ["SCREENING_PROXY_V407"]
+                    try:
+                        from src.nuclear_data.group_structures import GROUP_STRUCTURES
+
+                        _group_ids_v407 = sorted(GROUP_STRUCTURES.keys())
+                    except Exception:
+                        _group_ids_v407 = ["G6_V407"]
+
                     nuclear_dataset_id_v407 = st.selectbox(
                         "Dataset id (v407)",
-                        options=["SCREENING_PROXY_V407"],
-                        index=0,
+                        options=_dataset_ids_v407,
+                        index=_dataset_ids_v407.index("SCREENING_PROXY_V407") if "SCREENING_PROXY_V407" in _dataset_ids_v407 else 0,
                         key="pd_nuclear_dataset_id_v407",
-                        help="Default dataset is a screening-proxy table for deterministic sensitivity ranking; not ENDF/TENDL-derived.",
+                        help=(
+                            "Built-in default is a screening-proxy table (not ENDF/TENDL-derived). "
+                            "v408 allows importing external datasets into data/nuclear_datasets with explicit provenance + SHA-256 pinning."
+                        ),
                     )
                     nuclear_group_structure_id_v407 = st.selectbox(
                         "Group structure (v407)",
-                        options=["G6_V407"],
-                        index=0,
+                        options=_group_ids_v407,
+                        index=_group_ids_v407.index("G6_V407") if "G6_V407" in _group_ids_v407 else 0,
                         key="pd_nuclear_group_structure_id_v407",
                     )
+
+                # --- (v408.0.0) Nuclear Dataset Intake & Provenance Builder (external, firewalled) ---
+                with st.expander("📥 Nuclear Dataset Intake & Provenance Builder — v408.0.0", expanded=False):
+                    st.caption(
+                        "Imports external multi-group screening datasets into data/nuclear_datasets with strict schema validation and "
+                        "SHA-256 pinning. This is a tooling layer only; it does not modify plasma truth physics." 
+                    )
+                    st.markdown("**Input options**")
+                    st.markdown("1) Upload a single dataset JSON matching the NuclearDataset schema, or")
+                    st.markdown("2) Upload metadata JSON + sigma-removal CSV and supply spectrum/response vectors.")
+
+                    up_json = st.file_uploader(
+                        "Dataset JSON (full schema)",
+                        type=["json"],
+                        accept_multiple_files=False,
+                        key="v408_dataset_json_uploader",
+                    )
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        up_meta = st.file_uploader(
+                            "Metadata JSON (alternative path)",
+                            type=["json"],
+                            accept_multiple_files=False,
+                            key="v408_metadata_json_uploader",
+                        )
+                    with c2:
+                        up_sigma = st.file_uploader(
+                            "Sigma-removal CSV (materials x groups)",
+                            type=["csv"],
+                            accept_multiple_files=False,
+                            key="v408_sigma_csv_uploader",
+                        )
+
+                    st.markdown("**Vectors (only used for metadata+CSV path)**")
+                    v_spectrum = st.text_input(
+                        "Spectrum fractions (comma-separated; must sum to 1)",
+                        value="0.65,0.20,0.08,0.04,0.02,0.01",
+                        key="v408_spectrum_text",
+                    )
+                    v_tbrw = st.text_input(
+                        "TBR response weights (comma-separated)",
+                        value="1.0,0.9,0.6,0.3,0.15,0.05",
+                        key="v408_tbrw_text",
+                    )
+
+                    build_btn = st.button("Build + validate dataset (v408)", key="v408_build_btn")
+                    save_btn = st.button("Save dataset to registry (data/nuclear_datasets)", key="v408_save_btn")
+
+                    if "v408_built_dataset" not in st.session_state:
+                        st.session_state["v408_built_dataset"] = None
+                        st.session_state["v408_built_dataset_error"] = ""
+
+                    def _parse_vec_txt(txt: str) -> list[float]:
+                        return [float(x.strip()) for x in txt.split(",") if x.strip()]
+
+                    if build_btn:
+                        try:
+                            from src.nuclear_data.intake import (
+                                dataset_from_json,
+                                dataset_from_metadata_and_csv,
+                                canonical_dataset_json,
+                            )
+
+                            ds = None
+                            if up_json is not None:
+                                ds = dataset_from_json(up_json.getvalue().decode("utf-8"))
+                            else:
+                                if up_meta is None or up_sigma is None:
+                                    raise ValueError("Provide either dataset JSON, or metadata JSON + sigma CSV")
+                                ds = dataset_from_metadata_and_csv(
+                                    metadata_json_text=up_meta.getvalue().decode("utf-8"),
+                                    sigma_removal_csv_text=up_sigma.getvalue().decode("utf-8"),
+                                    spectrum_frac_fw=_parse_vec_txt(v_spectrum),
+                                    tbr_response_weight=_parse_vec_txt(v_tbrw),
+                                )
+                            st.session_state["v408_built_dataset"] = ds
+                            st.session_state["v408_built_dataset_error"] = ""
+
+                            st.success("Dataset parsed and validated.")
+                            st.code(canonical_dataset_json(ds), language="json")
+                            st.markdown(f"**SHA-256:** `{ds.sha256}`")
+                        except Exception as e:
+                            st.session_state["v408_built_dataset"] = None
+                            st.session_state["v408_built_dataset_error"] = str(e)
+                            st.error(f"Intake failed: {e}")
+
+                    if st.session_state.get("v408_built_dataset_error"):
+                        st.warning(st.session_state["v408_built_dataset_error"])
+
+                    if save_btn:
+                        try:
+                            ds = st.session_state.get("v408_built_dataset", None)
+                            if ds is None:
+                                raise ValueError("Build a dataset first.")
+                            from src.nuclear_data.registry import save_external_dataset, build_dataset_evidence_card_md
+
+                            p = save_external_dataset(ds)
+                            (p.parent / f"{ds.dataset_id}.md").write_text(
+                                build_dataset_evidence_card_md(ds), encoding="utf-8"
+                            )
+                            st.success(f"Saved: {p.name}")
+                            st.info("Restart the app (or re-open this panel) to refresh the dataset list in selectors.")
+                        except Exception as e:
+                            st.error(f"Save failed: {e}")
 # --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
                 with st.expander("🧾 Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
                     st.caption(

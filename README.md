@@ -26,12 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v407.0.0 (Nuclear Data Authority Deepening)
+## Latest upgrade — v408.0.0 (Nuclear Dataset Intake & Provenance Builder)
 
-- Adds a deterministic **multi-group neutronics screening overlay** using the v403 stack (no transport solver).
-- Introduces an explicit **nuclear dataset registry** with **SHA-256 provenance pinning**.
-- Outputs **per-group attenuation + TF-case fluence** and a bounded **multi-group TBR proxy** (screening only).
-- Integrates with v401 contract tiers by preferring v407 TF-case fluence when enabled.
+- Adds a **firewalled intake pathway** for external multi-group screening datasets.
+- Supports **JSON dataset import** (full schema) and **metadata JSON + sigma-removal CSV** intake.
+- Enforces strict validation (schema, group lengths, spectrum normalization), and pins every dataset by **SHA-256**.
+- Writes optional deterministic **dataset evidence cards** into `data/nuclear_datasets/` for reviewer packs.
+- UI provides an upload → validate → save workflow; v407 selectors now list **all** registry datasets.
 
 
 v405 upgrades SHAMS' **external-to-truth exploration** layer to a reviewer-grade, feasibility-first frontier workflow:

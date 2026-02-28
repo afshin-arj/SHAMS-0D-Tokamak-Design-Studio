@@ -1,0 +1,7 @@
+{
+  "dataset_id": "EXAMPLE_META_CSV_V408",
+  "source_label": "EXAMPLE_SCREENING_PROXY",
+  "source_version": "v1",
+  "processing_notes": "Example metadata+CSV intake for v408 demos. Not ENDF/TENDL-derived.",
+  "group_structure_id": "G6_V407"
+}

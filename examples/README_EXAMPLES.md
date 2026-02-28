@@ -91,3 +91,13 @@ See `examples/cost_authority_v388/` for a minimal point JSON that enables the in
 ## v394 — Design Family Governance (Scan Lab)
 
 See `examples/design_family_governance_v394/` for UI steps to build deterministic design families from a Scan Lab cartography run and export the family artifact JSON.
+
+
+## v408 — Nuclear Dataset Intake & Provenance Builder
+
+See `examples/nuclear_data_v408/` for minimal example files demonstrating:
+
+- Import via a full dataset JSON
+- Import via metadata JSON + sigma-removal CSV
+
+These are **screening proxies** intended for deterministic sensitivity ranking and provenance pinning.

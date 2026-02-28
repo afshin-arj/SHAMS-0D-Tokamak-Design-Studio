@@ -98,9 +98,17 @@ DATASETS: Dict[str, NuclearDataset] = {
 
 
 def get_dataset(dataset_id: str) -> NuclearDataset:
-    if dataset_id in DATASETS:
-        return DATASETS[dataset_id]
-    raise KeyError(f"Unknown nuclear dataset_id: {dataset_id}")
+    """Return a dataset by ID.
+
+    v408 extends the registry with external datasets stored under
+    ``data/nuclear_datasets``. This function delegates to the dynamic registry
+    loader, while keeping the v407 built-in ``DATASETS`` constant available for
+    programmatic inspection.
+    """
+
+    from .registry import get_dataset as _get  # local import to avoid cycles
+
+    return _get(dataset_id)
 
 
 # Back-compat alias (some callers may use this naming)
