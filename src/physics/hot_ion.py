@@ -500,11 +500,13 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # ---------------------------
     # Neutron fractions (proxy)
     # ---------------------------
-    # For this Phase-1 model:
-    # - DT is treated as "equivalent" alpha-heating only (see below),
-    # - DD neutron fraction is used for wall-loading proxy only.
-    frac_n_DD = 0.5
-    P_n_W = frac_n_DD * Pfus_DD_W
+    # Total fusion neutron power across BOTH the DT and DD branches.
+    # NOTE (correctness fix): this proxy previously used only the DD branch
+    # (0.5 * Pfus_DD_W). In the default fuel_mode="DT" that under-counted the
+    # neutron wall load (and the HTS fluence/lifetime path fed by S_n_W_m2) by
+    # ~3 orders of magnitude, since Pfus_DD ~ 0 for a DT plasma. P_n_DT_MW and
+    # P_n_DD_MW are computed above directly from the Bosch-Hale reaction rates.
+    P_n_W = (P_n_DT_MW + P_n_DD_MW) * 1e6
 
     # Shield capture proxy (placeholder): eps_n = 1 - exp(-t/lambda)
     eps_n = neutron_shield_capture(inp.t_shield_m)
@@ -598,7 +600,11 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
 
     if inp.include_radiation:
         mode = (inp.radiation_model or "fractional").lower()
-        if mode == "physics":
+        # 'impurity_mix' and 'lz_table' are documented (inputs.py) and offered in
+        # the UI selectbox as aliases for the impurity/line-radiation physics path.
+        # Previously only 'physics' activated it, so selecting 'impurity_mix' in the
+        # UI silently fell through to the fractional model.
+        if mode in ("physics", "impurity_mix", "lz_table"):
             species = str(getattr(inp, "impurity_species", "C"))
             frac = float(getattr(inp, "impurity_frac", 0.0))
             mix_str = str(getattr(inp, "impurity_mix", "") or "").strip()
@@ -645,10 +651,17 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             # Provenance for audit-grade reviewer packs
             out["radiation_lz_db_id"] = rad_breakdown.get("LZ_DB_ID", "")
             out["radiation_lz_db_sha256"] = rad_breakdown.get("LZ_DB_SHA256", "")
-        else:
+        elif mode == "fractional":
             # Default behavior: explicit radiated fraction (legacy)
             f_core = min(max(inp.f_rad_core, 0.0), 0.95)
             Prad_core_MW = f_core * Pin_MW
+        else:
+            # Fail loudly instead of silently producing fractional-model results
+            # for an unrecognized radiation_model string.
+            raise ValueError(
+                f"Unknown radiation_model={inp.radiation_model!r}; expected one of "
+                "'fractional', 'physics', 'impurity_mix', 'lz_table'."
+            )
 
     # Power crossing separatrix (steady-state, 0-D):
     # P_SOL = Pin - Prad_core
@@ -882,6 +895,12 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # -----------------------------------------------------------------
     # v397.0: 1.5D Profile Proxy Authority (governance-only; no truth edits)
     # -----------------------------------------------------------------
+    # q95 screening proxy is consumed by the v397 overlay below AND by the
+    # screening block further down. It depends only on (immutable) inputs, so we
+    # compute the canonical value once here. Previously it was first assigned far
+    # below, so this overlay always died with UnboundLocalError and was silently
+    # disabled on every evaluation.
+    q95 = q95_proxy_cyl(inp.R0_m, inp.a_m, inp.Bt_T, inp.Ip_MA, inp.kappa)
     profile_proxy_v397: Dict[str, Any] = {}
     try:
         if evaluate_profile_proxy_v397 is None:
@@ -1161,8 +1180,10 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     B2_over_2mu0 = (inp.Bt_T**2) / (2.0 * 4e-7 * math.pi)
     beta = p_Pa / max(B2_over_2mu0, 1e-30)
     betaN = betaN_from_beta(beta, inp.a_m, inp.Bt_T, inp.Ip_MA)
-    
-    q95 = q95_proxy_cyl(inp.R0_m, inp.a_m, inp.Bt_T, inp.Ip_MA, inp.kappa)
+
+    # q95 is computed once near the top of this function (before the v397 overlay
+    # that also consumes it). It depends only on immutable inputs, so the value
+    # here is identical; we deliberately do not recompute it.
 
     # -------------------------------------------------------------------------
     # Cross-check (non-authoritative): PROCESS-style q95–Ip–Bt relation

@@ -88,9 +88,20 @@ def magnetic_pressure_Pa(B_T: float) -> float:
 
 
 def von_mises_stress_MPa(Bpeak_T: float, R_inner_m: float, t_struct_m: float) -> float:
-    """Very simple TF inner-leg structural stress proxy.
+    """TF inner-leg structural stress proxy (thin-shell membrane stress).
 
-    Uses thin-shell hoop stress: sigma ~ p * R / t, where p = B^2/(2μ0).
+    This returns the thin-shell *hoop* (circumferential) membrane stress
+    sigma ~ p * R / t, with magnetic pressure p = B^2/(2μ0). It is numerically
+    identical to :func:`phase1_systems.hoop_stress_MPa`.
+
+    Honest scope note: the TF inner leg here is modeled as a single dominant
+    (uniaxial) hoop-tension member. For a uniaxial stress state the von Mises
+    equivalent stress equals the hoop stress, so this proxy *is* the von Mises
+    stress under that assumption. A genuinely distinct von Mises value would
+    require an axial (vertical separating-force) stress component, which this
+    0-D model does not currently resolve; until that is added, do not treat the
+    returned value as an independent check against the hoop stress.
+
     Returns MPa.
     """
     t = max(t_struct_m, 1e-6)

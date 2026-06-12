@@ -21,6 +21,12 @@ from typing import Any, Dict, Tuple
 import numpy as np
 
 
+# NumPy 2.0 renamed ``np.trapz`` -> ``np.trapezoid`` (the old name was removed).
+# Bind the available implementation once so this module works on both <2.0 and
+# >=2.0 without changing numerical results.
+_trapz = getattr(np, "trapezoid", None) or np.trapz
+
+
 def _shape(rho: np.ndarray, alpha: float, beta: float) -> np.ndarray:
     """Return s(ρ) = (1-ρ^α)^β with s(0)=1 and s(1)=0 (for α,β>0)."""
     a = float(alpha)
@@ -35,7 +41,7 @@ def _area_average(shape_vals: np.ndarray, rho: np.ndarray) -> float:
     """Area average over a circular cross-section proxy: <s> = 2∫ s ρ dρ."""
     # Deterministic trapezoid on a fixed grid
     integrand = shape_vals * rho
-    return float(2.0 * np.trapz(integrand, rho))
+    return float(2.0 * _trapz(integrand, rho))
 
 
 def _peaking_factor(shape_vals: np.ndarray, rho: np.ndarray) -> float:
@@ -55,11 +61,11 @@ def _bootstrap_localization_index(p_shape: np.ndarray, rho: np.ndarray, rho_edge
         return float("nan")
     dpdr = np.gradient(p_shape, rho)
     w = np.abs(dpdr) * rho
-    denom = float(np.trapz(w, rho))
+    denom = float(_trapz(w, rho))
     if not (isfinite(denom) and denom > 0.0):
         return float("nan")
     mask = rho >= float(rho_edge)
-    num = float(np.trapz(w[mask], rho[mask]))
+    num = float(_trapz(w[mask], rho[mask]))
     return float(num / denom)
 
 
