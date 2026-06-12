@@ -137,8 +137,16 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
 
     # TF / structures
     add("TF peak field", "B_peak_T", hi_key="B_peak_allow_T", units="T", description="Peak TF field at inner leg.")
-    add("Hoop stress", "sigma_hoop_MPa", hi_key="sigma_allow_MPa", units="MPa", description="Hoop stress proxy at inner leg.")
-    add("Von Mises stress", "sigma_vm_MPa", hi_key="sigma_allow_MPa", units="MPa", description="Von Mises stress proxy (thin-shell).")
+    add("Hoop stress", "sigma_hoop_MPa", hi_key="sigma_allow_MPa", units="MPa",
+        description="TF inner-leg thin-shell hoop (membrane) stress vs allowable.")
+    # NOTE: A separate "Von Mises stress" constraint was removed here. The
+    # sigma_vm_MPa output is, under the current uniaxial thin-shell model,
+    # numerically identical to sigma_hoop_MPa (see engineering.tf_coil), so a
+    # second constraint against the same limit gave false confidence (two
+    # apparently-independent checks of the same quantity). The sigma_vm_MPa
+    # output key is retained for downstream consumers (e.g. v404). Restore a
+    # dedicated constraint once a genuinely distinct von Mises stress (with an
+    # axial component) is modeled.
     add("TF engineering current density", "J_eng_A_mm2", hi_key="J_eng_max_A_mm2", units="A/mm^2",
         description="Engineering current density in TF winding pack (proxy).")
     add("HTS margin (critical surface)", "hts_margin_cs", lo_key="hts_margin_min", units="-",
