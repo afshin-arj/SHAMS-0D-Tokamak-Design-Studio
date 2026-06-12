@@ -1,0 +1,1397 @@
+{
+  "case": "low_density_edge",
+  "inputs": {
+    "Bt_T": 12.2,
+    "Ip_MA": 8.7,
+    "Paux_MW": 25.0,
+    "R0_m": 1.85,
+    "Ti_keV": 12.0,
+    "a_m": 0.57,
+    "fG": 0.3,
+    "kappa": 1.8
+  },
+  "outputs": {
+    "A_fw_m2": 74.93398445483083,
+    "B0_T": 12.2,
+    "B_peak_T": "__nan__",
+    "B_peak_allow_T": 25.0,
+    "Bpol_out_mid_T": 3.0526315789473686,
+    "COE_max_USD_per_MWh": "__nan__",
+    "C_bs": 0.15,
+    "E_tf_MJ": "__nan__",
+    "H98": 5.019105467017311,
+    "H98_allow": 9990000000.0,
+    "H_regime": "__nan__",
+    "H_required": 5.019105467017311,
+    "H_scaling": 5.019105467017311,
+    "I_bs_MA": 1.7623624933822954,
+    "I_cd_MA": 0.0,
+    "I_tf_A": "__nan__",
+    "Ip_MA": 8.7,
+    "Ip_from_q95_PROCESS_MA": 3.822148740192338,
+    "Ip_vs_PROCESS_ratio": 2.2762065506540696,
+    "J_eng_A_mm2": "__nan__",
+    "LCOE_max_USD_per_MWh": "__nan__",
+    "LH_ok": 1.0,
+    "Lpar_m": 12.90430246780566,
+    "M_ign": 0.5266015874004508,
+    "M_ign_total": 0.5266015874004508,
+    "N_tf_turns": 1.0,
+    "P_CD_MW": 0.0,
+    "P_LH_MW": 41.41806288938474,
+    "P_LH_required_MW": "__nan__",
+    "P_SOL_MW": 52.80964053664384,
+    "P_SOL_edge_core_MW": "__nan__",
+    "P_SOL_over_R_MW_m": 28.545751641429103,
+    "P_SOL_over_R_limit_MW_m": "__nan__",
+    "P_SOL_over_R_max_MW_m": 25.0,
+    "P_aux_max_MW": "__nan__",
+    "P_aux_total_el_MW": 62.5,
+    "P_brem_MW": 0.0,
+    "P_cd_launch_MW": 0.0,
+    "P_charged_DD_MW": 0.11935014374079919,
+    "P_charged_DT_MW": 34.20727003897261,
+    "P_cryo_MW": 0.0,
+    "P_cryo_max_MW": "__nan__",
+    "P_div_MW": 35.22097662163586,
+    "P_e_gross_MW": 58.61949800335648,
+    "P_e_net_MW": -28.880501996643517,
+    "P_e_net_avg_MW": -26.65892491997863,
+    "P_ie_MW": 11.416955651156664,
+    "P_loss_total_MW": 52.80964053664384,
+    "P_n_DD_MW": 0.0628657244196639,
+    "P_n_DT_MW": 137.8064307284325,
+    "P_n_captured_MW": 129.4854559014595,
+    "P_net_min_MW": -1000000000.0,
+    "P_nuc_Blanket_MW": 36.6371862520978,
+    "P_nuc_First wall_MW": 14.65487450083912,
+    "P_nuc_PF_MW": 0.0,
+    "P_nuc_Shield_MW": 17.585849401006943,
+    "P_nuc_TF structure_MW": 2.930974900167824,
+    "P_nuc_TF winding pack_MW": 2.930974900167824,
+    "P_nuc_TF_MW": 0.0,
+    "P_nuc_Vacuum vessel_MW": 7.32743725041956,
+    "P_nuc_cryo_kW": 0.0,
+    "P_nuc_cryo_max_kW": "__nan__",
+    "P_nuc_in_vessel_MW": 0.0,
+    "P_nuc_leak_MW": 0.0,
+    "P_nuc_pf_max_MW": "__nan__",
+    "P_nuc_tf_max_MW": "__nan__",
+    "P_nuc_total_MW": 82.06729720469907,
+    "P_nuc_total_max_MW": "__nan__",
+    "P_pf_avg_MW": "__nan__",
+    "P_pf_avg_max_MW": "__nan__",
+    "P_pump_MW": 4.396462350251736,
+    "P_recirc_MW": 87.5,
+    "P_supply_peak_MW": 62.5,
+    "P_supply_peak_max_MW": "__nan__",
+    "P_tf_ohmic_MW": "__nan__",
+    "Palpha_MW": 27.80964053664384,
+    "Palpha_e_MW": 4.171446080496577,
+    "Palpha_i_MW": 23.638194456147264,
+    "Paux_MW": 25.0,
+    "Paux_e_MW": 12.5,
+    "Paux_i_MW": 12.5,
+    "Pfus_DD_MW": 0.1822158681604631,
+    "Pfus_DT_MW": 172.0137007674051,
+    "Pfus_DT_adj_MW": 146.36652914023074,
+    "Pfus_DT_eqv_MW": 172.0137007674051,
+    "Pfus_profile_MW": "__nan__",
+    "Pfus_total_MW": 146.5487450083912,
+    "Pin_MW": 52.80964053664384,
+    "Ploss_MW": 52.80964053664384,
+    "Ploss_from_tauE_model_MW": 265.0571555286881,
+    "Prad_SOL_MW": 15.842892160993152,
+    "Prad_brem_MW": 0.0,
+    "Prad_core_MW": 0.0,
+    "Prad_line_MW": 0.0,
+    "Prad_sync_MW": 0.0,
+    "Prad_total_MW": 15.842892160993152,
+    "Pth_total_MW": 146.5487450083912,
+    "Q_DT_eqv": 5.85466116560923,
+    "Q_effective": 4.229992692152668,
+    "Q_effective_min": "__nan__",
+    "Qe": 0.6699371200383598,
+    "R0_m": 1.85,
+    "R_coil_inner_m": -0.019999999999999796,
+    "SOL_rad_control_ok": "__nan__",
+    "S_fuel_max_1e22_per_s": "__nan__",
+    "S_fuel_required_1e22_per_s": "__nan__",
+    "S_n_W_m2": 1839876.7589351647,
+    "TBR": 0.6159320976182251,
+    "TBR_domain_cov_margin": 0.09999999999999998,
+    "TBR_domain_driver": "ok",
+    "TBR_domain_margin": 0.09999999999999998,
+    "TBR_domain_ok": 1.0,
+    "TBR_domain_tb_margin_m": 0.25,
+    "TBR_eff_fuelcycle": 0.6159320976182251,
+    "TBR_margin": -0.43406790238177495,
+    "TBR_margin_fuelcycle": -0.44006790238177496,
+    "TBR_min": 1.05,
+    "TBR_required_fuelcycle": 1.056,
+    "TBR_self_sufficiency_margin": "__nan__",
+    "TBR_self_sufficiency_required": "__nan__",
+    "TBR_validity": 0.0,
+    "T_burn_kg_per_day": 0.022568506731292244,
+    "T_in_vessel_max_kg": "__nan__",
+    "T_in_vessel_required_kg": 0.022568506731292244,
+    "T_inventory_min_kg": "__nan__",
+    "T_inventory_required_kg": 0.06770552019387674,
+    "T_inventory_reserve_kg": 0.06770552019387674,
+    "T_loss_fraction": "__nan__",
+    "T_peaking": "__nan__",
+    "T_processing_capacity_margin_g_per_day": "__nan__",
+    "T_processing_capacity_min_g_per_day": "__nan__",
+    "T_processing_delay_days": 1.0,
+    "T_processing_required_g_per_day": 28.210633414115307,
+    "T_startup_inventory_kg": 0.0,
+    "T_total_inventory_max_kg": "__nan__",
+    "T_total_inventory_required_kg": 0.09027402692516898,
+    "Tcoil_K": 20.0,
+    "Te0_over_TeV": "__nan__",
+    "Te_keV": 6.0,
+    "Te_line_over_TeV": "__nan__",
+    "Ti0_over_TiV": "__nan__",
+    "Ti_keV": 12.0,
+    "Ti_line_over_TiV": "__nan__",
+    "V": 21.35618556962679,
+    "V_dump_kV": "__nan__",
+    "V_loop_max_V": 2.0,
+    "V_loop_over_max": "__nan__",
+    "V_loop_req_V": "__nan__",
+    "Vmax_kV": 20.0,
+    "W_MJ": 47.246404381947116,
+    "_maturity_contract": {
+      "description": "System prototype; conservative design targeting.",
+      "fingerprint": {
+        "blanket_type": "LiPb",
+        "confinement_mult": 1.0,
+        "hts_Jc_mult": 1.0,
+        "lambda_q_mult": 1.0,
+        "li6_enrichment": 0.3,
+        "magnet_technology": "HTS_REBCO",
+        "multiplier_material": "None"
+      },
+      "suggested": {
+        "P_nuc_tf_max_MW": 20.0,
+        "TBR_min": 1.15,
+        "f_recirc_max": 0.4
+      },
+      "tier": "TRL7"
+    },
+    "_policy_contract": {
+      "greenwald_enforcement": "hard",
+      "q95_enforcement": "hard"
+    },
+    "a_m": 0.57,
+    "activation_index_max_v390": "__nan__",
+    "activation_index_v390": "__nan__",
+    "alpha_loss_frac_eff": 0.05,
+    "alpha_loss_model": "fixed",
+    "alpha_partition_model": "fixed",
+    "annual_net_MWh": 0.0,
+    "annual_net_MWh_min": "__nan__",
+    "ash_dilution_mode": "off",
+    "ash_factor": 1.0,
+    "attenuation_g_to_tf_v407": [],
+    "availability_min": "__nan__",
+    "availability_min_v391": "__nan__",
+    "availability_model": 0.07031350579734752,
+    "availability_v359_min": "__nan__",
+    "availability_v368_min": "__nan__",
+    "betaN_max": "__nan__",
+    "betaN_proxy": 0.9953124904918034,
+    "betaN_troyon_max": "__nan__",
+    "beta_N": 0.9953124904918034,
+    "beta_proxy": 0.012452140735229638,
+    "blanket_He_appm_per_year": 91.46456191611975,
+    "blanket_He_total_appm_at_years": 91.46456191611975,
+    "blanket_He_total_limit_appm": "__nan__",
+    "blanket_T_enforce": 0.0,
+    "blanket_T_margin_C": "__nan__",
+    "blanket_T_max_C": 650.0,
+    "blanket_T_min_C": 300.0,
+    "blanket_T_oper_C": "__nan__",
+    "blanket_coverage": 0.85,
+    "blanket_dpa_per_year": 3.8110234131716565,
+    "blanket_dpa_total_at_years": 3.8110234131716565,
+    "blanket_dpa_total_limit": 120.0,
+    "blanket_lifetime_He_yr": 163.99794287274003,
+    "blanket_lifetime_dpa_yr": 31.487605031566083,
+    "blanket_lifetime_min_yr": "__nan__",
+    "blanket_lifetime_min_yr_v384": "__nan__",
+    "blanket_lifetime_yr": 31.487605031566083,
+    "blanket_replace_interval_y": 31.487605031566083,
+    "blanket_replace_interval_y_v367": 31.487605031566083,
+    "blanket_replacement_cost_MUSD_per_year": "__nan__",
+    "blanket_replacements_over_plant_life": 0.0,
+    "blanket_sigma_allow_MPa": 77.06310695117328,
+    "blanket_sigma_f_T": 0.2,
+    "blanket_sigma_f_irr": 0.9632888368896659,
+    "blanket_sigma_margin_MPa": "__nan__",
+    "blanket_sigma_oper_MPa": "__nan__",
+    "bootstrap_model": "proxy",
+    "bsp_fragility_class": "UNKNOWN",
+    "bsp_min_margin_frac": "__nan__",
+    "bsp_regime": "disabled",
+    "bsp_top_limiter": "DISABLED",
+    "burn_regime": "alpha_assisted",
+    "capacity_factor_min_v384": "__nan__",
+    "cd_P_cd_frac_margin_frac": "__nan__",
+    "cd_ctx_P_CD_MW": 0.0,
+    "cd_ctx_P_cd_frac": "__nan__",
+    "cd_ctx_P_electric_MW": "__nan__",
+    "cd_ctx_cd_tech_regime": "ECCD",
+    "cd_ctx_eta_CD_A_W": 4e-08,
+    "cd_ctx_eta_wallplug": "__nan__",
+    "cd_ctx_nbar20": 2.557060027515216,
+    "cd_eta_CD_A_W_margin_frac": 0.1428571428571428,
+    "cd_eta_wallplug_margin_frac": "__nan__",
+    "cd_fragility_class": "FEASIBLE",
+    "cd_lhcd_density_margin_frac": "__nan__",
+    "cd_min_margin_frac": 0.1428571428571428,
+    "cd_tech_regime": "ECCD",
+    "cd_top_limiter": "eta_CD_A_W_margin_frac",
+    "cdlib_channel": "disabled",
+    "cdlib_fragility_class": "UNKNOWN",
+    "cdlib_min_margin_frac": "__nan__",
+    "cdlib_top_limiter": "DISABLED",
+    "coil_cooling_capacity_MW": 5.0,
+    "coil_heat_MW": "__nan__",
+    "coil_heat_ac_MW": "__nan__",
+    "coil_heat_max_MW": "__nan__",
+    "coil_heat_nuclear_MW": 0.31291275076232744,
+    "coil_thermal_margin": "__nan__",
+    "confinement_regime": "H",
+    "control_budget_ledger": {},
+    "control_contract_caps": {},
+    "control_contract_margins": {},
+    "control_stability_v398_enabled": false,
+    "coolant_dT_K": 586.1949800335648,
+    "cooldown_bin_v390": "OFF",
+    "cooldown_days_v390": "__nan__",
+    "cs_Lp_H": 3.851567816199053e-06,
+    "cs_V_loop_max_V": "__nan__",
+    "cs_V_loop_ramp_V": 0.11169546666977254,
+    "cs_flux_available_Wb": 6.967361355278372,
+    "cs_flux_margin": -0.833658152522224,
+    "cs_flux_margin_min": "__nan__",
+    "cs_flux_required_Wb": 41.885800001164704,
+    "current_profile_CP_ETA_CD_MIN": "__nan__",
+    "current_profile_CP_FBS_MAX": 0.5498435521373448,
+    "current_profile_CP_FBS_MIN": 3.0514080307638967,
+    "current_profile_CP_FNI_MAX": 0.4212274241765861,
+    "current_profile_CP_FNI_MIN": "__nan__",
+    "current_profile_CP_NI_CONSISTENCY": 0.8774295984618052,
+    "current_profile_CP_PCD_FRAC_MAX": "__nan__",
+    "current_profile_CP_Q95_MIN": -0.11187739463601543,
+    "current_profile_CP_QMIN_MIN": 0.0911148026334394,
+    "current_profile_ctx_I_bs_MA": 1.7623624933822954,
+    "current_profile_ctx_I_cd_MA": 0.0,
+    "current_profile_ctx_Ip_MA": 8.7,
+    "current_profile_ctx_P_cd_MW": "__nan__",
+    "current_profile_ctx_P_cd_frac": "__nan__",
+    "current_profile_ctx_P_in_MW": 52.80964053664384,
+    "current_profile_ctx_cd_eta_A_per_W": "__nan__",
+    "current_profile_ctx_f_NI": 0.20257040153819486,
+    "current_profile_ctx_f_bootstrap_proxy": 0.20257040153819486,
+    "current_profile_ctx_q95": 2.2203065134099615,
+    "current_profile_ctx_qmin_proxy": 1.2002262828967833,
+    "current_profile_fragility_class": "INFEASIBLE",
+    "current_profile_min_margin_frac": -0.11187739463601543,
+    "current_profile_regime": "inductive",
+    "current_profile_top_limiter": "CP_Q95_MIN",
+    "cycles_per_year": 4045.846153846154,
+    "delta": 0.0,
+    "delta_max": "__nan__",
+    "delta_min": "__nan__",
+    "detachment_Lz_sol_Wm3": "__nan__",
+    "detachment_f_sol_div_required": "__nan__",
+    "detachment_f_z_required": "__nan__",
+    "detachment_fz_max": "__nan__",
+    "detachment_index": 4.365757777390166,
+    "detachment_index_max": "__nan__",
+    "detachment_index_min": "__nan__",
+    "detachment_margin_min_v399": "__nan__",
+    "detachment_margin_v399": "__nan__",
+    "detachment_prad_sol_div_achieved_MW_v399": "__nan__",
+    "detachment_prad_sol_div_required_MW": "__nan__",
+    "detachment_validity": {},
+    "dilution_fuel": 0.85,
+    "disruption_dominant_driver": "qmin",
+    "disruption_risk_components": {
+      "beta": 0.2843749972833724,
+      "density": 0.3,
+      "qmin": 1.6663524441182358,
+      "radiation": 0.0
+    },
+    "disruption_risk_index": 0.5235829880086589,
+    "disruption_risk_tier": "HIGH",
+    "div_erosion_max_mm_per_y": "__nan__",
+    "div_erosion_mm_per_year": 12977.277459084777,
+    "div_regime": "detached",
+    "div_replace_interval_y": 0.1,
+    "divertor_lifetime_min_yr_v384": "__nan__",
+    "downtime_scheduled_frac": 0.9022892339286799,
+    "downtime_trips_frac": 0.0273972602739726,
+    "dpa_per_fpy_max_v390": "__nan__",
+    "dpa_per_fpy_v390": "__nan__",
+    "duty_factor": 0.9230769230769231,
+    "edge_core_coupling_active": 0.0,
+    "edge_core_coupling_chi_core": 0.25,
+    "edge_core_coupling_delta_Prad_core_MW": "__nan__",
+    "edge_core_coupling_validity": {},
+    "enforce_radial_build": 0.0,
+    "eps": 0.30810810810810807,
+    "eps_n": 0.9391899373747821,
+    "eta_CD_A_W": 4e-08,
+    "exhaust_detach_margin_MW_m": -3.545751641429103,
+    "exhaust_detach_metric_MW_m": 28.545751641429103,
+    "exhaust_detach_thr_MW_m": 25.0,
+    "exhaust_f_rad_div_eff": 0.33305782308446996,
+    "exhaust_f_sol_div_required": "__nan__",
+    "exhaust_fragility_class": "INFEASIBLE",
+    "exhaust_min_margin_frac": -25.512937641217583,
+    "exhaust_q_div_MW_m2": 265.1293764121758,
+    "exhaust_q_div_max_MW_m2": 10.0,
+    "exhaust_q_margin_MW_m2": -255.12937641217582,
+    "exhaust_radiation_dominated": 0.0,
+    "exhaust_regime": "overheat",
+    "exhaust_regime_validity": {},
+    "fG": 0.3,
+    "f_G": 0.3,
+    "f_He_ash": 0.0,
+    "f_LH_access": 1.0,
+    "f_NI": 0.20257040153819486,
+    "f_alpha_to_ion_eff": 0.85,
+    "f_bs_proxy": 0.06724155997024003,
+    "f_rad_SOL_max": "__nan__",
+    "f_rad_SOL_required": "__nan__",
+    "f_rad_core_edge_core": "__nan__",
+    "f_rad_div": 0.3,
+    "f_rad_div_eff": 0.33305782308446996,
+    "f_rad_total": 0.5,
+    "f_rad_total_max": "__nan__",
+    "f_recirc": 1.4926774022355132,
+    "f_recirc_max": "__nan__",
+    "f_wet_divertor": 1.0,
+    "f_wet_raw": 1.0,
+    "fluence_g_to_tf_n_m2_per_fpy_v407": [],
+    "fluence_n_m2_per_fpy": 7.110854091331603e+23,
+    "flux_avail_Wb": "__nan__",
+    "flux_expansion": 8.0,
+    "flux_expansion_raw": 8.0,
+    "flux_swing_Wb": 60.0,
+    "fragile_margin_frac": 0.05,
+    "fuel_ion_fraction": 0.85,
+    "fuel_ion_fraction_min": "__nan__",
+    "fuel_mode": "DT",
+    "fueling_ok": "__nan__",
+    "fw_He_appm_per_year": 187.74765045739645,
+    "fw_He_total_appm_at_years": 187.74765045739645,
+    "fw_He_total_limit_appm": "__nan__",
+    "fw_T_enforce": 0.0,
+    "fw_T_margin_C": "__nan__",
+    "fw_T_max_C": 550.0,
+    "fw_T_min_C": 250.0,
+    "fw_T_oper_C": "__nan__",
+    "fw_dpa_max_per_year": "__nan__",
+    "fw_dpa_per_year": 7.822818769058185,
+    "fw_dpa_total_at_years": 7.822818769058185,
+    "fw_dpa_total_limit": 80.0,
+    "fw_life_fpy_v390": "__nan__",
+    "fw_life_min_fpy_v390": "__nan__",
+    "fw_lifetime_He_yr": 53.2629834548539,
+    "fw_lifetime_dpa_yr": 10.226492823331949,
+    "fw_lifetime_min_yr": "__nan__",
+    "fw_lifetime_min_yr_v384": "__nan__",
+    "fw_lifetime_yr": 10.226492823331949,
+    "fw_replace_interval_y": 10.226492823331949,
+    "fw_replace_interval_y_v367": 10.226492823331949,
+    "fw_replacement_cost_MUSD_per_year": "__nan__",
+    "fw_replacements_over_plant_life": 2.0,
+    "fw_sigma_allow_MPa": 132.69870175472477,
+    "fw_sigma_f_T": 0.2,
+    "fw_sigma_f_irr": 0.884658011698165,
+    "fw_sigma_margin_MPa": "__nan__",
+    "fw_sigma_oper_MPa": "__nan__",
+    "gamma_VS_s_inv": "__nan__",
+    "group_edges_MeV_v407": [],
+    "hts_fluence_limit_n_m2": 3e+22,
+    "hts_fluence_per_fpy_n_m2": 1.0575957219430728e+22,
+    "hts_fluence_per_fpy_stack_n_m2": 6.331500595548508e+24,
+    "hts_lifetime_stack_yr": 0.004738213247755535,
+    "hts_lifetime_yr": 2.8366226694716916,
+    "hts_margin": "__nan__",
+    "ignition_margin_min": "__nan__",
+    "impurity_contract_f_z": 0.0003,
+    "impurity_contract_species": "Ne",
+    "impurity_fragility_class": "UNKNOWN",
+    "impurity_fuel_ion_fraction": 0.9993254553176606,
+    "impurity_min_margin_frac": "__nan__",
+    "impurity_prad_core_MW": 0.01675669171623686,
+    "impurity_prad_div_MW": 0.003351338343247371,
+    "impurity_prad_edge_MW": 0.006702676686494742,
+    "impurity_prad_sol_MW": 0.006702676686494742,
+    "impurity_prad_total_MW": 0.03351338343247371,
+    "impurity_regime": "unknown",
+    "impurity_species": "unknown",
+    "impurity_v399_by_species_MW": {},
+    "impurity_v399_fuel_ion_fraction": "__nan__",
+    "impurity_v399_mix_json": "",
+    "impurity_v399_prad_core_MW": "__nan__",
+    "impurity_v399_prad_div_MW": "__nan__",
+    "impurity_v399_prad_edge_MW": "__nan__",
+    "impurity_v399_prad_sol_MW": "__nan__",
+    "impurity_v399_prad_total_MW": "__nan__",
+    "impurity_v399_validity": {},
+    "impurity_v399_zeff": "__nan__",
+    "impurity_validity": {},
+    "impurity_zeff_proxy": 1.0027,
+    "inboard_build_total_m": 1.65,
+    "inboard_margin_m": -0.36999999999999966,
+    "inboard_space_m": 1.2800000000000002,
+    "include_availability_reliability_v391": false,
+    "include_impurity_v399": 0.0,
+    "include_materials_lifetime_v384": false,
+    "include_neutronics_activation_v390": false,
+    "include_neutronics_materials_library_v403": false,
+    "include_radiation": false,
+    "include_secondary_DT": 1.0,
+    "include_structural_life_v404": false,
+    "include_tritium_tight_closure": 0.0,
+    "kappa": 1.8,
+    "kappa_max": "__nan__",
+    "lambda_q_mm": 0.16694677049262835,
+    "lambda_q_mm_raw": 0.16694677049262835,
+    "lifetime_min_yr": 3.0,
+    "magnet_W_mag_MJ": "__nan__",
+    "magnet_energy_density_MJ_m3": "__nan__",
+    "magnet_fragility_class": "UNKNOWN",
+    "magnet_lifetime_min_yr_v384": "__nan__",
+    "magnet_margin_min": "__nan__",
+    "magnet_quench_risk_max": "__nan__",
+    "magnet_quench_risk_proxy": "__nan__",
+    "magnet_regime": "UNKNOWN",
+    "magnet_regime_consistent": "__nan__",
+    "magnet_technology": "HTS_REBCO",
+    "magnet_v400_b_margin": "__nan__",
+    "magnet_v400_b_tier": "unknown",
+    "magnet_v400_dominant_limiter": "unknown",
+    "magnet_v400_dominant_margin": "__nan__",
+    "magnet_v400_enabled": true,
+    "magnet_v400_j_margin": "__nan__",
+    "magnet_v400_j_tier": "unknown",
+    "magnet_v400_margin": "__nan__",
+    "magnet_v400_p_tf_ohmic_margin": "__nan__",
+    "magnet_v400_p_tf_ohmic_tier": "unknown",
+    "magnet_v400_sc_oper_margin": "__nan__",
+    "magnet_v400_sc_tier": "unknown",
+    "magnet_v400_stress_margin": "__nan__",
+    "magnet_v400_stress_tier": "unknown",
+    "magnet_v400_t_window_margin": "__nan__",
+    "magnet_v400_t_window_tier": "unknown",
+    "magnet_v400_technology": "HTS_REBCO",
+    "magnet_v400_tier": "unknown",
+    "maint_downtime_max_frac_v391": "__nan__",
+    "maintenance_burden_factor_v390": "__nan__",
+    "materials_domain_enforce": 0.0,
+    "materials_lifetime_schema_version": "v367.0",
+    "mhd_risk_max": "__nan__",
+    "mhd_risk_proxy": 0.9871264367816093,
+    "model_cards": {
+      "availability.proxy": {
+        "hash": "c2e0eb054fc9d425c9c4c7789da5c0883dd31e0a0f0ced6da086fad14411c665",
+        "id": "availability_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Availability proxy (planned + forced outages)",
+        "validity": {},
+        "version": "0.1"
+      },
+      "availability_proxy": {
+        "hash": "c2e0eb054fc9d425c9c4c7789da5c0883dd31e0a0f0ced6da086fad14411c665",
+        "id": "availability_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Availability proxy (planned + forced outages)",
+        "validity": {},
+        "version": "0.1"
+      },
+      "bootstrap.sauter_proxy_v1": {
+        "hash": "fe19e45ea5ce4d4dc0eafe945a52636813b0c521fcecc77ad6c83aa5cfa06370",
+        "id": "bootstrap_sauter_proxy_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Deterministic, monotone, bounded proxy.",
+            "Not a full Sauter collisionality/geometry fit implementation."
+          ],
+          "trl": 2
+        },
+        "name": "Bootstrap fraction (Sauter-inspired proxy)",
+        "validity": {
+          "inputs": {
+            "R0_m": [
+              0.5,
+              15.0
+            ]
+          },
+          "outputs": {
+            "betaN_proxy": [
+              0.0,
+              8.0
+            ],
+            "q95_proxy": [
+              1.5,
+              10.0
+            ]
+          }
+        },
+        "version": "v1"
+      },
+      "bootstrap_sauter_proxy_v1": {
+        "hash": "fe19e45ea5ce4d4dc0eafe945a52636813b0c521fcecc77ad6c83aa5cfa06370",
+        "id": "bootstrap_sauter_proxy_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Deterministic, monotone, bounded proxy.",
+            "Not a full Sauter collisionality/geometry fit implementation."
+          ],
+          "trl": 2
+        },
+        "name": "Bootstrap fraction (Sauter-inspired proxy)",
+        "validity": {
+          "inputs": {
+            "R0_m": [
+              0.5,
+              15.0
+            ]
+          },
+          "outputs": {
+            "betaN_proxy": [
+              0.0,
+              8.0
+            ],
+            "q95_proxy": [
+              1.5,
+              10.0
+            ]
+          }
+        },
+        "version": "v1"
+      },
+      "economics.component_cost_proxy": {
+        "hash": "01b65a5bf2e0915e8b40615386ef807c780af04f5c9efc52527282556391ed57",
+        "id": "economics_component_cost_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Component-based CAPEX proxy",
+        "validity": {},
+        "version": "0.1"
+      },
+      "economics.lifecycle_cost_proxy": {
+        "hash": "45c5165fbfb943c40b557cf6b11605a645b65b357e1f6a166ebb892a39c9da8c",
+        "id": "economics.lifecycle_cost_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Lifecycle costing / LCOE proxy",
+        "validity": {
+          "note": "Replace with component-based costing when available"
+        },
+        "version": "1.0.0"
+      },
+      "economics_component_cost_proxy": {
+        "hash": "01b65a5bf2e0915e8b40615386ef807c780af04f5c9efc52527282556391ed57",
+        "id": "economics_component_cost_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Component-based CAPEX proxy",
+        "validity": {},
+        "version": "0.1"
+      },
+      "engineering.divertor_proxy_v2": {
+        "hash": "4b1ccd5aa176fab3f6815a13e29449b68e122c812fc11f30da97ba83c8456fe8",
+        "id": "engineering_divertor_proxy_v2",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Divertor heat exhaust proxy with tech modes",
+        "validity": {
+          "lambda_q_m": [
+            0.001,
+            0.02
+          ]
+        },
+        "version": "0.2"
+      },
+      "engineering.magnet_pack_proxy": {
+        "hash": "019817eb8bbe14807e4bab84dde0a9a36b3019c433455b00301e8bfbcafb2884",
+        "id": "engineering_magnet_pack_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "TF magnet pack proxy",
+        "validity": {
+          "Bt_T": [
+            3.0,
+            10.0
+          ],
+          "R0_m": [
+            2.0,
+            15.0
+          ]
+        },
+        "version": "0.1"
+      },
+      "engineering.radial_stack": {
+        "hash": "a32c2771caeb21f85ad8278b81862badd823fc78a55b498e60ad7ce8dd486f62",
+        "id": "engineering.radial_stack",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Inboard radial build explicit stack closure",
+        "validity": {
+          "note": "Use for conceptual sizing; verify with CAD for final designs"
+        },
+        "version": "1.0.0"
+      },
+      "engineering.tbr_proxy": {
+        "hash": "1565da23fc01d5730345b11ef90d6245125d8dea58370ced4a7f5f1107ad65e4",
+        "id": "engineering_tbr_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Tritium breeding ratio monotonic proxy",
+        "validity": {
+          "blanket_coverage": [
+            0.5,
+            0.95
+          ],
+          "t_blanket_m": [
+            0.3,
+            1.5
+          ]
+        },
+        "version": "0.1"
+      },
+      "engineering_divertor_proxy_v2": {
+        "hash": "4b1ccd5aa176fab3f6815a13e29449b68e122c812fc11f30da97ba83c8456fe8",
+        "id": "engineering_divertor_proxy_v2",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Divertor heat exhaust proxy with tech modes",
+        "validity": {
+          "lambda_q_m": [
+            0.001,
+            0.02
+          ]
+        },
+        "version": "0.2"
+      },
+      "engineering_magnet_pack_proxy": {
+        "hash": "019817eb8bbe14807e4bab84dde0a9a36b3019c433455b00301e8bfbcafb2884",
+        "id": "engineering_magnet_pack_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "TF magnet pack proxy",
+        "validity": {
+          "Bt_T": [
+            3.0,
+            10.0
+          ],
+          "R0_m": [
+            2.0,
+            15.0
+          ]
+        },
+        "version": "0.1"
+      },
+      "engineering_tbr_proxy": {
+        "hash": "1565da23fc01d5730345b11ef90d6245125d8dea58370ced4a7f5f1107ad65e4",
+        "id": "engineering_tbr_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Tritium breeding ratio monotonic proxy",
+        "validity": {
+          "blanket_coverage": [
+            0.5,
+            0.95
+          ],
+          "t_blanket_m": [
+            0.3,
+            1.5
+          ]
+        },
+        "version": "0.1"
+      },
+      "magnet.tech_axis_v1": {
+        "hash": "e79ab397ad2637022429d2d2dfd98e7c16cd5ed463ea3e1018e2d51e88b96464",
+        "id": "magnet_tech_axis_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Technology axis is explicit and stamped into artifacts.",
+            "SC margin uses critical-surface proxies; copper uses I^2R with winding-pack proxy."
+          ],
+          "trl": 3
+        },
+        "name": "Magnet technology axis (HTS/LTS/Cu)",
+        "validity": {
+          "inputs": {
+            "magnet_technology": [
+              null,
+              null
+            ]
+          },
+          "outputs": {}
+        },
+        "version": "v1"
+      },
+      "magnet_tech_axis_v1": {
+        "hash": "e79ab397ad2637022429d2d2dfd98e7c16cd5ed463ea3e1018e2d51e88b96464",
+        "id": "magnet_tech_axis_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Technology axis is explicit and stamped into artifacts.",
+            "SC margin uses critical-surface proxies; copper uses I^2R with winding-pack proxy."
+          ],
+          "trl": 3
+        },
+        "name": "Magnet technology axis (HTS/LTS/Cu)",
+        "validity": {
+          "inputs": {
+            "magnet_technology": [
+              null,
+              null
+            ]
+          },
+          "outputs": {}
+        },
+        "version": "v1"
+      },
+      "physics.divertor_proxy": {
+        "hash": "c2b60b66735835ff346cb09b96d57779f290c7adb6251f10c275de86f0303aa0",
+        "id": "physics.divertor_proxy",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Divertor heat-load proxy",
+        "validity": {
+          "note": "Proxy only; calibrate to reference studies"
+        },
+        "version": "1.0.0"
+      },
+      "plasma.hot_ion_point": {
+        "hash": "2149575127049825ecd1d5a3b6a77987d3180116164f91de5e37df7930f28cbc",
+        "id": "plasma.hot_ion_point",
+        "maturity": {
+          "envelope": "baseline",
+          "notes": "Default maturity tag added in v35; update per proxy.",
+          "trl": 4
+        },
+        "name": "Hot-ion tokamak system proxy (core stack)",
+        "validity": {
+          "Bt_T": [
+            1.0,
+            20.0
+          ],
+          "R0_m": [
+            1.0,
+            15.0
+          ],
+          "betaN": [
+            0.5,
+            6.0
+          ]
+        },
+        "version": "1.0.0"
+      },
+      "profiles.analytic_v1": {
+        "hash": "7ba1df44096874db44eccb731eea0e5e9657db0af4d483bf910cd1b9caffa75a",
+        "id": "profiles_analytic_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Provides deterministic analytic profiles for diagnostics.",
+            "Used to compute gradient proxies and optional pedestal surrogate."
+          ],
+          "trl": 2
+        },
+        "name": "Analytic profiles (\u00bd-D scaffold)",
+        "validity": {
+          "inputs": {},
+          "outputs": {}
+        },
+        "version": "v1"
+      },
+      "profiles_analytic_v1": {
+        "hash": "7ba1df44096874db44eccb731eea0e5e9657db0af4d483bf910cd1b9caffa75a",
+        "id": "profiles_analytic_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Provides deterministic analytic profiles for diagnostics.",
+            "Used to compute gradient proxies and optional pedestal surrogate."
+          ],
+          "trl": 2
+        },
+        "name": "Analytic profiles (\u00bd-D scaffold)",
+        "validity": {
+          "inputs": {},
+          "outputs": {}
+        },
+        "version": "v1"
+      },
+      "radiation.impurity_mix_v1": {
+        "hash": "e6d13674e4a418b6e0b8b316a22d2978f29c1300b51c0c63579d6418307f3899",
+        "id": "radiation_impurity_mix_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Deterministic bookkeeping model intended for scoping and comparative scans.",
+            "Uses simplified impurity cooling curve proxies; do not treat as predictive without calibration."
+          ],
+          "trl": 2
+        },
+        "name": "Radiation bookkeeping (brem + sync + impurity line)",
+        "validity": {
+          "inputs": {
+            "zeff": [
+              1.0,
+              4.0
+            ]
+          },
+          "outputs": {
+            "Prad_core_MW": [
+              0.0,
+              5000.0
+            ]
+          }
+        },
+        "version": "v1"
+      },
+      "radiation.off_v1": {
+        "hash": "3601b14ea36346ada1c8a34ef9515d6d11349c90b8d9e4e3588a080485cbdab0",
+        "id": "radiation_off_v1",
+        "maturity": {
+          "level": "stable",
+          "notes": [
+            "Reviewer-safe scoping default."
+          ],
+          "trl": 5
+        },
+        "name": "Radiation bookkeeping (off)",
+        "validity": {
+          "inputs": {},
+          "outputs": {}
+        },
+        "version": "v1"
+      },
+      "radiation_impurity_mix_v1": {
+        "hash": "e6d13674e4a418b6e0b8b316a22d2978f29c1300b51c0c63579d6418307f3899",
+        "id": "radiation_impurity_mix_v1",
+        "maturity": {
+          "level": "exploratory",
+          "notes": [
+            "Deterministic bookkeeping model intended for scoping and comparative scans.",
+            "Uses simplified impurity cooling curve proxies; do not treat as predictive without calibration."
+          ],
+          "trl": 2
+        },
+        "name": "Radiation bookkeeping (brem + sync + impurity line)",
+        "validity": {
+          "inputs": {
+            "zeff": [
+              1.0,
+              4.0
+            ]
+          },
+          "outputs": {
+            "Prad_core_MW": [
+              0.0,
+              5000.0
+            ]
+          }
+        },
+        "version": "v1"
+      },
+      "radiation_off_v1": {
+        "hash": "3601b14ea36346ada1c8a34ef9515d6d11349c90b8d9e4e3588a080485cbdab0",
+        "id": "radiation_off_v1",
+        "maturity": {
+          "level": "stable",
+          "notes": [
+            "Reviewer-safe scoping default."
+          ],
+          "trl": 5
+        },
+        "name": "Radiation bookkeeping (off)",
+        "validity": {
+          "inputs": {},
+          "outputs": {}
+        },
+        "version": "v1"
+      }
+    },
+    "model_cards_validity": {
+      "availability.proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "availability_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "bootstrap.sauter_proxy_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "bootstrap_sauter_proxy_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "economics.component_cost_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "economics.lifecycle_cost_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "economics_component_cost_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering.divertor_proxy_v2": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering.magnet_pack_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering.radial_stack": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering.tbr_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering_divertor_proxy_v2": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering_magnet_pack_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "engineering_tbr_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "magnet.tech_axis_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "magnet_tech_axis_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "physics.divertor_proxy": {
+        "failed": [],
+        "ok": true
+      },
+      "plasma.hot_ion_point": {
+        "failed": [],
+        "ok": true
+      },
+      "profiles.analytic_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "profiles_analytic_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "radiation.impurity_mix_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "radiation.off_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "radiation_impurity_mix_v1": {
+        "failed": [],
+        "ok": true
+      },
+      "radiation_off_v1": {
+        "failed": [],
+        "ok": true
+      }
+    },
+    "nGW": 8.52353342505072,
+    "nT_over_ne": 0.5,
+    "n_strike_points": 2,
+    "n_strike_points_raw": 2,
+    "ne0_over_neV": "__nan__",
+    "ne20": 2.557060027515216,
+    "ne2_over_neV2": "__nan__",
+    "ne_line_over_neV": "__nan__",
+    "ne_m3": 2.5570600275152162e+20,
+    "ne_peaking": "__nan__",
+    "neutron_attenuation_factor": 0.08466948616709678,
+    "neutron_attenuation_fast": 0.07327762273396082,
+    "neutron_attenuation_gamma": 0.23096248136152694,
+    "neutron_wall_load_MW_m2": 1.564563753811637,
+    "neutron_wall_load_max_MW_m2": 2.5,
+    "neutronics_activation_ledger_v390": [],
+    "neutronics_domain_enforce": 0.0,
+    "neutronics_materials_TBR": 0.6159320976182251,
+    "neutronics_materials_TBR_margin_frac": -0.4133980022683571,
+    "neutronics_materials_fragility_class": "INFEASIBLE",
+    "neutronics_materials_fw_dpa_per_year": 7.822818769058185,
+    "neutronics_materials_fw_dpa_per_year_margin_frac": 0.6870872492376726,
+    "neutronics_materials_hts_lifetime_margin_frac": -0.43267546610566165,
+    "neutronics_materials_hts_lifetime_yr": 2.8366226694716916,
+    "neutronics_materials_min_margin_frac": -0.43267546610566165,
+    "neutronics_materials_neutron_wall_load_MW_m2": 1.564563753811637,
+    "neutronics_materials_neutron_wall_load_margin_frac": 0.3741744984753452,
+    "neutronics_materials_regime": "coil_damage_limited",
+    "ni_closure_regime": "unknown",
+    "ni_fragility_class": "UNKNOWN",
+    "ni_min_margin_frac": "__nan__",
+    "ni_missing_terms": [
+      "P_aux_max_MW"
+    ],
+    "ni_top_limiter": "missing_terms",
+    "nm_coupling_v372_enabled": false,
+    "operational_dominant_driver": "qmin",
+    "operational_risk_tier": "HIGH",
+    "outage_fraction_v368_max": "__nan__",
+    "pf_E_pulse_MJ": "__nan__",
+    "pf_E_pulse_max_MJ": "__nan__",
+    "pf_I_peak_MA": "__nan__",
+    "pf_I_peak_max_MA": "__nan__",
+    "pf_I_pf_MA": 9.222,
+    "pf_P_peak_MW": "__nan__",
+    "pf_P_peak_max_MW": "__nan__",
+    "pf_V_peak_V": "__nan__",
+    "pf_V_peak_max_V": "__nan__",
+    "pf_current_max_MA": "__nan__",
+    "pf_dIdt_max_MA_s": "__nan__",
+    "pf_dIdt_peak_MA_s": "__nan__",
+    "pf_envelope_ok": "__nan__",
+    "pf_stress_max": "__nan__",
+    "pf_stress_proxy": 1.2089936000000003,
+    "pf_t_cycle_s": "__nan__",
+    "pf_waveform_decimated": [],
+    "planned_outage_max_frac_v391": "__nan__",
+    "plant_design_lifetime_yr": 30.0,
+    "plasma_betaN_margin_frac": "__nan__",
+    "plasma_fragility_class": "INFEASIBLE",
+    "plasma_greenwald_margin_frac": 0.7,
+    "plasma_hmode_access_margin_frac": 0.2750388804440853,
+    "plasma_ignition_margin_frac": -0.4733984125995492,
+    "plasma_min_margin_frac": -0.4733984125995492,
+    "plasma_q95_margin_frac": "__nan__",
+    "plasma_regime": "H_burn",
+    "power_balance_residual_MW": -212.24751499204427,
+    "power_balance_tol_MW": "__nan__",
+    "prad_core_frac_max_v399": "__nan__",
+    "prad_total_frac_max_v399": "__nan__",
+    "profile_assumption_tag": "PROFILE:moderate",
+    "profile_f_bootstrap_proxy": 0.20257040153819486,
+    "profile_j_peaking": 1.1,
+    "profile_li_proxy": 0.685,
+    "profile_mode": false,
+    "profile_model": "none",
+    "profile_p_peaking": 1.225,
+    "profile_peaking_T": 1.5,
+    "profile_peaking_ne": 1.0,
+    "profile_proxy_v397_enabled": false,
+    "profile_qmin_proxy": 1.2002262828967833,
+    "profile_validity": {},
+    "pulse_min_s": 10.0,
+    "pulse_scenario_used": "as_input",
+    "q0_min": "__nan__",
+    "q0_proxy": 1.1101532567049808,
+    "q95_max": "__nan__",
+    "q95_min": "__nan__",
+    "q95_proc_fq": 1.2623718491735543,
+    "q95_proxy": 2.2203065134099615,
+    "q_div_MW_m2": 265.1293764121758,
+    "q_div_W_m2": 265129376.4121758,
+    "q_div_max_MW_m2": 10.0,
+    "q_div_max_W_m2": 10000000.0,
+    "q_div_target_MW_m2": "__nan__",
+    "q_div_unit_suspect": 0.0,
+    "q_div_with_SOL_rad_MW_m2": "__nan__",
+    "q_midplane_MW_m2": 27213.4493204086,
+    "q_midplane_W_m2": 27213449320.4086,
+    "q_midplane_max_MW_m2": "__nan__",
+    "quench_energy_density_max_MJ_m3": "__nan__",
+    "quench_proxy_margin": "__nan__",
+    "radial_build_ok": 0.0,
+    "radial_stack": [
+      {
+        "kind": "fw",
+        "min_thickness_m": 0.0,
+        "name": "First wall",
+        "thickness_m": 0.02
+      },
+      {
+        "kind": "blanket",
+        "min_thickness_m": 0.0,
+        "name": "Blanket",
+        "thickness_m": 0.5
+      },
+      {
+        "kind": "shield",
+        "min_thickness_m": 0.0,
+        "name": "Shield",
+        "thickness_m": 0.7
+      },
+      {
+        "kind": "vessel",
+        "min_thickness_m": 0.0,
+        "name": "Vacuum vessel",
+        "thickness_m": 0.05
+      },
+      {
+        "kind": "gap",
+        "min_thickness_m": 0.0,
+        "name": "Gap",
+        "thickness_m": 0.03
+      },
+      {
+        "kind": "coil",
+        "min_thickness_m": 0.0,
+        "name": "TF winding pack",
+        "thickness_m": 0.2
+      },
+      {
+        "kind": "structure",
+        "min_thickness_m": 0.0,
+        "name": "TF structure",
+        "thickness_m": 0.15
+      }
+    ],
+    "radiation_db": "proxy_v1",
+    "radiation_model": "fractional",
+    "replacement_cost_MUSD_per_year_v367_total": "__nan__",
+    "replacement_cost_max_MUSD_per_y_v384": "__nan__",
+    "rho_ped": "__nan__",
+    "rho_star": 0.0025356849493500737,
+    "rwm_bandwidth_max_Hz": "__nan__",
+    "rwm_bandwidth_req_Hz": "__nan__",
+    "rwm_betaN_ideal_wall": "__nan__",
+    "rwm_betaN_no_wall": "__nan__",
+    "rwm_chi": "__nan__",
+    "rwm_control_ok": "__nan__",
+    "rwm_control_power_max_MW": "__nan__",
+    "rwm_control_power_req_MW": "__nan__",
+    "rwm_gamma_s_inv": "__nan__",
+    "rwm_regime": "UNAVAILABLE",
+    "rwm_tau_w_input_s": "__nan__",
+    "rwm_tau_w_s": "__nan__",
+    "shield_effective_cm_v390": "__nan__",
+    "shield_margin_cm_v390": "__nan__",
+    "shield_margin_min_cm_v390": "__nan__",
+    "shield_regime_v390": "OFF",
+    "shield_required_cm_v390": "__nan__",
+    "sigma_allow_MPa": 800.0,
+    "sigma_hoop_MPa": "__nan__",
+    "sigma_vm_MPa": "__nan__",
+    "sol_control_ok": "__nan__",
+    "spectrum_frac_fw_v407": [],
+    "spent_noncoil_m": 1.3,
+    "stability_dominant_driver": "mhd",
+    "stability_risk_components": {
+      "control_budget": 0.0,
+      "mhd": 0.8226053639846744,
+      "rwm": 0.0,
+      "vertical_stability": 0.33333333333333326
+    },
+    "stability_risk_index": 0.4123754789272031,
+    "stability_risk_tier": "LOW",
+    "stack_ok": 0.0,
+    "stack_repairs": [
+      {
+        "delta": 0.36999999999999966,
+        "knob": "R0_m",
+        "reason": "Increase major radius to recover inboard margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_gap_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_vv_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_shield_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_blanket_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_fw_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_tf_struct_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      },
+      {
+        "delta": -0.36999999999999966,
+        "knob": "t_tf_wind_m",
+        "reason": "Reduce inboard thickness to recover margin"
+      }
+    ],
+    "t_burn_s": 7200.0,
+    "t_flat_s": "__nan__",
+    "t_shield_m": 0.7,
+    "tauE_eff_s": 0.8946549134180061,
+    "tauE_envelope_max_s_v396": 0.3393503965954263,
+    "tauE_envelope_min_s_v396": 0.18596967505244857,
+    "tauE_required_s": 0.8946549134180061,
+    "tauE_s": 0.8946549134180061,
+    "tauE_scalings_v396": {
+      "IPB98(y,2)": 0.18596967505244857,
+      "ITER89-P": 0.3393503965954263
+    },
+    "tauIPB98_s": 0.17824987326868627,
+    "tauITER89_s": 0.3035242219915546,
+    "tauScaling_s": 0.17824987326868627,
+    "tau_T_loss_s": 5.0,
+    "tau_VS_s": "__nan__",
+    "tau_dump_s": 10.0,
+    "tau_ei_s": 0.689711072804838,
+    "tau_fast": 2.6134999999999997,
+    "tau_gamma": 1.4655,
+    "tau_p_s": "__nan__",
+    "tbr_mg_proxy_v407": "__nan__",
+    "tf_case_fluence_n_m2_per_fpy_v407": "__nan__",
+    "tf_sc_flag": 1.0,
+    "transport_contracts_v371_contract": {
+      "assumptions": [
+        "All \u03c4E scalings are used as envelope members only; evaluator truth remains unchanged.",
+        "Regime classifier is a deterministic proxy; no hysteresis modeling."
+      ],
+      "caps": {
+        "H_required_max_optimistic": "optional cap; if finite, constraint H_required_opt must pass",
+        "H_required_max_robust": "optional cap; if finite, constraint H_required_rob must pass"
+      },
+      "classifier": {
+        "default_f_LH": 1.0,
+        "notes": "Uses existing Martin-2008 proxy in phase1_models.",
+        "rule": "H-mode if P_SOL_MW >= f_LH * P_LH_MW else L-mode",
+        "type": "P_LH proxy"
+      },
+      "envelope_membership": {
+        "H-mode": [
+          "IPB98Y2"
+        ],
+        "L-mode": [
+          "ITER89P",
+          "KG",
+          "NEOALC"
+        ],
+        "always_include": [
+          "IPB98Y2",
+          "ITER89P",
+          "KG",
+          "NEOALC"
+        ]
+      },
+      "name": "Transport Contract Library Authority",
+      "outputs": [
+        "transport_confinement_regime_v371",
+        "tauE_envelope_min_s",
+        "tauE_envelope_max_s",
+        "transport_pass_optimistic",
+        "transport_pass_robust"
+      ],
+      "purpose": "Deterministic governance-only confinement envelope library. No truth edits, no iteration.",
+      "scalings_H": [
+        "IPB98Y2"
+      ],
+      "scalings_L": [
+        "ITER89P",
+        "KG",
+        "NEOALC"
+      ],
+      "version": "v371.0"
+    },
+    "transport_contracts_v371_enabled": false,
+    "transport_credibility_tier_v396": "moderate",
+    "transport_envelope_v396_enabled": true,
+    "transport_spread_cap_enabled_v396": false,
+    "transport_spread_max_v396": "__nan__",
+    "transport_spread_ratio_v396": 1.8247620021905193,
+    "tritium_fuelcycle_validity": "",
+    "tritium_inventory_max_g": "__nan__",
+    "tritium_retention": 0.5,
+    "unplanned_downtime_max_frac_v391": "__nan__",
+    "vs_bandwidth_max_Hz": "__nan__",
+    "vs_bandwidth_req_Hz": "__nan__",
+    "vs_control_horizon_s": 1.0,
+    "vs_control_ok": "__nan__",
+    "vs_control_power_max_MW": "__nan__",
+    "vs_control_power_req_MW": "__nan__",
+    "vs_margin": 0.8333333333333334,
+    "vs_margin_min": "__nan__",
+    "w_ped": "__nan__",
+    "zeff": 1.8,
+    "zeff_max_v399": "__nan__",
+    "zeff_mode": "fixed"
+  }
+}

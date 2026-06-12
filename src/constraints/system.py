@@ -15,33 +15,12 @@ Constraints are intentionally simple and interpretable; they can be expanded as 
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-
-@dataclass(frozen=True)
-class Constraint:
-    name: str
-    value: float
-    lo: Optional[float] = None
-    hi: Optional[float] = None
-    units: str = "-"
-    description: str = ""
-
-    @property
-    def ok(self) -> bool:
-        if self.lo is not None and self.value < self.lo:
-            return False
-        if self.hi is not None and self.value > self.hi:
-            return False
-        return True
-
-    def residual(self) -> float:
-        """Normalized violation (0 if satisfied)."""
-        if self.lo is not None and self.value < self.lo:
-            denom = abs(self.lo) if abs(self.lo) > 1e-9 else 1.0
-            return (self.lo - self.value) / denom
-        if self.hi is not None and self.value > self.hi:
-            denom = abs(self.hi) if abs(self.hi) > 1e-9 else 1.0
-            return (self.value - self.hi) / denom
-        return 0.0
+# Constraint was moved to the schema layer (Tier-3 Batch B1). Re-imported here so
+# that ``from constraints.system import Constraint`` keeps working unchanged.
+try:
+    from schema.constraints import Constraint  # type: ignore  # noqa: F401
+except ImportError:
+    from src.schema.constraints import Constraint  # type: ignore  # noqa: F401
 
 
 def _safe(out: Dict[str, float], k: str) -> float:

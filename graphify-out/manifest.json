@@ -2245,9 +2245,9 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "src/models/inputs.py": {
-    "mtime": 1781209205.7499201,
-    "ast_hash": "7c6d39d98735a6308441b95e8e1e42bd",
-    "semantic_hash": "7c6d39d98735a6308441b95e8e1e42bd"
+    "mtime": 1781261870.8790255,
+    "ast_hash": "8f0b3f317050edc0d044b9add2646d23",
+    "semantic_hash": "8f0b3f317050edc0d044b9add2646d23"
   },
   "src/models/model_registry.py": {
     "mtime": 1781209205.7509215,
@@ -2395,9 +2395,9 @@
     "semantic_hash": "d3a95c755fa326e1824d2a69de3a0c01"
   },
   "src/phase1_models.py": {
-    "mtime": 1781209205.797919,
-    "ast_hash": "9beca7f1ca1c7365eea653474318512a",
-    "semantic_hash": "9beca7f1ca1c7365eea653474318512a"
+    "mtime": 1781261750.1242204,
+    "ast_hash": "940f9c60040519d7d029a7de0b3fc916",
+    "semantic_hash": "940f9c60040519d7d029a7de0b3fc916"
   },
   "src/phase1_systems.py": {
     "mtime": 1781209205.797919,
@@ -2450,9 +2450,9 @@
     "semantic_hash": "156716a121c7d32c4de2f99b4a5a3f7e"
   },
   "src/physics/hot_ion.py": {
-    "mtime": 1781256783.7638166,
-    "ast_hash": "ec7ef2099c3bae440e9bc689aa357bdd",
-    "semantic_hash": "ec7ef2099c3bae440e9bc689aa357bdd"
+    "mtime": 1781261927.946354,
+    "ast_hash": "4b04bfd9c892868ca5d134586f944b60",
+    "semantic_hash": "4b04bfd9c892868ca5d134586f944b60"
   },
   "src/physics/impurities/__init__.py": {
     "mtime": 1781209205.826934,
@@ -3039,6 +3039,11 @@
     "ast_hash": "ea9586f8391fd4560fa289bfb5a9f858",
     "semantic_hash": "ea9586f8391fd4560fa289bfb5a9f858"
   },
+  "tests/test_golden_physics_outputs.py": {
+    "mtime": 1781264668.6821134,
+    "ast_hash": "fa50b973dbe76f98eea025850106e50f",
+    "semantic_hash": "fa50b973dbe76f98eea025850106e50f"
+  },
   "tests/test_impurity_detachment_authority.py": {
     "mtime": 1781209206.0679183,
     "ast_hash": "e25e5b90fbb70db88afa4783e96a1705",
@@ -3198,6 +3203,11 @@
     "mtime": 1781256783.7638166,
     "ast_hash": "e578213782e5c32d1823d71bc68b0258",
     "semantic_hash": "e578213782e5c32d1823d71bc68b0258"
+  },
+  "tests/test_tier2_fixes.py": {
+    "mtime": 1781261957.7256517,
+    "ast_hash": "bff80f337ef2644242a8644544b3337b",
+    "semantic_hash": "bff80f337ef2644242a8644544b3337b"
   },
   "tests/test_trade_study_studio_smoke.py": {
     "mtime": 1781209206.1359205,
