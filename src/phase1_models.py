@@ -157,13 +157,21 @@ def tauE_iter89p(
     """ITER89-P L-mode energy confinement time scaling [s].
 
     A lightweight implementation used for comparative studies / uncertainty envelopes.
-    This is not intended to reproduce PROCESS numerically; it provides the correct *scaling structure*.
+
+    Prefactor: 0.048, per the published ITER89-P scaling
+    (Yushmanov et al., Nucl. Fusion 30 (1990) 1999):
+        τE = 0.048 · Ip^0.85 · R^1.2 · a^0.3 · κ^0.5 · n20^0.1 · B^0.2 · M^0.5 · P^-0.5
+    The prefactor was previously 0.038 (~21% low), which is corrected here.
+
+    NOTE (unresolved): the R exponent below is 1.5, whereas the published
+    ITER89-P uses R^1.2. That discrepancy is intentionally left unchanged in this
+    Tier-2 prefactor-only fix and is flagged for a follow-up decision.
     """
     if Ploss_MW <= 0.0:
         return float("inf")
     eps = a_m / max(R_m, 1e-9)
     return (
-        0.038
+        0.048
         * (Ip_MA ** 0.85)
         * (Bt_T ** 0.20)
         * (ne20 ** 0.10)

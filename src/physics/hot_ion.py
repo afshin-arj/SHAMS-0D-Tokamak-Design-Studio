@@ -281,6 +281,22 @@ except Exception:
 
 _B_peak_T_tf = B_peak_T_tf  # keep a stable alias for the coil-geometry helper
 
+# Inboard radial-stack solver. Hoisted to module scope (was previously imported
+# inside the hot path on every evaluation). radial_stack_solver does not import
+# physics/hot_ion, so there is no circular-import risk.
+try:
+    from ..engineering.radial_stack_solver import (
+        build_inboard_stack_from_inputs,
+        inboard_stack_closure,
+        suggest_stack_repairs,
+    )  # type: ignore
+except Exception:
+    from engineering.radial_stack_solver import (
+        build_inboard_stack_from_inputs,
+        inboard_stack_closure,
+        suggest_stack_repairs,
+    )  # type: ignore
+
 def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = None) -> Dict[str, float]:
     """
     Compute a Phase-1 operating point (0-D) with additional screening models.
@@ -1358,8 +1374,8 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Added: (1) radial build + TF peak field mapping + hoop stress
     # =========================================================================
     # v23 upgrade: explicit inboard stack solver (still transparent sums).
-    from engineering.radial_stack_solver import build_inboard_stack_from_inputs, inboard_stack_closure, suggest_stack_repairs
-
+    # (build_inboard_stack_from_inputs / inboard_stack_closure / suggest_stack_repairs
+    #  are imported at module scope above.)
     stack = build_inboard_stack_from_inputs(inp)
     closure = inboard_stack_closure(inp.R0_m, inp.a_m, stack, delta=float(getattr(inp, "delta", 0.0) or 0.0))
 
@@ -3464,6 +3480,21 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out.update(dom402)
     except Exception:
         out.setdefault('include_authority_dominance_v402', False)
+
+    # -------------------------------------------------------------------------
+    # Authority failure surfacing (governance-only; deterministic).
+    # Governance overlays degrade gracefully by writing a "<name>_error" key
+    # instead of raising. Those keys are easy to miss buried among 150+ outputs,
+    # so aggregate them into a single, predictable list the UI/constraints can
+    # show. Sorted for determinism; does not modify any existing key.
+    # -------------------------------------------------------------------------
+    _auth_warnings = [
+        f"{k[:-len('_error')]}: {out[k]}"
+        for k in sorted(out.keys())
+        if k.endswith("_error") and isinstance(out.get(k), str) and out.get(k)
+    ]
+    out["_authority_warnings"] = _auth_warnings
+    out["_authority_warning_count"] = float(len(_auth_warnings))
 
     return out
 

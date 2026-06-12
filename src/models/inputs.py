@@ -240,8 +240,11 @@ class PointInputs:
     # --- Burn / ignition screening (optional; NaN disables) ---
     ignition_margin_min: float = float('nan')  # enforce M_ign >= min if set
 
-    # --- Neutronics screening (optional; NaN disables) ---
-    neutron_wall_load_max_MW_m2: float = float('nan')
+    # --- Neutronics screening: neutron wall load limit [MW/m^2] (proxy) ---
+    # Effective default kept at 2.5 (previously this field was re-declared lower
+    # in the class with =2.5, which silently won; the duplicate has been removed
+    # and the canonical default consolidated here). Set to NaN to disable.
+    neutron_wall_load_max_MW_m2: float = 2.5
 
     # --- Edge / divertor radiative control (optional; defaults preserve legacy behavior) ---
     # If enabled, compute a required SOL radiative fraction to hit a requested q_div target.
@@ -256,18 +259,13 @@ class PointInputs:
     tau_T_loss_s: float = 5.0             # effective tritium particle loss / exhaust timescale [s]
     alpha_loss_frac: float = 0.05
 
-    # --- Burn / ignition screening (optional; NaN disables) ---
-    # Defines a simple ignition-like margin M_ign = Palpha / Ploss (Ploss = P_SOL = Pin - Prad_core).
-    ignition_margin_min: float = float('nan')
-
-    # --- Neutronics-lite screening (optional; NaN disables) ---
-    neutron_wall_load_max_MW_m2: float = float('nan')
-
-    # --- Radiative divertor coupling (optional; defaults preserve legacy behavior) ---
-    # If enabled, compute the required SOL radiated fraction to meet a target divertor heat flux.
-    # This only re-partitions P_SOL used by the divertor proxy; it does not change core power balance.
-    include_sol_radiation_control: bool = False
-    q_div_target_MW_m2: float = float('nan')
+    # NOTE: ignition_margin_min, neutron_wall_load_max_MW_m2,
+    # include_sol_radiation_control, and q_div_target_MW_m2 were previously
+    # re-declared here as exact duplicates of fields defined above. Python
+    # dataclasses silently keep only the last declaration, so these added no
+    # behavior; the duplicates have been removed and the canonical declarations
+    # live above (Ploss-based ignition margin and the M_ign definition are
+    # documented at the ignition output in physics.hot_ion).
 
     # --- Alpha deposition / prompt-loss closure (optional; defaults preserve legacy behavior) ---
     # Legacy behavior: if include_alpha_loss, Palpha is reduced by alpha_loss_frac.
@@ -466,7 +464,7 @@ class PointInputs:
     atten_len_m: float = 0.25               # attenuation length in shield/blanket
     f_geom_to_tf: float = 0.05              # geometry factor from FW to TF (very approximate)
     lifetime_min_yr: float = 3.0            # minimum acceptable lifetime (screen)
-    neutron_wall_load_max_MW_m2: float = 2.5   # neutron wall load limit [MW/m^2] (proxy)            # minimum acceptable lifetime (screen)
+    # (neutron_wall_load_max_MW_m2 is declared once, above, with default 2.5)
 
     # Optional (materials) replacement / lifetime caps (NaN disables enforcement)
     fw_lifetime_min_yr: float = float('nan')
@@ -1106,6 +1104,36 @@ class PointInputs:
     profile_peaking_p_ref_v402: float = 3.0
     zeff_ref_max_v402: float = 2.5
 
+
+    def __post_init__(self) -> None:
+        """Validate the core physical knobs.
+
+        Conservative guards only: we reject values that are physically impossible
+        or that would otherwise silently produce garbage / raise deep in the
+        evaluator (e.g. real powers of negative bases in confinement scalings,
+        division by zero in geometry). Optional caps that default to NaN are NOT
+        validated here. This does not alter results for any valid input.
+        """
+        def _bad(name: str, value, why: str):
+            raise ValueError(f"PointInputs.{name}={value!r} is invalid: {why}")
+
+        if not (self.R0_m > 0.0):
+            _bad("R0_m", self.R0_m, "major radius must be > 0")
+        if not (self.a_m > 0.0):
+            _bad("a_m", self.a_m, "minor radius must be > 0")
+        if not (self.R0_m > self.a_m):
+            _bad("R0_m", self.R0_m,
+                 f"major radius must exceed minor radius a_m={self.a_m!r} (aspect ratio > 1)")
+        if not (self.kappa >= 1.0):
+            _bad("kappa", self.kappa, "elongation must be >= 1.0")
+        if not (self.Bt_T > 0.0):
+            _bad("Bt_T", self.Bt_T, "toroidal field must be > 0")
+        if not (self.Ip_MA > 0.0):
+            _bad("Ip_MA", self.Ip_MA, "plasma current must be > 0")
+        if not (self.Ti_keV > 0.0):
+            _bad("Ti_keV", self.Ti_keV, "ion temperature must be > 0")
+        if not (self.fG > 0.0):
+            _bad("fG", self.fG, "Greenwald fraction must be > 0")
 
     @staticmethod
     def from_dict(d: dict) -> "PointInputs":
