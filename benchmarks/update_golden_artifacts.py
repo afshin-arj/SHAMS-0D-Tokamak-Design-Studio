@@ -7,6 +7,7 @@ Update golden benchmark references.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import argparse
 from pathlib import Path
@@ -41,6 +42,15 @@ def _safe(x):
     except Exception:
         return float("nan")
 
+def _load_default_base(bench_dir: Path) -> dict:
+    """Reuse DEFAULT_BASE from benchmarks/run.py (single source of truth)."""
+    spec = importlib.util.spec_from_file_location("bench_run", bench_dir / "run.py")
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Could not load benchmarks/run.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return dict(mod.DEFAULT_BASE)
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", type=str, default="", help="Override output directory (defaults to benchmarks/)")
@@ -50,6 +60,8 @@ def main() -> int:
     cases_path = bench_dir / "cases.json"
     if not cases_path.exists():
         raise SystemExit(f"Missing {cases_path}")
+
+    default_base = _load_default_base(bench_dir)
 
     cases_raw = json.loads(cases_path.read_text(encoding="utf-8"))
     # Normalize cases to list
@@ -69,10 +81,12 @@ def main() -> int:
     if not cases:
         raise SystemExit("No benchmark cases found.")
 
-    baseline = dict(cases[0][1])
     def make_inp(overrides: dict) -> PointInputs:
-        d = dict(baseline)
-        d.update(overrides)
+        base = PointInputs(**default_base)
+        d = base.__dict__.copy()
+        for k, v in overrides.items():
+            if k in d:
+                d[k] = v
         return PointInputs(**d)
 
     curated = {}

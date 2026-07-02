@@ -31,6 +31,34 @@ Key outputs typically include `Pfus_DT_MW`, `P_rad_MW`, `P_SOL_MW`, and `Q_DT_eq
 
 ---
 
+## Thermal stored energy and confinement time (v409+)
+
+**Where:** `src/physics/hot_ion.py` (thermal stored energy and confinement section)
+
+For quasi-neutral plasma with ion and electron temperatures expressed in keV via a common conversion factor `KEV_TO_J`:
+
+\[
+W \approx \frac{3}{2}\, n_e\, (T_i + T_e)\, V
+\]
+
+implemented as:
+
+```python
+W_J = 1.5 * ne_m3 * ((Te + Ti) * KEV_TO_J) * V
+```
+
+**Units:** `ne_m3` [m⁻³], `Te`/`Ti` [keV], `V` [m³] → `W_J` [J]; `W_MJ = W_J / 1e6`.
+
+The confinement time and H-factor proxies use this stored energy with SOL/loss power:
+
+- `tauE_s = confinement_mult × W_J / Ploss_W` (with optional profile-family multipliers),
+- `H98 = tauE_s / tauIPB98_s`,
+- `H_required = tauE_required_s / tauIPB98_s`.
+
+**Note (v409.0.0):** Prior builds used a prefactor of **3.0** (effectively double-counting the ion/electron contributions). Golden regressions and benchmark artifacts were rebaselined accordingly.
+
+---
+
 ## Confinement (IPB98‑like proxy)
 
 **Where:** `src/physics/hot_ion.py` (confinement helper section)

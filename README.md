@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v407.0.0 — Nuclear Data Authority Deepening (Multi-group + dataset provenance; screening-only; audit-pinned)
+**Current version:** v409.0.0 — L0 frozen truth: thermal stored energy prefactor correction (W_J 3.0→1.5; H98/τE rebaselined)
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v408.0.0 (Nuclear Dataset Intake & Provenance Builder)
+## Latest upgrade — v409.0.0 (Thermal Stored Energy Prefactor Correction)
+
+- **L0 frozen-truth fix:** `W_J = 1.5 × n_e (T_i + T_e) V` (was 3.0 — double-counting bug).
+- W-dependent metrics (`W_MJ`, `tauE_s`, `H98`, `H_required`) scale ~×0.5; power balance unchanged.
+- Golden, benchmark, and validation baselines regenerated. See `docs/patch_notes/PATCH_NOTES_v409.md`.
+
+## Prior upgrade — v408.0.0 (Nuclear Dataset Intake & Provenance Builder)
 
 - Adds a **firewalled intake pathway** for external multi-group screening datasets.
 - Supports **JSON dataset import** (full schema) and **metadata JSON + sigma-removal CSV** intake.

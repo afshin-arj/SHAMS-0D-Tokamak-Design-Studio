@@ -45,8 +45,11 @@ def render_process_parity_atlas(repo_root: Path):
 
     if st.button("Evaluate SHAMS for this case", use_container_width=True):
         try:
-            from src.evaluator.core import Evaluator
-            from src.inputs.point_inputs import PointInputs
+            from evaluator.core import Evaluator
+            try:
+                from models.inputs import PointInputs
+            except ImportError:
+                from src.models.inputs import PointInputs
             ev = Evaluator(label=str(evaluator_label))
             pi = PointInputs(**inputs)
             out = ev.evaluate(pi)

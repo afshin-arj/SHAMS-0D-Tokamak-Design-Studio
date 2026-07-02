@@ -1,20 +1,4 @@
-"""Regression benchmark h
-
-# --- SHAMS v265.0 fast diff hotfix ---
-from pathlib import Path
-if args.write_diff and not getattr(args, "write_diff_struct", False):
-    out = {
-        "n_failed": 0,
-        "rows": [],
-        "note": "Fast diff mode (v265.0); structural diff disabled."
-    }
-    out_path = Path("benchmarks/last_diff_report.json")
-    out_path.write_text(json.dumps(out, indent=2))
-    print("[SHAMS] Fast diff written to", out_path)
-    return
-# --- end hotfix ---
-
-arness (lightweight).
+"""Regression benchmark harness (lightweight).
 
 Purpose
 -------
@@ -157,7 +141,7 @@ def main() -> int:
     ap.add_argument("--generate", action="store_true", help="Regenerate golden.json")
     ap.add_argument("--parallel", action="store_true", help="Run cases in parallel (order preserved)")
     ap.add_argument("--workers", type=int, default=0, help="Worker processes (0=auto)")
-    ap.add_argument("--rtol", type=float, default=0.01, help="Relative tolerance (default 1%)")
+    ap.add_argument("--rtol", type=float, default=0.01, help="Relative tolerance (default 1%%)")
     ap.add_argument("--atol", type=float, default=1e-6, help="Absolute tolerance floor")
     ap.add_argument("--write-diff", action="store_true", help="Write benchmarks/last_diff_report.json (numeric diff only; fast)")
     ap.add_argument("--write-diff-struct", action="store_true", help="Include structural diffs (artifacts/constraints/model cards); slower")

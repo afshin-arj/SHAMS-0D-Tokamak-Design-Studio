@@ -1,3 +1,25 @@
+## v409.0.0 — L0 Frozen Truth: Thermal Stored Energy Prefactor Correction
+
+**Breaking physics baseline change (intentional, user-approved).**
+
+- Corrected thermal stored energy in `src/physics/hot_ion.py`: prefactor **3.0 → 1.5** on `n_e (T_i + T_e) V`.
+- Aligns with standard quasi-neutral closure \(W = \frac{3}{2} n_e (T_i + T_e)\) and the existing ion–electron equilibration term (already used 1.5).
+- **Expected ~×0.5 change** in W-dependent outputs: `W_MJ`, `tauE_s`, `H98`, `H_required`, particle-balance times, disruption severity proxies tied to stored energy.
+- **Unchanged:** fusion power, heating power, SOL power, `Q_DT_eqv`, and other direct power-balance scalars.
+- Regenerated: `tests/golden/*.json` (10 cases), `benchmarks/golden.json`, `benchmarks/golden_artifacts/*.json`, `src/validation/baselines/baseline_v2230.json` (H98 envelope).
+- Documentation: `docs/patch_notes/PATCH_NOTES_v409.md`, `docs/PHYSICAL_MODELS_0D.md` (thermal stored energy section).
+
+**Migration:** Re-baseline any external studies or scripts that assumed the prior 2× stored-energy convention.
+
+## v408.0.0 — Nuclear Dataset Intake & Provenance Builder
+
+- Firewalled intake pathway for external multi-group screening datasets (JSON + metadata/CSV).
+- Strict validation, SHA-256 pinning, optional evidence cards under `data/nuclear_datasets/`.
+- UI upload → validate → save workflow; v407 selectors list all registry datasets.
+- See `docs/patch_notes/PATCH_NOTES_v408.md`.
+
+Frozen-truth discipline preserved: intake is tooling-only on explicit user action.
+
 ## v407.0.0 — Nuclear Data Authority Deepening (multi-group + dataset provenance)
 
 - Added deterministic multi-group neutronics screening overlay `src/analysis/nuclear_data_authority_v407.py`.

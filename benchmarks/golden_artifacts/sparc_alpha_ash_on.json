@@ -368,28 +368,28 @@
       {
         "authority": "EXHAUST",
         "dominant_constraint": "q_div",
-        "min_margin_frac": -52.42682425246835,
+        "min_margin_frac": -42.63766053091533,
         "n_failed": 2,
         "n_hard": 2
       },
       {
         "authority": "MAGNET",
         "dominant_constraint": "sigma_vm",
-        "min_margin_frac": -5.505496744889065,
+        "min_margin_frac": -4.312911580297878,
         "n_failed": 2,
         "n_hard": 3
       },
       {
         "authority": "NEUTRONICS",
         "dominant_constraint": "NWL",
-        "min_margin_frac": -2.89510573444361,
+        "min_margin_frac": -1.9486074051338378,
         "n_failed": 2,
         "n_hard": 2
       },
       {
         "authority": "PLASMA",
-        "dominant_constraint": "fG",
-        "min_margin_frac": 0.15000000000000002,
+        "dominant_constraint": "q95",
+        "min_margin_frac": 0.14187192118226588,
         "n_failed": 0,
         "n_hard": 3
       }
@@ -400,7 +400,7 @@
         "authority_tier": "semi-authoritative",
         "constraint": "q_div",
         "group": "exhaust",
-        "margin_frac": -52.42682425246835,
+        "margin_frac": -42.63766053091533,
         "passed": false
       },
       {
@@ -408,7 +408,7 @@
         "authority_tier": "semi-authoritative",
         "constraint": "sigma_vm",
         "group": "magnets",
-        "margin_frac": -5.505496744889065,
+        "margin_frac": -4.312911580297878,
         "passed": false
       },
       {
@@ -416,15 +416,7 @@
         "authority_tier": "proxy",
         "constraint": "NWL",
         "group": "neutronics",
-        "margin_frac": -2.89510573444361,
-        "passed": false
-      },
-      {
-        "authority": "EXHAUST",
-        "authority_tier": "semi-authoritative",
-        "constraint": "P_SOL/R",
-        "group": "exhaust",
-        "margin_frac": -2.215266024717407,
+        "margin_frac": -1.9486074051338378,
         "passed": false
       },
       {
@@ -432,7 +424,15 @@
         "authority_tier": "semi-authoritative",
         "constraint": "B_peak",
         "group": "magnets",
-        "margin_frac": -1.9927246790299575,
+        "margin_frac": -1.7045363766048502,
+        "passed": false
+      },
+      {
+        "authority": "EXHAUST",
+        "authority_tier": "semi-authoritative",
+        "constraint": "P_SOL/R",
+        "group": "exhaust",
+        "margin_frac": -1.469812128074976,
         "passed": false
       },
       {
@@ -454,18 +454,18 @@
       {
         "authority": "PLASMA",
         "authority_tier": "semi-authoritative",
-        "constraint": "fG",
+        "constraint": "q95",
         "group": "plasma",
-        "margin_frac": 0.15000000000000002,
+        "margin_frac": 0.14187192118226588,
         "passed": true
       }
     ],
     "dominance_verdict": "INFEASIBLE",
     "dominant_authority": "EXHAUST",
     "dominant_constraint": "q_div",
-    "dominant_margin_frac": -52.42682425246835,
+    "dominant_margin_frac": -42.63766053091533,
     "schema_version": "authority_dominance.v1",
-    "stamp_sha256": "75803eabc966b39409e1a283329a74f892bd55a686ee4e9c2f8bb515b01fdf4f"
+    "stamp_sha256": "d06123b6836edc4254b1d75e399a4d3b362f951e2df9ada1371a4bc3e302780e"
   },
   "constraint_ledger": {
     "entries": [
@@ -480,8 +480,8 @@
         "dominant_inputs": null,
         "group": "plasma",
         "limit": 2.0,
-        "margin": 0.31428571428571406,
-        "margin_frac": 0.15714285714285703,
+        "margin": 0.28374384236453176,
+        "margin_frac": 0.14187192118226588,
         "meaning": "Proxy safety factor",
         "mechanism_group": "PLASMA",
         "name": "q95",
@@ -491,7 +491,7 @@
         "subsystem": "plasma.confinement",
         "units": "-",
         "validity_domain": "H-mode tokamak confinement scalings; 0-D global IPB98(H98) with explicit H-factor; L-mode handled via ITER89P proxy when enabled.",
-        "value": 2.314285714285714,
+        "value": 2.2837438423645318,
         "violation_score": 0.0
       },
       {
@@ -522,8 +522,8 @@
         "dominant_inputs": null,
         "group": "plasma",
         "limit": 9990000000.0,
-        "margin": 9989999996.447357,
-        "margin_frac": 0.9999999996443801,
+        "margin": 9989999995.966812,
+        "margin_frac": 0.9999999995962775,
         "meaning": "Required confinement cap via H98_allow",
         "mechanism_group": "PLASMA",
         "name": "H_required",
@@ -533,7 +533,7 @@
         "subsystem": "plasma.confinement",
         "units": "-",
         "validity_domain": "H-mode tokamak confinement scalings; 0-D global IPB98(H98) with explicit H-factor; L-mode handled via ITER89P proxy when enabled.",
-        "value": 3.5526424918754977,
+        "value": 4.033188351366378,
         "violation_score": 0.0
       },
       {
@@ -546,30 +546,30 @@
         "dominance_rank": 1,
         "dominant_inputs": [
           {
-            "dmarginfrac_dinput": 129.46532285146617,
+            "dmarginfrac_dinput": 91.88399281323711,
             "input": "a_m",
             "step": 0.001
           },
           {
-            "dmarginfrac_dinput": 58.13324804133657,
+            "dmarginfrac_dinput": 41.89886417839972,
             "input": "f_rad_core",
             "step": 0.001
           },
           {
-            "dmarginfrac_dinput": -21.15090778256753,
+            "dmarginfrac_dinput": -15.012144840154308,
             "input": "kappa",
             "step": 0.00175
           },
           {
-            "dmarginfrac_dinput": -7.797241567886497,
+            "dmarginfrac_dinput": -6.042850712196956,
             "input": "Ip_MA",
-            "step": 0.0095
+            "step": 0.0087
           }
         ],
         "group": "exhaust",
         "limit": 10.0,
-        "margin": -524.2682425246835,
-        "margin_frac": -52.42682425246835,
+        "margin": -426.3766053091533,
+        "margin_frac": -42.63766053091533,
         "meaning": "Divertor peak heat flux proxy",
         "mechanism_group": "EXHAUST",
         "name": "q_div",
@@ -579,18 +579,18 @@
         "subsystem": "exhaust.divertor",
         "units": "MW/m\u00b2",
         "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
-        "value": 534.2682425246835,
-        "violation_score": 524.2682425246835
+        "value": 436.3766053091533,
+        "violation_score": 426.3766053091533
       },
       {
         "authority_tier": "semi-authoritative",
         "best_knobs": [],
-        "dominance_rank": 4,
+        "dominance_rank": 5,
         "dominant_inputs": null,
         "group": "exhaust",
         "limit": 25.0,
-        "margin": -55.38165061793518,
-        "margin_frac": -2.215266024717407,
+        "margin": -36.7453032018744,
+        "margin_frac": -1.469812128074976,
         "meaning": "SOL loading proxy (P_SOL/R)",
         "mechanism_group": "EXHAUST",
         "name": "P_SOL/R",
@@ -600,8 +600,8 @@
         "subsystem": "exhaust.divertor",
         "units": "MW/m",
         "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
-        "value": 80.38165061793518,
-        "violation_score": 22.15266024717407
+        "value": 61.7453032018744,
+        "violation_score": 14.69812128074976
       },
       {
         "authority_tier": "semi-authoritative",
@@ -627,12 +627,12 @@
       {
         "authority_tier": "semi-authoritative",
         "best_knobs": [],
-        "dominance_rank": 5,
+        "dominance_rank": 4,
         "dominant_inputs": null,
         "group": "magnets",
         "limit": 25.0,
-        "margin": -49.818116975748936,
-        "margin_frac": -1.9927246790299575,
+        "margin": -42.613409415121254,
+        "margin_frac": -1.7045363766048502,
         "meaning": "Peak field on TF conductor/structure",
         "mechanism_group": "MAGNETS",
         "name": "B_peak",
@@ -642,8 +642,8 @@
         "subsystem": "engineering.magnets",
         "units": "T",
         "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-        "value": 74.81811697574894,
-        "violation_score": 19.927246790299577
+        "value": 67.61340941512125,
+        "violation_score": 17.045363766048503
       },
       {
         "authority_tier": "semi-authoritative",
@@ -652,8 +652,8 @@
         "dominant_inputs": null,
         "group": "magnets",
         "limit": 800.0,
-        "margin": -4404.397395911252,
-        "margin_frac": -5.505496744889065,
+        "margin": -3450.329264238302,
+        "margin_frac": -4.312911580297878,
         "meaning": "Von Mises stress proxy",
         "mechanism_group": "MAGNETS",
         "name": "sigma_vm",
@@ -663,8 +663,8 @@
         "subsystem": "engineering.magnets",
         "units": "MPa",
         "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-        "value": 5204.397395911252,
-        "violation_score": 55.05496744889065
+        "value": 4250.329264238302,
+        "violation_score": 43.12911580297878
       },
       {
         "authority_tier": "semi-authoritative",
@@ -736,8 +736,8 @@
         "dominant_inputs": null,
         "group": "magnets",
         "limit": 5.0,
-        "margin": -4.544227114039389,
-        "margin_frac": -0.9088454228078777,
+        "margin": -4.456553006236686,
+        "margin_frac": -0.8913106012473373,
         "meaning": "Fluence-based HTS lifetime proxy",
         "mechanism_group": "MAGNETS",
         "name": "HTS lifetime",
@@ -747,8 +747,8 @@
         "subsystem": "engineering.magnets",
         "units": "yr",
         "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-        "value": 0.4557728859606116,
-        "violation_score": 0.9088454228078777
+        "value": 0.5434469937633135,
+        "violation_score": 0.8913106012473373
       },
       {
         "authority_tier": "proxy",
@@ -849,8 +849,8 @@
         "dominant_inputs": null,
         "group": "neutronics",
         "limit": 2.5,
-        "margin": -7.237764336109025,
-        "margin_frac": -2.89510573444361,
+        "margin": -4.871518512834594,
+        "margin_frac": -1.9486074051338378,
         "meaning": "Neutron wall load proxy",
         "mechanism_group": "NEUTRONICS",
         "name": "NWL",
@@ -860,8 +860,8 @@
         "subsystem": "neutronics.proxy",
         "units": "MW/m\u00b2",
         "validity_domain": "Neutron wall load and TBR proxies with optional radial-stack attenuation and nuclear heating shares parameterized by region materials tags.",
-        "value": 9.737764336109025,
-        "violation_score": 28.9510573444361
+        "value": 7.371518512834594,
+        "violation_score": 19.486074051338377
       },
       {
         "authority_tier": "proxy",
@@ -870,8 +870,8 @@
         "dominant_inputs": null,
         "group": "economics",
         "limit": -1000000000.0,
-        "margin": 1000000254.7101645,
-        "margin_frac": 1.0000002547101645,
+        "margin": 1000000181.0167205,
+        "margin_frac": 1.0000001810167205,
         "meaning": "Net electric \u2265 minimum requirement",
         "mechanism_group": "COST",
         "name": "P_net",
@@ -881,11 +881,11 @@
         "subsystem": "plant.availability",
         "units": "MW(e)",
         "validity_domain": "Scheduled outage from replacement intervals (dpa/erosion proxies) + forced trips.",
-        "value": 254.71016456302766,
+        "value": 181.01672052393866,
         "violation_score": 0.0
       }
     ],
-    "ledger_fingerprint_sha256": "ee6470aa9e8a5e24bf1de1375385eac0c057bb33862a03abc066fcf02c48d70f",
+    "ledger_fingerprint_sha256": "a76ac3f9a0ab630ce7a7ee565892c7374b5476d26fc7cac364640bcc891ad0c2",
     "schema_version": "constraint_ledger.v2",
     "top_blockers": [
       {
@@ -898,30 +898,30 @@
         "dominance_rank": 1,
         "dominant_inputs": [
           {
-            "dmarginfrac_dinput": 129.46532285146617,
+            "dmarginfrac_dinput": 91.88399281323711,
             "input": "a_m",
             "step": 0.001
           },
           {
-            "dmarginfrac_dinput": 58.13324804133657,
+            "dmarginfrac_dinput": 41.89886417839972,
             "input": "f_rad_core",
             "step": 0.001
           },
           {
-            "dmarginfrac_dinput": -21.15090778256753,
+            "dmarginfrac_dinput": -15.012144840154308,
             "input": "kappa",
             "step": 0.00175
           },
           {
-            "dmarginfrac_dinput": -7.797241567886497,
+            "dmarginfrac_dinput": -6.042850712196956,
             "input": "Ip_MA",
-            "step": 0.0095
+            "step": 0.0087
           }
         ],
         "group": "exhaust",
         "limit": 10.0,
-        "margin": -524.2682425246835,
-        "margin_frac": -52.42682425246835,
+        "margin": -426.3766053091533,
+        "margin_frac": -42.63766053091533,
         "meaning": "Divertor peak heat flux proxy",
         "mechanism_group": "EXHAUST",
         "name": "q_div",
@@ -931,8 +931,8 @@
         "subsystem": "exhaust.divertor",
         "units": "MW/m\u00b2",
         "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
-        "value": 534.2682425246835,
-        "violation_score": 524.2682425246835
+        "value": 436.3766053091533,
+        "violation_score": 426.3766053091533
       },
       {
         "authority_tier": "semi-authoritative",
@@ -941,8 +941,8 @@
         "dominant_inputs": null,
         "group": "magnets",
         "limit": 800.0,
-        "margin": -4404.397395911252,
-        "margin_frac": -5.505496744889065,
+        "margin": -3450.329264238302,
+        "margin_frac": -4.312911580297878,
         "meaning": "Von Mises stress proxy",
         "mechanism_group": "MAGNETS",
         "name": "sigma_vm",
@@ -952,8 +952,8 @@
         "subsystem": "engineering.magnets",
         "units": "MPa",
         "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-        "value": 5204.397395911252,
-        "violation_score": 55.05496744889065
+        "value": 4250.329264238302,
+        "violation_score": 43.12911580297878
       },
       {
         "authority_tier": "proxy",
@@ -962,8 +962,8 @@
         "dominant_inputs": null,
         "group": "neutronics",
         "limit": 2.5,
-        "margin": -7.237764336109025,
-        "margin_frac": -2.89510573444361,
+        "margin": -4.871518512834594,
+        "margin_frac": -1.9486074051338378,
         "meaning": "Neutron wall load proxy",
         "mechanism_group": "NEUTRONICS",
         "name": "NWL",
@@ -973,39 +973,18 @@
         "subsystem": "neutronics.proxy",
         "units": "MW/m\u00b2",
         "validity_domain": "Neutron wall load and TBR proxies with optional radial-stack attenuation and nuclear heating shares parameterized by region materials tags.",
-        "value": 9.737764336109025,
-        "violation_score": 28.9510573444361
+        "value": 7.371518512834594,
+        "violation_score": 19.486074051338377
       },
       {
         "authority_tier": "semi-authoritative",
         "best_knobs": [],
         "dominance_rank": 4,
         "dominant_inputs": null,
-        "group": "exhaust",
-        "limit": 25.0,
-        "margin": -55.38165061793518,
-        "margin_frac": -2.215266024717407,
-        "meaning": "SOL loading proxy (P_SOL/R)",
-        "mechanism_group": "EXHAUST",
-        "name": "P_SOL/R",
-        "passed": false,
-        "sense": "<=",
-        "severity": "hard",
-        "subsystem": "exhaust.divertor",
-        "units": "MW/m",
-        "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
-        "value": 80.38165061793518,
-        "violation_score": 22.15266024717407
-      },
-      {
-        "authority_tier": "semi-authoritative",
-        "best_knobs": [],
-        "dominance_rank": 5,
-        "dominant_inputs": null,
         "group": "magnets",
         "limit": 25.0,
-        "margin": -49.818116975748936,
-        "margin_frac": -1.9927246790299575,
+        "margin": -42.613409415121254,
+        "margin_frac": -1.7045363766048502,
         "meaning": "Peak field on TF conductor/structure",
         "mechanism_group": "MAGNETS",
         "name": "B_peak",
@@ -1015,8 +994,29 @@
         "subsystem": "engineering.magnets",
         "units": "T",
         "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-        "value": 74.81811697574894,
-        "violation_score": 19.927246790299577
+        "value": 67.61340941512125,
+        "violation_score": 17.045363766048503
+      },
+      {
+        "authority_tier": "semi-authoritative",
+        "best_knobs": [],
+        "dominance_rank": 5,
+        "dominant_inputs": null,
+        "group": "exhaust",
+        "limit": 25.0,
+        "margin": -36.7453032018744,
+        "margin_frac": -1.469812128074976,
+        "meaning": "SOL loading proxy (P_SOL/R)",
+        "mechanism_group": "EXHAUST",
+        "name": "P_SOL/R",
+        "passed": false,
+        "sense": "<=",
+        "severity": "hard",
+        "subsystem": "exhaust.divertor",
+        "units": "MW/m",
+        "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
+        "value": 61.7453032018744,
+        "violation_score": 14.69812128074976
       },
       {
         "authority_tier": "proxy",
@@ -1050,8 +1050,8 @@
         "dominant_inputs": null,
         "group": "magnets",
         "limit": 5.0,
-        "margin": -4.544227114039389,
-        "margin_frac": -0.9088454228078777,
+        "margin": -4.456553006236686,
+        "margin_frac": -0.8913106012473373,
         "meaning": "Fluence-based HTS lifetime proxy",
         "mechanism_group": "MAGNETS",
         "name": "HTS lifetime",
@@ -1061,8 +1061,8 @@
         "subsystem": "engineering.magnets",
         "units": "yr",
         "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-        "value": 0.4557728859606116,
-        "violation_score": 0.9088454228078777
+        "value": 0.5434469937633135,
+        "violation_score": 0.8913106012473373
       },
       {
         "authority_tier": "semi-authoritative",
@@ -1098,8 +1098,8 @@
       "dominant_inputs": null,
       "group": "plasma",
       "limit": 2.0,
-      "margin": 0.31428571428571406,
-      "margin_frac": 0.15714285714285703,
+      "margin": 0.28374384236453176,
+      "margin_frac": 0.14187192118226588,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1132,7 +1132,7 @@
       "units": "-",
       "validity": null,
       "validity_domain": "H-mode tokamak confinement scalings; 0-D global IPB98(H98) with explicit H-factor; L-mode handled via ITER89P proxy when enabled.",
-      "value": 2.314285714285714
+      "value": 2.2837438423645318
     },
     {
       "authority_tier": "semi-authoritative",
@@ -1182,8 +1182,8 @@
       "dominant_inputs": null,
       "group": "plasma",
       "limit": 9990000000.0,
-      "margin": 9989999996.447357,
-      "margin_frac": 0.9999999996443801,
+      "margin": 9989999995.966812,
+      "margin_frac": 0.9999999995962775,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1216,7 +1216,7 @@
       "units": "-",
       "validity": null,
       "validity_domain": "H-mode tokamak confinement scalings; 0-D global IPB98(H98) with explicit H-factor; L-mode handled via ITER89P proxy when enabled.",
-      "value": 3.5526424918754977
+      "value": 4.033188351366378
     },
     {
       "authority_tier": "semi-authoritative",
@@ -1227,24 +1227,24 @@
       ],
       "dominant_inputs": [
         {
-          "dmarginfrac_dinput": 129.46532285146617,
+          "dmarginfrac_dinput": 91.88399281323711,
           "input": "a_m",
           "step": 0.001
         },
         {
-          "dmarginfrac_dinput": 58.13324804133657,
+          "dmarginfrac_dinput": 41.89886417839972,
           "input": "f_rad_core",
           "step": 0.001
         },
         {
-          "dmarginfrac_dinput": -21.15090778256753,
+          "dmarginfrac_dinput": -15.012144840154308,
           "input": "kappa",
           "step": 0.00175
         },
         {
-          "dmarginfrac_dinput": -7.797241567886497,
+          "dmarginfrac_dinput": -6.042850712196956,
           "input": "Ip_MA",
-          "step": 0.0095
+          "step": 0.0087
         }
       ],
       "dominant_sensitivity": {
@@ -1264,8 +1264,8 @@
       },
       "group": "exhaust",
       "limit": 10.0,
-      "margin": -524.2682425246835,
-      "margin_frac": -52.42682425246835,
+      "margin": -426.3766053091533,
+      "margin_frac": -42.63766053091533,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1298,7 +1298,7 @@
       "units": "MW/m\u00b2",
       "validity": null,
       "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
-      "value": 534.2682425246835
+      "value": 436.3766053091533
     },
     {
       "authority_tier": "semi-authoritative",
@@ -1306,8 +1306,8 @@
       "dominant_inputs": null,
       "group": "exhaust",
       "limit": 25.0,
-      "margin": -55.38165061793518,
-      "margin_frac": -2.215266024717407,
+      "margin": -36.7453032018744,
+      "margin_frac": -1.469812128074976,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1340,7 +1340,7 @@
       "units": "MW/m",
       "validity": null,
       "validity_domain": "Two-point-style SOL/divertor proxy with optional Eich14 lambda_q; unified exhaust API ensures single-source outputs.",
-      "value": 80.38165061793518
+      "value": 61.7453032018744
     },
     {
       "authority_tier": "semi-authoritative",
@@ -1390,8 +1390,8 @@
       "dominant_inputs": null,
       "group": "magnets",
       "limit": 25.0,
-      "margin": -49.818116975748936,
-      "margin_frac": -1.9927246790299575,
+      "margin": -42.613409415121254,
+      "margin_frac": -1.7045363766048502,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1424,7 +1424,7 @@
       "units": "T",
       "validity": null,
       "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-      "value": 74.81811697574894
+      "value": 67.61340941512125
     },
     {
       "authority_tier": "semi-authoritative",
@@ -1432,8 +1432,8 @@
       "dominant_inputs": null,
       "group": "magnets",
       "limit": 800.0,
-      "margin": -4404.397395911252,
-      "margin_frac": -5.505496744889065,
+      "margin": -3450.329264238302,
+      "margin_frac": -4.312911580297878,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1466,7 +1466,7 @@
       "units": "MPa",
       "validity": null,
       "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-      "value": 5204.397395911252
+      "value": 4250.329264238302
     },
     {
       "authority_tier": "semi-authoritative",
@@ -1600,8 +1600,8 @@
       "dominant_inputs": null,
       "group": "magnets",
       "limit": 5.0,
-      "margin": -4.544227114039389,
-      "margin_frac": -0.9088454228078777,
+      "margin": -4.456553006236686,
+      "margin_frac": -0.8913106012473373,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1634,7 +1634,7 @@
       "units": "yr",
       "validity": null,
       "validity_domain": "Technology-aware TF proxies (Bpeak, stress, HTS critical-surface margin; copper I^2R loss coupling).",
-      "value": 0.4557728859606116
+      "value": 0.5434469937633135
     },
     {
       "authority_tier": "proxy",
@@ -1818,8 +1818,8 @@
       "dominant_inputs": null,
       "group": "neutronics",
       "limit": 2.5,
-      "margin": -7.237764336109025,
-      "margin_frac": -2.89510573444361,
+      "margin": -4.871518512834594,
+      "margin_frac": -1.9486074051338378,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1852,7 +1852,7 @@
       "units": "MW/m\u00b2",
       "validity": null,
       "validity_domain": "Neutron wall load and TBR proxies with optional radial-stack attenuation and nuclear heating shares parameterized by region materials tags.",
-      "value": 9.737764336109025
+      "value": 7.371518512834594
     },
     {
       "authority_tier": "proxy",
@@ -1860,8 +1860,8 @@
       "dominant_inputs": null,
       "group": "economics",
       "limit": -1000000000.0,
-      "margin": 1000000254.7101645,
-      "margin_frac": 1.0000002547101645,
+      "margin": 1000000181.0167205,
+      "margin_frac": 1.0000001810167205,
       "maturity": {
         "description": "System prototype; conservative design targeting.",
         "fingerprint": {
@@ -1894,7 +1894,7 @@
       "units": "MW(e)",
       "validity": null,
       "validity_domain": "Scheduled outage from replacement intervals (dpa/erosion proxies) + forced trips.",
-      "value": 254.71016456302766
+      "value": 181.01672052393866
     }
   ],
   "constraints_by_group": {
@@ -1902,7 +1902,7 @@
       "n_hard": 0,
       "n_hard_failed": 0,
       "n_soft": 1,
-      "soft_penalty_sum": 1.0000002547101645,
+      "soft_penalty_sum": 1.0000001810167205,
       "worst_hard_margin_frac": null
     },
     "exhaust": {
@@ -1910,14 +1910,14 @@
       "n_hard_failed": 2,
       "n_soft": 0,
       "soft_penalty_sum": 0.0,
-      "worst_hard_margin_frac": -52.42682425246835
+      "worst_hard_margin_frac": -42.63766053091533
     },
     "magnets": {
       "n_hard": 6,
       "n_hard_failed": 5,
       "n_soft": 1,
-      "soft_penalty_sum": 0.9088454228078777,
-      "worst_hard_margin_frac": -5.505496744889065
+      "soft_penalty_sum": 0.8913106012473373,
+      "worst_hard_margin_frac": -4.312911580297878
     },
     "materials": {
       "n_hard": 0,
@@ -1931,14 +1931,14 @@
       "n_hard_failed": 2,
       "n_soft": 1,
       "soft_penalty_sum": 0.0,
-      "worst_hard_margin_frac": -2.89510573444361
+      "worst_hard_margin_frac": -1.9486074051338378
     },
     "plasma": {
       "n_hard": 3,
       "n_hard_failed": 0,
       "n_soft": 0,
       "soft_penalty_sum": 0.0,
-      "worst_hard_margin_frac": 0.15000000000000002
+      "worst_hard_margin_frac": 0.14187192118226588
     }
   },
   "constraints_summary": {
@@ -1947,9 +1947,9 @@
     "n_hard_failed": 9,
     "n_soft": 5,
     "n_total": 18,
-    "soft_penalty_sum": 1.9088456775180422,
+    "soft_penalty_sum": 1.8913107822640578,
     "worst_hard": "q_div",
-    "worst_hard_margin_frac": -52.42682425246835
+    "worst_hard_margin_frac": -42.63766053091533
   },
   "contracts_fingerprint_sha256": "57a75454cdf2ca137ea5725ccc81615810181ae9dbb599ef9cc4f50f64767d6f",
   "contracts_used": {
@@ -1981,7 +1981,7 @@
   },
   "coupling_severity_max": 0,
   "coupling_summary": "No strong plasma\u2013engineering coupling flags triggered.",
-  "created_unix": 1783022185.231445,
+  "created_unix": 1783022182.8919618,
   "decision_consequences": {
     "decision_posture": "HOLD_FOUNDATIONAL",
     "dominant_constraint": "q_div",
@@ -1994,9 +1994,9 @@
     "narrative": "Hard-infeasible. Hold; address dominant limiter(s) before further exploration.",
     "primary_risk_driver": "exhaust.divertor",
     "schema_version": "decision_consequences.v1",
-    "stamp_sha256": "11b1b0cc40149c4900a037455b3ede310febc01c2220d6090d113deabdf79e86",
+    "stamp_sha256": "80d79c632216d61c761ab54674ffc601a20d3d20901673ae418f5098524e9446",
     "uncertainty_reduction_axis": "UNCERTAINTY_REDUCTION(neutronics.proxy)",
-    "worst_hard_margin_frac": -52.42682425246835
+    "worst_hard_margin_frac": -42.63766053091533
   },
   "dominant_authority": "EXHAUST",
   "dominant_constraint": "q_div",
@@ -2179,12 +2179,12 @@
       }
     }
   },
-  "input_hash": "502b0e814ab7e929a39e0219409c86edf1d646c1413fbc63b03c834c34b7cd06",
+  "input_hash": "7c2f0af570b5cd2ed5187971a5cadbb5a5452bb3fc23b046ed7de641d55ce1cd",
   "inputs": {
     "A_eff": 2.0,
     "B_peak_allow_T": 25.0,
     "Bpeak_factor": 1.05,
-    "Bt_T": 13.5,
+    "Bt_T": 12.2,
     "CAPEX_industrial_max_MUSD": NaN,
     "CAPEX_max_proxy_MUSD": NaN,
     "CAPEX_structured_max_MUSD": NaN,
@@ -2193,7 +2193,7 @@
     "H98_allow": 9990000000.0,
     "H_required_max_optimistic": NaN,
     "H_required_max_robust": NaN,
-    "Ip_MA": 9.5,
+    "Ip_MA": 8.7,
     "J_eng_max_A_mm2": 250.0,
     "LCOE_lite_max_USD_per_MWh": NaN,
     "LCOE_lite_v388_max_USD_per_MWh": NaN,
@@ -2220,7 +2220,7 @@
     "P_pf_avg_max_MW": NaN,
     "P_pumps_MW": 5.0,
     "P_supply_peak_max_MW": NaN,
-    "Paux_MW": 30.0,
+    "Paux_MW": 25.0,
     "Pcd_max_MW": 200.0,
     "Ploss_ref_MW": 100.0,
     "Q_effective_min": NaN,
@@ -2261,12 +2261,12 @@
     "activation_index_max_v390": NaN,
     "advanced_divertor_factor": 1.0,
     "alpha_loss_frac": 0.05,
-    "alpha_loss_model": "fixed",
-    "alpha_partition_k": 0.0,
-    "alpha_partition_model": "fixed",
-    "alpha_prompt_loss_k": 0.0,
+    "alpha_loss_model": "rho_star",
+    "alpha_partition_k": 0.1,
+    "alpha_partition_model": "Te_ratio",
+    "alpha_prompt_loss_k": 0.2,
     "annual_net_MWh_min": NaN,
-    "ash_dilution_mode": "off",
+    "ash_dilution_mode": "fixed_fraction",
     "atten_len_bioshield_m_v392": 0.35,
     "atten_len_m": 0.25,
     "atten_len_stack_m_v392": NaN,
@@ -2395,7 +2395,7 @@
     "eta_elec_model": "auto",
     "eta_tf_wallplug": 0.95,
     "fG": 0.85,
-    "f_He_ash": 0.0,
+    "f_He_ash": 0.05,
     "f_LH_access": 1.0,
     "f_Lpar": 1.0,
     "f_NI_min": NaN,
@@ -2772,21 +2772,21 @@
     "Bpeak_T": NaN,
     "CAPEX_proxy_MUSD": NaN,
     "COE_proxy_USD_per_MWh": NaN,
-    "H98": 3.5526424918754977,
+    "H98": 4.033188351366378,
     "LCOE_proxy_USD_per_MWh": NaN,
     "P_net_e_MW": NaN,
-    "Pfus_DT_adj_MW": 885.6565167942463,
-    "Ploss_MW": 148.7060536431801,
-    "Q_DT_eqv": 29.521883893141542,
+    "Pfus_DT_adj_MW": 670.3534175615652,
+    "Ploss_MW": 114.22881092346765,
+    "Q_DT_eqv": 26.814136702462605,
     "TBR": 0.6159320976182251,
     "feasible_hard": false,
-    "min_hard_margin": -4404.397395911252,
-    "q_div_MW_m2": 534.2682425246835,
-    "sigma_hoop_MPa": 5204.397395911251
+    "min_hard_margin": -3450.329264238302,
+    "q_div_MW_m2": 436.3766053091533,
+    "sigma_hoop_MPa": 4250.329264238302
   },
   "label": "",
   "meta": {
-    "created_unix": 1783022185.231445,
+    "created_unix": 1783022182.8919618,
     "label": "",
     "mode": "point",
     "notes": "",
@@ -3418,7 +3418,7 @@
       {
         "best_knobs": [],
         "limit": 800.0,
-        "margin": -4404.397395911252,
+        "margin": -3450.329264238302,
         "maturity": {
           "description": "System prototype; conservative design targeting.",
           "fingerprint": {
@@ -3444,7 +3444,7 @@
         },
         "sense": "<=",
         "validity": null,
-        "value": 5204.397395911252
+        "value": 4250.329264238302
       },
       {
         "best_knobs": [
@@ -3453,7 +3453,7 @@
           "Reduce P_fus target / increase radiation fraction"
         ],
         "limit": 10.0,
-        "margin": -524.2682425246835,
+        "margin": -426.3766053091533,
         "maturity": {
           "description": "System prototype; conservative design targeting.",
           "fingerprint": {
@@ -3479,43 +3479,12 @@
         },
         "sense": "<=",
         "validity": null,
-        "value": 534.2682425246835
+        "value": 436.3766053091533
       },
       {
         "best_knobs": [],
         "limit": 25.0,
-        "margin": -55.38165061793518,
-        "maturity": {
-          "description": "System prototype; conservative design targeting.",
-          "fingerprint": {
-            "blanket_type": "LiPb",
-            "confinement_mult": 1.0,
-            "hts_Jc_mult": 1.0,
-            "lambda_q_mult": 1.0,
-            "li6_enrichment": 0.3,
-            "magnet_technology": "HTS_REBCO",
-            "multiplier_material": "None"
-          },
-          "suggested": {
-            "P_nuc_tf_max_MW": 20.0,
-            "TBR_min": 1.15,
-            "f_recirc_max": 0.4
-          },
-          "tier": "TRL7"
-        },
-        "meaning": "SOL loading proxy (P_SOL/R)",
-        "name": "P_SOL/R",
-        "provenance": {
-          "constraint_fingerprint_sha256": "8b1f0479b0b9e0fed7632bb9c8c1affa16f865df9d3b55fb681e42c981df4893"
-        },
-        "sense": "<=",
-        "validity": null,
-        "value": 80.38165061793518
-      },
-      {
-        "best_knobs": [],
-        "limit": 25.0,
-        "margin": -49.818116975748936,
+        "margin": -42.613409415121254,
         "maturity": {
           "description": "System prototype; conservative design targeting.",
           "fingerprint": {
@@ -3541,7 +3510,38 @@
         },
         "sense": "<=",
         "validity": null,
-        "value": 74.81811697574894
+        "value": 67.61340941512125
+      },
+      {
+        "best_knobs": [],
+        "limit": 25.0,
+        "margin": -36.7453032018744,
+        "maturity": {
+          "description": "System prototype; conservative design targeting.",
+          "fingerprint": {
+            "blanket_type": "LiPb",
+            "confinement_mult": 1.0,
+            "hts_Jc_mult": 1.0,
+            "lambda_q_mult": 1.0,
+            "li6_enrichment": 0.3,
+            "magnet_technology": "HTS_REBCO",
+            "multiplier_material": "None"
+          },
+          "suggested": {
+            "P_nuc_tf_max_MW": 20.0,
+            "TBR_min": 1.15,
+            "f_recirc_max": 0.4
+          },
+          "tier": "TRL7"
+        },
+        "meaning": "SOL loading proxy (P_SOL/R)",
+        "name": "P_SOL/R",
+        "provenance": {
+          "constraint_fingerprint_sha256": "8b1f0479b0b9e0fed7632bb9c8c1affa16f865df9d3b55fb681e42c981df4893"
+        },
+        "sense": "<=",
+        "validity": null,
+        "value": 61.7453032018744
       },
       {
         "best_knobs": [],
@@ -3639,7 +3639,7 @@
       {
         "best_knobs": [],
         "limit": 2.5,
-        "margin": -7.237764336109025,
+        "margin": -4.871518512834594,
         "maturity": {
           "description": "System prototype; conservative design targeting.",
           "fingerprint": {
@@ -3665,7 +3665,7 @@
         },
         "sense": "<=",
         "validity": null,
-        "value": 9.737764336109025
+        "value": 7.371518512834594
       },
       {
         "best_knobs": [
@@ -3709,112 +3709,112 @@
   "notes": "",
   "outputs": {
     "A_fw_m2": 72.8524848866411,
-    "B0_T": 13.5,
-    "B_peak_T": 74.81811697574894,
+    "B0_T": 12.2,
+    "B_peak_T": 67.61340941512125,
     "B_peak_allow_T": 25.0,
-    "Bpol_out_mid_T": 3.3333333333333335,
+    "Bpol_out_mid_T": 3.0526315789473686,
     "COE_max_USD_per_MWh": NaN,
     "C_bs": 0.15,
-    "E_tf_MJ": 18077.41086334857,
-    "H98": 3.5526424918754977,
+    "E_tf_MJ": 14763.466847192321,
+    "H98": 4.033188351366378,
     "H98_allow": 9990000000.0,
     "H_regime": NaN,
-    "H_required": 3.5526424918754977,
-    "H_scaling": 3.5526424918754977,
-    "I_bs_MA": 3.3066487644698417,
+    "H_required": 4.033188351366378,
+    "H_scaling": 4.033188351366378,
+    "I_bs_MA": 3.2421866855156907,
     "I_cd_MA": 0.0,
-    "I_tf_A": 131118750.00000001,
-    "Ip_MA": 9.5,
-    "Ip_from_q95_PROCESS_MA": 2.794527261007494,
+    "I_tf_A": 118492500.00000001,
+    "Ip_MA": 8.7,
+    "Ip_from_q95_PROCESS_MA": 2.559198649554231,
     "Ip_vs_PROCESS_ratio": 3.399501637559629,
     "J_eng_A_mm2": NaN,
     "LCOE_max_USD_per_MWh": NaN,
     "LH_ok": 1.0,
-    "Lpar_m": 13.450504546869443,
-    "M_ign": 1.1315930593833234,
-    "M_ign_total": 0.8486947945374926,
+    "Lpar_m": 13.272996824028679,
+    "M_ign": 1.1144743624844657,
+    "M_ign_total": 0.8358557718633494,
     "N_tf_turns": 1.0,
     "P_CD_MW": 0.0,
-    "P_LH_MW": 98.32822122215097,
+    "P_LH_MW": 85.10882403411246,
     "P_LH_required_MW": NaN,
-    "P_SOL_MW": 148.7060536431801,
+    "P_SOL_MW": 114.22881092346765,
     "P_SOL_edge_core_MW": NaN,
-    "P_SOL_over_R_MW_m": 80.38165061793518,
+    "P_SOL_over_R_MW_m": 61.7453032018744,
     "P_SOL_over_R_limit_MW_m": NaN,
     "P_SOL_over_R_max_MW_m": 25.0,
     "P_aux_max_MW": NaN,
-    "P_aux_total_el_MW": 75.0,
-    "P_brem_MW": 39.57322192205497,
+    "P_aux_total_el_MW": 62.5,
+    "P_brem_MW": 33.188888280114575,
     "P_cd_launch_MW": 0.0,
-    "P_charged_DD_MW": 0.7348784163561339,
-    "P_charged_DT_MW": 206.98322842949378,
+    "P_charged_DD_MW": 0.6163207460830558,
+    "P_charged_DT_MW": 173.5906987238602,
     "P_cryo_MW": 0.0,
     "P_cryo_max_MW": NaN,
-    "P_div_MW": 70.9745918550736,
-    "P_e_gross_MW": 354.71016456302766,
-    "P_e_net_MW": 254.71016456302766,
-    "P_e_net_avg_MW": 235.1170749812563,
+    "P_div_MW": 57.970227297365135,
+    "P_e_gross_MW": 268.51672052393866,
+    "P_e_net_MW": 181.01672052393866,
+    "P_e_net_avg_MW": 167.0923574067126,
     "P_ie_MW": 0.0,
-    "P_loss_total_MW": 198.2747381909068,
-    "P_n_DD_MW": 0.3840161969667156,
-    "P_n_DT_MW": 833.8467202445319,
-    "P_n_captured_MW": 783.5011131146094,
+    "P_loss_total_MW": 152.3050812312902,
+    "P_n_DD_MW": 0.32206300219845657,
+    "P_n_DT_MW": 699.3225291446939,
+    "P_n_captured_MW": 657.0991606830447,
     "P_net_min_MW": -1000000000.0,
-    "P_nuc_Blanket_MW": 221.69385285189227,
-    "P_nuc_First wall_MW": 88.67754114075692,
+    "P_nuc_Blanket_MW": 167.82295032746165,
+    "P_nuc_First wall_MW": 67.12918013098466,
     "P_nuc_PF_MW": 0.0,
-    "P_nuc_Shield_MW": 106.41304936890829,
-    "P_nuc_TF structure_MW": 17.73550822815138,
-    "P_nuc_TF winding pack_MW": 17.73550822815138,
+    "P_nuc_Shield_MW": 80.5550161571816,
+    "P_nuc_TF structure_MW": 13.425836026196933,
+    "P_nuc_TF winding pack_MW": 13.425836026196933,
     "P_nuc_TF_MW": 0.0,
-    "P_nuc_Vacuum vessel_MW": 44.33877057037846,
+    "P_nuc_Vacuum vessel_MW": 33.56459006549233,
     "P_nuc_cryo_kW": 0.0,
     "P_nuc_cryo_max_kW": NaN,
     "P_nuc_in_vessel_MW": 0.0,
     "P_nuc_leak_MW": 0.0,
     "P_nuc_pf_max_MW": NaN,
     "P_nuc_tf_max_MW": NaN,
-    "P_nuc_total_MW": 496.5942303882387,
+    "P_nuc_total_MW": 375.9234087335141,
     "P_nuc_total_max_MW": NaN,
     "P_pf_avg_MW": NaN,
     "P_pf_avg_max_MW": NaN,
-    "P_pump_MW": 26.603262342227072,
-    "P_recirc_MW": 100.0,
-    "P_supply_peak_MW": 75.0,
+    "P_pump_MW": 20.1387540392954,
+    "P_recirc_MW": 87.5,
+    "P_supply_peak_MW": 62.5,
     "P_supply_peak_max_MW": NaN,
     "P_tf_ohmic_MW": NaN,
-    "Palpha_MW": 168.2747381909068,
-    "Palpha_e_MW": 25.241210728636023,
-    "Palpha_i_MW": 143.03352746227077,
-    "Paux_MW": 30.0,
-    "Paux_e_MW": 15.0,
-    "Paux_i_MW": 15.0,
-    "Pfus_DD_MW": 1.1188946133228495,
-    "Pfus_DT_MW": 1040.8299486740257,
-    "Pfus_DT_adj_MW": 885.6565167942463,
-    "Pfus_DT_eqv_MW": 1040.8299486740257,
+    "Palpha_MW": 127.30508123129019,
+    "Palpha_e_MW": 19.09576218469353,
+    "Palpha_i_MW": 108.20931904659666,
+    "Paux_MW": 25.0,
+    "Paux_e_MW": 12.5,
+    "Paux_i_MW": 12.5,
+    "Pfus_DD_MW": 0.9383837482815123,
+    "Pfus_DT_MW": 872.9132278685544,
+    "Pfus_DT_adj_MW": 670.3534175615652,
+    "Pfus_DT_eqv_MW": 872.9132278685544,
     "Pfus_profile_MW": NaN,
-    "Pfus_total_MW": 886.7754114075691,
-    "Pin_MW": 198.2747381909068,
-    "Ploss_MW": 148.7060536431801,
-    "Ploss_from_tauE_model_MW": 528.2994449718788,
-    "Prad_SOL_MW": 44.61181609295403,
+    "Pfus_total_MW": 671.2918013098466,
+    "Pin_MW": 152.3050812312902,
+    "Ploss_MW": 114.22881092346765,
+    "Ploss_from_tauE_model_MW": 460.7063096069621,
+    "Prad_SOL_MW": 34.26864327704029,
     "Prad_brem_MW": 0.0,
-    "Prad_core_MW": 49.5686845477267,
+    "Prad_core_MW": 38.07627030782255,
     "Prad_line_MW": 0.0,
     "Prad_sync_MW": 0.0,
-    "Prad_total_MW": 94.18050064068072,
-    "Pth_total_MW": 886.7754114075691,
-    "Q_DT_eqv": 29.521883893141542,
-    "Q_effective": 21.329561112794764,
+    "Prad_total_MW": 72.34491358486284,
+    "Pth_total_MW": 671.2918013098466,
+    "Q_DT_eqv": 26.814136702462605,
+    "Q_effective": 17.48432542519513,
     "Q_effective_min": NaN,
-    "Qe": 3.5471016456302764,
+    "Qe": 3.0687625202735846,
     "R0_m": 1.85,
     "R_coil_inner_m": 0.35050000000000003,
     "SOL_rad_control_ok": NaN,
     "S_fuel_max_1e22_per_s": NaN,
     "S_fuel_required_1e22_per_s": NaN,
-    "S_n_W_m2": 11450957.887566453,
+    "S_n_W_m2": 9603578.975179,
     "TBR": 0.6159320976182251,
     "TBR_domain_cov_margin": 0.09999999999999998,
     "TBR_domain_driver": "ok",
@@ -3829,21 +3829,21 @@
     "TBR_self_sufficiency_margin": NaN,
     "TBR_self_sufficiency_required": NaN,
     "TBR_validity": 0.0,
-    "T_burn_kg_per_day": 0.13656341335676564,
+    "T_burn_kg_per_day": 0.10337893740171639,
     "T_in_vessel_max_kg": NaN,
-    "T_in_vessel_required_kg": 0.13656341335676564,
+    "T_in_vessel_required_kg": 0.10337893740171639,
     "T_inventory_min_kg": NaN,
-    "T_inventory_required_kg": 0.4096902400702969,
-    "T_inventory_reserve_kg": 0.4096902400702969,
+    "T_inventory_required_kg": 0.31013681220514916,
+    "T_inventory_reserve_kg": 0.31013681220514916,
     "T_loss_fraction": NaN,
     "T_peaking": NaN,
     "T_processing_capacity_margin_g_per_day": NaN,
     "T_processing_capacity_min_g_per_day": NaN,
     "T_processing_delay_days": 1.0,
-    "T_processing_required_g_per_day": 170.70426669595705,
+    "T_processing_required_g_per_day": 129.2236717521455,
     "T_startup_inventory_kg": 0.0,
     "T_total_inventory_max_kg": NaN,
-    "T_total_inventory_required_kg": 0.5462536534270626,
+    "T_total_inventory_required_kg": 0.41351574960686555,
     "Tcoil_K": 20.0,
     "Te0_over_TeV": NaN,
     "Te_keV": 10.0,
@@ -3852,12 +3852,12 @@
     "Ti_keV": 10.0,
     "Ti_line_over_TiV": NaN,
     "V": 20.76295819269271,
-    "V_dump_kV": 0.027574104944332628,
+    "V_dump_kV": 0.024918820764508,
     "V_loop_max_V": 2.0,
     "V_loop_over_max": NaN,
     "V_loop_req_V": NaN,
     "Vmax_kV": 20.0,
-    "W_MJ": 78.95212524506763,
+    "W_MJ": 72.30352522443037,
     "_authority_warning_count": 0.0,
     "_authority_warnings": [],
     "_maturity_contract": {
@@ -3885,13 +3885,13 @@
     "a_m": 0.57,
     "activation_index_max_v390": NaN,
     "activation_index_v390": NaN,
-    "alpha_loss_frac_eff": 0.05,
-    "alpha_loss_model": "fixed",
-    "alpha_partition_model": "fixed",
+    "alpha_loss_frac_eff": 0.050462950615161796,
+    "alpha_loss_model": "rho_star",
+    "alpha_partition_model": "te_ratio",
     "annual_net_MWh": 0.0,
     "annual_net_MWh_min": NaN,
-    "ash_dilution_mode": "off",
-    "ash_factor": 1.0,
+    "ash_dilution_mode": "fixed_fraction",
+    "ash_factor": 0.9025,
     "attenuation_g_to_tf_v407": [],
     "availability_min": NaN,
     "availability_min_v391": NaN,
@@ -3899,12 +3899,12 @@
     "availability_v359_min": NaN,
     "availability_v368_min": NaN,
     "betaN_max": NaN,
-    "betaN_proxy": 2.831657208888889,
+    "betaN_proxy": 3.1333911737704914,
     "betaN_troyon_max": NaN,
-    "beta_N": 2.831657208888889,
-    "beta_proxy": 0.034958730973936904,
-    "blanket_He_appm_per_year": 569.2707292207002,
-    "blanket_He_total_appm_at_years": 569.2707292207002,
+    "beta_N": 3.1333911737704914,
+    "beta_proxy": 0.039201183796093296,
+    "blanket_He_appm_per_year": 430.93974904531495,
+    "blanket_He_total_appm_at_years": 430.93974904531495,
     "blanket_He_total_limit_appm": NaN,
     "blanket_T_enforce": 0.0,
     "blanket_T_margin_C": NaN,
@@ -3912,21 +3912,21 @@
     "blanket_T_min_C": 300.0,
     "blanket_T_oper_C": NaN,
     "blanket_coverage": 0.85,
-    "blanket_dpa_per_year": 23.719613717529175,
-    "blanket_dpa_total_at_years": 23.719613717529175,
+    "blanket_dpa_per_year": 17.955822876888124,
+    "blanket_dpa_total_at_years": 17.955822876888124,
     "blanket_dpa_total_limit": 120.0,
-    "blanket_lifetime_He_yr": 26.34950161680394,
-    "blanket_lifetime_dpa_yr": 5.059104310426357,
+    "blanket_lifetime_He_yr": 34.80765010243391,
+    "blanket_lifetime_dpa_yr": 6.6830688196673105,
     "blanket_lifetime_min_yr": NaN,
     "blanket_lifetime_min_yr_v384": NaN,
-    "blanket_lifetime_yr": 5.059104310426357,
-    "blanket_replace_interval_y": 5.059104310426357,
-    "blanket_replace_interval_y_v367": 5.059104310426357,
+    "blanket_lifetime_yr": 6.6830688196673105,
+    "blanket_replace_interval_y": 6.6830688196673105,
+    "blanket_replace_interval_y_v367": 6.6830688196673105,
     "blanket_replacement_cost_MUSD_per_year": NaN,
-    "blanket_replacements_over_plant_life": 5.0,
-    "blanket_sigma_allow_MPa": 64.66234220764078,
+    "blanket_replacements_over_plant_life": 4.0,
+    "blanket_sigma_allow_MPa": 67.82200153314766,
     "blanket_sigma_f_T": 0.2,
-    "blanket_sigma_f_irr": 0.8082792775955098,
+    "blanket_sigma_f_irr": 0.8477750191643457,
     "blanket_sigma_margin_MPa": NaN,
     "blanket_sigma_oper_MPa": NaN,
     "bootstrap_model": "proxy",
@@ -3945,7 +3945,7 @@
     "cd_ctx_cd_tech_regime": "ECCD",
     "cd_ctx_eta_CD_A_W": 4e-08,
     "cd_ctx_eta_wallplug": NaN,
-    "cd_ctx_nbar20": 7.911210621526961,
+    "cd_ctx_nbar20": 7.245003411293112,
     "cd_eta_CD_A_W_margin_frac": 0.1428571428571428,
     "cd_eta_wallplug_margin_frac": NaN,
     "cd_fragility_class": "FEASIBLE",
@@ -3962,7 +3962,7 @@
     "coil_heat_MW": NaN,
     "coil_heat_ac_MW": NaN,
     "coil_heat_max_MW": NaN,
-    "coil_heat_nuclear_MW": 1.9475528672218052,
+    "coil_heat_nuclear_MW": 1.474303702566919,
     "coil_thermal_margin": NaN,
     "confinement_regime": "H",
     "control_budget_ledger": {},
@@ -3975,41 +3975,41 @@
       "vs": "disabled"
     },
     "control_stability_v398_enabled": false,
-    "coolant_dT_K": 3547.1016456302764,
+    "coolant_dT_K": 2685.1672052393865,
     "cooldown_bin_v390": "OFF",
     "cooldown_days_v390": NaN,
     "cs_Lp_H": 3.851567816199053e-06,
     "cs_V_loop_max_V": NaN,
-    "cs_V_loop_ramp_V": 0.1219663141796367,
+    "cs_V_loop_ramp_V": 0.11169546666977254,
     "cs_flux_available_Wb": 6.967361355278372,
-    "cs_flux_margin": -0.8476658870466682,
+    "cs_flux_margin": -0.833658152522224,
     "cs_flux_margin_min": NaN,
-    "cs_flux_required_Wb": 45.73736781736376,
+    "cs_flux_required_Wb": 41.885800001164704,
     "current_profile_CP_ETA_CD_MIN": NaN,
-    "current_profile_CP_FBS_MAX": 0.2265149088959436,
-    "current_profile_CP_FBS_MIN": 5.961365819936508,
-    "current_profile_CP_FNI_MAX": 0.005519168580498834,
-    "current_profile_CP_FNI_MIN": NaN,
-    "current_profile_CP_NI_CONSISTENCY": 0.7319317090031746,
+    "current_profile_CP_FBS_MAX": 0.4676212339054695,
+    "current_profile_CP_FBS_MIN": 0.8633256813308565,
+    "current_profile_CP_FNI_MAX": 0.5031131516451048,
+    "current_profile_CP_FNI_MIN": 0.064757532189061,
+    "current_profile_CP_NI_CONSISTENCY": -0.5473348637338287,
     "current_profile_CP_PCD_FRAC_MAX": NaN,
-    "current_profile_CP_Q95_MIN": -0.0742857142857144,
-    "current_profile_CP_QMIN_MIN": -0.10074481236702115,
+    "current_profile_CP_Q95_MIN": -0.23875205254515608,
+    "current_profile_CP_QMIN_MIN": -0.21360662362218763,
     "current_profile_contract_sha256": "1f40361386f587815c22d2ca71c3efd109f8759ce79dbc659fa5a32d2e6a0e69",
-    "current_profile_ctx_I_bs_MA": 3.3066487644698417,
+    "current_profile_ctx_I_bs_MA": 3.2421866855156907,
     "current_profile_ctx_I_cd_MA": 0.0,
-    "current_profile_ctx_Ip_MA": 9.5,
+    "current_profile_ctx_Ip_MA": 8.7,
     "current_profile_ctx_P_cd_MW": NaN,
     "current_profile_ctx_P_cd_frac": NaN,
-    "current_profile_ctx_P_in_MW": 198.2747381909068,
+    "current_profile_ctx_P_in_MW": 152.3050812312902,
     "current_profile_ctx_cd_eta_A_per_W": NaN,
-    "current_profile_ctx_f_NI": 0.3480682909968254,
-    "current_profile_ctx_f_bootstrap_proxy": 0.3480682909968254,
-    "current_profile_ctx_q95": 2.314285714285714,
-    "current_profile_ctx_qmin_proxy": 0.9891807063962769,
+    "current_profile_ctx_f_NI": 0.3726651362661713,
+    "current_profile_ctx_f_bootstrap_proxy": 0.3726651362661713,
+    "current_profile_ctx_q95": 2.2837438423645318,
+    "current_profile_ctx_qmin_proxy": 0.9436720516533748,
     "current_profile_fragility_class": "INFEASIBLE",
-    "current_profile_min_margin_frac": -0.10074481236702115,
-    "current_profile_regime": "inductive",
-    "current_profile_top_limiter": "CP_QMIN_MIN",
+    "current_profile_min_margin_frac": -0.5473348637338287,
+    "current_profile_regime": "hybrid",
+    "current_profile_top_limiter": "CP_NI_CONSISTENCY",
     "cycles_per_year": 4045.846153846154,
     "delta": 0.65,
     "delta_max": NaN,
@@ -4018,7 +4018,7 @@
     "detachment_f_sol_div_required": NaN,
     "detachment_f_z_required": NaN,
     "detachment_fz_max": NaN,
-    "detachment_index": 1.2843134364459214,
+    "detachment_index": 1.1763234072877937,
     "detachment_index_max": NaN,
     "detachment_index_min": NaN,
     "detachment_margin_min_v399": NaN,
@@ -4029,15 +4029,15 @@
     "dilution_fuel": 0.85,
     "disruption_dominant_driver": "qmin",
     "disruption_risk_components": {
-      "beta": 0.8090449168253969,
+      "beta": 0.8952546210772833,
       "density": 0.85,
       "qmin": 2.0,
       "radiation": 0.35714285714285715
     },
-    "disruption_risk_index": 0.9937849036190477,
+    "disruption_risk_index": 1.0196478148946135,
     "disruption_risk_tier": "HIGH",
     "div_erosion_max_mm_per_y": NaN,
-    "div_erosion_mm_per_year": 52697.08707146106,
+    "div_erosion_mm_per_year": 35155.2999989798,
     "div_regime": "detached",
     "div_replace_interval_y": 0.1,
     "divertor_lifetime_min_yr_v384": NaN,
@@ -4067,35 +4067,35 @@
     "exhaust_regime": "unknown",
     "fG": 0.85,
     "f_G": 0.85,
-    "f_He_ash": 0.0,
+    "f_He_ash": 0.05,
     "f_LH_access": 1.0,
-    "f_NI": 0.3480682909968254,
+    "f_NI": 0.3726651362661713,
     "f_alpha_to_ion_eff": 0.85,
-    "f_bs_proxy": 0.18353333761316876,
+    "f_bs_proxy": 0.20580621492948978,
     "f_rad_SOL_max": NaN,
     "f_rad_SOL_required": NaN,
     "f_rad_core_edge_core": NaN,
     "f_rad_div": 0.3,
-    "f_rad_div_eff": 0.5227188798555774,
+    "f_rad_div_eff": 0.4925078285529497,
     "f_rad_total": 0.55,
     "f_rad_total_max": NaN,
-    "f_recirc": 0.28192031125804184,
+    "f_recirc": 0.3258642509459639,
     "f_recirc_max": NaN,
     "f_wet_divertor": 1.0,
     "f_wet_raw": 1.0,
     "fluence_g_to_tf_n_m2_per_fpy_v407": [],
-    "fluence_n_m2_per_fpy": 4.425759014367421e+24,
+    "fluence_n_m2_per_fpy": 3.3503136224787733e+24,
     "flux_avail_Wb": NaN,
     "flux_expansion": 8.0,
     "flux_expansion_raw": 8.0,
     "flux_swing_Wb": 60.0,
     "fragile_margin_frac": 0.05,
-    "fuel_ion_fraction": 0.85,
+    "fuel_ion_fraction": 0.8075,
     "fuel_ion_fraction_min": NaN,
     "fuel_mode": "DT",
     "fueling_ok": NaN,
-    "fw_He_appm_per_year": 1168.531720333083,
-    "fw_He_total_appm_at_years": 1168.531720333083,
+    "fw_He_appm_per_year": 884.5822215401513,
+    "fw_He_total_appm_at_years": 884.5822215401513,
     "fw_He_total_limit_appm": NaN,
     "fw_T_enforce": 0.0,
     "fw_T_margin_C": NaN,
@@ -4103,33 +4103,33 @@
     "fw_T_min_C": 250.0,
     "fw_T_oper_C": NaN,
     "fw_dpa_max_per_year": NaN,
-    "fw_dpa_per_year": 48.688821680545125,
-    "fw_dpa_total_at_years": 48.688821680545125,
+    "fw_dpa_per_year": 36.857592564172975,
+    "fw_dpa_total_at_years": 36.857592564172975,
     "fw_dpa_total_limit": 80.0,
     "fw_life_fpy_v390": NaN,
     "fw_life_min_fpy_v390": NaN,
-    "fw_lifetime_He_yr": 8.557748006318185,
-    "fw_lifetime_dpa_yr": 1.6430876172130915,
+    "fw_lifetime_He_yr": 11.304771627208313,
+    "fw_lifetime_dpa_yr": 2.1705161524239958,
     "fw_lifetime_min_yr": NaN,
     "fw_lifetime_min_yr_v384": NaN,
-    "fw_lifetime_yr": 1.6430876172130915,
-    "fw_replace_interval_y": 1.6430876172130915,
-    "fw_replace_interval_y_v367": 1.6430876172130915,
+    "fw_lifetime_yr": 2.1705161524239958,
+    "fw_replace_interval_y": 2.1705161524239958,
+    "fw_replace_interval_y_v367": 2.1705161524239958,
     "fw_replacement_cost_MUSD_per_year": NaN,
-    "fw_replacements_over_plant_life": 18.0,
-    "fw_sigma_allow_MPa": 82.8052035236202,
+    "fw_replacements_over_plant_life": 13.0,
+    "fw_sigma_allow_MPa": 92.91992255575681,
     "fw_sigma_f_T": 0.2,
-    "fw_sigma_f_irr": 0.5520346901574679,
+    "fw_sigma_f_irr": 0.619466150371712,
     "fw_sigma_margin_MPa": NaN,
     "fw_sigma_oper_MPa": NaN,
     "gamma_VS_s_inv": NaN,
     "group_edges_MeV_v407": [],
     "group_structure_id_v407": "",
     "hts_fluence_limit_n_m2": 3e+22,
-    "hts_fluence_per_fpy_n_m2": 6.582225692686913e+22,
-    "hts_fluence_per_fpy_stack_n_m2": 3.940693406911696e+25,
-    "hts_lifetime_stack_yr": 0.000761287339618508,
-    "hts_lifetime_yr": 0.4557728859606116,
+    "hts_fluence_per_fpy_n_m2": 5.520317592016315e+22,
+    "hts_fluence_per_fpy_stack_n_m2": 2.98311741790026e+25,
+    "hts_lifetime_stack_yr": 0.001005659375657973,
+    "hts_lifetime_yr": 0.5434469937633135,
     "hts_margin": NaN,
     "ignition_margin_min": NaN,
     "impurity_contract_f_z": 0.0003,
@@ -4138,11 +4138,11 @@
     "impurity_fragility_class": "UNKNOWN",
     "impurity_fuel_ion_fraction": 0.9993254553176606,
     "impurity_min_margin_frac": NaN,
-    "impurity_prad_core_MW": 0.1559430476745749,
-    "impurity_prad_div_MW": 0.031188609534914976,
-    "impurity_prad_edge_MW": 0.06237721906982995,
-    "impurity_prad_sol_MW": 0.06237721906982995,
-    "impurity_prad_total_MW": 0.31188609534914974,
+    "impurity_prad_core_MW": 0.13078481195001193,
+    "impurity_prad_div_MW": 0.026156962390002383,
+    "impurity_prad_edge_MW": 0.05231392478000477,
+    "impurity_prad_sol_MW": 0.05231392478000477,
+    "impurity_prad_total_MW": 0.2615696239000238,
     "impurity_regime": "unknown",
     "impurity_species": "unknown",
     "impurity_v399_by_species_MW": {},
@@ -4173,33 +4173,33 @@
     "include_tritium_tight_closure": 0.0,
     "kappa": 1.75,
     "kappa_max": NaN,
-    "lambda_q_mm": 0.15035395016784836,
-    "lambda_q_mm_raw": 0.15035395016784836,
+    "lambda_q_mm": 0.16694677049262835,
+    "lambda_q_mm_raw": 0.16694677049262835,
     "lifetime_min_yr": 3.0,
     "magnet_W_mag_MJ": NaN,
     "magnet_contract_sha256": "",
     "magnet_energy_density_MJ_m3": NaN,
     "magnet_fragility_class": "UNKNOWN",
     "magnet_lifetime_min_yr_v384": NaN,
-    "magnet_margin_min": -5.505496744889065,
+    "magnet_margin_min": -4.312911580297878,
     "magnet_quench_risk_max": NaN,
     "magnet_quench_risk_proxy": NaN,
     "magnet_regime": "UNKNOWN",
     "magnet_regime_consistent": NaN,
     "magnet_technology": "HTS_REBCO",
-    "magnet_v400_b_margin": -0.6658563325229991,
+    "magnet_v400_b_margin": -0.6302508597590565,
     "magnet_v400_b_tier": "deficit",
     "magnet_v400_dominant_limiter": "stress",
-    "magnet_v400_dominant_margin": -0.8462838366976921,
+    "magnet_v400_dominant_margin": -0.8117792880821981,
     "magnet_v400_enabled": true,
     "magnet_v400_j_margin": NaN,
     "magnet_v400_j_tier": "unknown",
-    "magnet_v400_margin": -0.8462838366976921,
+    "magnet_v400_margin": -0.8117792880821981,
     "magnet_v400_p_tf_ohmic_margin": NaN,
     "magnet_v400_p_tf_ohmic_tier": "unknown",
     "magnet_v400_sc_oper_margin": NaN,
     "magnet_v400_sc_tier": "unknown",
-    "magnet_v400_stress_margin": -0.8462838366976921,
+    "magnet_v400_stress_margin": -0.8117792880821981,
     "magnet_v400_stress_tier": "deficit",
     "magnet_v400_t_window_margin": NaN,
     "magnet_v400_t_window_tier": "unknown",
@@ -4211,7 +4211,7 @@
     "materials_lifetime_contract_sha256": "2b99e560f5aba20d6ea768e68bc5a2429b4c39ec3a132dfe5acac5b1abed6fc5",
     "materials_lifetime_schema_version": "v367.0",
     "mhd_risk_max": NaN,
-    "mhd_risk_proxy": 0.985404761904762,
+    "mhd_risk_proxy": 0.9927348111658457,
     "model_cards": {
       "availability.proxy": {
         "hash": "c2e0eb054fc9d425c9c4c7789da5c0883dd31e0a0f0ced6da086fad14411c665",
@@ -4781,20 +4781,20 @@
         "ok": true
       }
     },
-    "nGW": 9.307306613561131,
+    "nGW": 8.52353342505072,
     "nT_over_ne": 0.5,
     "n_strike_points": 2,
     "n_strike_points_raw": 2,
     "ne0_over_neV": NaN,
-    "ne20": 7.911210621526961,
+    "ne20": 7.245003411293112,
     "ne2_over_neV2": NaN,
     "ne_line_over_neV": NaN,
-    "ne_m3": 7.911210621526961e+20,
+    "ne_m3": 7.245003411293112e+20,
     "ne_peaking": NaN,
     "neutron_attenuation_factor": 0.08466948616709678,
     "neutron_attenuation_fast": 0.07327762273396082,
     "neutron_attenuation_gamma": 0.23096248136152694,
-    "neutron_wall_load_MW_m2": 9.737764336109025,
+    "neutron_wall_load_MW_m2": 7.371518512834594,
     "neutron_wall_load_max_MW_m2": 2.5,
     "neutronics_activation_ledger_v390": [],
     "neutronics_domain_enforce": 0.0,
@@ -4818,7 +4818,7 @@
     "pf_E_pulse_max_MJ": NaN,
     "pf_I_peak_MA": NaN,
     "pf_I_peak_max_MA": NaN,
-    "pf_I_pf_MA": 9.927499999999998,
+    "pf_I_pf_MA": 9.091499999999998,
     "pf_P_peak_MW": NaN,
     "pf_P_peak_max_MW": NaN,
     "pf_V_peak_V": NaN,
@@ -4828,7 +4828,7 @@
     "pf_dIdt_peak_MA_s": NaN,
     "pf_envelope_ok": NaN,
     "pf_stress_max": NaN,
-    "pf_stress_proxy": 1.1866671666666664,
+    "pf_stress_proxy": 1.1750188999999998,
     "pf_t_cycle_s": NaN,
     "pf_waveform_decimated": [],
     "planned_outage_max_frac_v391": NaN,
@@ -4837,17 +4837,17 @@
     "plasma_contract_sha256": "595cc3a967b2e34f8d3f9cfdc23451496c28a549100c6957f5dbbe11e7652be2",
     "plasma_fragility_class": "INFEASIBLE",
     "plasma_greenwald_margin_frac": 0.15000000000000002,
-    "plasma_hmode_access_margin_frac": 1.0164581004974012,
-    "plasma_ignition_margin_frac": -0.15130520546250736,
-    "plasma_min_margin_frac": -0.15130520546250736,
+    "plasma_hmode_access_margin_frac": 0.7895333763540758,
+    "plasma_ignition_margin_frac": -0.16414422813665064,
+    "plasma_min_margin_frac": -0.16414422813665064,
     "plasma_q95_margin_frac": NaN,
     "plasma_regime": "H_burn",
-    "power_balance_residual_MW": -379.59339132869866,
+    "power_balance_residual_MW": -346.47749868349445,
     "power_balance_tol_MW": NaN,
     "prad_core_frac_max_v399": NaN,
     "prad_total_frac_max_v399": NaN,
     "profile_assumption_tag": "PROFILE:moderate",
-    "profile_f_bootstrap_proxy": 0.3480682909968254,
+    "profile_f_bootstrap_proxy": 0.3726651362661713,
     "profile_j_peaking": 1.1,
     "profile_li_proxy": 0.685,
     "profile_mode": false,
@@ -4856,25 +4856,25 @@
     "profile_peaking_T": 1.5,
     "profile_peaking_ne": 1.0,
     "profile_proxy_v397_enabled": false,
-    "profile_qmin_proxy": 0.9891807063962769,
+    "profile_qmin_proxy": 0.9436720516533748,
     "profile_validity": {},
     "pulse_min_s": 10.0,
     "pulse_scenario_used": "as_input",
     "q0_min": NaN,
-    "q0_proxy": 1.157142857142857,
+    "q0_proxy": 1.1418719211822659,
     "q95_max": NaN,
     "q95_min": NaN,
     "q95_proc_fq": 1.832974531603097,
-    "q95_proxy": 2.314285714285714,
-    "q_div_MW_m2": 534.2682425246835,
-    "q_div_W_m2": 534268242.5246835,
+    "q95_proxy": 2.2837438423645318,
+    "q_div_MW_m2": 436.3766053091533,
+    "q_div_W_m2": 436376605.3091533,
     "q_div_max_MW_m2": 10.0,
     "q_div_max_W_m2": 10000000.0,
     "q_div_target_MW_m2": NaN,
     "q_div_unit_suspect": 0.0,
     "q_div_with_SOL_rad_MW_m2": NaN,
-    "q_midplane_MW_m2": 85086.80360874062,
-    "q_midplane_W_m2": 85086803608.74062,
+    "q_midplane_MW_m2": 58863.493964503294,
+    "q_midplane_W_m2": 58863493964.503296,
     "q_midplane_max_MW_m2": NaN,
     "quench_energy_density_max_MJ_m3": NaN,
     "quench_proxy_margin": NaN,
@@ -4930,7 +4930,7 @@
     "replacement_cost_MUSD_per_year_v367_total": NaN,
     "replacement_cost_max_MUSD_per_y_v384": NaN,
     "rho_ped": NaN,
-    "rho_star": 0.0020918509277681034,
+    "rho_star": 0.0023147530758089664,
     "rwm_bandwidth_max_Hz": NaN,
     "rwm_bandwidth_req_Hz": NaN,
     "rwm_betaN_ideal_wall": NaN,
@@ -4949,41 +4949,41 @@
     "shield_regime_v390": "OFF",
     "shield_required_cm_v390": NaN,
     "sigma_allow_MPa": 800.0,
-    "sigma_hoop_MPa": 5204.397395911251,
-    "sigma_vm_MPa": 5204.397395911252,
+    "sigma_hoop_MPa": 4250.329264238302,
+    "sigma_vm_MPa": 4250.329264238302,
     "sol_control_ok": NaN,
     "spectrum_frac_fw_v407": [],
     "spent_noncoil_m": 1.3,
     "stability_dominant_driver": "mhd",
     "stability_risk_components": {
       "control_budget": 0.0,
-      "mhd": 0.821170634920635,
+      "mhd": 0.8272790093048714,
       "rwm": 0.0,
       "vertical_stability": 0.24999999999999978
     },
-    "stability_risk_index": 0.39096825396825396,
+    "stability_risk_index": 0.39341160372194856,
     "stability_risk_tier": "LOW",
     "stack_ok": 1.0,
     "stack_repairs": [],
     "t_burn_s": 7200.0,
     "t_flat_s": NaN,
     "t_shield_m": 0.7,
-    "tauE_eff_s": 0.5309274458625142,
-    "tauE_envelope_max_s_v396": 0.21260463859737325,
-    "tauE_envelope_min_s_v396": 0.12784650049151516,
-    "tauE_required_s": 0.5309274458625142,
-    "tauE_s": 0.5309274458625142,
+    "tauE_eff_s": 0.6329710047745585,
+    "tauE_envelope_max_s_v396": 0.21865545137099712,
+    "tauE_envelope_min_s_v396": 0.1342580967373889,
+    "tauE_required_s": 0.6329710047745585,
+    "tauE_s": 0.6329710047745585,
     "tauE_scalings_v396": {
-      "IPB98(y,2)": 0.12784650049151516,
-      "ITER89-P": 0.21260463859737325
+      "IPB98(y,2)": 0.1342580967373889,
+      "ITER89-P": 0.21865545137099712
     },
-    "tauIPB98_s": 0.14944578495491365,
-    "tauITER89_s": 0.2195771265637528,
-    "tauScaling_s": 0.14944578495491365,
+    "tauIPB98_s": 0.15694060123924497,
+    "tauITER89_s": 0.22582637912462336,
+    "tauScaling_s": 0.15694060123924497,
     "tau_T_loss_s": 5.0,
     "tau_VS_s": NaN,
     "tau_dump_s": 10.0,
-    "tau_ei_s": 0.4796652969744376,
+    "tau_ei_s": 0.5237724507192135,
     "tau_fast": 2.6134999999999997,
     "tau_gamma": 1.4655,
     "tau_p_s": NaN,
@@ -5046,7 +5046,7 @@
     "transport_envelope_v396_enabled": true,
     "transport_spread_cap_enabled_v396": false,
     "transport_spread_max_v396": NaN,
-    "transport_spread_ratio_v396": 1.662967995056566,
+    "transport_spread_ratio_v396": 1.6286202224264423,
     "tritium_fuelcycle_contract_sha256": "ba273fb304d5ec339412c82e70cae3ac0d95ba0ea3efd60dcf42d391d0b1d2ec",
     "tritium_fuelcycle_validity": "",
     "tritium_inventory_max_g": NaN,
@@ -5071,13 +5071,13 @@
       "commission_baseline_years": 1.5,
       "outage_baseline_days_per_year": 60.0
     },
-    "build_years": 5.479683607527394,
+    "build_years": 5.397086675157017,
     "commission_years": 1.5,
-    "delivery_risk_proxy": 0.5144439019388447,
+    "delivery_risk_proxy": 0.5094047525353933,
     "outage_days_per_year": 60.0
   },
   "provenance": {
-    "created_unix": 1783022185.236511,
+    "created_unix": 1783022182.8948376,
     "pid": 6684,
     "platform": "Windows-10-10.0.19045-SP0",
     "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
@@ -5094,8 +5094,8 @@
   "regime_summary": "confinement_regime=H-LIKE; exhaust_regime=ATTACHED-LIKE; magnet_regime=UNKNOWN; greenwald_state=UNKNOWN; betaN_state=UNKNOWN",
   "regime_transitions": {
     "context": {
-      "H98": 3.5526424918754977,
-      "q_div_MW_m2_proxy": 534.2682425246835
+      "H98": 4.033188351366378,
+      "q_div_MW_m2_proxy": 436.3766053091533
     },
     "labels": {
       "betaN_state": "UNKNOWN",
@@ -5115,7 +5115,7 @@
         "evidence": {
           "kpis": {
             "feasible_hard": false,
-            "min_hard_margin": -4404.397395911252
+            "min_hard_margin": -3450.329264238302
           }
         },
         "id": "REQ-FEAS-01",
@@ -5149,18 +5149,18 @@
   "tables": {
     "economics": {},
     "plasma": {
-      "B0_T": 13.5,
-      "H98": 3.5526424918754977,
-      "Ip_MA": 9.5,
-      "Q_DT_eqv": 29.521883893141542,
+      "B0_T": 12.2,
+      "H98": 4.033188351366378,
+      "Ip_MA": 8.7,
+      "Q_DT_eqv": 26.814136702462605,
       "Te_keV": 10.0,
       "Ti_keV": 10.0,
-      "beta_N": 2.831657208888889,
-      "nGW": 9.307306613561131
+      "beta_N": 3.1333911737704914,
+      "nGW": 8.52353342505072
     },
     "power_balance": {
-      "Paux_MW": 30.0,
-      "Pfus_DT_adj_MW": 885.6565167942463
+      "Paux_MW": 25.0,
+      "Pfus_DT_adj_MW": 670.3534175615652
     },
     "regimes": {
       "betaN_state": "UNKNOWN",
@@ -5178,20 +5178,20 @@
       "TBR_required_fuelcycle": 1.056,
       "TBR_self_sufficiency_margin": NaN,
       "TBR_self_sufficiency_required": NaN,
-      "T_burn_kg_per_day": 0.13656341335676564,
+      "T_burn_kg_per_day": 0.10337893740171639,
       "T_in_vessel_max_kg": NaN,
-      "T_in_vessel_required_kg": 0.13656341335676564,
-      "T_inventory_required_kg": 0.4096902400702969,
-      "T_inventory_reserve_kg": 0.4096902400702969,
+      "T_in_vessel_required_kg": 0.10337893740171639,
+      "T_inventory_required_kg": 0.31013681220514916,
+      "T_inventory_reserve_kg": 0.31013681220514916,
       "T_loss_fraction": NaN,
-      "T_processing_required_g_per_day": 170.70426669595705,
+      "T_processing_required_g_per_day": 129.2236717521455,
       "T_startup_inventory_kg": 0.0,
       "T_total_inventory_max_kg": NaN,
-      "T_total_inventory_required_kg": 0.5462536534270626,
+      "T_total_inventory_required_kg": 0.41351574960686555,
       "tritium_fuelcycle_contract_sha256": "ba273fb304d5ec339412c82e70cae3ac0d95ba0ea3efd60dcf42d391d0b1d2ec"
     }
   },
-  "timestamp": "2026-07-02T19:56:25Z",
+  "timestamp": "2026-07-02T19:56:22Z",
   "verification": {
     "report": {
       "baseline_model_cards": {
@@ -5748,17 +5748,17 @@
   "verification_checks": {
     "checks": [
       {
-        "detail": "value=3.5526424918754977",
+        "detail": "value=4.033188351366378",
         "name": "finite:H98",
         "ok": true
       },
       {
-        "detail": "value=29.521883893141542",
+        "detail": "value=26.814136702462605",
         "name": "finite:Q_DT_eqv",
         "ok": true
       },
       {
-        "detail": "value=885.6565167942463",
+        "detail": "value=670.3534175615652",
         "name": "finite:Pfus_DT_adj_MW",
         "ok": true
       },
@@ -5778,12 +5778,12 @@
         "ok": true
       },
       {
-        "detail": "value=30.0",
+        "detail": "value=25.0",
         "name": "nonneg:Paux_MW",
         "ok": true
       },
       {
-        "detail": "value=98.32822122215097",
+        "detail": "value=85.10882403411246",
         "name": "nonneg:P_LH_MW",
         "ok": true
       }

@@ -59,7 +59,7 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
 
     # Geometry / build
     add_bool("Radial build closes", "radial_build_ok", description="Inboard radial build feasibility (1=ok).")
-    add("Inboard stack closes", "stack_ok", units="bool", description="Inboard stack including TF coil fits inside R0-a (1=ok).")
+    add_bool("Inboard stack closes", "stack_ok", description="Inboard stack including TF coil fits inside R0-a (1=ok).")
 
     # Shaping (optional screening bounds; NaN disables)
     add("Elongation (kappa)", "kappa", hi_key="kappa_max", units="-", description="Optional cap on elongation proxy.")

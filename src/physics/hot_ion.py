@@ -708,7 +708,9 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # ---------------------------
     # Thermal stored energy and confinement
     # ---------------------------
-    W_J = 3.0 * ne_m3 * ((Te + Ti) * KEV_TO_J) * V
+    # Thermal stored energy (quasi-neutral, Ti=Te in keV units):
+    # W = (3/2) n_e k_B T_e + (3/2) n_i k_B T_i ≈ (3/2) n_e (T_i + T_e).
+    W_J = 1.5 * ne_m3 * ((Te + Ti) * KEV_TO_J) * V
     W_MJ = W_J / 1e6
 
     # ---------------------------------------------------------------------
