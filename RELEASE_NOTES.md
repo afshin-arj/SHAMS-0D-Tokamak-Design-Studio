@@ -1,3 +1,15 @@
+## v410.0.0 — Governance & Confinement Consistency (PROPOSAL-002–006)
+
+User-approved governance batch implementing audit proposals 002–006:
+
+- βN proxy constraint wiring (`constraints.py`)
+- v396 transport envelope uses SOL power (`P_SOL_MW`) for τE scalings
+- ITER89-P R exponent corrected to published 1.2
+- v398 control ledger runs after v397 profile merge and CS flux computation
+- `confinement_mult` / profile-family multipliers applied to `H_required` consistently with `H98`
+
+See `docs/patch_notes/PATCH_NOTES_v410.md`. Golden and benchmark artifacts regenerated.
+
 ## v409.0.0 — L0 Frozen Truth: Thermal Stored Energy Prefactor Correction
 
 **Breaking physics baseline change (intentional, user-approved).**

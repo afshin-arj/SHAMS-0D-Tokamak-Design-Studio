@@ -161,11 +161,8 @@ def tauE_iter89p(
     Prefactor: 0.048, per the published ITER89-P scaling
     (Yushmanov et al., Nucl. Fusion 30 (1990) 1999):
         τE = 0.048 · Ip^0.85 · R^1.2 · a^0.3 · κ^0.5 · n20^0.1 · B^0.2 · M^0.5 · P^-0.5
-    The prefactor was previously 0.038 (~21% low), which is corrected here.
-
-    NOTE (unresolved): the R exponent below is 1.5, whereas the published
-    ITER89-P uses R^1.2. That discrepancy is intentionally left unchanged in this
-    Tier-2 prefactor-only fix and is flagged for a follow-up decision.
+    The prefactor was previously 0.038 (~21% low), corrected in Tier-2.
+    The R exponent was previously 1.5; corrected to published 1.2 in v410.0.0.
     """
     if Ploss_MW <= 0.0:
         return float("inf")
@@ -176,7 +173,7 @@ def tauE_iter89p(
         * (Bt_T ** 0.20)
         * (ne20 ** 0.10)
         * (Ploss_MW ** -0.50)
-        * (R_m ** 1.50)
+        * (R_m ** 1.20)
         * (a_m ** 0.30)
         * (kappa ** 0.50)
         * (M_amu ** 0.50)

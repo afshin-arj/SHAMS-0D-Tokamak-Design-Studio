@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v409.0.0 — L0 frozen truth: thermal stored energy prefactor correction (W_J 3.0→1.5; H98/τE rebaselined)
+**Current version:** v410.0.0 — Governance batch: βN wiring, ITER89-P R exponent, v396 Ploss, v398 order, confinement_mult symmetry
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,16 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v409.0.0 (Thermal Stored Energy Prefactor Correction)
+## Latest upgrade — v410.0.0 (Governance & Confinement Consistency)
+
+- **PROPOSAL-002:** `betaN_proxy` constraint wiring in `constraints.py`
+- **PROPOSAL-003:** v396 envelope prefers `P_SOL_MW` for τE scalings
+- **PROPOSAL-004:** ITER89-P R exponent 1.5 → 1.2 (published scaling)
+- **PROPOSAL-005:** v398 evaluated after v397 merge + CS flux fields
+- **PROPOSAL-006:** `confinement_mult` applied consistently to `H_required`
+- Golden/benchmark baselines regenerated. See `docs/patch_notes/PATCH_NOTES_v410.md`.
+
+## Prior upgrade — v409.0.0 (Thermal Stored Energy Prefactor Correction)
 
 - **L0 frozen-truth fix:** `W_J = 1.5 × n_e (T_i + T_e) V` (was 3.0 — double-counting bug).
 - W-dependent metrics (`W_MJ`, `tauE_s`, `H98`, `H_required`) scale ~×0.5; power balance unchanged.

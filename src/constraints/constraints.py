@@ -214,6 +214,28 @@ def evaluate_constraints(
             ge("q0", q0_val, q0_min, units="-", note="User q0 lower bound", severity="soft", group="plasma")
     if "betaN" in outputs:
         le("betaN", outputs["betaN"], 3.0, units="-", note="Proxy normalized beta limit", group="plasma")
+    betaN_val = outputs.get("betaN_proxy", outputs.get("beta_N", float("nan")))
+    if betaN_val == betaN_val:
+        betaN_max = outputs.get("betaN_max", float("nan"))
+        if betaN_max == betaN_max:
+            le(
+                "betaN_proxy",
+                betaN_val,
+                betaN_max,
+                units="-",
+                note="Normalized beta proxy vs user cap (betaN_max)",
+                group="plasma",
+            )
+        betaN_troyon = outputs.get("betaN_troyon_max", float("nan"))
+        if betaN_troyon == betaN_troyon:
+            le(
+                "betaN_troyon",
+                betaN_val,
+                betaN_troyon,
+                units="-",
+                note="Troyon betaN cap (betaN_troyon_max)",
+                group="plasma",
+            )
     if "fG" in outputs:
         le("fG", outputs["fG"], 1.0, units="-", note="Greenwald fraction should be ≤ 1", group="plasma")
 

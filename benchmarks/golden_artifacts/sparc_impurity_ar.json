@@ -1981,7 +1981,7 @@
   },
   "coupling_severity_max": 0,
   "coupling_summary": "No strong plasma\u2013engineering coupling flags triggered.",
-  "created_unix": 1783022185.596806,
+  "created_unix": 1783024597.2908297,
   "decision_consequences": {
     "decision_posture": "HOLD_FOUNDATIONAL",
     "dominant_constraint": "q_div",
@@ -2786,11 +2786,11 @@
   },
   "label": "",
   "meta": {
-    "created_unix": 1783022185.596806,
+    "created_unix": 1783024597.2908297,
     "label": "",
     "mode": "point",
     "notes": "",
-    "shams_version": "v409.0.0"
+    "shams_version": "v410.0.0"
   },
   "mode": "point",
   "model_cards": {
@@ -4969,16 +4969,16 @@
     "t_flat_s": NaN,
     "t_shield_m": 0.7,
     "tauE_eff_s": 0.5185889529418499,
-    "tauE_envelope_max_s_v396": 0.20936175410608188,
-    "tauE_envelope_min_s_v396": 0.12644731154440195,
+    "tauE_envelope_max_s_v396": 0.19001937336928226,
+    "tauE_envelope_min_s_v396": 0.14269916487978396,
     "tauE_required_s": 0.5185889529418499,
     "tauE_s": 0.5185889529418499,
     "tauE_scalings_v396": {
-      "IPB98(y,2)": 0.12644731154440195,
-      "ITER89-P": 0.20936175410608188
+      "IPB98(y,2)": 0.14269916487978396,
+      "ITER89-P": 0.19001937336928226
     },
     "tauIPB98_s": 0.13677556864147433,
-    "tauITER89_s": 0.20440635485478403,
+    "tauITER89_s": 0.16995849435825136,
     "tauScaling_s": 0.13677556864147433,
     "tau_T_loss_s": 5.0,
     "tau_VS_s": NaN,
@@ -5042,11 +5042,11 @@
       "version": "v371.0"
     },
     "transport_contracts_v371_enabled": false,
-    "transport_credibility_tier_v396": "moderate",
+    "transport_credibility_tier_v396": "tight",
     "transport_envelope_v396_enabled": true,
     "transport_spread_cap_enabled_v396": false,
     "transport_spread_max_v396": NaN,
-    "transport_spread_ratio_v396": 1.6557232538120397,
+    "transport_spread_ratio_v396": 1.331608166938909,
     "tritium_fuelcycle_contract_sha256": "ba273fb304d5ec339412c82e70cae3ac0d95ba0ea3efd60dcf42d391d0b1d2ec",
     "tritium_fuelcycle_validity": "",
     "tritium_inventory_max_g": NaN,
@@ -5077,12 +5077,12 @@
     "outage_days_per_year": 60.0
   },
   "provenance": {
-    "created_unix": 1783022185.601015,
-    "pid": 6684,
+    "created_unix": 1783024597.2940083,
+    "pid": 9016,
     "platform": "Windows-10-10.0.19045-SP0",
     "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
     "release_notes_excerpt": "## v409.0.0 \u2014 L0 Frozen Truth: Thermal Stored Energy Prefactor Correction\n\n**Breaking physics baseline change (intentional, user-approved).**\n\n- Corrected thermal stored energy in `src/physics/hot_ion.py`: prefactor **3.0 \u2192 1.5** on `n_e (T_i + T_e) V`.\n- Aligns with standard quasi-neutral closure \\(W = \\frac{3}{2} n_e (T_i + T_e)\\) and the existing ion\u2013electron equilibration term (already used 1.5).\n- **Expected ~\u00d70.5 change** in W-dependent outputs: `W_MJ`, `tauE_s`, `H98`, `H_required`, particle-balance times, disruption severity proxies tied to stored energy.\n- **Unchanged:** fusion power, heating power, SOL power, `Q_DT_eqv`, and other direct power-balance scalars.\n- Regenerated: `tests/golden/*.json` (10 cases), `benchmarks/golden.json`, `benchmarks/golden_artifacts/*.json`, `src/validation/baselines/baseline_v2230.json` (H98 envelope).\n- Documentation: `docs/patch_notes/PATCH_NOTES_v409.md`, `docs/PHYSICAL_MODELS_0D.md` (thermal stored energy section).\n\n**Migration:** Re-baseline any external studies or scripts that assumed the prior 2\u00d7 stored-energy convention.\n\n## v408.0.0 \u2014 Nuclear Dataset Intake & Provenance Builder\n\n- Firewalled intake pathway for external multi-group screening datasets (JSON + metadata/CSV).\n- Strict validation, SHA-256 pinning, optional evidence cards under `data/nuclear_datasets/`.\n- UI upload \u2192 validate \u2192 save workflow; v407 selectors list all registry datasets.\n- See `docs/patch_notes/PATCH_NOTES_v408.md`.\n\nFrozen-truth discipline preserved: intake is tooling-only on explicit user action.\n\n## v407.0.0 \u2014 Nuclear Data Authority Deepening (multi-group + dataset provenance)\n\n- Added deterministic multi-group neutronics screening overlay `src/analysis/nuclear_data_authority_v407.py`.\n- Introduced nuclear dataset registry (`src/nuclear_data/`) with explicit metadata and **SHA-256 provenance pinning**.\n- Outputs include per-group attenuation, TF-case fluence per group/total, and a bounded multi-group TBR proxy.\n- v401 contract tiers now prefer v407 TF-case fluence when enabled.\n- UI wiring: new Point Designer expander **\u201c\ud83d\udcda Nuclear Data Authority Deepening \u2014 v407.0.0\u201d** and Physics deck ledger view.\n\nFrozen-truth discipline preserved: v407 is governance-only and does **not** alter upstream TRUTH outputs.\n\n## v403.0.0 \u2014 Neutronics & Materials Authority 4.0 (Library Stack)\n\n- Added deterministic library-backed stack authority `src/analysis/neutronics_materials_library_v403.py`.\n- Explicit user-declared multi-layer stack (JSON): material + thickness + density factor.\n- 3-group attenuation ledger (fast/epi/therm) and transmitted fractions.\n- Derived deterministic ledgers:\n  - `dpa_fw_v403` (DPA/FPY proxy)\n  - `he_appm_fw_v403` (appm/FPY proxy)\n  - `activation_index_v403` and `cooldown_burden_days_v403`\n  - `tbr_proxy_v403` (TBR-lite proxy from breeder layers)\n- Constraint-ready margins and dominance attribution:\n  - `nm_contract_items_v403`, `nm_min_margin_frac_v403`, `nm_dominant_driver_v403`, `nm_regime_tier_v403`\n- UI wiring:\n  - Point Designer adds expander **\u201c\ud83e\uddf1 Neutronics & Materials Library Stack \u2014 v403.0.0\u201d**.\n  - Physics deck \u2192 **Neutronics & Nuclear Loads** shows v403 tier, margins, and stack ledger.\n- Governance integration:\n  - v402 Authority Dominance Engine now prefers v403 NM margin when enabled (fallback to v401).\n\nFrozen-truth discipline preserved: v403 is governance-only and does **not** alter upstream TRUTH outputs.\n\n## v399.0.0 \u2014 Impurity Species & Radiation Partition Authority (Multi-species, Zeff, detachment margin)\n- Added v399 multi-species impurity mix authority (proxy Lz envelopes) with explicit Zeff and core/edge/SOL/div partitions.\n- Added detachment achieved margin diagnostic vs required SOL+div radiation budget.\n- Added optional explicit feasibility caps: Zeff, Prad_core/Pin, Prad_total/Pin, detachment margin.\n- UI: new v399 expander in Point Designer and extended Impurity & Radiation tab outputs.\n\n## v402.0.0 \u2014 Authority Dominance Engine 2.0 (Global regime & dominance ranking)",
-    "repo_version": "v409.0.0"
+    "repo_version": "v410.0.0"
   },
   "regime_labels": {
     "betaN_state": "UNKNOWN",
@@ -5144,7 +5144,7 @@
     ]
   },
   "schema_version": "run_artifact.v2",
-  "shams_version": "v409.0.0",
+  "shams_version": "v410.0.0",
   "solver": null,
   "tables": {
     "economics": {},
@@ -5191,7 +5191,7 @@
       "tritium_fuelcycle_contract_sha256": "ba273fb304d5ec339412c82e70cae3ac0d95ba0ea3efd60dcf42d391d0b1d2ec"
     }
   },
-  "timestamp": "2026-07-02T19:56:25Z",
+  "timestamp": "2026-07-02T20:36:37Z",
   "verification": {
     "report": {
       "baseline_model_cards": {
@@ -5665,10 +5665,10 @@
           "version": "v1"
         }
       },
-      "elapsed_s": 25.944135427474976,
+      "elapsed_s": 22.41614603996277,
       "overall_ok": true,
       "project": "SHAMS\u2013FUSION-X",
-      "ran_unix": 1783021817.30662,
+      "ran_unix": 1783024544.931276,
       "requirements": [
         {
           "id": "REQ-REG-001",
@@ -5677,7 +5677,7 @@
           ],
           "note": "",
           "ok": true,
-          "seconds": 13.629594802856445,
+          "seconds": 12.414154291152954,
           "title": "Regression benchmarks must pass"
         },
         {
@@ -5687,7 +5687,7 @@
           ],
           "note": "",
           "ok": true,
-          "seconds": 0.07036304473876953,
+          "seconds": 0.07214021682739258,
           "title": "Inboard radial stack closure must be computed and reported"
         },
         {
@@ -5697,7 +5697,7 @@
           ],
           "note": "",
           "ok": true,
-          "seconds": 0.04700803756713867,
+          "seconds": 0.044740915298461914,
           "title": "Baseline case should have a closing inboard stack"
         },
         {
@@ -5707,7 +5707,7 @@
           ],
           "note": "",
           "ok": true,
-          "seconds": 0.043193817138671875,
+          "seconds": 0.03791046142578125,
           "title": "A deliberately overbuilt coil case should fail inboard stack closure"
         },
         {
@@ -5719,7 +5719,7 @@
           ],
           "note": "",
           "ok": true,
-          "seconds": 5.245208740234375e-06,
+          "seconds": 4.291534423828125e-06,
           "title": "Model card index must be emitted for audited outputs"
         },
         {
@@ -5729,7 +5729,7 @@
           ],
           "note": "",
           "ok": true,
-          "seconds": 11.72289252281189,
+          "seconds": 9.424656391143799,
           "title": "Feasibility topology regression must remain stable"
         },
         {
@@ -5737,13 +5737,13 @@
           "model_cards": [],
           "note": "",
           "ok": true,
-          "seconds": 0.43103528022766113,
+          "seconds": 0.4224991798400879,
           "title": "Import policy: forbid legacy shams_v1941 imports in runtime paths"
         }
       ],
       "schema_version": 1
     },
-    "report_hash": "1eb8f9efd06c76ac6ef9b4f4dba769c9de3799101a920692ce8759bd54bc4740"
+    "report_hash": "cd4b324549af9da1fd0f63371916cd7b6a39d0674d1a0d739d29e99ed70dd3fd"
   },
   "verification_checks": {
     "checks": [
@@ -5791,5 +5791,5 @@
     "overall_ok": true,
     "schema_version": "verification_checks.v1"
   },
-  "version": "v409.0.0"
+  "version": "v410.0.0"
 }

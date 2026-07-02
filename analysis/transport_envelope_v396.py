@@ -103,8 +103,13 @@ def evaluate_transport_envelope_v396(
     M_amu = float(getattr(inp, "M_amu", 2.5) or 2.5)
 
     ne20 = float(out_partial.get("ne20", float("nan")))
-    # Use Pin_MW or Ploss proxy if provided
-    Ploss_MW = float(out_partial.get("Pin_MW", out_partial.get("P_SOL_MW", float("nan"))))
+    # Prefer SOL/loss power for empirical τE scalings (IPB98, ITER89-P).
+    Ploss_MW = float(
+        out_partial.get(
+            "P_SOL_MW",
+            out_partial.get("Ploss_MW", out_partial.get("Pin_MW", float("nan"))),
+        )
+    )
 
     scalings: List[Tuple[str, float]] = []
 

@@ -1303,16 +1303,16 @@
     "t_flat_s": "__nan__",
     "t_shield_m": 0.7,
     "tauE_eff_s": 0.2696173623242804,
-    "tauE_envelope_max_s_v396": 0.1736962501039926,
+    "tauE_envelope_max_s_v396": 0.14442385200950086,
     "tauE_envelope_min_s_v396": 0.09796775844902261,
     "tauE_required_s": 0.2696173623242804,
     "tauE_s": 0.2696173623242804,
     "tauE_scalings_v396": {
       "IPB98(y,2)": 0.09796775844902261,
-      "ITER89-P": 0.1736962501039926
+      "ITER89-P": 0.14442385200950086
     },
     "tauIPB98_s": 0.09390101113544762,
-    "tauITER89_s": 0.15535864906773295,
+    "tauITER89_s": 0.1291766202662454,
     "tauScaling_s": 0.09390101113544762,
     "tau_T_loss_s": 5.0,
     "tau_VS_s": "__nan__",
@@ -1375,11 +1375,11 @@
       "version": "v371.0"
     },
     "transport_contracts_v371_enabled": false,
-    "transport_credibility_tier_v396": "moderate",
+    "transport_credibility_tier_v396": "tight",
     "transport_envelope_v396_enabled": true,
     "transport_spread_cap_enabled_v396": false,
     "transport_spread_max_v396": "__nan__",
-    "transport_spread_ratio_v396": 1.7729940222565692,
+    "transport_spread_ratio_v396": 1.4741977799221733,
     "tritium_fuelcycle_validity": "",
     "tritium_inventory_max_g": "__nan__",
     "tritium_retention": 0.5,

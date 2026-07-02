@@ -29,13 +29,8 @@ def _base(**overrides):
 # ---------------------------------------------------------------------------
 
 
-def test_iter89p_uses_0048_prefactor():
-    """The function must use the published 0.048 prefactor, not 0.038.
-
-    We reconstruct the value using the SAME exponent structure the function
-    implements (R^1.5, a^0.3, eps^0) and the corrected prefactor, so this pins
-    only the prefactor and is robust to the (separately flagged) R-exponent.
-    """
+def test_iter89p_uses_0048_prefactor_and_r12_exponent():
+    """Pins published ITER89-P prefactor (0.048) and R exponent (1.2)."""
     Ip, Bt, ne20, Ploss, R, a, kappa, M = 15.0, 5.3, 1.0, 150.0, 6.2, 2.0, 1.6, 2.5
     got = tauE_iter89p(Ip_MA=Ip, Bt_T=Bt, ne20=ne20, Ploss_MW=Ploss,
                        R_m=R, a_m=a, kappa=kappa, M_amu=M)
@@ -43,12 +38,9 @@ def test_iter89p_uses_0048_prefactor():
     expected = (
         0.048
         * Ip ** 0.85 * Bt ** 0.20 * ne20 ** 0.10 * Ploss ** -0.50
-        * R ** 1.50 * a ** 0.30 * kappa ** 0.50 * M ** 0.50 * eps ** 0.00
+        * R ** 1.20 * a ** 0.30 * kappa ** 0.50 * M ** 0.50 * eps ** 0.00
     )
     assert got == pytest.approx(expected, rel=1e-12)
-    # And explicitly verify the prefactor ratio vs the old 0.038 implementation.
-    expected_old = expected * (0.038 / 0.048)
-    assert got == pytest.approx(expected_old * (0.048 / 0.038), rel=1e-12)
 
 
 def test_iter89p_nonpositive_power_returns_inf():

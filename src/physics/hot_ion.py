@@ -839,8 +839,14 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         H_regime = float('nan')
 
     # --- Derived (transparent) performance requirements ---
-    # tauE_required is the energy confinement time implied by steady-state power balance W/Ploss.
-    tauE_required_s = (W_MJ / max(Ploss_MW, 1e-9))
+    # tauE_required is the energy confinement time implied by steady-state power balance W/Ploss,
+    # using the same confinement multipliers as achieved tauE/H98 for consistent feasibility readout.
+    _cm_req = max(float(getattr(inp, "confinement_mult", 1.0) or 0.0), 0.0)
+    tauE_required_s = (
+        (W_MJ / max(Ploss_MW, 1e-9))
+        * _cm_req
+        * max(pf_confinement_mult_eff, 0.0)
+    )
     # "Required H" expresses how much confinement (relative to IPB98(y,2)) is needed
     # to sustain the computed (Ti,Te,ne) operating point.
     H_required = tauE_required_s / max(tauIPB_s, 1e-12)
@@ -935,48 +941,7 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             "profile_proxy_v397_error": f"{type(e).__name__}: {e}",
         }
 
-
-    # -----------------------------------------------------------------
-    # v398.0: Control & Stability Ledger Authority (governance-only; no truth edits)
-    # -----------------------------------------------------------------
-    control_stability_v398: Dict[str, Any] = {}
-    try:
-        if evaluate_control_stability_v398 is None:
-            raise RuntimeError("control stability v398 module not importable")
-        control_stability_v398 = evaluate_control_stability_v398(
-            inp=inp,
-            out_partial={
-                # CS flux swing (volt-second budget)
-                "cs_flux_required_Wb": out.get("cs_flux_required_Wb"),
-                "cs_flux_available_Wb": out.get("cs_flux_available_Wb"),
-                "cs_flux_margin": out.get("cs_flux_margin"),
-                # VS contracts
-                "vs_margin": out.get("vs_margin"),
-                "vs_control_power_req_MW": out.get("vs_control_power_req_MW"),
-                "vs_control_power_max_MW": out.get("vs_control_power_max_MW"),
-                "vs_bandwidth_req_Hz": out.get("vs_bandwidth_req_Hz"),
-                "vs_bandwidth_max_Hz": out.get("vs_bandwidth_max_Hz"),
-                # RWM contracts
-                "rwm_chi": out.get("rwm_chi"),
-                "rwm_control_power_req_MW": out.get("rwm_control_power_req_MW"),
-                "rwm_control_power_max_MW": out.get("rwm_control_power_max_MW"),
-                "rwm_bandwidth_req_Hz": out.get("rwm_bandwidth_req_Hz"),
-                "rwm_bandwidth_max_Hz": out.get("rwm_bandwidth_max_Hz"),
-                # v397 profile proxies (optional)
-                "q0_proxy_v397": out.get("q0_proxy_v397"),
-                "q95_proxy_v397": out.get("q95_proxy_v397"),
-                "li_proxy_v397": out.get("li_proxy_v397"),
-                "profile_peaking_p_v397": out.get("profile_peaking_p_v397"),
-                "bootstrap_localization_index_v397": out.get("bootstrap_localization_index_v397"),
-            },
-        )
-    except Exception as e:
-        control_stability_v398 = {
-            "control_stability_v398_enabled": False,
-            "control_stability_v398_error": f"{type(e).__name__}: {e}",
-        }
-
-# ---------------------------
+    # ---------------------------
     # Particle sustainability (optional diagnostic closure)
     # ---------------------------
     tau_p_s = float("nan")
@@ -3435,7 +3400,40 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         pass
 
 
-    # v398.0 control & stability ledger authority (governance-only diagnostics)
+    # v398.0 control & stability ledger (after v397 merge + CS flux fields in out)
+    control_stability_v398: Dict[str, Any] = {}
+    try:
+        if evaluate_control_stability_v398 is None:
+            raise RuntimeError("control stability v398 module not importable")
+        control_stability_v398 = evaluate_control_stability_v398(
+            inp=inp,
+            out_partial={
+                "cs_flux_required_Wb": out.get("cs_flux_required_Wb"),
+                "cs_flux_available_Wb": out.get("cs_flux_available_Wb"),
+                "cs_flux_margin": out.get("cs_flux_margin"),
+                "vs_margin": out.get("vs_margin"),
+                "vs_control_power_req_MW": out.get("vs_control_power_req_MW"),
+                "vs_control_power_max_MW": out.get("vs_control_power_max_MW"),
+                "vs_bandwidth_req_Hz": out.get("vs_bandwidth_req_Hz"),
+                "vs_bandwidth_max_Hz": out.get("vs_bandwidth_max_Hz"),
+                "rwm_chi": out.get("rwm_chi"),
+                "rwm_control_power_req_MW": out.get("rwm_control_power_req_MW"),
+                "rwm_control_power_max_MW": out.get("rwm_control_power_max_MW"),
+                "rwm_bandwidth_req_Hz": out.get("rwm_bandwidth_req_Hz"),
+                "rwm_bandwidth_max_Hz": out.get("rwm_bandwidth_max_Hz"),
+                "q0_proxy_v397": out.get("q0_proxy_v397"),
+                "q95_proxy_v397": out.get("q95_proxy_v397"),
+                "li_proxy_v397": out.get("li_proxy_v397"),
+                "profile_peaking_p_v397": out.get("profile_peaking_p_v397"),
+                "bootstrap_localization_index_v397": out.get("bootstrap_localization_index_v397"),
+            },
+        )
+    except Exception as e:
+        control_stability_v398 = {
+            "control_stability_v398_enabled": False,
+            "control_stability_v398_error": f"{type(e).__name__}: {e}",
+        }
+
     try:
         if isinstance(control_stability_v398, dict):
             for k, v in control_stability_v398.items():

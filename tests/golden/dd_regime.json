@@ -1275,16 +1275,16 @@
     "t_flat_s": "__nan__",
     "t_shield_m": 0.7,
     "tauE_eff_s": 4.828605661476508,
-    "tauE_envelope_max_s_v396": 1.0325819033403538,
+    "tauE_envelope_max_s_v396": 0.7426567506317253,
     "tauE_envelope_min_s_v396": 0.7097096281955371,
     "tauE_required_s": 4.828605661476508,
     "tauE_s": 4.828605661476508,
     "tauE_scalings_v396": {
       "IPB98(y,2)": 0.7097096281955371,
-      "ITER89-P": 1.0325819033403538
+      "ITER89-P": 0.7426567506317253
     },
     "tauIPB98_s": 0.6802488160918863,
-    "tauITER89_s": 0.9235693312820593,
+    "tauITER89_s": 0.6642523913446591,
     "tauScaling_s": 0.6802488160918863,
     "tau_T_loss_s": 5.0,
     "tau_VS_s": "__nan__",
@@ -1351,7 +1351,7 @@
     "transport_envelope_v396_enabled": true,
     "transport_spread_cap_enabled_v396": false,
     "transport_spread_max_v396": "__nan__",
-    "transport_spread_ratio_v396": 1.4549357403614933,
+    "transport_spread_ratio_v396": 1.0464233837716947,
     "tritium_fuelcycle_validity": "",
     "tritium_inventory_max_g": "__nan__",
     "tritium_retention": 0.5,
