@@ -61,7 +61,7 @@ def compare_to_shams_intent(intent: str, cc: CrossCodeConstitution) -> Dict[str,
     citation_completeness = summarize_citation_completeness(citation_issues)
     return {
         "schema":"crosscode_comparison.v1",
-        "timestamp_utc": __import__("datetime").datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "timestamp_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "intent": intent,
         "baseline_constitution": baseline,
         "crosscode_constitution": {

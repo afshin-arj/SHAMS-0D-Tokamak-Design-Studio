@@ -251,6 +251,14 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Bioshield dose rate (v392)", "bioshield_dose_rate_uSv_h_v392", hi_key="bioshield_dose_rate_max_uSv_h_v392",
         units="uSv/h", description="Dose-rate proxy outside biological shield (v392). Optional cap.")
 
+    # Magnet Technology Authority (v400.0.0) — optional minima when enabled
+    add("MAG min margin (v400)", "magnet_v400_margin", lo_key="magnet_margin_min_v400", units="-",
+        description="Minimum normalized margin across v400 magnet technology contract items when enabled.")
+
+    # Structural Life Authority (v404.0.0) — optional minima when enabled
+    add("Struct min margin (v404)", "struct_global_min_margin_v404", lo_key="struct_min_margin_frac_v404", units="-",
+        description="Global minimum structural life margin (fatigue/creep/buckling) when v404 is enabled.")
+
     # Neutronics & Materials Authority 3.0 — Contract Tiers (v401.0.0) — governance overlay
     # Note: v401 does not introduce new truth quantities; it scores margins on existing proxies.
     add("NM contract min margin (v401)", "nm_min_margin_frac_v401", lo_key="nm_fragile_margin_frac_v401", units="-",
@@ -387,18 +395,6 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="PF coil stress proxy (screening).")
 
     # --- (v226.0) Envelope-based control contracts (optional) ---
-    add("VS control bandwidth required", "vs_bandwidth_req_Hz", hi_key="vs_bandwidth_max_Hz", units="Hz",
-    description="Vertical stability control bandwidth requirement (proxy) must be below max if set.")
-    add("VS control power required", "vs_control_power_req_MW", hi_key="vs_control_power_max_MW", units="MW",
-    description="Vertical stability control power requirement (proxy) must be below max if set.")
-    add("PF waveform peak current", "pf_I_peak_MA", hi_key="pf_I_peak_max_MA", units="MA",
-    description="Canonical PF waveform peak current must be below max if set.")
-    add("PF waveform peak voltage", "pf_V_peak_V", hi_key="pf_V_peak_max_V", units="V",
-    description="Canonical PF waveform peak voltage must be below max if set.")
-    add("PF waveform peak power", "pf_P_peak_MW", hi_key="pf_P_peak_max_MW", units="MW",
-    description="Canonical PF waveform peak electrical power must be below max if set.")
-    add("PF waveform dI/dt", "pf_dIdt_peak_MA_s", hi_key="pf_dIdt_max_MA_s", units="MA/s",
-    description="Canonical PF waveform peak current slew rate must be below max if set.")
     add("SOL radiation fraction required", "f_rad_SOL_required", hi_key="f_rad_SOL_max", units="-",
     description="If SOL radiation control is enabled, required SOL radiation fraction must be <= max if set.")
 
@@ -406,10 +402,6 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     # Enforces: beta_N <= beta_N_ideal-wall (screen) and required control authority within caps.
     add("RWM ideal-wall beta_N limit", "beta_N", hi_key="rwm_betaN_ideal_wall", units="-",
     description="If RWM screening is enabled, beta_N must remain below ideal-wall proxy limit; exceeding implies non-operable." )
-    add("RWM control bandwidth required", "rwm_bandwidth_req_Hz", hi_key="rwm_bandwidth_max_Hz", units="Hz",
-    description="RWM closed-loop bandwidth requirement (proxy) must be <= cap if set (defaults to VS cap if not provided).")
-    add("RWM control power required", "rwm_control_power_req_MW", hi_key="rwm_control_power_max_MW", units="MW",
-    description="RWM control power requirement (proxy) must be <= cap if set (defaults to VS power cap if not provided).")
     
     # --- Phase-2 engineering closures (PROCESS-inspired) ---
     add("TF current density", "tf_Jop_MA_per_mm2", hi_key="tf_Jop_limit_MA_per_mm2", units="MA/mm^2",
@@ -424,20 +416,12 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="TF peak field at winding pack (proxy) must be below allowable.")
     add("HTS margin", "tf_hts_margin", lo_key="hts_margin_min", units="-",
     description="HTS critical-surface margin Jc(B,T,ε)/Jop must exceed minimum if enabled.")
-    add("Magnet quench risk proxy", "magnet_quench_risk_proxy", hi_key="magnet_quench_risk_max", units="-",
-    description="Quench/protection risk proxy must be below cap if set (energy density relative to allowable).")
     add("Divertor heat flux", "q_parallel_MW_per_m2", hi_key="q_parallel_limit_MW_per_m2", units="MW/m^2",
     description="Parallel heat flux proxy must be below technology-mode limit.")
 
-    # --- (v287.0) Exhaust authority 2.0 ---
+    # --- (v287.0) Exhaust authority 2.0 (unique keys not covered above) ---
     add("Detachment access index", "detachment_index", hi_key="detachment_index_max", lo_key="detachment_index_min", units="-",
     description="Detachment access proxy must lie within optional [min,max] window if provided.")
-    add("Total radiation fraction", "f_rad_total", hi_key="f_rad_total_max", units="-",
-    description="Total radiated power fraction (core+div) must be below cap if set.")
-    add("Fuel ion fraction", "fuel_ion_fraction", lo_key="fuel_ion_fraction_min", units="-",
-    description="Fuel ion fraction (dilution/ash proxy) must exceed min if set.")
-    add("Effective Q", "Q_effective", lo_key="Q_effective_min", units="-",
-    description="Q degraded by fuel-ion fraction must exceed min if set.")
     add("Tritium breeding ratio", "TBR", lo_key="TBR_required", units="-",
     description="TBR proxy must meet required threshold.")
     add("Availability", "availability", lo_key="availability_min", units="-",

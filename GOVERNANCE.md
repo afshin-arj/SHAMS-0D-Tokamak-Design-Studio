@@ -66,7 +66,7 @@ Additive governance modules post-process `hot_ion_point` outputs. None mutate L0
 | v404 | `src/analysis/structural_life_authority_v404.py` | OFF | `constraints.py` | yes |
 | v406 | `src/extopt/frontier_intake_v406.py` | N/A | extopt intake | yes |
 | v407 | `src/analysis/nuclear_data_authority_v407.py` | OFF | not wired | yes |
-| v408 | `src/nuclear_data/intake.py` | N/A | tooling only | partial |
+| v408 | `src/nuclear_data/intake.py` | N/A | tooling only | yes |
 
 \* v402 schema default is ON but pipeline merge uses a relative import that can fail silently when `physics.hot_ion` is loaded as a top-level module; see audit PROPOSAL-007.
 
