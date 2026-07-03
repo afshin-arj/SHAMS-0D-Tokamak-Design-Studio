@@ -984,4 +984,18 @@ def evaluate_constraints(
                 group="neutronics",
             )
 
+    if "tf_case_fluence_n_m2_per_fpy_v407" in outputs:
+        lim = outputs.get("tf_case_fluence_max_n_m2_per_fpy_v407", float("nan"))
+        if lim != lim:
+            lim = outputs.get("tf_case_fluence_max_n_m2_per_fpy_v392", float("nan"))
+        if lim == lim:
+            le(
+                "TF case fluence (v407)",
+                outputs["tf_case_fluence_n_m2_per_fpy_v407"],
+                lim,
+                units="n/m^2/FPY",
+                note="TF case fluence proxy cap when v407 enabled",
+                group="neutronics",
+            )
+
     return cs

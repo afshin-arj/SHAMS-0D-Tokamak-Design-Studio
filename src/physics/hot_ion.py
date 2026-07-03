@@ -20,6 +20,19 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+
+def _record_overlay_failure(
+    out: Dict[str, Any],
+    *,
+    enabled_key: str,
+    error_key: str,
+    exc: Exception,
+) -> None:
+    """Stamp governance overlay import/eval failures for _authority_warnings aggregation."""
+    out[enabled_key] = False
+    out[error_key] = f"{type(exc).__name__}: {exc}"
+
+
 try:
     # Preferred when imported as `src.physics.*` (application/runtime)
     from ..models.inputs import PointInputs  # type: ignore
@@ -2035,14 +2048,24 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Governance-only overlay; no truth edits.
     # =========================================================================
     try:
-        from ..analysis.neutronics_materials_library_v403 import (
-            evaluate_neutronics_materials_library_v403,
-        )
+        try:
+            from analysis.neutronics_materials_library_v403 import (
+                evaluate_neutronics_materials_library_v403,
+            )
+        except ImportError:
+            from ..analysis.neutronics_materials_library_v403 import (
+                evaluate_neutronics_materials_library_v403,
+            )
         nm403 = evaluate_neutronics_materials_library_v403(out, inp)
         if isinstance(nm403, dict):
             out.update(nm403)
-    except Exception:
-        out.setdefault("include_neutronics_materials_library_v403", False)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_neutronics_materials_library_v403",
+            error_key="nm_library_v403_error",
+            exc=e,
+        )
 
     # =========================================================================
     # Added: Nuclear Data Authority Deepening (v407.0.0) — optional, algebraic
@@ -2054,8 +2077,13 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             nd407 = evaluate_nuclear_data_authority_v407(out, inp)
             if isinstance(nd407, dict):
                 out.update(nd407)
-    except Exception:
-        out.setdefault("include_nuclear_data_authority_v407", False)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_nuclear_data_authority_v407",
+            error_key="nuclear_data_authority_v407_error",
+            exc=e,
+        )
 
     # =========================================================================
     # Added: Structural Life Authority 3.0 (v404.0.0)
@@ -2063,14 +2091,24 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Governance-only overlay; no truth edits.
     # =========================================================================
     try:
-        from ..analysis.structural_life_authority_v404 import (
-            evaluate_structural_life_authority_v404,
-        )
+        try:
+            from analysis.structural_life_authority_v404 import (
+                evaluate_structural_life_authority_v404,
+            )
+        except ImportError:
+            from ..analysis.structural_life_authority_v404 import (
+                evaluate_structural_life_authority_v404,
+            )
         st404 = evaluate_structural_life_authority_v404(out, inp)
         if isinstance(st404, dict):
             out.update(st404)
-    except Exception:
-        out.setdefault("include_structural_life_v404", False)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_structural_life_v404",
+            error_key="structural_life_v404_error",
+            exc=e,
+        )
 
 
     # =========================================================================
@@ -2078,14 +2116,24 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Governance-only overlay: computes tiered margins + dominance.
     # =========================================================================
     try:
-        from ..analysis.neutronics_materials_authority_v401 import (
-            evaluate_neutronics_materials_authority_v401,
-        )
+        try:
+            from analysis.neutronics_materials_authority_v401 import (
+                evaluate_neutronics_materials_authority_v401,
+            )
+        except ImportError:
+            from ..analysis.neutronics_materials_authority_v401 import (
+                evaluate_neutronics_materials_authority_v401,
+            )
         nm401 = evaluate_neutronics_materials_authority_v401(out, inp)
         if isinstance(nm401, dict):
             out.update(nm401)
-    except Exception:
-        pass
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_neutronics_materials_authority_v401",
+            error_key="nm_authority_v401_error",
+            exc=e,
+        )
 
     # Optional screening cap (NaN disables)
     out["neutron_wall_load_max_MW_m2"] = float(getattr(inp, "neutron_wall_load_max_MW_m2", float("nan")))
@@ -3214,12 +3262,20 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # ---------------------------------------------------------------------
     try:
         if bool(getattr(inp, "include_bootstrap_pressure_selfconsistency", False)):
-            from src.contracts.bootstrap_pressure_selfconsistency_authority_contract import (
-                load_bootstrap_pressure_selfconsistency_contract,
-            )
-            from src.analysis.bootstrap_pressure_selfconsistency_authority import (
-                evaluate_bootstrap_pressure_selfconsistency_authority,
-            )
+            try:
+                from ..contracts.bootstrap_pressure_selfconsistency_authority_contract import (
+                    load_bootstrap_pressure_selfconsistency_contract,
+                )
+                from ..analysis.bootstrap_pressure_selfconsistency_authority import (
+                    evaluate_bootstrap_pressure_selfconsistency_authority,
+                )
+            except ImportError:
+                from contracts.bootstrap_pressure_selfconsistency_authority_contract import (
+                    load_bootstrap_pressure_selfconsistency_contract,
+                )
+                from analysis.bootstrap_pressure_selfconsistency_authority import (
+                    evaluate_bootstrap_pressure_selfconsistency_authority,
+                )
             out["bsp_abs_delta_max"] = float(getattr(inp, "f_bootstrap_consistency_abs_max", float("nan")))
             _c_bsp, _sha_bsp = load_bootstrap_pressure_selfconsistency_contract(repo_root)
             out["bsp_contract_sha256"] = str(_sha_bsp)
@@ -3312,8 +3368,12 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
 # Non-Inductive Closure Authority (v347)
     # -----------------------------------------------------------------------------
     try:
-        from src.contracts.ni_closure_authority_contract import load_ni_closure_authority_contract
-        from src.analysis.ni_closure_authority import evaluate_ni_closure_authority
+        try:
+            from ..contracts.ni_closure_authority_contract import load_ni_closure_authority_contract
+            from ..analysis.ni_closure_authority import evaluate_ni_closure_authority
+        except ImportError:
+            from contracts.ni_closure_authority_contract import load_ni_closure_authority_contract
+            from analysis.ni_closure_authority import evaluate_ni_closure_authority
 
         _c_ni, _sha_ni = load_ni_closure_authority_contract(repo_root)
         out["ni_closure_contract_sha256"] = _sha_ni
@@ -3330,8 +3390,12 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Neutronics & Materials Authority (v338)
     # -----------------------------------------------------------------------------
     try:
-        from src.contracts.neutronics_materials_authority_contract import load_neutronics_materials_contract
-        from src.analysis.neutronics_materials import classify_neutronics_materials
+        try:
+            from ..contracts.neutronics_materials_authority_contract import load_neutronics_materials_contract
+            from ..analysis.neutronics_materials import classify_neutronics_materials
+        except ImportError:
+            from contracts.neutronics_materials_authority_contract import load_neutronics_materials_contract
+            from analysis.neutronics_materials import classify_neutronics_materials
 
         c = load_neutronics_materials_contract(repo_root)
         nm = classify_neutronics_materials(out, limits=c.limits, fragile_margin_frac=c.fragile_margin_frac)
@@ -3463,8 +3527,9 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
                             out[k] = v
                     except Exception:
                         pass
-    except Exception:
+    except Exception as e:
         out.setdefault('nm_coupling_v372_enabled', False)
+        out["nm_coupling_v372_error"] = f"{type(e).__name__}: {e}"
 
     # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)
@@ -3483,8 +3548,13 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         dom402 = evaluate_authority_dominance_v402(out=out, inp=inp)
         if isinstance(dom402, dict):
             out.update(dom402)
-    except Exception:
-        out.setdefault('include_authority_dominance_v402', False)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_authority_dominance_v402",
+            error_key="authority_dominance_v402_error",
+            exc=e,
+        )
 
     # -------------------------------------------------------------------------
     # Authority failure surfacing (governance-only; deterministic).
@@ -3503,9 +3573,7 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
 
     return out
 
-    # -----------------------------------------------------------------------------
-    # Cached wrapper (performance for scans/optimisation)
-    # -----------------------------------------------------------------------------
+
 import pickle
 from functools import lru_cache
 

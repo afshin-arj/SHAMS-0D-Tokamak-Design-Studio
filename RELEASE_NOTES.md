@@ -1,3 +1,10 @@
+## v414.0.0 — Top-5 audit findings (PROPOSAL-010–012)
+
+- Constraint pipeline sync (v396/v397/v384/v407 mirrored in ledger + governance).
+- Overlay `*_error` keys for v401/v403/v404/v407/v402/v372 in `hot_ion.py`.
+- Import fallbacks for overlay and certification modules.
+- Golden regenerated (additive v401/v403 keys). See `docs/patch_notes/PATCH_NOTES_v414.md`.
+
 ## v413.0.0 — Post-v412 audit safe fixes
 
 - `constraint_is_hard()` fixes soft-constraint filtering in optimize/nudges paths.

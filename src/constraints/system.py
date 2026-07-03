@@ -427,6 +427,24 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Availability", "availability", lo_key="availability_min", units="-",
     description="Plant availability proxy must exceed minimum.")
 
+    # --- Mirror governance pipeline caps (PROPOSAL-010) ---
+    add("Transport spread (v396)", "transport_spread_ratio_v396", hi_key="transport_spread_max_v396", units="-",
+        description="Transport envelope spread cap tauE_max/tauE_min when enabled.")
+    add("Profile peaking f_p0 (v397)", "profile_peaking_p_v397", hi_key="profile_peaking_p_max_v397", units="-",
+        description="v397 profile proxy pressure peaking cap.")
+    add("q95 proxy (v397)", "q95_proxy_v397", lo_key="q95_proxy_min_v397", units="-",
+        description="v397 proxy q95 lower bound when set.")
+    add("Divertor lifetime (v384)", "divertor_lifetime_yr_v384", lo_key="divertor_lifetime_min_yr_v384", units="yr",
+        description="Divertor lifetime proxy minimum when v384 enabled.")
+    add("Magnet lifetime (v384)", "magnet_lifetime_yr_v384", lo_key="magnet_lifetime_min_yr_v384", units="yr",
+        description="Magnet lifetime proxy minimum when v384 enabled.")
+    add("Replacement cost (v384)", "replacement_cost_MUSD_per_year_v384", hi_key="replacement_cost_max_MUSD_per_y_v384", units="MUSD/y",
+        description="Annualized replacement cost cap when v384 enabled.")
+    add("Capacity factor (v384)", "capacity_factor_used_v384", lo_key="capacity_factor_min_v384", units="-",
+        description="Replacement-coupled capacity factor minimum when v384 enabled.")
+    add("TF case fluence (v407)", "tf_case_fluence_n_m2_per_fpy_v407", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392", units="n/m^2/FPY",
+        description="TF case fluence proxy cap when v407 enabled (uses v392 cap key when set).")
+
     return cs
 
 

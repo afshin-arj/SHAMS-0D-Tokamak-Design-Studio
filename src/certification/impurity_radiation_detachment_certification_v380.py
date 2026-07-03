@@ -27,8 +27,12 @@ import hashlib
 import json
 import math
 
-from src.physics.impurities.detachment_authority import detachment_requirement_from_target
-from src.physics.impurities.species_library import Species
+try:
+    from ..physics.impurities.detachment_authority import detachment_requirement_from_target
+    from ..physics.impurities.species_library import Species
+except ImportError:
+    from physics.impurities.detachment_authority import detachment_requirement_from_target
+    from physics.impurities.species_library import Species
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

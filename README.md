@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v413.0.0 — Post-v412 audit: constraint severity gating, v401/v403 parity, certification smoke
+**Current version:** v414.0.0 — Top-5 audit: constraint pipeline sync, overlay errors, import fallbacks
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,14 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v413.0.0 (Post-v412 Audit Safe Fixes)
+## Latest upgrade — v414.0.0 (Top-5 Audit Findings)
+
+- **PROPOSAL-010:** v396/v397/v384/v407 caps mirrored across constraint pipelines.
+- **PROPOSAL-011:** Governance overlay `*_error` surfacing in `hot_ion.py`.
+- **PROPOSAL-012:** Import fallbacks for overlays and certification modules.
+- Certification import smoke tests. See `docs/patch_notes/PATCH_NOTES_v414.md`.
+
+## Prior upgrade — v413.0.0 (Post-v412 Audit Safe Fixes)
 
 - Constraint `severity` respected in Monte Carlo / nudge feasibility paths.
 - v401/v403 min-margin enforcement in `evaluate_constraints`; v403 fragile margin wired in ledger.
