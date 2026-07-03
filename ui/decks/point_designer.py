@@ -19,7 +19,7 @@ def render_point_designer(_app_module) -> None:
             _g[_k] = _v
     # Verdict-first (UI redesign): hero strip renders above the fold before any
     # mode-contract copy. Frozen-truth info + mode contract are collapsed into an
-    # "About this mode" expander below the sub-deck selector.
+    # "About this mode"expander below the sub-deck selector.
     render_point_designer_hero(st.session_state)
 
     # Point Designer deck selector (v280+): Truth Console vs outer-loop envelopes/contracts.
@@ -59,7 +59,7 @@ def render_point_designer(_app_module) -> None:
 
     with st.expander("About this mode", expanded=False):
         st.info(
-            " **Point Designer is frozen** - It evaluates a single operating point in a constraint-authoritative, assumption-explicit 0‑D framework. "
+            "**Point Designer is frozen** - It evaluates a single operating point in a constraint-authoritative, assumption-explicit 0‑D framework. "
             "No optimization, relaxation, or exploration occurs here. Exploration is performed in **Systems Mode**, which calls Point Designer as a fixed evaluator.",
         )
         st.markdown("#### Truth Console - mode contract (is / is not)")
@@ -292,7 +292,7 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v371.0: Transport contract library (governance-only)
                 # -----------------------------------------------------------------
-                with st.expander("🚦 Transport contract library (v371)", expanded=False):
+                with st.expander("Transport contract library (v371)", expanded=False):
                     include_transport_contracts_v371 = st.checkbox(
                         "Enable transport contract diagnostics",
                         value=bool(getattr(_base_pd, "include_transport_contracts_v371", False)),
@@ -512,7 +512,7 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v372.0: Neutronics–Materials coupling (governance-only)
                 # -----------------------------------------------------------------
-                with st.expander("🧬 Neutronics–Materials coupling (v372)", expanded=False):
+                with st.expander("Neutronics–Materials coupling (v372)", expanded=False):
                     include_neutronics_materials_coupling_v372 = st.checkbox(
                         "Enable neutronics–materials coupling diagnostics",
                         value=bool(getattr(_base_pd, "include_neutronics_materials_coupling_v372", False)),
@@ -618,7 +618,7 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v358.0: Profile Family Library Authority (transport proxy)
                 # -----------------------------------------------------------------
-                with st.expander("🧬 Profile family library (v358)", expanded=False):
+                with st.expander("Profile family library (v358)", expanded=False):
                     include_profile_family_v358 = st.checkbox(
                         "Enable profile family transport proxy",
                         value=bool(getattr(_base_pd, "include_profile_family_v358", False)),
@@ -806,7 +806,7 @@ def render_point_designer(_app_module) -> None:
                             _db_ok = bool(_p) and Path(_p).expanduser().exists()
                         else:
                             _fname = f"lz_tables_{_db_raw.lower()}.json"
-                            _db_ok = (SRC / "data" / "radiation" / _fname).exists()
+                            _db_ok = (SRC / "data"/ "radiation"/ _fname).exists()
                         if not _db_ok:
                             st.warning("Selected Lz(Te) DB not found → will use builtin_proxy (no crash; provenance recorded).")
                     except Exception:
@@ -1061,7 +1061,7 @@ def render_point_designer(_app_module) -> None:
                     ["DT performance (targets Q & net electric)", "DD feasibility (includes secondary DT from DD-produced T)"],
                     index=0,
                 )
-                fuel_mode = "DT" if fuel_mode_label.startswith("DT") else "DD"
+                fuel_mode = "DT"if fuel_mode_label.startswith("DT") else "DD"
                 if fuel_mode == "DD":
                     include_secondary_DT = st.checkbox("Include secondary DT from DD-produced tritium", value=True)
                     if include_secondary_DT:
@@ -1078,8 +1078,8 @@ def render_point_designer(_app_module) -> None:
                     tau_T_loss_s = 1.0
 
                 # Mode-specific safe defaults (DD mode prioritizes feasibility screens over performance)
-                default_Q = 2.0 if fuel_mode == "DT" else 0.05
-                default_H98 = 1.15 if fuel_mode == "DT" else 1.0
+                default_Q = 2.0 if fuel_mode == "DT"else 0.05
+                default_H98 = 1.15 if fuel_mode == "DT"else 1.0
                 Q_target = _num("Target Q (fusion gain proxy) [-]", default_Q, 0.05, min_value=0.0)
                 H98_target = _num("Target H98 [-]", default_H98, 0.05, min_value=0.1, help="Required confinement factor H98. Solver adjusts Ip and f_G to meet this target.")
                 use_envelope = st.checkbox("Design envelope solve (SPARC-like)", value=False, help="Use transparent (systems-code-inspired) bounded vector solve to hit targets by varying Ip, fG, and optionally Paux.")
@@ -1157,7 +1157,7 @@ def render_point_designer(_app_module) -> None:
                 defaults = _base_pd  # safe local defaults source for optional authority overlays
 
                 # --- (v359.0) Availability & replacement ledger authority (optional) ---
-                with st.expander("🛠️ Availability & replacement ledger (v359.0)", expanded=False):
+                with st.expander("Availability & replacement ledger (v359.0)", expanded=False):
                     st.caption("Deterministic algebraic ledger: planned baseline + forced baseline (forced_outage_base) + replacement downtime + annualized replacement cost. Disabled by default.")
                     include_availability_replacement_v359 = st.checkbox(
                         "Enable availability+replacement ledger authority (v359.0)",
@@ -1212,7 +1212,7 @@ def render_point_designer(_app_module) -> None:
                         )
 
                 # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
-                with st.expander("🗓️ Maintenance scheduling authority (v368.0)", expanded=False):
+                with st.expander("Maintenance scheduling authority (v368.0)", expanded=False):
                     st.caption(
                         "Deterministic outage calendar proxy: planned+forced baselines plus a bundled replacement schedule derived from cadences and durations. "
                         "No time simulation; no optimization; does not modify plasma truth."
@@ -1267,7 +1267,7 @@ def render_point_designer(_app_module) -> None:
                         )
 
                 # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional) ---
-                with st.expander("🧩 Availability & reliability envelope (v391.0.0)", expanded=False):
+                with st.expander("Availability & reliability envelope (v391.0.0)", expanded=False):
                     st.caption(
                         "Deterministic availability envelope driven by explicit MTBF/MTTR proxies plus planned and maintenance downtime. "
                         "Governance-only; OFF by default. No RAMI simulation (no Monte Carlo / Markov chains)."
@@ -1325,7 +1325,7 @@ def render_point_designer(_app_module) -> None:
                             value=float(getattr(defaults, "maint_downtime_max_frac_v391", float('nan'))),
                         )
                 # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
-                with st.expander("💰 Plant Economics Authority (v360.0)", expanded=False):
+                with st.expander("Plant Economics Authority (v360.0)", expanded=False):
                     st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
                     include_economics_v360 = st.checkbox(
                         "Enable plant economics authority (v360.0)",
@@ -1359,7 +1359,7 @@ def render_point_designer(_app_module) -> None:
                         )
 
                 # --- (v383.0) Plant Economics & Cost Authority 2.0 (optional) ---
-                with st.expander("💰 Plant Economics & Cost Authority (v383.0)", expanded=False):
+                with st.expander("Plant Economics & Cost Authority (v383.0)", expanded=False):
                     st.caption(
                         "Deterministic structured CAPEX+OPEX with availability-tiered capacity factor and LCOE-lite proxy. "
                         "Governance overlay only; OFF by default."
@@ -1392,7 +1392,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional) ---
-                with st.expander("🏭 Cost Authority — Industrial Depth (v388.0.0)", expanded=False):
+                with st.expander("Cost Authority — Industrial Depth (v388.0.0)", expanded=False):
                     st.caption("Deterministic, engineering-driven subsystem cost scaling envelopes (industrial depth). Governance-only; OFF by default. Requires the Economics overlay toggle above so cost outputs are computed.")
                     include_cost_authority_v388 = st.checkbox(
                         "Enable cost authority 3.0 (v388.0.0)",
@@ -1422,7 +1422,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v389.0.0) Structural Stress Authority — v389.0.0 (optional) ---
-                with st.expander("🧱 Structural Stress Authority — v389.0.0", expanded=False):
+                with st.expander("Structural Stress Authority — v389.0.0", expanded=False):
                     st.caption("Deterministic thin-shell structural stress proxies (TF / CS / vacuum vessel). Governance-only; OFF by default. When enabled, explicit margin-minima constraints are applied in feasibility-first mode.")
                     include_structural_stress_v389 = st.checkbox(
                         "Enable structural stress authority (v389.0.0)",
@@ -1470,7 +1470,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v393.0.0) Damage→Strength Coupling Authority (optional) ---
-                with st.expander("🧬 Irradiation damage → strength coupling — v393.0.0", expanded=False):
+                with st.expander("Irradiation damage → strength coupling — v393.0.0", expanded=False):
                     st.caption(
                         "Deterministic degradation envelope that couples v390 DPA-rate proxy to v389 structural allowables, "
                         "yielding *derived* degraded margins (truth remains immutable). OFF by default. "
@@ -1540,7 +1540,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v390.0.0) Neutronics & Activation Authority 3.0 (optional) ---
-                with st.expander("☢️ Neutronics & Activation Authority — v390.0.0", expanded=False):
+                with st.expander("Neutronics & Activation Authority — v390.0.0", expanded=False):
                     st.caption("Deterministic shielding envelope + activation index + FW damage proxies. Governance-only; OFF by default. Optional minima/caps are explicit; NaN disables.")
                     include_neutronics_activation_v390 = st.checkbox(
                         "Enable neutronics & activation authority (v390.0.0)",
@@ -1603,7 +1603,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v392.0.0) Neutronics Shield Attenuation Authority (optional) ---
-                with st.expander("🛡️ Neutronics Shield Attenuation Authority — v392.0.0", expanded=False):
+                with st.expander("Neutronics Shield Attenuation Authority — v392.0.0", expanded=False):
                     st.caption(
                         "Deterministic attenuation-length envelope for ex-vessel fluence (TF case / cryostat) and outside-bioshield dose proxy. "
                         "Governance-only; OFF by default. Optional caps are explicit; NaN disables."
@@ -1685,7 +1685,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v403.0.0) Neutronics & Materials Authority 4.0 — Library Stack (optional) ---
-                with st.expander("🧱 Neutronics & Materials Library Stack — v403.0.0", expanded=False):
+                with st.expander("Neutronics & Materials Library Stack — v403.0.0", expanded=False):
                     st.caption(
                         "Deterministic governance overlay: explicit multi-layer shielding/blanket stack (material+thickness) with "
                         "3-group attenuation ledger and derived DPA/He/activation + TBR-lite proxy. OFF by default. "
@@ -1764,7 +1764,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v407.0.0) Nuclear Data Authority Deepening (optional) ---
-                with st.expander("📚 Nuclear Data Authority Deepening — v407.0.0", expanded=False):
+                with st.expander("Nuclear Data Authority Deepening — v407.0.0", expanded=False):
                     st.caption(
                         "Governance-only overlay: multi-group attenuation through the NM stack using an explicitly versioned "
                         "dataset registry with SHA-256 provenance. Screening proxy only (no MC transport, no spectral iteration)."
@@ -1790,7 +1790,7 @@ def render_point_designer(_app_module) -> None:
                     nuclear_dataset_id_v407 = st.selectbox(
                         "Dataset id (v407)",
                         options=_dataset_ids_v407,
-                        index=_dataset_ids_v407.index("SCREENING_PROXY_V407") if "SCREENING_PROXY_V407" in _dataset_ids_v407 else 0,
+                        index=_dataset_ids_v407.index("SCREENING_PROXY_V407") if "SCREENING_PROXY_V407"in _dataset_ids_v407 else 0,
                         key="pd_nuclear_dataset_id_v407",
                         help=(
                             "Built-in default is a screening-proxy table (not ENDF/TENDL-derived). "
@@ -1800,12 +1800,12 @@ def render_point_designer(_app_module) -> None:
                     nuclear_group_structure_id_v407 = st.selectbox(
                         "Group structure (v407)",
                         options=_group_ids_v407,
-                        index=_group_ids_v407.index("G6_V407") if "G6_V407" in _group_ids_v407 else 0,
+                        index=_group_ids_v407.index("G6_V407") if "G6_V407"in _group_ids_v407 else 0,
                         key="pd_nuclear_group_structure_id_v407",
                     )
 
                 # --- (v408.0.0) Nuclear Dataset Intake & Provenance Builder (external, firewalled) ---
-                with st.expander("📥 Nuclear Dataset Intake & Provenance Builder — v408.0.0", expanded=False):
+                with st.expander("Nuclear Dataset Intake & Provenance Builder — v408.0.0", expanded=False):
                     st.caption(
                         "Imports external multi-group screening datasets into data/nuclear_datasets with strict schema validation and "
                         "SHA-256 pinning. This is a tooling layer only; it does not modify plasma truth physics." 
@@ -1851,7 +1851,7 @@ def render_point_designer(_app_module) -> None:
                     build_btn = st.button("Build + validate dataset (v408)", key="v408_build_btn")
                     save_btn = st.button("Save dataset to registry (data/nuclear_datasets)", key="v408_save_btn")
 
-                    if "v408_built_dataset" not in st.session_state:
+                    if "v408_built_dataset"not in st.session_state:
                         st.session_state["v408_built_dataset"] = None
                         st.session_state["v408_built_dataset_error"] = ""
 
@@ -1908,7 +1908,7 @@ def render_point_designer(_app_module) -> None:
                         except Exception as e:
                             st.error(f"Save failed: {e}")
 # --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
-                with st.expander("🧾 Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
+                with st.expander("Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
                     st.caption(
                         "Governance-only overlay that applies explicit OPTIMISTIC/NOMINAL/ROBUST contracts to already-computed "
                         "neutronics/materials + activation + shield-attenuation proxies. Reports margins and dominant limiter; OFF by default."
@@ -1979,7 +1979,7 @@ def render_point_designer(_app_module) -> None:
                 
 
                 # --- (v404.0.0) Structural Life Authority 3.0 (optional) ---
-                with st.expander("🧱 Structural Life Authority — v404.0.0", expanded=False):
+                with st.expander("Structural Life Authority — v404.0.0", expanded=False):
                     st.caption(
                         "Deterministic structural life envelopes: irradiation+temperature degraded allowables, "
                         "fatigue (Miner proxy), creep-rupture proxy, and optional buckling margins. "
@@ -2099,7 +2099,7 @@ def render_point_designer(_app_module) -> None:
                         )
 
 # --- (v402.0.0) Authority Dominance Engine 2.0 (global regime & ranking) ---
-                with st.expander("🏁 Global Authority Dominance — v402.0.0", expanded=False):
+                with st.expander("Global Authority Dominance — v402.0.0", expanded=False):
                     st.caption(
                         "Deterministic governance overlay: aggregates major authority margins into a global dominance ranking, "
                         "classifies the limiting regime (MAGNET/EXHAUST/CONTROL/TRANSPORT/PROFILE/NM), and flags feasibility mirages "
@@ -2137,7 +2137,7 @@ def render_point_designer(_app_module) -> None:
 
 
                 # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
-                with st.expander("🧱 Materials & Lifetime Tightening (v384.0.0)", expanded=False):
+                with st.expander("Materials & Lifetime Tightening (v384.0.0)", expanded=False):
                     st.caption(
                         "Deterministic governance overlay: adds divertor + magnet lifetime proxies, annualized replacement cost, "
                         "and replacement-downtime coupling to a capacity factor used by economics overlays. OFF by default; truth is unchanged."
@@ -3012,7 +3012,7 @@ def render_point_designer(_app_module) -> None:
                         st.session_state["pd_last_artifact"] = {"inputs": st.session_state["last_point_inp"], "outputs": dict(out), "constraints": []}
                         st.session_state["last_point_artifact"] = st.session_state["pd_last_artifact"]
         
-                        st.success("Point evaluation complete. Open **🧪 Telemetry** for results and ledgers.")
+                        st.success("Point evaluation complete. Open ** Telemetry** for results and ledgers.")
                 except Exception as e:
                     st.error(f"Point evaluation failed: {e}")
                 finally:
@@ -3041,7 +3041,7 @@ def render_point_designer(_app_module) -> None:
         
             if _last_ts:
                 st.caption(f"Last evaluation: {datetime.fromtimestamp(float(_last_ts)).strftime('%Y-%m-%d %H:%M:%S')}")
-            if (not run_btn) and ("pd_last_outputs" in st.session_state) and (_last_hash is not None) and (_pd_inputs_hash != _last_hash):
+            if (not run_btn) and ("pd_last_outputs"in st.session_state) and (_last_hash is not None) and (_pd_inputs_hash != _last_hash):
                 st.warning("Inputs changed since last evaluation. Click **Evaluate Point** to refresh results.")
             # Keep current hash available to the run path below.
             st.session_state["pd_current_inputs_hash"] = _pd_inputs_hash
@@ -3052,8 +3052,8 @@ def render_point_designer(_app_module) -> None:
         with tab_tel:
             st.subheader("Telemetry")
             # Telemetry is read-only: if no cached Point Designer results exist, guide the user.
-            if "pd_last_outputs" not in st.session_state:
-                st.info("No Point Designer results yet. Open **🧭 Configure** and click **Evaluate Point**, then return here.")
+            if "pd_last_outputs"not in st.session_state:
+                st.info("No Point Designer results yet. Open ** Configure** and click **Evaluate Point**, then return here.")
                 st.caption("Telemetry is read-only; nothing will execute here until a cached Point evaluation exists.")
             else:
                 try:
@@ -3103,7 +3103,7 @@ def render_point_designer(_app_module) -> None:
                     return None
 
                 if _fb:
-                    _verdict = " FAIL"
+                    _verdict = "FAIL"
                     _dom = str(_fb[0])
                     _ent = _find_entry(_dom) or {}
                     _b0 = f"Dominant constraint: {_dom}"
@@ -3113,7 +3113,7 @@ def render_point_designer(_app_module) -> None:
                         _b1 = f"Tightest margin: {_ent.get('margin_frac','?')}"
                     _b2 = f"Power closure (MW): {_rs.get('power_closure_MW', 'n/a')}"
                 elif _fd:
-                    _verdict = "⚠️ PASS (diagnostics)"
+                    _verdict = "PASS (diagnostics)"
                     _dom = str(_fd[0])
                     _ent = _find_entry(_dom) or {}
                     _b0 = f"Diagnostic exceedance: {_dom}"
@@ -3124,12 +3124,12 @@ def render_point_designer(_app_module) -> None:
                     _b2 = f"Power closure (MW): {_rs.get('power_closure_MW', 'n/a')}"
                 else:
                     if not _outputs_present:
-                        _verdict = "⚠️ PASS + DIAG"
+                        _verdict = "PASS + DIAG"
                         _b0 = "No evaluation outputs loaded"
                         _b1 = "Click Evaluate Point after changing intent/machine type/policy"
                         _b2 = "Net electric (MW): n/a"
                     else:
-                        _verdict = " PASS"
+                        _verdict = "PASS"
                     if _tight and isinstance(_tight[0], dict):
                         _b0 = f"Tightest hard constraint: {_tight[0].get('name','(none)')}"
                         try:
@@ -3152,7 +3152,7 @@ def render_point_designer(_app_module) -> None:
                     _s = str(_x).strip()
                     if _s:
                         _bullets.append(html.escape(_s))
-                _bullets_html = "\n".join([f"<li>{_s}</li>" for _s in _bullets]) or "<li>(no summary)</li>"
+                _bullets_html = "\n".join([f"<li>{_s}</li>"for _s in _bullets]) or "<li>(no summary)</li>"
 
                 st.markdown(
                     f"""<div style="padding:14px;border-radius:14px;border:1px solid #ddd;">
@@ -3172,13 +3172,13 @@ def render_point_designer(_app_module) -> None:
 
                 # Telemetry Deck navigation (reduces scrolling)
                 _pd_tel_views = [
-                    "⚡ Mission Snapshot",
-                    "📈 Plot Deck",
-                    "🎯 Dominance & Closures",
-                    "🛰 Control Contracts",
-                    "📚 Ledgers",
-                    " Sensitivity Lab",
-                    "🧾 Chronicle & Export",
+                    "Mission Snapshot",
+                    "Plot Deck",
+                    "Dominance & Closures",
+                    "Control Contracts",
+                    "Ledgers",
+                    "Sensitivity Lab",
+                    "Chronicle & Export",
                 ]
                 _pd_tel_view = st.radio(
                     "Telemetry deck",
@@ -3189,7 +3189,7 @@ def render_point_designer(_app_module) -> None:
                 )
 
                 # Render live if button pressed, otherwise render cached results.
-                if ("pd_last_outputs" in st.session_state):
+                if ("pd_last_outputs"in st.session_state):
 
                     # If we're just re-rendering after a Streamlit rerun (e.g., a download button),
                     # do NOT re-run the solver. Use cached outputs.
@@ -3199,7 +3199,7 @@ def render_point_designer(_app_module) -> None:
                     if bool(run_btn) and (not _use_cached):
                         try:
                             _alog(
-                                "🧭 Point Designer",
+                                "Point Designer",
                                 "EvaluatePoint",
                                 {
                                     "inputs_hash": str(st.session_state.get("pd_current_inputs_hash", "")),
@@ -3269,7 +3269,7 @@ def render_point_designer(_app_module) -> None:
 
                     # Defensive de-dup: some UI knobs are passed explicitly below and may also live
                     # in clean_knobs depending on preset + sync pathways. Passing duplicates causes
-                    # "got multiple values for keyword" errors.
+                    # "got multiple values for keyword"errors.
                     if isinstance(clean_knobs, dict):
                         clean_knobs = dict(clean_knobs)
                         for _k in (
@@ -3551,7 +3551,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
 
                     # UI-only guardrails: warn on obviously unrealistic knobs (does not block).
                     base = merge_overlay_session_into_inputs(base, st.session_state)
-                    _warn_unrealistic_point_inputs(base, context="🧭 Point Designer")
+                    _warn_unrealistic_point_inputs(base, context="Point Designer")
                     if do_opt:
                         _log(f"Optimization enabled: objective={opt_objective}, iters={opt_iters}, seed={opt_seed}")
                         var_bounds = {"Ip_MA": (Ip_min, Ip_max), "fG": (fG_min, fG_max), "Paux_MW": (0.0, max(Paux, 1e-6)*2.0)}
@@ -3572,8 +3572,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                         chart = None
                         table = None
                         latest = None
-                        if _pd_tel_view == "🧾 Chronicle & Export":
-                            with st.expander("🛰️ Live Convergence", expanded=False):
+                        if _pd_tel_view == "Chronicle & Export":
+                            with st.expander("Live Convergence", expanded=False):
                                 status = st.empty()
                                 prog = st.progress(0)
                                 # Live convergence diagnostics
@@ -3618,7 +3618,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 if status is not None:
                                     status.info(
                                         f"Bracketing H98 target: H98(Ip_min={ev.get('Ip_lo'):.3g})={ev.get('H98_lo'):.3g}, "
-                                        f"H98(Ip_max={ev.get('Ip_hi'):.3g})={ev.get('H98_hi'):.3g}  →  "
+                                        f"H98(Ip_max={ev.get('Ip_hi'):.3g})={ev.get('H98_hi'):.3g} → "
                                         f"{'OK' if okb else 'NO BRACKET'}"
                                     )
                             elif ev.get("event") == "iter":
@@ -3670,12 +3670,12 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 break
                             elif ev.get("event") == "fail":
                                 reason = ev.get("reason", "solver_failed")
-                                _log("FAIL EVENT: " + json.dumps(ev, sort_keys=True))
+                                _log("FAIL EVENT: "+ json.dumps(ev, sort_keys=True))
                                 it_fail = ev.get("it", None)
                                 mi_fail = ev.get("max_iter", None)
                                 extra = ""
                                 if it_fail is not None and mi_fail is not None:
-                                    extra = f" (it={it_fail}/{mi_fail})"
+                                    extra = f"(it={it_fail}/{mi_fail})"
                                 if status is not None:
                                     status.error(f"Solver failed ({reason}){extra}. Try widening Ip/fG bounds or relaxing targets.")
                                 ok = False
@@ -3704,8 +3704,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                     # Always show expandable log for this run.
                     solver_log_text = "\n".join(log_lines).strip() + "\n"
                     st.session_state.last_solver_log = solver_log_text
-                    if _pd_tel_view == "🧾 Chronicle & Export":
-                        with st.expander("🧾 Chronicle - Solver Log", expanded=False):
+                    if _pd_tel_view == "Chronicle & Export":
+                        with st.expander("Chronicle - Solver Log", expanded=False):
                             st.download_button(
                                 "Download log",
                                 data=solver_log_text,
@@ -3718,14 +3718,14 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                         # Provide best-effort diagnostics if available (e.g., H98 at bounds)
                         msg = "Solver failed to converge for (Ip, fG) at the requested (H98, Q) targets."
                         try:
-                            if isinstance(out, dict) and ("H98_at_Ip_min" in out or "H98_at_Ip_max" in out):
-                                msg += f"  H98(Ip_min)={out.get('H98_at_Ip_min')}, H98(Ip_max)={out.get('H98_at_Ip_max')}"
+                            if isinstance(out, dict) and ("H98_at_Ip_min"in out or "H98_at_Ip_max"in out):
+                                msg += f"H98(Ip_min)={out.get('H98_at_Ip_min')}, H98(Ip_max)={out.get('H98_at_Ip_max')}"
                         except Exception:
                             pass
                         st.error(msg)
                         try:
                             _alog(
-                                "🧭 Point Designer",
+                                "Point Designer",
                                 "EvaluatePointResult",
                                 {
                                     "ok": False,
@@ -3766,7 +3766,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     cols = st.columns(3)
                                     cols[0].metric("Best Ip (MA)", f"{rep.get('best_levers', {}).get('Ip_MA', float('nan')):.4g}")
                                     cols[1].metric("Best fG", f"{rep.get('best_levers', {}).get('fG', float('nan')):.4g}")
-                                    cols[2].metric("Feasible?", "YES" if rep.get("best_ok") else "NO")
+                                    cols[2].metric("Feasible?", "YES"if rep.get("best_ok") else "NO")
                                     ach = rep.get("best_achieved", {}) or {}
                                     st.write("Best achieved targets at proposed point:")
                                     st.json(ach)
@@ -3802,7 +3802,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                             _cls = _classify_failed_constraints(_failed_hard)
                             _policy = _constraint_policy_snapshot()
                             _alog(
-                                "🧭 Point Designer",
+                                "Point Designer",
                                 "EvaluatePointResult",
                                 {
                                     "ok": True,
@@ -3890,8 +3890,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                         st.session_state['pd_last_artifact'] = artifact
 
                         # Provide downloadable artifacts and reports (no side effects unless user clicks)
-                        if _pd_tel_view == "🧾 Chronicle & Export":
-                            with st.expander("📦 Export Bay - Artifacts & Downloads", expanded=False):
+                        if _pd_tel_view == "Chronicle & Export":
+                            with st.expander("Export Bay - Artifacts & Downloads", expanded=False):
                                 st.download_button(
                                     "Download run artifact JSON",
                                     data=_shams_json_dumps(artifact, indent=2, sort_keys=True),
@@ -3904,7 +3904,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 st.caption("Quick interop: send the current run to Compare without downloading/uploading files.")
                                 _c1, _c2, _c3 = st.columns([1, 1, 1])
                                 with _c1:
-                                    if st.button("🅰️ Send to Compare Slot A", use_container_width=True, key="pd_send_cmp_A"):
+                                    if st.button("🅰 Send to Compare Slot A", use_container_width=True, key="pd_send_cmp_A"):
                                         st.session_state["cmp_slot_A"] = artifact
                                         st.session_state["cmp_slot_A_meta"] = {
                                             "ts_unix": float(time.time()),
@@ -3913,7 +3913,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         }
                                         st.success("Sent current run to Compare Slot A.")
                                 with _c2:
-                                    if st.button("🅱️ Send to Compare Slot B", use_container_width=True, key="pd_send_cmp_B"):
+                                    if st.button("🅱 Send to Compare Slot B", use_container_width=True, key="pd_send_cmp_B"):
                                         st.session_state["cmp_slot_B"] = artifact
                                         st.session_state["cmp_slot_B_meta"] = {
                                             "ts_unix": float(time.time()),
@@ -3922,7 +3922,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         }
                                         st.success("Sent current run to Compare Slot B.")
                                 with _c3:
-                                    if st.button("🧹 Clear Compare Slots", use_container_width=True, key="pd_clear_cmp_slots"):
+                                    if st.button("Clear Compare Slots", use_container_width=True, key="pd_clear_cmp_slots"):
                                         st.session_state.pop("cmp_slot_A", None)
                                         st.session_state.pop("cmp_slot_B", None)
                                         st.session_state.pop("cmp_slot_A_meta", None)
@@ -3983,8 +3983,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 except Exception:
                                     st.caption("PDF summary export unavailable for this point.")
     
-                        if _pd_tel_view == "⚡ Mission Snapshot":
-                            with st.expander("⚡ Mission Snapshot - Key KPIs", expanded=False):
+                        if _pd_tel_view == "Mission Snapshot":
+                            with st.expander("Mission Snapshot - Key KPIs", expanded=False):
                                 # Standardized KPI set shared with PDF (see decision.kpis.KPI_SET)
                                 kpis = headline_kpis(out)
                                 for i in range(0, len(kpis), 4):
@@ -3993,7 +3993,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         st.divider()
 
                                 # --- Deep physics cards (read-only; deterministic)
-                                with st.expander("🧬 Physics Deepening - Regimes · Burn · Impurities · Edge · Neutronics", expanded=False):
+                                with st.expander("Physics Deepening - Regimes · Burn · Impurities · Edge · Neutronics", expanded=False):
                                     _deep_view = st.selectbox(
                                         "Select deck",
                                         options=[
@@ -4022,9 +4022,9 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     if _deep_view == "Regime & Confinement":
                                         cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
                                         cA.metric("Regime label", str(out.get("confinement_regime", "unknown")))
-                                        cB.metric("H98", f"{_safe_num('H98'):.2f}" if _safe_num('H98') == _safe_num('H98') else "n/a")
-                                        cC.metric("H_regime", f"{_safe_num('H_regime'):.2f}" if _safe_num('H_regime') == _safe_num('H_regime') else "n/a")
-                                        cD.metric("P_LH (MW)", f"{_safe_num('P_LH_MW'):.1f}" if _safe_num('P_LH_MW') == _safe_num('P_LH_MW') else "n/a")
+                                        cB.metric("H98", f"{_safe_num('H98'):.2f}"if _safe_num('H98') == _safe_num('H98') else "n/a")
+                                        cC.metric("H_regime", f"{_safe_num('H_regime'):.2f}"if _safe_num('H_regime') == _safe_num('H_regime') else "n/a")
+                                        cD.metric("P_LH (MW)", f"{_safe_num('P_LH_MW'):.1f}"if _safe_num('P_LH_MW') == _safe_num('P_LH_MW') else "n/a")
                                         st.caption("H_regime is reported only when couple_regime_to_confinement=True; it uses IPB98 for H-regime and ITER89P for L-regime.")
 
                                     elif _deep_view == "Global Dominance & Regime (v402)":
@@ -4039,25 +4039,25 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             _m = _safe_num("global_min_margin_v402")
                                             g1.metric("Regime class", str(out.get("regime_class_v402", "unknown")))
                                             g2.metric("Dominant authority", str(out.get("global_dominant_authority_v402", "unknown")))
-                                            g3.metric("Min margin (frac)", f"{_m:+.3f}" if _m == _m else "n/a")
+                                            g3.metric("Min margin (frac)", f"{_m:+.3f}"if _m == _m else "n/a")
                                             _gap = _safe_num("dominance_gap_to_second_v402")
-                                            g4.metric("Gap to #2", f"{_gap:+.3f}" if _gap == _gap else "n/a")
+                                            g4.metric("Gap to #2", f"{_gap:+.3f}"if _gap == _gap else "n/a")
 
                                             mir = bool(out.get("mirage_flag_v402", False))
                                             if mir:
                                                 st.warning("Feasibility mirage flagged (v402): credible-feasibility is fragile.")
                                                 rs = out.get("mirage_reasons_v402", [])
                                                 if isinstance(rs, list) and rs:
-                                                    st.caption("Reasons: " + ", ".join([str(x) for x in rs][:10]))
+                                                    st.caption("Reasons: "+ ", ".join([str(x) for x in rs][:10]))
                                             else:
                                                 st.success("No mirage flagged by v402.")
 
                                             
                                             # v404.0.0: Structural Life Authority (summary)
                                             if bool(out.get("include_structural_life_v404", False)):
-                                                with st.expander("🧱 Structural life summary (v404)", expanded=False):
+                                                with st.expander("Structural life summary (v404)", expanded=False):
                                                     st.caption(
-                                                        f"**Global min margin:** {float(out.get('struct_global_min_margin_v404', float('nan'))):+.3f}  |  "
+                                                        f"**Global min margin:** {float(out.get('struct_global_min_margin_v404', float('nan'))):+.3f} | "
                                                         f"**Dominant:** {str(out.get('struct_dominant_component_v404','?'))} / {str(out.get('struct_dominant_mode_v404','?'))}"
                                                     )
                                                     tbl = out.get("struct_margin_table_v404", [])
@@ -4069,7 +4069,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 # show hint only if user enabled dominance engine (they are here)
                                                 pass
 
-                                            with st.expander("📉 Dominance ranking table (v402)", expanded=False):
+                                            with st.expander("Dominance ranking table (v402)", expanded=False):
                                                 rows = out.get("dominance_order_v402", [])
                                                 if isinstance(rows, list) and rows:
                                                     st.dataframe(rows, use_container_width=True, hide_index=True)
@@ -4092,7 +4092,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             p2.caption("ignited / alpha_assisted / aux_dominated")
                                             p3.metric("Fragility", str(out.get("plasma_fragility_class", "UNKNOWN")))
                                             _pm = _safe_num("plasma_min_margin_frac")
-                                            p4.metric("Min margin (frac)", f"{_pm:.3f}" if _pm == _pm else "n/a")
+                                            p4.metric("Min margin (frac)", f"{_pm:.3f}"if _pm == _pm else "n/a")
                                             st.caption("Plasma regime authority is a deterministic classifier with signed fractional margins for H-mode access, Greenwald fraction, q95, betaN, and burn (M_ign_total). No solvers, no iteration.")
 
                                             # v337.0: impurity species & radiation partition authority
@@ -4103,7 +4103,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 i2.metric("Species", str(out.get("impurity_species", "unknown")))
                                                 i3.metric("Fragility", str(out.get("impurity_fragility_class", "UNKNOWN")))
                                                 _im = _safe_num("impurity_min_margin_frac")
-                                                i4.metric("Min margin (frac)", f"{_im:.3f}" if _im == _im else "n/a")
+                                                i4.metric("Min margin (frac)", f"{_im:.3f}"if _im == _im else "n/a")
                                                 st.caption("Impurity & radiation authority partitions core/SOL radiation and checks conservative thresholds on Zeff and radiated power fractions. Deterministic post-processing only; no solvers, no iteration.")
 
                             
@@ -4112,20 +4112,20 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         cA.metric("Profile regime", str(out.get("current_profile_regime", "unknown")))
                                         cB.metric("Fragility", str(out.get("current_profile_fragility_class", "UNKNOWN")))
                                         mm = _safe_num("current_profile_min_margin_frac")
-                                        cC.metric("Min margin (frac)", f"{mm:.3f}" if mm == mm else "n/a")
+                                        cC.metric("Min margin (frac)", f"{mm:.3f}"if mm == mm else "n/a")
                                         cD.metric("Top limiter", str(out.get("current_profile_top_limiter", "UNKNOWN")))
 
                                         c1, c2, c3, c4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        c1.metric("q95 proxy", f"{_safe_num('q95_proxy'):.2f}" if _safe_num('q95_proxy') == _safe_num('q95_proxy') else "n/a")
-                                        c2.metric("qmin proxy", f"{_safe_num('profile_qmin_proxy'):.2f}" if _safe_num('profile_qmin_proxy') == _safe_num('profile_qmin_proxy') else "n/a")
-                                        c3.metric("f_bootstrap proxy", f"{_safe_num('profile_f_bootstrap_proxy'):.2f}" if _safe_num('profile_f_bootstrap_proxy') == _safe_num('profile_f_bootstrap_proxy') else (f"{_safe_num('f_bs_proxy'):.2f}" if _safe_num('f_bs_proxy') == _safe_num('f_bs_proxy') else "n/a"))
-                                        c4.metric("f_NI", f"{_safe_num('f_NI'):.2f}" if _safe_num('f_NI') == _safe_num('f_NI') else "n/a")
+                                        c1.metric("q95 proxy", f"{_safe_num('q95_proxy'):.2f}"if _safe_num('q95_proxy') == _safe_num('q95_proxy') else "n/a")
+                                        c2.metric("qmin proxy", f"{_safe_num('profile_qmin_proxy'):.2f}"if _safe_num('profile_qmin_proxy') == _safe_num('profile_qmin_proxy') else "n/a")
+                                        c3.metric("f_bootstrap proxy", f"{_safe_num('profile_f_bootstrap_proxy'):.2f}"if _safe_num('profile_f_bootstrap_proxy') == _safe_num('profile_f_bootstrap_proxy') else (f"{_safe_num('f_bs_proxy'):.2f}"if _safe_num('f_bs_proxy') == _safe_num('f_bs_proxy') else "n/a"))
+                                        c4.metric("f_NI", f"{_safe_num('f_NI'):.2f}"if _safe_num('f_NI') == _safe_num('f_NI') else "n/a")
 
                                         c5, c6, c7, c8 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        c5.metric("I_cd (MA)", f"{_safe_num('I_cd_MA'):.2f}" if _safe_num('I_cd_MA') == _safe_num('I_cd_MA') else "n/a")
-                                        c6.metric("P_cd (MW)", f"{_safe_num('P_cd_MW'):.1f}" if _safe_num('P_cd_MW') == _safe_num('P_cd_MW') else "n/a")
-                                        c7.metric("η_CD (A/W)", f"{_safe_num('cd_eta_A_per_W'):.3e}" if _safe_num('cd_eta_A_per_W') == _safe_num('cd_eta_A_per_W') else "n/a")
-                                        c8.metric("Contract hash", str(out.get("current_profile_contract_sha256", ""))[:12] + ("…" if str(out.get("current_profile_contract_sha256", "")) else ""))
+                                        c5.metric("I_cd (MA)", f"{_safe_num('I_cd_MA'):.2f}"if _safe_num('I_cd_MA') == _safe_num('I_cd_MA') else "n/a")
+                                        c6.metric("P_cd (MW)", f"{_safe_num('P_cd_MW'):.1f}"if _safe_num('P_cd_MW') == _safe_num('P_cd_MW') else "n/a")
+                                        c7.metric("η_CD (A/W)", f"{_safe_num('cd_eta_A_per_W'):.3e}"if _safe_num('cd_eta_A_per_W') == _safe_num('cd_eta_A_per_W') else "n/a")
+                                        c8.metric("Contract hash", str(out.get("current_profile_contract_sha256", ""))[:12] + ("…"if str(out.get("current_profile_contract_sha256", "")) else ""))
 
                                         # Signed fractional margins (expandable)
                                         with st.expander("Current-profile authority margins (fractional, signed)", expanded=False):
@@ -4145,21 +4145,21 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         cA.metric("Regime", str(out.get("bsp_regime", "unknown")))
                                         cB.metric("Fragility", str(out.get("bsp_fragility_class", "UNKNOWN")))
                                         mm = _safe_num("bsp_min_margin_frac")
-                                        cC.metric("Min margin (frac)", "—" if mm != mm else f"{mm:+.3f}")
+                                        cC.metric("Min margin (frac)", "—"if mm != mm else f"{mm:+.3f}")
                                         cD.metric("Top limiter", str(out.get("bsp_top_limiter", "UNKNOWN")))
 
                                         c1, c2, c3, c4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        c1.metric("|Δf_bs|", f"{_safe_num('bsp_abs_delta_f_bootstrap'):.3f}" if _safe_num('bsp_abs_delta_f_bootstrap') == _safe_num('bsp_abs_delta_f_bootstrap') else "n/a")
-                                        c2.metric("Tol |Δf_bs|", f"{_safe_num('bsp_abs_delta_max'):.3f}" if _safe_num('bsp_abs_delta_max') == _safe_num('bsp_abs_delta_max') else "n/a")
-                                        c3.metric("f_bs (reported)", f"{_safe_num('bsp_f_bootstrap_reported'):.2f}" if _safe_num('bsp_f_bootstrap_reported') == _safe_num('bsp_f_bootstrap_reported') else "n/a")
-                                        c4.metric("f_bs (expected)", f"{_safe_num('bsp_f_bootstrap_expected'):.2f}" if _safe_num('bsp_f_bootstrap_expected') == _safe_num('bsp_f_bootstrap_expected') else "n/a")
+                                        c1.metric("|Δf_bs|", f"{_safe_num('bsp_abs_delta_f_bootstrap'):.3f}"if _safe_num('bsp_abs_delta_f_bootstrap') == _safe_num('bsp_abs_delta_f_bootstrap') else "n/a")
+                                        c2.metric("Tol |Δf_bs|", f"{_safe_num('bsp_abs_delta_max'):.3f}"if _safe_num('bsp_abs_delta_max') == _safe_num('bsp_abs_delta_max') else "n/a")
+                                        c3.metric("f_bs (reported)", f"{_safe_num('bsp_f_bootstrap_reported'):.2f}"if _safe_num('bsp_f_bootstrap_reported') == _safe_num('bsp_f_bootstrap_reported') else "n/a")
+                                        c4.metric("f_bs (expected)", f"{_safe_num('bsp_f_bootstrap_expected'):.2f}"if _safe_num('bsp_f_bootstrap_expected') == _safe_num('bsp_f_bootstrap_expected') else "n/a")
 
                                         c5, c6, c7, c8 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        c5.metric("β_p proxy", f"{_safe_num('bsp_beta_p_proxy'):.2f}" if _safe_num('bsp_beta_p_proxy') == _safe_num('bsp_beta_p_proxy') else "n/a")
+                                        c5.metric("β_p proxy", f"{_safe_num('bsp_beta_p_proxy'):.2f}"if _safe_num('bsp_beta_p_proxy') == _safe_num('bsp_beta_p_proxy') else "n/a")
                                         c6.metric("Model", str(out.get("bsp_model", out.get("bootstrap_model", "-"))))
-                                        c7.metric("q95 proxy", f"{_safe_num('q95_proxy'):.2f}" if _safe_num('q95_proxy') == _safe_num('q95_proxy') else "n/a")
+                                        c7.metric("q95 proxy", f"{_safe_num('q95_proxy'):.2f}"if _safe_num('q95_proxy') == _safe_num('q95_proxy') else "n/a")
                                         sha = str(out.get("bsp_contract_sha256", "") or "")
-                                        c8.metric("Contract hash", sha[:12] + ("…" if sha else ""))
+                                        c8.metric("Contract hash", sha[:12] + ("…"if sha else ""))
 
                                         with st.expander("Bootstrap–pressure authority details", expanded=False):
                                             st.caption("Deterministic check: |f_bs(reported) − f_bs(expected)| under selected proxy model. No iteration; intended to flag pressure/bootstrap mirages.")
@@ -4169,13 +4169,13 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         cA.metric("CD tech regime", str(out.get("cd_tech_regime", "unknown")))
                                         cB.metric("Fragility", str(out.get("cd_fragility_class", "UNKNOWN")))
                                         mm = _safe_num("cd_min_margin_frac")
-                                        cC.metric("Min margin (frac)", f"{mm:.3f}" if mm == mm else "n/a")
+                                        cC.metric("Min margin (frac)", f"{mm:.3f}"if mm == mm else "n/a")
                                         cD.metric("Top limiter", str(out.get("cd_top_limiter", "UNKNOWN")))
 
                                         with st.expander("CD tech margins", expanded=False):
                                             rows = []
                                             for k, v in out.items():
-                                                if isinstance(k, str) and k.startswith("cd_") and ("_margin_frac" in k):
+                                                if isinstance(k, str) and k.startswith("cd_") and ("_margin_frac"in k):
                                                     try:
                                                         vv = float(v)
                                                     except Exception:
@@ -4194,7 +4194,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         cA.metric("NI regime", str(out.get("ni_closure_regime", "unknown")))
                                         cB.metric("Fragility", str(out.get("ni_fragility_class", "UNKNOWN")))
                                         mm = _safe_num("ni_min_margin_frac")
-                                        cC.metric("Min margin (frac)", "—" if mm != mm else f"{mm:+.3f}")
+                                        cC.metric("Min margin (frac)", "—"if mm != mm else f"{mm:+.3f}")
                                         cD.metric("Top limiter", str(out.get("ni_top_limiter", "UNKNOWN")))
                                         # margins table
                                         rows = []
@@ -4213,23 +4213,23 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
                                         cA.metric("Pα (MW)", f"{_safe_num('Palpha_MW'):.1f}")
                                         cB.metric("Ploss (MW)", f"{_safe_num('Ploss_MW'):.1f}")
-                                        cC.metric("M_ign = Pα/Ploss", f"{_safe_num('M_ign'):.2f}" if _safe_num('M_ign') == _safe_num('M_ign') else "n/a")
-                                        cD.metric("M_ign_total", f"{_safe_num('M_ign_total'):.2f}" if _safe_num('M_ign_total') == _safe_num('M_ign_total') else "n/a")
+                                        cC.metric("M_ign = Pα/Ploss", f"{_safe_num('M_ign'):.2f}"if _safe_num('M_ign') == _safe_num('M_ign') else "n/a")
+                                        cD.metric("M_ign_total", f"{_safe_num('M_ign_total'):.2f}"if _safe_num('M_ign_total') == _safe_num('M_ign_total') else "n/a")
                                         st.caption("M_ign_total uses Ploss+Prad_core in the denominator. Constraints can optionally enforce M_ign ≥ ignition_margin_min.")
 
                                     elif _deep_view == "Impurities & Core Radiation":
                                         cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        cA.metric("Radiation enabled", "YES" if bool(out.get("include_radiation", False)) else "NO")
+                                        cA.metric("Radiation enabled", "YES"if bool(out.get("include_radiation", False)) else "NO")
                                         cB.metric("Prad_core (MW)", f"{_safe_num('Prad_core_MW'):.1f}")
-                                        cC.metric("Zeff (input)", f"{_safe_num('zeff'):.2f}" if _safe_num('zeff') == _safe_num('zeff') else "n/a")
+                                        cC.metric("Zeff (input)", f"{_safe_num('zeff'):.2f}"if _safe_num('zeff') == _safe_num('zeff') else "n/a")
                                         cD.metric("Radiation model", str(out.get("radiation_model", "-")))
                                         st.caption("If using physics/line radiation, the Lz DB id + SHA256 are stamped into the artifact for auditability.")
 
                                     elif _deep_view == "Edge/Divertor & Exhaust Control":
                                         cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        cA.metric("q_div (MW/m²)", f"{_safe_num('q_div_MW_m2'):.1f}" if _safe_num('q_div_MW_m2') == _safe_num('q_div_MW_m2') else "n/a")
-                                        cB.metric("q_div limit", f"{_safe_num('q_div_max_MW_m2'):.1f}" if _safe_num('q_div_max_MW_m2') == _safe_num('q_div_max_MW_m2') else "n/a")
-                                        cC.metric("f_rad_div", f"{_safe_num('f_rad_div'):.2f}" if _safe_num('f_rad_div') == _safe_num('f_rad_div') else "n/a")
+                                        cA.metric("q_div (MW/m²)", f"{_safe_num('q_div_MW_m2'):.1f}"if _safe_num('q_div_MW_m2') == _safe_num('q_div_MW_m2') else "n/a")
+                                        cB.metric("q_div limit", f"{_safe_num('q_div_max_MW_m2'):.1f}"if _safe_num('q_div_max_MW_m2') == _safe_num('q_div_max_MW_m2') else "n/a")
+                                        cC.metric("f_rad_div", f"{_safe_num('f_rad_div'):.2f}"if _safe_num('f_rad_div') == _safe_num('f_rad_div') else "n/a")
                                         cD.metric("Divertor regime", str(out.get("div_regime", "unknown")))
                                         # v329.0: exhaust & radiation regime authority
                                         if str(out.get("exhaust_regime","")):
@@ -4238,38 +4238,38 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             e1.metric("Exhaust regime", str(out.get("exhaust_regime","unknown")))
                                             e2.metric("Fragility", str(out.get("exhaust_fragility_class","UNKNOWN")))
                                             _mr = _safe_num("exhaust_min_margin_frac")
-                                            e3.metric("Min margin (frac)", f"{_mr:.3f}" if _mr == _mr else "n/a")
+                                            e3.metric("Min margin (frac)", f"{_mr:.3f}"if _mr == _mr else "n/a")
                                             _rad = _safe_num("exhaust_radiation_dominated")
-                                            e4.metric("Radiation-dom", "YES" if (_rad == _rad and _rad >= 0.5) else ("NO" if _rad == _rad else "n/a"))
+                                            e4.metric("Radiation-dom", "YES"if (_rad == _rad and _rad >= 0.5) else ("NO"if _rad == _rad else "n/a"))
                                             st.caption("Exhaust regime is a deterministic classifier (attached / marginal_detach / detached / radiation_dominated / overheat) based on P_SOL/R overload, q_div margin, and (if enabled) required SOL+div radiation fraction. No solvers, no iteration.")
                                         if bool(getattr(base, "include_sol_radiation_control", False)):
                                             st.divider()
                                             c1, c2, c3, c4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                            c1.metric("q_target", f"{_safe_num('q_div_target_MW_m2'):.1f}" if _safe_num('q_div_target_MW_m2') == _safe_num('q_div_target_MW_m2') else "n/a")
-                                            c2.metric("f_SOL+div,req", f"{_safe_num('detachment_f_sol_div_required'):.2f}" if _safe_num('detachment_f_sol_div_required') == _safe_num('detachment_f_sol_div_required') else "n/a")
-                                            c3.metric("P_rad,SOL+div req (MW)", f"{_safe_num('detachment_prad_sol_div_required_MW'):.1f}" if _safe_num('detachment_prad_sol_div_required_MW') == _safe_num('detachment_prad_sol_div_required_MW') else "n/a")
-                                            c4.metric("f_z,required", f"{_safe_num('detachment_f_z_required'):.1e}" if _safe_num('detachment_f_z_required') == _safe_num('detachment_f_z_required') else "n/a")
+                                            c1.metric("q_target", f"{_safe_num('q_div_target_MW_m2'):.1f}"if _safe_num('q_div_target_MW_m2') == _safe_num('q_div_target_MW_m2') else "n/a")
+                                            c2.metric("f_SOL+div,req", f"{_safe_num('detachment_f_sol_div_required'):.2f}"if _safe_num('detachment_f_sol_div_required') == _safe_num('detachment_f_sol_div_required') else "n/a")
+                                            c3.metric("P_rad,SOL+div req (MW)", f"{_safe_num('detachment_prad_sol_div_required_MW'):.1f}"if _safe_num('detachment_prad_sol_div_required_MW') == _safe_num('detachment_prad_sol_div_required_MW') else "n/a")
+                                            c4.metric("f_z,required", f"{_safe_num('detachment_f_z_required'):.1e}"if _safe_num('detachment_f_z_required') == _safe_num('detachment_f_z_required') else "n/a")
                                             st.caption("Detachment authority is diagnostic-only unless you set a max f_z cap. It algebraically inverts q_div target → required SOL+div radiation → implied impurity seeding fraction.")
 
                                     elif _deep_view == "Neutronics & Nuclear Loads":
                                         cA, cB, cC, cD = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        cA.metric("n-wall load (MW/m²)", f"{_safe_num('neutron_wall_load_MW_m2'):.2f}" if _safe_num('neutron_wall_load_MW_m2') == _safe_num('neutron_wall_load_MW_m2') else "n/a")
-                                        cB.metric("TBR", f"{_safe_num('TBR'):.2f}" if _safe_num('TBR') == _safe_num('TBR') else "n/a")
-                                        cC.metric("HTS lifetime (yr)", f"{_safe_num('hts_lifetime_yr'):.1f}" if _safe_num('hts_lifetime_yr') == _safe_num('hts_lifetime_yr') else "n/a")
-                                        cD.metric("FW dpa/y", f"{_safe_num('fw_dpa_per_year'):.2f}" if _safe_num('fw_dpa_per_year') == _safe_num('fw_dpa_per_year') else "n/a")
-                                        st.caption(f"**Neutronics/Materials regime:** `{out.get('neutronics_materials_regime', 'unknown')}`  |  **Fragility:** `{out.get('neutronics_materials_fragility_class', 'UNKNOWN')}`  |  **Min margin:** {out.get('neutronics_materials_min_margin_frac', float('nan')):.3f}  |  **Contract:** `{str(out.get('neutronics_materials_contract_sha256', ''))[:10]}`")
+                                        cA.metric("n-wall load (MW/m²)", f"{_safe_num('neutron_wall_load_MW_m2'):.2f}"if _safe_num('neutron_wall_load_MW_m2') == _safe_num('neutron_wall_load_MW_m2') else "n/a")
+                                        cB.metric("TBR", f"{_safe_num('TBR'):.2f}"if _safe_num('TBR') == _safe_num('TBR') else "n/a")
+                                        cC.metric("HTS lifetime (yr)", f"{_safe_num('hts_lifetime_yr'):.1f}"if _safe_num('hts_lifetime_yr') == _safe_num('hts_lifetime_yr') else "n/a")
+                                        cD.metric("FW dpa/y", f"{_safe_num('fw_dpa_per_year'):.2f}"if _safe_num('fw_dpa_per_year') == _safe_num('fw_dpa_per_year') else "n/a")
+                                        st.caption(f"**Neutronics/Materials regime:** `{out.get('neutronics_materials_regime', 'unknown')}` | **Fragility:** `{out.get('neutronics_materials_fragility_class', 'UNKNOWN')}` | **Min margin:** {out.get('neutronics_materials_min_margin_frac', float('nan')):.3f} | **Contract:** `{str(out.get('neutronics_materials_contract_sha256', ''))[:10]}`")
 
                                         # v403.0.0: library-backed stack authority (governance-only)
                                         if bool(out.get("include_neutronics_materials_library_v403", False)):
                                             st.caption(
-                                                f"**NM library tier (v403):** `{out.get('nm_regime_tier_v403','UNKNOWN')}`  |  "
-                                                f"**Min margin:** {float(out.get('nm_min_margin_frac_v403', float('nan'))):+.3f}  |  "
-                                                f"**Dominant driver:** `{out.get('nm_dominant_driver_v403','unknown')}`  |  "
-                                                f"**TBR proxy:** {float(out.get('tbr_proxy_v403', float('nan'))):.2f}  |  "
-                                                f"**FW DPA:** {float(out.get('dpa_fw_v403', float('nan'))):.2f}  |  "
+                                                f"**NM library tier (v403):** `{out.get('nm_regime_tier_v403','UNKNOWN')}` | "
+                                                f"**Min margin:** {float(out.get('nm_min_margin_frac_v403', float('nan'))):+.3f} | "
+                                                f"**Dominant driver:** `{out.get('nm_dominant_driver_v403','unknown')}` | "
+                                                f"**TBR proxy:** {float(out.get('tbr_proxy_v403', float('nan'))):.2f} | "
+                                                f"**FW DPA:** {float(out.get('dpa_fw_v403', float('nan'))):.2f} | "
                                                 f"**FW He:** {float(out.get('he_appm_fw_v403', float('nan'))):.1f}"
                                             )
-                                            with st.expander("🧱 v403 stack ledger (layers, attenuation, contract items)", expanded=False):
+                                            with st.expander("v403 stack ledger (layers, attenuation, contract items)", expanded=False):
                                                 st.markdown("**Layers**")
                                                 layers = out.get("nm_stack_layers_v403", [])
                                                 if isinstance(layers, list) and layers:
@@ -4298,7 +4298,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 f"**Nuclear data (v407):** dataset `{dsid}` | hash `{dsha[:12]}…` | "
                                                 f"TF-case fluence {tf_flu:.3e} n/m²/FPY | TBR(mg proxy) {tbrmg:.2f}"
                                             )
-                                            with st.expander("📚 v407 multi-group ledger (edges, spectrum, attenuation, fluence)", expanded=False):
+                                            with st.expander("v407 multi-group ledger (edges, spectrum, attenuation, fluence)", expanded=False):
                                                 st.markdown("**Group edges (MeV)**")
                                                 st.write(out.get("group_edges_MeV_v407", []))
                                                 st.markdown("**FW spectrum fractions (normalized)**")
@@ -4314,12 +4314,12 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         # v401.0.0: contract-tier overlay (governance-only)
                                         if bool(out.get("include_neutronics_materials_authority_v401", False)):
                                             st.caption(
-                                                f"**NM contract tier (v401):** `{out.get('nm_contract_tier_v401','NOMINAL')}`  |  "
-                                                f"**Fragility:** `{out.get('nm_fragility_class_v401','UNKNOWN')}`  |  "
-                                                f"**Min margin:** {float(out.get('nm_min_margin_frac_v401', float('nan'))):+.3f}  |  "
+                                                f"**NM contract tier (v401):** `{out.get('nm_contract_tier_v401','NOMINAL')}` | "
+                                                f"**Fragility:** `{out.get('nm_fragility_class_v401','UNKNOWN')}` | "
+                                                f"**Min margin:** {float(out.get('nm_min_margin_frac_v401', float('nan'))):+.3f} | "
                                                 f"**Dominant driver:** `{out.get('nm_dominant_driver_v401','unknown')}`"
                                             )
-                                            with st.expander("🧾 v401 contract items (margins)", expanded=False):
+                                            with st.expander("v401 contract items (margins)", expanded=False):
                                                 rows = out.get("nm_contract_items_v401", [])
                                                 if isinstance(rows, list) and rows:
                                                     st.dataframe(rows, use_container_width=True, hide_index=True)
@@ -4330,44 +4330,44 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 st.caption(f"v401 contract hash (SHA-256): {sha401[:16]}…")
                                         st.divider()
                                         d1, d2, d3, d4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        d1.metric("Stack attenuation", f"{_safe_num('neutron_attenuation_factor'):.3g}" if _safe_num('neutron_attenuation_factor') == _safe_num('neutron_attenuation_factor') else "n/a")
+                                        d1.metric("Stack attenuation", f"{_safe_num('neutron_attenuation_factor'):.3g}"if _safe_num('neutron_attenuation_factor') == _safe_num('neutron_attenuation_factor') else "n/a")
                                         # v309.0: expose fast/gamma split when available
                                         _af = _safe_num('neutron_attenuation_fast')
                                         _ag = _safe_num('neutron_attenuation_gamma')
                                         if _af == _af or _ag == _ag:
                                             st.caption(f"Attenuation (fast, gamma): {(_af if _af==_af else float('nan')):.3g} / {(_ag if _ag==_ag else float('nan')):.3g}")
-                                        d2.metric("P_nuc,total (MW)", f"{_safe_num('P_nuc_total_MW'):.2f}" if _safe_num('P_nuc_total_MW') == _safe_num('P_nuc_total_MW') else "n/a")
-                                        d3.metric("P_nuc,TF (MW)", f"{_safe_num('P_nuc_TF_MW'):.2f}" if _safe_num('P_nuc_TF_MW') == _safe_num('P_nuc_TF_MW') else "n/a")
-                                        d4.metric("FW life (yr)", f"{_safe_num('fw_lifetime_yr'):.1f}" if _safe_num('fw_lifetime_yr') == _safe_num('fw_lifetime_yr') else "n/a")
+                                        d2.metric("P_nuc,total (MW)", f"{_safe_num('P_nuc_total_MW'):.2f}"if _safe_num('P_nuc_total_MW') == _safe_num('P_nuc_total_MW') else "n/a")
+                                        d3.metric("P_nuc,TF (MW)", f"{_safe_num('P_nuc_TF_MW'):.2f}"if _safe_num('P_nuc_TF_MW') == _safe_num('P_nuc_TF_MW') else "n/a")
+                                        d4.metric("FW life (yr)", f"{_safe_num('fw_lifetime_yr'):.1f}"if _safe_num('fw_lifetime_yr') == _safe_num('fw_lifetime_yr') else "n/a")
 
                                         e1, e2, e3, e4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                        e1.metric("Blanket life (yr)", f"{_safe_num('blanket_lifetime_yr'):.1f}" if _safe_num('blanket_lifetime_yr') == _safe_num('blanket_lifetime_yr') else "n/a")
-                                        e2.metric("FW He/y (appm)", f"{_safe_num('fw_He_appm_per_year'):.0f}" if _safe_num('fw_He_appm_per_year') == _safe_num('fw_He_appm_per_year') else "n/a")
-                                        e3.metric("FW T margin (°C)", f"{_safe_num('fw_T_margin_C'):.0f}" if _safe_num('fw_T_margin_C') == _safe_num('fw_T_margin_C') else "n/a")
-                                        e4.metric("FW σ margin (MPa)", f"{_safe_num('fw_sigma_margin_MPa'):.0f}" if _safe_num('fw_sigma_margin_MPa') == _safe_num('fw_sigma_margin_MPa') else "n/a")
+                                        e1.metric("Blanket life (yr)", f"{_safe_num('blanket_lifetime_yr'):.1f}"if _safe_num('blanket_lifetime_yr') == _safe_num('blanket_lifetime_yr') else "n/a")
+                                        e2.metric("FW He/y (appm)", f"{_safe_num('fw_He_appm_per_year'):.0f}"if _safe_num('fw_He_appm_per_year') == _safe_num('fw_He_appm_per_year') else "n/a")
+                                        e3.metric("FW T margin (°C)", f"{_safe_num('fw_T_margin_C'):.0f}"if _safe_num('fw_T_margin_C') == _safe_num('fw_T_margin_C') else "n/a")
+                                        e4.metric("FW σ margin (MPa)", f"{_safe_num('fw_sigma_margin_MPa'):.0f}"if _safe_num('fw_sigma_margin_MPa') == _safe_num('fw_sigma_margin_MPa') else "n/a")
 
                                         f1, f2, f3, f4 = st.columns([1.0, 1.0, 1.0, 1.0])
                                         f1.metric("FW material", str(out.get("fw_material", "-")))
                                         f2.metric("Blanket material", str(out.get("blanket_material", "-")))
                                         f3.metric("Shield material", str(out.get("shield_material", "-")))
-                                        f4.metric("TBR validity", "OK" if float(out.get("TBR_validity", 0.0)) < 0.5 else "out-of-range")
+                                        f4.metric("TBR validity", "OK"if float(out.get("TBR_validity", 0.0)) < 0.5 else "out-of-range")
 
                                         st.caption("Neutronics/materials: all quantities are deterministic proxies. Fast/gamma attenuation and nuclear heating partitioning are parametric; DPA/He + temperature/stress checks are screening models. Constraints are enforced only when corresponding caps/flags are set.")
 
                                         # (v367.0) Materials lifetime closure (replacement cadence + cost-rate)
-                                        if ("materials_lifetime_schema_version" in out) or ("fw_replace_interval_y_v367" in out) or ("replacement_cost_MUSD_per_year_v367_total" in out):
+                                        if ("materials_lifetime_schema_version"in out) or ("fw_replace_interval_y_v367"in out) or ("replacement_cost_MUSD_per_year_v367_total"in out):
                                             st.divider()
                                             m1, m2, m3, m4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                            m1.metric("Plant life (yr)", f"{_safe_num('plant_design_lifetime_yr'):.0f}" if _safe_num('plant_design_lifetime_yr') == _safe_num('plant_design_lifetime_yr') else "n/a")
-                                            m2.metric("FW repl (count)", f"{int(_safe_num('fw_replacements_over_plant_life'))}" if _safe_num('fw_replacements_over_plant_life') == _safe_num('fw_replacements_over_plant_life') else "n/a")
-                                            m3.metric("Blanket repl (count)", f"{int(_safe_num('blanket_replacements_over_plant_life'))}" if _safe_num('blanket_replacements_over_plant_life') == _safe_num('blanket_replacements_over_plant_life') else "n/a")
-                                            m4.metric("Repl cost rate (MUSD/y)", f"{_safe_num('replacement_cost_MUSD_per_year_v367_total'):.2f}" if _safe_num('replacement_cost_MUSD_per_year_v367_total') == _safe_num('replacement_cost_MUSD_per_year_v367_total') else "n/a")
+                                            m1.metric("Plant life (yr)", f"{_safe_num('plant_design_lifetime_yr'):.0f}"if _safe_num('plant_design_lifetime_yr') == _safe_num('plant_design_lifetime_yr') else "n/a")
+                                            m2.metric("FW repl (count)", f"{int(_safe_num('fw_replacements_over_plant_life'))}"if _safe_num('fw_replacements_over_plant_life') == _safe_num('fw_replacements_over_plant_life') else "n/a")
+                                            m3.metric("Blanket repl (count)", f"{int(_safe_num('blanket_replacements_over_plant_life'))}"if _safe_num('blanket_replacements_over_plant_life') == _safe_num('blanket_replacements_over_plant_life') else "n/a")
+                                            m4.metric("Repl cost rate (MUSD/y)", f"{_safe_num('replacement_cost_MUSD_per_year_v367_total'):.2f}"if _safe_num('replacement_cost_MUSD_per_year_v367_total') == _safe_num('replacement_cost_MUSD_per_year_v367_total') else "n/a")
 
                                             n1, n2, n3, n4 = st.columns([1.0, 1.0, 1.0, 1.0])
-                                            n1.metric("FW cadence (yr)", f"{_safe_num('fw_replace_interval_y_v367'):.2f}" if _safe_num('fw_replace_interval_y_v367') == _safe_num('fw_replace_interval_y_v367') else "n/a")
-                                            n2.metric("Blanket cadence (yr)", f"{_safe_num('blanket_replace_interval_y_v367'):.2f}" if _safe_num('blanket_replace_interval_y_v367') == _safe_num('blanket_replace_interval_y_v367') else "n/a")
-                                            n3.metric("FW cost (MUSD/y)", f"{_safe_num('fw_replacement_cost_MUSD_per_year'):.2f}" if _safe_num('fw_replacement_cost_MUSD_per_year') == _safe_num('fw_replacement_cost_MUSD_per_year') else "n/a")
-                                            n4.metric("Blanket cost (MUSD/y)", f"{_safe_num('blanket_replacement_cost_MUSD_per_year'):.2f}" if _safe_num('blanket_replacement_cost_MUSD_per_year') == _safe_num('blanket_replacement_cost_MUSD_per_year') else "n/a")
+                                            n1.metric("FW cadence (yr)", f"{_safe_num('fw_replace_interval_y_v367'):.2f}"if _safe_num('fw_replace_interval_y_v367') == _safe_num('fw_replace_interval_y_v367') else "n/a")
+                                            n2.metric("Blanket cadence (yr)", f"{_safe_num('blanket_replace_interval_y_v367'):.2f}"if _safe_num('blanket_replace_interval_y_v367') == _safe_num('blanket_replace_interval_y_v367') else "n/a")
+                                            n3.metric("FW cost (MUSD/y)", f"{_safe_num('fw_replacement_cost_MUSD_per_year'):.2f}"if _safe_num('fw_replacement_cost_MUSD_per_year') == _safe_num('fw_replacement_cost_MUSD_per_year') else "n/a")
+                                            n4.metric("Blanket cost (MUSD/y)", f"{_safe_num('blanket_replacement_cost_MUSD_per_year'):.2f}"if _safe_num('blanket_replacement_cost_MUSD_per_year') == _safe_num('blanket_replacement_cost_MUSD_per_year') else "n/a")
 
                                             sha = str(out.get("materials_lifetime_contract_sha256", "") or "")
                                             if sha:
@@ -4400,13 +4400,13 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 code = str(it.get("code", ""))
                                                 title = str(it.get("title", "Coupling narrative"))
                                                 sev = it.get("severity", "")
-                                                header = f"{title}  [{code}]  (sev={sev})"
+                                                header = f"{title} [{code}] (sev={sev})"
                                                 with st.expander(header, expanded=False):
                                                     st.write(str(it.get("narrative", "")))
 
 
                                 # --- Authority & validity contracts (verdict-first)
-                                with st.expander("🧾 Authority & Validity - Contracts", expanded=False):
+                                with st.expander("Authority & Validity - Contracts", expanded=False):
                                     try:
                                         from provenance.authority import authority_snapshot_from_outputs
                                         snap = authority_snapshot_from_outputs(out if isinstance(out, dict) else {})
@@ -4434,7 +4434,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         st.caption(f"Authority contracts unavailable: {e}")
 
                                 # --- Fuel cycle / lifetime / availability realism
-                                with st.expander(" Fuel Cycle · Lifetime · Availability", expanded=False):
+                                with st.expander("Fuel Cycle · Lifetime · Availability", expanded=False):
                                     def _m(k: str, fmt: str = "{:.3g}", suffix: str = ""):
                                         try:
                                             v = float(out.get(k, float('nan')))
@@ -4517,12 +4517,12 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         if v == v:
                                             lims.append(f"{k}={v:.3g}")
                                     if lims:
-                                        st.caption("Active caps/requirements: " + "; ".join(lims))
+                                        st.caption("Active caps/requirements: "+ "; ".join(lims))
                                     else:
                                         st.caption("No explicit caps/requirements set for fuel-cycle/lifetime/annual-energy in this run.")
 
                                 # --- Inboard build & coil stress/Jmargin quicklook
-                                with st.expander("🧱 Build · Coils · Stress · Margin", expanded=False):
+                                with st.expander("Build · Coils · Stress · Margin", expanded=False):
                                     def _m2(k: str, fmt: str = "{:.3g}"):
                                         try:
                                             v = float(out.get(k, float('nan')))
@@ -4549,7 +4549,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         st.caption("Radial-build closure enforcement is OFF by default; enable in inputs if desired.")
 
                                 # --- Feasibility Forensics (deterministic, local)
-                                with st.expander(" Feasibility Forensics - Local Sensitivity", expanded=False):
+                                with st.expander("Feasibility Forensics - Local Sensitivity", expanded=False):
                                     st.caption(
                                         "Deterministic finite-difference sensitivities of constraint signed margins. "
                                         "This is *diagnostic only* (no optimization, no truth mutation)."
@@ -4580,7 +4580,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             c2.metric("Stability", stab)
                                             c3.metric(
                                                 "Fragility",
-                                                f"{float(frag):.2f}" if frag == frag else "n/a",
+                                                f"{float(frag):.2f}"if frag == frag else "n/a",
                                                 help="Fraction of ±1-step perturbations that change the dominant blocker. <=0.20 stable; >0.20 fragile.",
                                             )
 
@@ -4590,7 +4590,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             lc_label = str(lc.get("label", "unknown"))
                                             c4.metric(
                                                 "Lever confidence",
-                                                f"{lc_label}" if lc_label else "unknown",
+                                                f"{lc_label}"if lc_label else "unknown",
                                                 help="Heuristic quality indicator for the lever recipe: combines dominant-switch fragility with one-sided derivative consistency. 0..1 score stored in artifact.",
                                             )
                                             # --- Deterministic explanation (derived from computed sensitivities)
@@ -4615,7 +4615,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                     # Add a direction hint column: +dx increases margin? sign of dmargin/dx
                                                     for r in rows:
                                                         sgn = str(r.get("sign", "0"))
-                                                        r["+dx effect"] = "margin ↑" if sgn == "+" else ("margin ↓" if sgn == "-" else "flat")
+                                                        r["+dx effect"] = "margin ↑"if sgn == "+"else ("margin ↓"if sgn == "-"else "flat")
                                                     st.dataframe(
                                                         rows,
                                                         use_container_width=True,
@@ -4756,9 +4756,9 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         f"Radiation: **{'ON' if _rad_on else 'OFF'}**"
                                     )
                                     if _rad_on:
-                                        _badge += f" ({_rad_model}{' · '+_rad_db_used if _rad_db_used else ''})"
-                                    _badge += f" · Magnets: **{_mag_tech}** · Plant closure: **{'ON' if _plant_on else 'OFF'}**"
-                                    st.caption(_badge + "  ")
+                                        _badge += f"({_rad_model}{' · '+_rad_db_used if _rad_db_used else ''})"
+                                    _badge += f"· Magnets: **{_mag_tech}** · Plant closure: **{'ON' if _plant_on else 'OFF'}**"
+                                    st.caption(_badge + " ")
                                     st.caption("See: More → Assumptions Ledger → Physics Capability Matrix.")
                                 except Exception:
                                     pass
@@ -4774,9 +4774,9 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     _policy = out.get("constraint_policy", {}) or {}
                                     _hb = set(_policy.get("hard_blocking", []) or [])
                                     _diag = set(_policy.get("diagnostic_only", []) or [])
-                                    if "TF_SC" in _hb:
+                                    if "TF_SC"in _hb:
                                         tf_note = "Blocking (reactor covenant)"
-                                    elif "TF_SC" in _diag:
+                                    elif "TF_SC"in _diag:
                                         tf_note = "Diagnostic (research)"
                                     else:
                                         tf_note = "(not used)"
@@ -4784,16 +4784,16 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     tf_note = ""
 
                                 # Render as a small, no-scroll card
-                                st.markdown("#### 🧲 Magnet Card")
+                                st.markdown("#### Magnet Card")
                                 c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
                                 c1.metric("TF technology", tech)
-                                c2.metric("TF superconducting", "YES" if (tf_sc == 1.0) else ("NO" if (tf_sc == 0.0) else "n/a"))
+                                c2.metric("TF superconducting", "YES"if (tf_sc == 1.0) else ("NO"if (tf_sc == 0.0) else "n/a"))
                                 if tf_sc == 1.0:
-                                    c3.metric("SC margin", f"{float(sc_margin):.3f}" if sc_margin == sc_margin else "n/a")
-                                    c4.metric("Tcoil [K]", f"{float(out.get('Tcoil_K', float('nan'))):.1f}" if out.get('Tcoil_K', float('nan')) == out.get('Tcoil_K', float('nan')) else "n/a")
+                                    c3.metric("SC margin", f"{float(sc_margin):.3f}"if sc_margin == sc_margin else "n/a")
+                                    c4.metric("Tcoil [K]", f"{float(out.get('Tcoil_K', float('nan'))):.1f}"if out.get('Tcoil_K', float('nan')) == out.get('Tcoil_K', float('nan')) else "n/a")
                                 else:
-                                    c3.metric("TF ohmic [MW]", f"{float(p_tf_ohm):.2f}" if p_tf_ohm == p_tf_ohm else "n/a")
-                                    c4.metric("Tcoil [K]", f"{float(out.get('Tcoil_K', float('nan'))):.1f}" if out.get('Tcoil_K', float('nan')) == out.get('Tcoil_K', float('nan')) else "n/a")
+                                    c3.metric("TF ohmic [MW]", f"{float(p_tf_ohm):.2f}"if p_tf_ohm == p_tf_ohm else "n/a")
+                                    c4.metric("Tcoil [K]", f"{float(out.get('Tcoil_K', float('nan'))):.1f}"if out.get('Tcoil_K', float('nan')) == out.get('Tcoil_K', float('nan')) else "n/a")
                                 if tf_note:
                                     st.caption(f"TF_SC policy: {tf_note}")
 
@@ -4809,7 +4809,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 notes = []
                                 notes.append(f"Bootstrap: **{bs_mode}**")
                                 notes.append(f"Profiles: **{prof_model}** ({'ON' if prof_on else 'OFF'})")
-                                notes.append(f"Radiation: **{'ON' if rad_on else 'OFF'}**" + (f" ({rad_mode}{' · '+rad_db if rad_on and rad_db else ''})" if rad_on else ""))
+                                notes.append(f"Radiation: **{'ON' if rad_on else 'OFF'}**"+ (f"({rad_mode}{' · '+rad_db if rad_on and rad_db else ''})"if rad_on else ""))
 
                                 # Sauter proxy becomes profile-sensitive; if profiles are OFF, changes may be minimal.
                                 if bs_mode.lower() in {"sauter", "sauter_proxy"} and not prof_on:
@@ -4817,12 +4817,12 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 if rad_on and (rad_db in {"builtin_proxy", "", "proxy_v1"}):
                                     st.caption("Radiation provenance: using built-in proxy Lz tables. For authoritative radiation, provide a RADAS/OpenADAS-derived database (see 'Radiation DB' model card).")
 
-                                st.caption(" · ".join(notes))
+                                st.caption("· ".join(notes))
 
                                 st.divider()
                                 # Keep legacy KPI row, but make it tech-aware (avoid misleading 'HTS' wording)
-                                m_lbl = "SC margin" if tf_sc == 1.0 else "TF ohmic [MW]"
-                                m_val = (f"{float(sc_margin):.3f}" if (tf_sc == 1.0 and sc_margin == sc_margin) else (f"{float(p_tf_ohm):.2f}" if p_tf_ohm == p_tf_ohm else "n/a"))
+                                m_lbl = "SC margin"if tf_sc == 1.0 else "TF ohmic [MW]"
+                                m_val = (f"{float(sc_margin):.3f}"if (tf_sc == 1.0 and sc_margin == sc_margin) else (f"{float(p_tf_ohm):.2f}"if p_tf_ohm == p_tf_ohm else "n/a"))
                                 kpi_row([
                                     (m_lbl, m_val),
                                     ("Lifetime [yr]", f"{out.get('hts_lifetime_yr', float('nan')):.2f}"),
@@ -4866,8 +4866,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                             except Exception:
                                 return {"design_intent": str(st.session_state.get("design_intent", "Power Reactor (net-electric)"))}
 
-                        if _pd_tel_view == "⚡ Mission Snapshot":
-                            with st.expander("🔎 Model Scope & Assumptions", expanded=False):
+                        if _pd_tel_view == "Mission Snapshot":
+                            with st.expander("Model Scope & Assumptions", expanded=False):
                                 st.caption("Integrated view of what is *authoritative* vs *proxy* in this 0‑D point. Nothing here changes physics; it documents it.")
                                 st.markdown("""**Badges:**  
         - **Authoritative** = used directly in feasibility/constraints  
@@ -4886,8 +4886,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 except Exception:
                                     pass
 
-                        if _pd_tel_view == "📚 Ledgers":
-                            with st.expander("⚙️ Power Ledger - Closure Table", expanded=False):
+                        if _pd_tel_view == "Ledgers":
+                            with st.expander("Power Ledger - Closure Table", expanded=False):
                                 st.caption("Transparent Pin/Pout bookkeeping at this point (0‑D proxies).")
                                 try:
                                     rows = []
@@ -4898,7 +4898,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     _add("Aux heating", "Paux_MW", "Authoritative")
                                     _add("Ohmic", "Pohm_MW", "Proxy")
                                     _add("Fusion alpha (generated)", "Palpha_MW", "Authoritative")
-                                    _add("Core radiation", "Prad_core_MW", "Proxy" if bool(include_radiation) else "Diagnostic")
+                                    _add("Core radiation", "Prad_core_MW", "Proxy"if bool(include_radiation) else "Diagnostic")
                                     _add("SOL/Separatrix power", "P_SOL_MW", "Authoritative")
                                     _add("Total loss Ploss", "Ploss_MW", "Authoritative")
                                     _add("Net electric", "P_net_e_MW", "Proxy")
@@ -4914,8 +4914,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 except Exception:
                                     st.info("Power ledger unavailable (missing keys).")
 
-                        if _pd_tel_view == "🎯 Dominance & Closures":
-                            st.subheader("🎯 Dominance & Closures")
+                        if _pd_tel_view == "Dominance & Closures":
+                            st.subheader("Dominance & Closures")
                             st.caption("Read-only decision telemetry: what limits this point, and how the closure converged. No physics is modified.")
 
                             art0 = st.session_state.get("pd_last_artifact") or {}
@@ -4923,7 +4923,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                             led0 = (art0.get("constraint_ledger") or {}) if isinstance(art0, dict) else {}
                             solver0 = (art0.get("solver") or {}) if isinstance(art0, dict) else {}
 
-                            t_dom, t_closure = st.tabs(["🎯 Dominance Compass", "🧮 Closure Trace"])
+                            t_dom, t_closure = st.tabs(["Dominance Compass", "Closure Trace"])
 
                             with t_dom:
                                 # Dominant violated constraints (intent-agnostic; policy lens is applied elsewhere)
@@ -5004,8 +5004,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 else:
                                     st.info("No solver trace available for this run (e.g., direct evaluation without target solve, or legacy fallback path).")
 
-                        if _pd_tel_view == "🛰 Control Contracts":
-                            st.subheader("🛰 Control Contracts")
+                        if _pd_tel_view == "Control Contracts":
+                            st.subheader("Control Contracts")
                             st.caption("Envelope-based, deterministic control feasibility. Computes requirements only; does not modify physics. Disabled by default.")
 
                             # Enabled?
@@ -5041,7 +5041,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     else:
                                         st.caption("No budget ledger available.")
 
-                                t_vs, t_pf, t_sol, t_rwm = st.tabs(["🧲 VS Control", "📉 PF Envelope", "🌫 SOL Control", "🌀 RWM (MHD)"])
+                                t_vs, t_pf, t_sol, t_rwm = st.tabs(["VS Control", "PF Envelope", "SOL Control", "RWM (MHD)"])
 
                                 with t_vs:
                                     c1, c2, c3 = st.columns(3)
@@ -5220,8 +5220,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             })
                                         else:
                                             st.info("v400 magnet ledger is disabled or unavailable for this run.")
-                        if _pd_tel_view == "⚡ Mission Snapshot":
-                            with st.expander("🧭 Regime Compass - Sanity Dashboard", expanded=False):
+                        if _pd_tel_view == "Mission Snapshot":
+                            with st.expander("Regime Compass - Sanity Dashboard", expanded=False):
                                 st.caption("Expert quick-check panel. Values are diagnostic unless explicitly constrained.")
                                 try:
                                     # Optional uncertainty bands for proxy quantities (nice-to-have; UI-only)
@@ -5263,8 +5263,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         ("P_SOL/R", "P_SOL_over_R_MW_m", "MW/m", "Authoritative"),
                                         ("Bootstrap f_bs", "f_bs_proxy", "–", "Proxy"),
                                         ("n̄e", "ne20", "×1e20 m⁻³", "Authoritative"),
-                                        ("Z_eff", "Zeff", "–", "Proxy" if bool(include_radiation) else "Diagnostic"),
-                                        ("λq", "lambda_q_mm", "mm", "Proxy" if bool(use_lambda_q) else "Diagnostic"),
+                                        ("Z_eff", "Zeff", "–", "Proxy"if bool(include_radiation) else "Diagnostic"),
+                                        ("λq", "lambda_q_mm", "mm", "Proxy"if bool(use_lambda_q) else "Diagnostic"),
                                         ("q_div", "q_div_MW_m2", "MW/m²", "Authoritative"),
                                         ("P_CD", "P_CD_MW", "MW", "Proxy"),
                                         ("η_CD", "eta_CD_A_W", "A/W", "Proxy"),
@@ -5303,7 +5303,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                     unc = f"±{(100*frac):.0f}%"
                                             except Exception:
                                                 pass
-                                        data.append({"Metric": label, "Key": key, "Value": v, "Units": unit, "Type": badge_type, "Typical": f"{lo:g}–{hi:g}" if np.isfinite(lo) and np.isfinite(hi) else "", "Flag": flag, "Unc": unc})
+                                        data.append({"Metric": label, "Key": key, "Value": v, "Units": unit, "Type": badge_type, "Typical": f"{lo:g}–{hi:g}"if np.isfinite(lo) and np.isfinite(hi) else "", "Flag": flag, "Unc": unc})
     
                                     dfs = pd.DataFrame(data)
                                     st.dataframe(dfs, hide_index=True, use_container_width=True)
@@ -5311,8 +5311,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 except Exception:
                                     st.info("Sanity dashboard unavailable (missing keys).")
     
-                        if _pd_tel_view == " Sensitivity Lab":
-                            with st.expander(" Perturbation Probe (±10%)", expanded=False):
+                        if _pd_tel_view == "Sensitivity Lab":
+                            with st.expander("Perturbation Probe (±10%)", expanded=False):
                                 st.caption("Perturb key inputs by ±10% and report which hard constraints flip. This is local intuition, not optimization.")
                                 if st.button("Run ±10% perturbation scan", use_container_width=True, key="pd_run_pert_scan"):
                                     try:
@@ -5371,8 +5371,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                         # -----------------------------------------------------------------
                         # Constraint dashboard (transparent (systems-code-inspired)) with margins + suggestions
                         # -----------------------------------------------------------------
-                        if _pd_tel_view == "⚡ Mission Snapshot":
-                            with st.expander("🧱 Constraint Radar - Pass/Fail & Margins", expanded=False):
+                        if _pd_tel_view == "Mission Snapshot":
+                            with st.expander("Constraint Radar - Pass/Fail & Margins", expanded=False):
                                 if not constraints_list:
                                     st.info("No constraints evaluated (missing keys).")
                                 else:
@@ -5455,23 +5455,23 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
     
                                     def _suggest(name: str) -> str:
                                         n = name.lower()
-                                        if "q_div" in n or "p_sol" in n:
+                                        if "q_div"in n or "p_sol"in n:
                                             return "Reduce P_SOL (increase radiation, reduce aux), increase R0, or increase lambda_q (design/multiplier)."
-                                        if "hts" in n or "b_peak" in n or "sigma" in n:
+                                        if "hts"in n or "b_peak"in n or "sigma"in n:
                                             return "Reduce B_peak (increase coil build/R0, reduce Bt), reduce stress (increase thickness, reduce B_peak), or raise HTS margin (lower Top or improve conductor)."
-                                        if "tbr" in n:
+                                        if "tbr"in n:
                                             return "Increase blanket/shield thickness or improve breeding/coverage assumptions."
-                                        if "nwl" in n:
+                                        if "nwl"in n:
                                             return "Reduce fusion power density (increase size R0 or reduce performance targets) or improve shielding."
-                                        if "beta" in n:
+                                        if "beta"in n:
                                             return "Increase size R0 or reduce Ip/pressure (lower Ti or fG) to bring beta below limit."
-                                        if "q95" in n:
+                                        if "q95"in n:
                                             return "Increase q95 (reduce Ip or increase Bt/R0) for stability margin."
-                                        if "fg" in n:
+                                        if "fg"in n:
                                             return "Reduce density target (lower fG) or increase Ip to raise Greenwald limit."
-                                        if "p_net" in n:
+                                        if "p_net"in n:
                                             return "Increase Pfus (within constraints), increase thermal efficiency, or reduce recirculating loads."
-                                        if "t_flat" in n:
+                                        if "t_flat"in n:
                                             return "Increase available flux swing (CS design), reduce loop voltage (improve resistivity/current profile), or allow lower Ip."
                                         return "Adjust major radius / field / current / aux power to recover feasibility."
     
@@ -5481,7 +5481,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             st.write("- **{}**: {}".format(r["constraint"], _suggest(r["constraint"])))
     
                         # --- Compare to baseline (delta view) ---
-                        if _pd_tel_view == " Sensitivity Lab":
+                        if _pd_tel_view == "Sensitivity Lab":
                             with st.expander("🆚 Delta View - Compare to Baseline", expanded=False):
                                 st.caption("Set a baseline (e.g., preset or previous run) and view deltas for key KPIs and tightest constraints.")
                                 if st.button("Set baseline = current point", key="pd_set_baseline", use_container_width=True):
@@ -5518,8 +5518,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
                                 else:
                                     st.caption("No baseline set yet.")
-                        if _pd_tel_view == " Sensitivity Lab":
-                            with st.expander("📐 Local Sensitivities - Finite Difference", expanded=False):
+                        if _pd_tel_view == "Sensitivity Lab":
+                            with st.expander("Local Sensitivities - Finite Difference", expanded=False):
                                 st.caption("Local derivatives around the current point. Useful for design intuition; not a global optimization result.")
                                 try:
                                     params = ["R0_m","a_m","kappa","B0_T","Ip_MA","fG","H98","eta_CD","n_neu_frac","Zeff"]
@@ -5600,8 +5600,8 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                             except Exception as e:
                                 st.caption(f"Run summary unavailable: {e}")
 
-                        if _pd_tel_view == "📈 Plot Deck":
-                            with st.expander("📈 Plot Deck", expanded=False):
+                        if _pd_tel_view == "Plot Deck":
+                            with st.expander("Plot Deck", expanded=False):
                                 st.markdown("#### Plot Deck - quick-look engineering visuals")
                                 st.caption("Visuals are screening-level (0‑D proxies). No ranking; just visibility.")
                                 try:
@@ -5695,7 +5695,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         else:
                                             st.caption('Engineering severity plot unavailable.')
                                 st.markdown("### Plot dashboard")
-                                ptab1, ptab2, ptab3, ptab4 = st.tabs(["Power balance", "Stability & limits", "Geometry / build", "🌀 Confinement"])
+                                ptab1, ptab2, ptab3, ptab4 = st.tabs(["Power balance", "Stability & limits", "Geometry / build", "Confinement"])
     
                                 with ptab1:
                                     st.caption(
@@ -5765,7 +5765,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 st.caption("Energy confinement and empirical H-factor comparators.")
                                 conf_vals = {
                                     "tauE_eff [s]": out.get("tauE_eff_s"),
-                                    "tauE_scaling [s]": out.get("tauScaling_s") if "tauScaling_s" in out else out.get("tauIPB_s"),
+                                    "tauE_scaling [s]": out.get("tauScaling_s") if "tauScaling_s"in out else out.get("tauIPB_s"),
                                     "H98": out.get("H98"),
                                     "H_scaling": out.get("H_scaling"),
                                     "H_required": out.get("H_required"),
@@ -5847,7 +5847,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
             st.markdown(f"**Design intent:** {st.session_state.get('design_intent', 'Power Reactor (net-electric)')}")
             _pol = _constraint_policy_snapshot()
             st.caption(
-                "Policy: " + ("Reactor hard constraints enforced." if _pol.get("intent_key")=="reactor" else "Research intent: only q95 is blocking; engineering limits are diagnostic; TBR ignored.")
+                "Policy: "+ ("Reactor hard constraints enforced."if _pol.get("intent_key")=="reactor"else "Research intent: only q95 is blocking; engineering limits are diagnostic; TBR ignored.")
             )
             with st.expander("Constraint notebook", expanded=False):
                 out = st.session_state.last_point_out
@@ -5876,9 +5876,9 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                             wl = c.get("warn_limit")
                             if isinstance(v, (int, float)) and isinstance(lim, (int, float)) and math.isfinite(v) and math.isfinite(lim):
                                 if isinstance(wl, (int, float)) and math.isfinite(wl):
-                                    st.caption(f"value={v:.4g}  warn={wl:.4g}  limit={lim:.4g}  ({c.get('sense','')})")
+                                    st.caption(f"value={v:.4g} warn={wl:.4g} limit={lim:.4g} ({c.get('sense','')})")
                                 else:
-                                    st.caption(f"value={v:.4g}  limit={lim:.4g}  ({c.get('sense','')})")
+                                    st.caption(f"value={v:.4g} limit={lim:.4g} ({c.get('sense','')})")
                             if c.get("notes"):
                                 st.caption(c["notes"])
                             st.divider()
