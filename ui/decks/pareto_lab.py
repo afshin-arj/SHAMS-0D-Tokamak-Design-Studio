@@ -159,7 +159,7 @@ def render_pareto_lab(_app_module) -> None:
         _sum_cols[4].metric("Confidence", _ps.get("confidence", "-"))
 
     # Definition of Pareto optimal (SHAMS-specific)
-    with st.expander("ℹ What does “Pareto optimal” mean here? (frontier concept)", expanded=False):
+    with st.expander("What does “Pareto optimal” mean here? (frontier concept)", expanded=False):
         st.markdown(PARETO_OPTIMAL_DEF)
 
     # Trust boundaries

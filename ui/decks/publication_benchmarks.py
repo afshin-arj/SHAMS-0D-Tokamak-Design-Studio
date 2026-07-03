@@ -329,7 +329,7 @@ def render_publication_benchmarks(_app_module) -> None:
                     st.markdown("### Action")
                     st.checkbox("I understand this is a non-interactive, audit-grade run.", key="pubbench_ack")
 
-                    run_btn = st.button("▶ Generate Publication Benchmark Pack", type="primary", disabled=(not st.session_state.pubbench_ack or st.session_state.pubbench_running))
+                    run_btn = st.button("Generate Publication Benchmark Pack", type="primary", disabled=(not st.session_state.pubbench_ack or st.session_state.pubbench_running))
                     prog = st.empty()
                     log_box = st.empty()
 
@@ -492,7 +492,7 @@ def render_publication_benchmarks(_app_module) -> None:
             )
             st.session_state["pb_v387_notes"] = notes
 
-            run_btn = st.button("▶ Build Evidence Pack", type="primary", key="pb_v387_build")
+            run_btn = st.button("Build Evidence Pack", type="primary", key="pb_v387_build")
             if run_btn:
                 shams_version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0]
                 out_dir = REPO_ROOT / "ui_runs"/ "evidence_packs_v387"

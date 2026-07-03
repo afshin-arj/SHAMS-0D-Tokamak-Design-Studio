@@ -17,6 +17,8 @@ def render_scan_lab(_app_module) -> None:
             _g[_k] = _v
     _g['__file__'] = _app_module.__file__
 
+    from ui.components import kpi_row, empty_state
+
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "scan"
@@ -24,6 +26,45 @@ def render_scan_lab(_app_module) -> None:
     st.header("Scan Lab")
     st.caption("Cartography over the frozen evaluator: map feasibility, emptiness, fragility, and dominant mechanisms. Deterministic; no internal optimizer.")
     render_mode_scope("scan")
+
+    # ---- Verdict-first banner (UI redesign): show the latest scan's one-glance
+    # truth above the scan controls. Read-only from the cached cartography report;
+    # triggers no scan and modifies no state. The detailed result section below
+    # remains the full view.
+    try:
+        _scan_vf_rep = st.session_state.get("scan_cartography_report")
+        if isinstance(_scan_vf_rep, dict):
+            _scan_vf_nar_all = _scan_vf_rep.get("narrative") or {}
+            _scan_vf_nar_int = (_scan_vf_nar_all.get("intents") or {}) if isinstance(_scan_vf_nar_all, dict) else {}
+            _scan_vf_intents = _scan_vf_rep.get("intents") or []
+            if not _scan_vf_intents:
+                _scan_vf_intents = ["Reactor"]
+            _scan_vf_it = str(_scan_vf_intents[0])
+            _scan_vf_n0 = _scan_vf_nar_int.get(_scan_vf_it, {}) if isinstance(_scan_vf_nar_int, dict) else {}
+            _scan_vf_feas = float(_scan_vf_n0.get("blocking_feasible_rate", 0.0)) if isinstance(_scan_vf_n0, dict) else 0.0
+            _scan_vf_top = (_scan_vf_n0.get("dominance_ranked") or []) if isinstance(_scan_vf_n0, dict) else []
+            _scan_vf_dom = (_scan_vf_top[0].get("constraint") if _scan_vf_top else None) or "(none)"
+            _scan_vf_cliff = float(_scan_vf_n0.get("cliffiness_proxy", 0.0)) if isinstance(_scan_vf_n0, dict) else 0.0
+            if _scan_vf_feas >= 0.85:
+                _scan_vf_rb = "Robust"
+            elif _scan_vf_feas >= 0.55:
+                _scan_vf_rb = "Balanced"
+            elif _scan_vf_feas >= 0.25:
+                _scan_vf_rb = "Brittle"
+            else:
+                _scan_vf_rb = "Knife-edge"
+            st.markdown("### One-glance truth")
+            kpi_row([
+                ("Dominant constraint", str(_scan_vf_dom)),
+                (f"Feasible fraction ({_scan_vf_it})", f"{_scan_vf_feas*100:.0f}%"),
+                ("Robustness verdict", _scan_vf_rb),
+                ("Cliffiness proxy", f"{_scan_vf_cliff:.2f}"),
+            ])
+        else:
+            empty_state("No cartography scan results yet. Run a scan below to populate the verdict.", kind="info")
+    except Exception:
+        st.caption("Verdict banner unavailable (non-fatal).")
+
 
     # --- World-class Scan Lab (v188) ---
     # NOTE: Scan Lab should remain usable even if optional features fail to import.
