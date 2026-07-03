@@ -8,6 +8,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from .authority_registry import (
+    evaluate_registry_governance,
+    evaluate_registry_ledger,
+    load_authority_specs,
+    registry_spec_names,
+)
 from .constraints import GovernanceConstraint, evaluate_constraints
 from .system import build_constraints_from_outputs
 
@@ -85,6 +91,30 @@ def diff_constraint_pipelines(
     }
 
 
+def _merge_governance(
+    legacy: List[GovernanceConstraint],
+    registry: List[GovernanceConstraint],
+) -> List[GovernanceConstraint]:
+    reg_names = {_norm_name(c.name) for c in registry}
+    merged = list(registry)
+    for c in legacy:
+        if _norm_name(c.name) not in reg_names:
+            merged.append(c)
+    return merged
+
+
+def _merge_ledger(
+    legacy: List[LedgerConstraint],
+    registry: List[LedgerConstraint],
+) -> List[LedgerConstraint]:
+    reg_names = {_norm_name(c.name) for c in registry}
+    merged = list(registry)
+    for c in legacy:
+        if _norm_name(c.name) not in reg_names:
+            merged.append(c)
+    return merged
+
+
 def build_all_constraints(
     out: Dict[str, Any],
     *,
@@ -92,9 +122,16 @@ def build_all_constraints(
     **evaluate_kwargs: Any,
 ) -> ConstraintBundle:
     """Build governance + ledger constraints and parity report."""
-    gov = evaluate_constraints(out, **evaluate_kwargs)
-    led = build_constraints_from_outputs(out, design_intent=design_intent)
+    reg_gov = evaluate_registry_governance(out)
+    reg_led = evaluate_registry_ledger(out)
+    legacy_gov = evaluate_constraints(out, **evaluate_kwargs)
+    legacy_led = build_constraints_from_outputs(out, design_intent=design_intent)
+    gov = _merge_governance(legacy_gov, reg_gov)
+    led = _merge_ledger(legacy_led, reg_led)
     parity = diff_constraint_pipelines(gov, led)
+    parity["registry_n_specs"] = len(load_authority_specs())
+    parity["registry_n_governance"] = len(reg_gov)
+    parity["registry_n_ledger"] = len(reg_led)
     return ConstraintBundle(governance=gov, ledger=led, parity=parity)
 
 

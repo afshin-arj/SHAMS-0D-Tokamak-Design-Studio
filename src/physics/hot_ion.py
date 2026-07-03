@@ -3390,6 +3390,25 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     except Exception:
         pass
 
+    # PHYS-002: v397 density peaking → τE coupling (when profile proxy enabled)
+    try:
+        if bool(out.get("profile_proxy_v397_enabled", False)):
+            fac = float(out.get("tau_e_profile_factor_v397", float("nan")))
+            if math.isfinite(fac) and fac > 0.0:
+                if out.get("tauE_s") == out.get("tauE_s"):
+                    out["tauE_s_pre_v397"] = float(out["tauE_s"])
+                    out["tauE_s"] = float(out["tauE_s"]) * fac
+                if out.get("tauE_eff_s") == out.get("tauE_eff_s"):
+                    out["tauE_eff_s"] = float(out["tauE_eff_s"]) * fac
+                tau_ipb = float(out.get("tauIPB_s", float("nan")))
+                if (
+                    out.get("tauE_eff_s") == out.get("tauE_eff_s")
+                    and math.isfinite(tau_ipb)
+                    and tau_ipb > 0.0
+                ):
+                    out["H98"] = float(out["tauE_eff_s"]) / tau_ipb
+    except Exception:
+        pass
 
     # v398.0 control & stability ledger (after v397 merge + CS flux fields in out)
     control_stability_v398: Dict[str, Any] = {}
@@ -3479,6 +3498,44 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
             out,
             enabled_key="include_impurity_v399",
             error_key="impurity_v399_error",
+            exc=e,
+        )
+
+    # =========================================================================
+    # ELM / transient heat-load authority (v409) — PHYS-004
+    # =========================================================================
+    try:
+        try:
+            from analysis.elm_transient_heat_v409 import evaluate_elm_transient_heat_v409
+        except ImportError:
+            from ..analysis.elm_transient_heat_v409 import evaluate_elm_transient_heat_v409
+        elm409 = evaluate_elm_transient_heat_v409(out, inp)
+        if isinstance(elm409, dict):
+            out.update(elm409)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_elm_transient_heat_v409",
+            error_key="elm_transient_heat_v409_error",
+            exc=e,
+        )
+
+    # =========================================================================
+    # CD mix plant electric ledger (v408) — PHYS-006
+    # =========================================================================
+    try:
+        try:
+            from analysis.cd_mix_plant_ledger_v408 import evaluate_cd_mix_plant_ledger_v408
+        except ImportError:
+            from ..analysis.cd_mix_plant_ledger_v408 import evaluate_cd_mix_plant_ledger_v408
+        cd408 = evaluate_cd_mix_plant_ledger_v408(out, inp)
+        if isinstance(cd408, dict):
+            out.update(cd408)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="cd_mix_enable",
+            error_key="cd_mix_plant_ledger_v408_error",
             exc=e,
         )
 

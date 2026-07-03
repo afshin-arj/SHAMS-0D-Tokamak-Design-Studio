@@ -91,6 +91,18 @@ def _q0_li_proxies(q95: float, f_j0: float, shear_shape: float) -> Tuple[float, 
     return float(q0), float(li)
 
 
+def _tau_e_peaking_factor(fn0: float, fp0: float) -> float:
+    """Density/pressure peaking degrades volume-averaged τE proxy (PHYS-002).
+
+    Documented heuristic (governance-only when v397 enabled):
+      factor = 1 / (1 + 0.25·max(0, f_n0-1) + 0.15·max(0, f_p0-1))
+    """
+    fn = float(fn0) if isfinite(fn0) and fn0 > 0.0 else 1.0
+    fp = float(fp0) if isfinite(fp0) and fp0 > 0.0 else 1.0
+    penalty = 1.0 + 0.25 * max(0.0, fn - 1.0) + 0.15 * max(0.0, fp - 1.0)
+    return float(1.0 / max(penalty, 1e-9))
+
+
 def evaluate_profile_proxy_v397(inp: Any, out_partial: Dict[str, Any]) -> Dict[str, Any]:
     """Compute v397 profile-proxy metrics and (optionally) expose explicit caps.
 
@@ -137,6 +149,9 @@ def evaluate_profile_proxy_v397(inp: Any, out_partial: Dict[str, Any]) -> Dict[s
     fj0 = _peaking_factor(sj, rho)
     q0_proxy, li_proxy = _q0_li_proxies(q95=q95, f_j0=fj0, shear_shape=shear)
 
+    tau_fac_n = _tau_e_peaking_factor(fn0, 1.0)
+    tau_fac_p = _tau_e_peaking_factor(fn0, fp0)
+
     # Echo caps into output so the constraint ledger can consume them without
     # depending on UI state.
     caps = {
@@ -174,6 +189,8 @@ def evaluate_profile_proxy_v397(inp: Any, out_partial: Dict[str, Any]) -> Dict[s
         "q95_proxy_v397": q95,
         "q0_proxy_v397": q0_proxy,
         "li_proxy_v397": li_proxy,
+        "tau_e_density_peaking_factor_v397": tau_fac_n,
+        "tau_e_profile_factor_v397": tau_fac_p,
         "profile_proxy_v397_sample": sample,
         **caps,
     }

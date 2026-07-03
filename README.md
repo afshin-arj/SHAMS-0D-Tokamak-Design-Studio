@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v416.0.0 — Unified constraints, v399 overlay, solver choke point, UI Phases A–D
+**Current version:** v417.0.0 — Constraint registry, certification harness, PHYS-002 τE peaking, v408/v409/v405 overlays
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,15 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v416.0.0 (PROPOSAL-020–023 + UI Phases A–D)
+## Latest upgrade — v417.0.0 (PROPOSAL-024–025 + PHYS-002 + PHYS-004–006)
+
+- Single-source authority constraint registry (`authority_caps.json`).
+- Certification deterministic regression harness.
+- Density peaking → τE coupling when v397 profile proxy enabled (L0).
+- ELM transient heat (v409), tritium tight closure (v405), CD mix plant ledger (v408).
+- See `docs/patch_notes/PATCH_NOTES_v417.md` and `docs/validation/reports/studio_audit_report_20260703_v417.md`.
+
+## Previous upgrade — v416.0.0 (PROPOSAL-020–023 + UI Phases A–D)
 
 - Unified constraint builder (`build_all_constraints`), v399 post-truth overlay, solver Evaluator choke point.
 - Verdict-first UI: hero strip, feasibility chips, overlay dashboard, export bundles, constraint trace.

@@ -635,6 +635,15 @@ class PointInputs:
     cd_mix_frac_lhcd: float = 0.0
     cd_mix_frac_nbi: float = 0.0
     cd_mix_frac_icrf: float = 0.0
+    P_cd_eccd_max_MW: float = float('nan')
+    P_cd_lhcd_max_MW: float = float('nan')
+
+    # v409.0 ELM / transient heat-load screening (optional)
+    include_elm_transient_heat_v409: bool = False
+    elm_transient_q_parallel_max_MW_m2_v409: float = float('nan')
+    elm_heat_fraction_max_v409: float = float('nan')
+    elm_energy_fraction_v409: float = 0.05
+    elm_duration_ms_v409: float = 0.5
 
     # Optional wall-plug efficiencies per channel (NaN -> use eta_cd_wallplug)
     eta_cd_wallplug_eccd: float = float('nan')
