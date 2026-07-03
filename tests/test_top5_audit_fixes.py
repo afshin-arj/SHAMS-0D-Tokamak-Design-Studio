@@ -50,3 +50,72 @@ def test_constraint_pipeline_mirror_v407_in_governance() -> None:
     }
     names = [c.name for c in evaluate_constraints(out)]
     assert "TF case fluence (v407)" in names
+
+
+def test_constraint_pipeline_mirror_v403_granular_in_governance() -> None:
+    from constraints.constraints import evaluate_constraints
+
+    out = {
+        "dpa_fw_v403": 12.0,
+        "dpa_fw_max_v403": 10.0,
+        "tbr_proxy_v403": 0.8,
+        "tbr_proxy_min_v403": 1.0,
+    }
+    names = [c.name for c in evaluate_constraints(out)]
+    assert "FW DPA (v403)" in names
+    assert "TBR proxy (v403)" in names
+
+
+def test_constraint_pipeline_mirror_v398_in_ledger() -> None:
+    from constraints.system import build_constraints_from_outputs
+
+    out = {
+        "vs_budget_margin_v398": 0.15,
+        "vs_budget_margin_min_v398": 0.10,
+        "rwm_proximity_index_v398": 0.4,
+        "rwm_proximity_index_max_v398": 0.5,
+    }
+    names = [c.name for c in build_constraints_from_outputs(out)]
+    assert "VS budget margin (v398)" in names
+    assert "RWM proximity (v398)" in names
+
+
+def test_constraint_pipeline_mirror_v397_q0_in_ledger() -> None:
+    from constraints.system import build_constraints_from_outputs
+
+    out = {
+        "q0_proxy_v397": 1.05,
+        "q0_proxy_min_v397": 1.0,
+        "bootstrap_localization_index_v397": 0.8,
+        "bootstrap_localization_max_v397": 1.0,
+    }
+    names = [c.name for c in build_constraints_from_outputs(out)]
+    assert "q0 proxy (v397)" in names
+    assert "Bootstrap localization (v397)" in names
+
+
+def test_constraint_pipeline_mirror_v399_in_ledger() -> None:
+    from constraints.system import build_constraints_from_outputs
+
+    out = {
+        "include_impurity_v399": 1.0,
+        "impurity_v399_zeff": 2.5,
+        "zeff_max_v399": 2.0,
+        "Pin_MW": 100.0,
+        "impurity_v399_prad_core_MW": 30.0,
+        "prad_core_frac_max_v399": 0.25,
+        "detachment_margin_v399": 0.1,
+        "detachment_margin_min_v399": 0.0,
+    }
+    names = [c.name for c in build_constraints_from_outputs(out)]
+    assert "Zeff (v399)" in names
+    assert "Prad core fraction (v399)" in names
+    assert "Detachment margin (v399)" in names
+
+
+def test_detachment_index_not_duplicated_in_ledger() -> None:
+    from constraints.system import build_constraints_from_outputs
+
+    out = {"detachment_index": 1.0, "detachment_index_max": 2.0}
+    names = [c.name for c in build_constraints_from_outputs(out)]
+    assert names.count("Detachment access index") == 1

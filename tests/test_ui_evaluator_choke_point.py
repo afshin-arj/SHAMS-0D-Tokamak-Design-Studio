@@ -38,3 +38,13 @@ def test_ui_evaluate_helper_exists() -> None:
     text = app_path.read_text(encoding="utf-8")
     assert "def _ui_evaluate(" in text
     assert "PROPOSAL-008" in text
+
+
+def test_robust_pareto_lab_uses_evaluator_choke_point() -> None:
+    lab_path = Path(__file__).resolve().parents[1] / "ui" / "robust_pareto_lab.py"
+    text = lab_path.read_text(encoding="utf-8")
+    tree = ast.parse(text, filename=str(lab_path))
+    calls = _hot_ion_point_call_lines(tree)
+    assert calls == [], f"robust_pareto_lab.py must not call hot_ion_point directly; found at {calls}"
+    assert "def _evaluate_point(" in text
+    assert "Evaluator" in text

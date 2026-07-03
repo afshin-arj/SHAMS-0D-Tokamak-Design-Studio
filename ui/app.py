@@ -105,7 +105,10 @@ def _attach_common_metadata(d: dict) -> dict:
         if _ver_path.exists():
             _ver = _ver_path.read_text(encoding="utf-8").strip().splitlines()[0]
         d.setdefault("shams_version", _ver)
-        d.setdefault("build_utc", _dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z")
+        d.setdefault(
+            "build_utc",
+            _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        )
         d.setdefault("python", _sys.version.split("\n")[0])
         d.setdefault("platform", _platform.platform())
     except Exception:

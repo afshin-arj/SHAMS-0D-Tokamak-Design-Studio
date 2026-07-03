@@ -983,6 +983,61 @@ def evaluate_constraints(
                 note="Minimum normalized margin across v403 library stack",
                 group="neutronics",
             )
+    if "dpa_fw_v403" in outputs:
+        lim = outputs.get("dpa_fw_max_v403", float("nan"))
+        if lim == lim:
+            le(
+                "FW DPA (v403)",
+                outputs["dpa_fw_v403"],
+                lim,
+                units="DPA/FPY",
+                note="First-wall DPA proxy cap when v403 enabled",
+                group="neutronics",
+            )
+    if "he_appm_fw_v403" in outputs:
+        lim = outputs.get("he_appm_fw_max_v403", float("nan"))
+        if lim == lim:
+            le(
+                "FW He appm (v403)",
+                outputs["he_appm_fw_v403"],
+                lim,
+                units="appm/FPY",
+                note="First-wall helium production proxy cap when v403 enabled",
+                group="neutronics",
+            )
+    if "cooldown_burden_days_v403" in outputs:
+        lim = outputs.get("cooldown_burden_max_days_v403", float("nan"))
+        if lim == lim:
+            le(
+                "Cooldown burden (v403)",
+                outputs["cooldown_burden_days_v403"],
+                lim,
+                units="days",
+                note="Cooldown/maintenance burden proxy cap when v403 enabled",
+                group="neutronics",
+            )
+    if "tbr_proxy_v403" in outputs:
+        lim = outputs.get("tbr_proxy_min_v403", float("nan"))
+        if lim == lim:
+            ge(
+                "TBR proxy (v403)",
+                outputs["tbr_proxy_v403"],
+                lim,
+                units="-",
+                note="TBR-lite proxy minimum when v403 enabled",
+                group="neutronics",
+            )
+    if "nm_fast_attenuation_v403" in outputs:
+        lim = outputs.get("fast_attenuation_min_v403", float("nan"))
+        if lim == lim:
+            ge(
+                "Fast attenuation (v403)",
+                outputs["nm_fast_attenuation_v403"],
+                lim,
+                units="-",
+                note="Transmitted fast-group fraction minimum when v403 enabled",
+                group="neutronics",
+            )
 
     if "tf_case_fluence_n_m2_per_fpy_v407" in outputs:
         lim = outputs.get("tf_case_fluence_max_n_m2_per_fpy_v407", float("nan"))

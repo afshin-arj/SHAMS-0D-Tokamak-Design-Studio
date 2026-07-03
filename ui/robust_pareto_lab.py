@@ -20,10 +20,20 @@ from ui.table_select import render_dataframe_with_selection  # type: ignore
 
 import pandas as pd
 
+from src.evaluator.core import Evaluator
 from src.models.inputs import PointInputs
-from src.physics.hot_ion import hot_ion_point
 from src.phase_envelopes import PhaseSpec, run_phase_envelope_for_point
 from src.uq_contracts import UncertaintyContractSpec, Interval, run_uncertainty_contract_for_point
+
+_ROBUST_PARETO_EVALUATOR: Optional[Evaluator] = None
+
+
+def _evaluate_point(inp: PointInputs) -> Dict[str, Any]:
+    """Route robust Pareto interrogation through the Evaluator choke point."""
+    global _ROBUST_PARETO_EVALUATOR
+    if _ROBUST_PARETO_EVALUATOR is None:
+        _ROBUST_PARETO_EVALUATOR = Evaluator(origin="robust_pareto_lab", cache_enabled=True)
+    return _ROBUST_PARETO_EVALUATOR.evaluate(inp).out
 
 
 def _extract_default_json_literal(py_text: str, var_name: str) -> Optional[str]:
@@ -275,7 +285,7 @@ def render_robust_pareto_lab(repo_root: Path) -> None:
         inp = PointInputs(**d)
 
         # Nominal
-        out0 = hot_ion_point(inp)
+        out0 = _evaluate_point(inp)
         nominal_feasible = bool(row.get("is_feasible", True)) if isinstance(row, dict) else True
 
         # Phase envelope
@@ -305,7 +315,7 @@ def render_robust_pareto_lab(repo_root: Path) -> None:
         robust_obj: Dict[str, float] = {}
         degrade: Dict[str, float] = {}
 
-        # pull nominal objective values from hot_ion_point output
+        # pull nominal objective values from evaluator output
         def _val_from_out(o: Dict[str, Any], k: str) -> float:
             try:
                 v = o.get(k)

@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v414.0.0 — Top-5 audit: constraint pipeline sync, overlay errors, import fallbacks
+**Current version:** v415.0.0 — Studio audit: constraint ledger parity, Robust Pareto Evaluator choke point
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v414.0.0 (Top-5 Audit Findings)
+## Latest upgrade — v415.0.0 (Studio Improvement Audit)
+
+- Constraint ledger parity: v397 q0/bootstrap, v398 stability, v399 impurity caps, v403 granular neutronics.
+- Robust Pareto Lab routes through Evaluator choke point; timezone-aware UTC stamps.
+- See `docs/patch_notes/PATCH_NOTES_v415.md` and `docs/validation/reports/studio_audit_report_20260703.md`.
+
+## Previous upgrade — v414.0.0 (Top-5 Audit Findings)
 
 - **PROPOSAL-010:** v396/v397/v384/v407 caps mirrored across constraint pipelines.
 - **PROPOSAL-011:** Governance overlay `*_error` surfacing in `hot_ion.py`.

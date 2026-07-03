@@ -226,7 +226,7 @@ def certify_stability_control_margins(
         "cert_version": "v374.0",
         "run_id": run_id,
         "inputs_hash": ih,
-        "timestamp_utc": _dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "timestamp_utc": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "thresholds": {
             "eps_active": float(eps_active),
             "eps_tight": float(eps_tight),

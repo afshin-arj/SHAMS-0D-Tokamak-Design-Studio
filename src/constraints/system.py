@@ -139,8 +139,6 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     add("Divertor heat flux (target)", "q_div_MW_m2", hi_key="q_div_max_MW_m2", units="MW/m^2",
         description="Divertor target heat-flux proxy using λq and flux expansion.")
     # Exhaust authority (v285.0)
-    add("Detachment index", "detachment_index", hi_key="detachment_index_max", units="MW/(1e40 m^-6·m)",
-        description="Detachment access proxy: P_SOL/(n_e^2 R). Optional cap detachment_index_max.")
     add("Radiated fraction total", "f_rad_total", hi_key="f_rad_total_max", units="-",
         description="Total radiative fraction proxy (core + divertor). Optional cap f_rad_total_max.")
     add("Fuel ion fraction", "fuel_ion_fraction", lo_key="fuel_ion_fraction_min", units="-",
@@ -434,6 +432,10 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         description="v397 profile proxy pressure peaking cap.")
     add("q95 proxy (v397)", "q95_proxy_v397", lo_key="q95_proxy_min_v397", units="-",
         description="v397 proxy q95 lower bound when set.")
+    add("q0 proxy (v397)", "q0_proxy_v397", lo_key="q0_proxy_min_v397", units="-",
+        description="v397 on-axis safety factor proxy lower bound when set.")
+    add("Bootstrap localization (v397)", "bootstrap_localization_index_v397", hi_key="bootstrap_localization_max_v397", units="-",
+        description="v397 bootstrap localization index upper bound when set.")
     add("Divertor lifetime (v384)", "divertor_lifetime_yr_v384", lo_key="divertor_lifetime_min_yr_v384", units="yr",
         description="Divertor lifetime proxy minimum when v384 enabled.")
     add("Magnet lifetime (v384)", "magnet_lifetime_yr_v384", lo_key="magnet_lifetime_min_yr_v384", units="yr",
@@ -442,6 +444,44 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         description="Annualized replacement cost cap when v384 enabled.")
     add("Capacity factor (v384)", "capacity_factor_used_v384", lo_key="capacity_factor_min_v384", units="-",
         description="Replacement-coupled capacity factor minimum when v384 enabled.")
+    # Control & Stability Ledger Authority (v398) — mirror governance caps
+    add("VS budget margin (v398)", "vs_budget_margin_v398", lo_key="vs_budget_margin_min_v398", units="-",
+        description="CS volt-second budget margin lower bound when v398 enabled.")
+    add("VDE headroom (v398)", "vde_headroom_v398", lo_key="vde_headroom_min_v398", units="-",
+        description="Vertical control headroom lower bound when v398 enabled.")
+    add("RWM proximity (v398)", "rwm_proximity_index_v398", hi_key="rwm_proximity_index_max_v398", units="-",
+        description="RWM proximity index upper bound when v398 enabled.")
+    # Multi-species impurity / radiation (v399) — mirror governance caps
+    add("Zeff (v399)", "impurity_v399_zeff", hi_key="zeff_max_v399", units="-",
+        description="v399 Zeff proxy cap when impurity authority enabled.")
+    add("Detachment margin (v399)", "detachment_margin_v399", lo_key="detachment_margin_min_v399", units="-",
+        description="v399 detachment margin lower bound when impurity authority enabled.")
+    if float(_safe(out, "include_impurity_v399")) > 0.5:
+        Pin = _safe(out, "Pin_MW")
+        if Pin != Pin or Pin <= 0.0:
+            Pin = _safe(out, "P_in_MW")
+        prad_core = _safe(out, "impurity_v399_prad_core_MW")
+        f_core_max = _safe(out, "prad_core_frac_max_v399")
+        if Pin == Pin and Pin > 0.0 and prad_core == prad_core and f_core_max == f_core_max:
+            cs.append(Constraint(
+                name="Prad core fraction (v399)",
+                value=float(prad_core / Pin),
+                lo=None,
+                hi=float(f_core_max),
+                units="-",
+                description="v399 Prad_core/Pin cap (radiative collapse screening).",
+            ))
+        prad_total = _safe(out, "impurity_v399_prad_total_MW")
+        f_tot_max = _safe(out, "prad_total_frac_max_v399")
+        if Pin == Pin and Pin > 0.0 and prad_total == prad_total and f_tot_max == f_tot_max:
+            cs.append(Constraint(
+                name="Prad total fraction (v399)",
+                value=float(prad_total / Pin),
+                lo=None,
+                hi=float(f_tot_max),
+                units="-",
+                description="v399 Prad_total/Pin cap (radiative collapse screening).",
+            ))
     add("TF case fluence (v407)", "tf_case_fluence_n_m2_per_fpy_v407", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392", units="n/m^2/FPY",
         description="TF case fluence proxy cap when v407 enabled (uses v392 cap key when set).")
 
