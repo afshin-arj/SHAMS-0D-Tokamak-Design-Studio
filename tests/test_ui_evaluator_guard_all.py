@@ -19,7 +19,11 @@ def _hot_ion_point_call_lines(tree: ast.AST) -> list[int]:
 def test_ui_modules_avoid_direct_hot_ion_point() -> None:
     ui_dir = Path(__file__).resolve().parents[1] / "ui"
     allowed = {
-        ui_dir / "app.py",  # golden regen bypass only
+        # Golden-regen bypass: a single direct hot_ion_point call that regenerates
+        # the golden reference to match tests/test_golden_physics_outputs.py. It
+        # intentionally bypasses the Evaluator for parity. Relocated from app.py
+        # to ui/decks/control_room.py by the Control Room extraction (pure move).
+        ui_dir / "decks" / "control_room.py",
     }
     violations: list[str] = []
     for path in sorted(ui_dir.rglob("*.py")):
