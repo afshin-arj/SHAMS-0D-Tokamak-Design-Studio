@@ -4,15 +4,21 @@
 The UI keeps the primary workflows in a small set of tabs (Point Designer, Systems Mode, Scan Lab, Pareto Lab, Reactor Design Forge, **System Suite**, Compare).
 
 ## System Suite (Helm)
-System Suite is a **read-only system-code overlay** on top of the frozen Point Designer truth. It provides four compact decks (no scroll walls):
+System Suite is a **read-only system-code overlay** on top of the frozen Point Designer truth. The verdict hero renders first (verdict-first layout); diagnostics are grouped into **six compact tabs** (no scroll walls):
 
-- **Closure Ledger** (plant power closure snapshots + SHA-256 stamps)
-- **Authority Vault** (scenario library governance and preset explorer)
-- **Trajectory Lab** (deterministic pulse-envelope time-series diagnostics)
-- **Lifetime & Fuel** (static lifetime budgets and tritium closure proxies)
+- **Closure & Power** — plant power closure snapshots + SHA-256 stamps
+- **Ops · Thermal · Trajectory** — duty/availability, thermal network, and pulse-envelope trajectory diagnostics (sub-tabs)
+- **Lifetime · Fuel · Regimes** — static lifetime budgets, tritium closure proxies, and regime-transition labels (sub-tabs)
+- **Phase Envelopes** — outer-loop quasi-static phases (worst-phase determines verdict)
+- **Profile Contracts** — robust vs optimistic feasibility under certified profile/transport envelopes
+- **Authority · Exports · UQ** — scenario library, campaign/parity exports, and uncertainty interval contracts (sub-tabs)
 
 These decks never modify physics truth and never perform recovery iteration.
-Additional capabilities (docs, validation, registry, benchmarks, artifacts, exports) are grouped under a single **More** tab using expandable sections.
+
+### Shared deck components (`ui/components/`)
+- `kpi_row(items)` — compact horizontal `st.metric` strip used by every diagnostic deck.
+- `empty_state(message, kind)` — consistent "no data" / "overlay unavailable" placeholder.
+Both are pure presentation; no physics, state, or routing logic.
 
 
 ## Run (Windows)
@@ -24,7 +30,9 @@ Then open:
 
 ## Structure
 - `src/` : physics & models (your Phase-1 refactor + clean design additions)
-- `ui/app.py` : Streamlit UI (Point Designer + Scan Lab + Results Explorer)
+- `ui/app.py` : Streamlit UI entrypoint + deck router
+- `ui/decks/` : extracted deck modules (Point Designer, System Suite, ...) — each rendered via a router call in `app.py`
+- `ui/components/` : shared presentation components (`kpi_row`, `empty_state`)
 - `api.py` : optional FastAPI wrapper (for future Next.js/React UI)
 
 ## Notes
