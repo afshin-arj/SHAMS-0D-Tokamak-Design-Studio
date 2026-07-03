@@ -2780,17 +2780,21 @@ except Exception:
 # Streamlit tabs reset to the first tab on reruns, which can cause the UI to "jump" back
 # to Point Designer when interacting with other decks (and can unbind solver parameter
 # names on button-click reruns). We therefore use a deterministic, persisted deck selector.
+# Deck IDs are plain strings (UI redesign: emoji removed from navigation and
+# routing). The sidebar radio stores the selected label directly; nav_deck_index
+# (integer) persists selection across reruns. All `if _deck == "<plain>"` routing
+# comparisons throughout app.py use these same plain IDs.
 _DECK_LABELS = [
-    "🧭 Point Designer",
-    "🧠 Systems Mode",
-    "🗺️ Scan Lab",
-    "📈 Pareto Lab",
-    "🧪 Trade Study Studio",
-    "⚒️ Reactor Design Forge",
-    "🧰 System Suite",
-    "🆚 Compare",
-    "📚 Publication Benchmarks",
-    "🎛️ Control Room",
+    "Point Designer",
+    "Systems Mode",
+    "Scan Lab",
+    "Pareto Lab",
+    "Trade Study Studio",
+    "Reactor Design Forge",
+    "System Suite",
+    "Compare",
+    "Publication Benchmarks",
+    "Control Room",
 ]
 with st.sidebar:
     st.markdown("## Navigation")
@@ -2813,8 +2817,8 @@ except Exception:
 
 
 
-if _deck == "🧰 System Suite":
-    st.header("🧰 System Suite")
+if _deck == "System Suite":
+    st.header("System Suite")
     st.caption("System-code diagnostics as *read-only overlays* on the frozen Point Designer truth.")
     render_mode_scope("suite")
     render_system_suite_header(st.session_state)
@@ -3202,8 +3206,8 @@ if _deck == "🧰 System Suite":
 
 
 
-if _deck == "📚 Publication Benchmarks":
-    st.header(" Benchmarks")
+if _deck == "Publication Benchmarks":
+    st.header("Publication Benchmarks")
     st.caption("Benchmark suite: publication tables and the Tokamak Constitutional Atlas (preset-driven, intent-aware).")
 
     _pb_tabs = st.tabs([
@@ -3712,8 +3716,8 @@ if _deck == "📚 Publication Benchmarks":
                 except Exception as _e:
                     st.error(f"Unable to load evidence ZIP: {_e}")
 
-if _deck == "🎛️ Control Room":
-    st.header("🛡️ Control Room")
+if _deck == "Control Room":
+    st.header("Control Room")
     st.caption("Governance, provenance, exports, and expert diagnostics - organized as compact decks (no scroll walls).")
 
     deck_orient, deck_const, deck_prov, deck_art, deck_diag, deck_chron = st.tabs([
@@ -4310,27 +4314,25 @@ if "compare_artifacts" not in st.session_state:
 # -----------------------------
 # Point Designer
 # -----------------------------
-if _deck == "🧭 Point Designer":
-    st.info(
-        " **Point Designer is frozen** - It evaluates a single operating point in a constraint-authoritative, assumption-explicit 0‑D framework. "
-        "No optimization, relaxation, or exploration occurs here. Exploration is performed in **Systems Mode**, which calls Point Designer as a fixed evaluator.",
-    )
-
+if _deck == "Point Designer":
+    # Verdict-first (UI redesign): hero strip renders above the fold before any
+    # mode-contract copy. Frozen-truth info + mode contract are collapsed into an
+    # "About this mode" expander below the sub-deck selector.
     render_point_designer_hero(st.session_state)
 
     # Point Designer deck selector (v280+): Truth Console vs outer-loop envelopes/contracts.
     _pd_deck = st.radio(
         "Point Designer deck",
-        ["🧭 Truth Console", "🗺️ Phase Envelopes", "🛡️ Uncertainty Contracts"],
+        ["Truth Console", "Phase Envelopes", "Uncertainty Contracts"],
         index=0,
         horizontal=True,
         help="Truth Console runs the frozen single-point evaluator. Phase Envelopes and Uncertainty Contracts are outer-loop diagnostics only (no solver, no dynamics).",
     )
-    if _pd_deck != "🧭 Truth Console":
+    if _pd_deck != "Truth Console":
         _pd_art = st.session_state.get("pd_last_artifact", None)
         if not isinstance(_pd_art, dict):
             _pd_art = st.session_state.get("last_point_artifact", None)
-        if _pd_deck == "🗺️ Phase Envelopes":
+        if _pd_deck == "Phase Envelopes":
             try:
                 from ui.phase_envelopes import render_phase_envelopes_panel
                 render_phase_envelopes_panel(
@@ -4353,24 +4355,27 @@ if _deck == "🧭 Point Designer":
         st.stop()
 
 
-    st.markdown("### 🧭 Truth Console - mode contract (is / is not)")
-    cA, cB = st.columns(2)
-    with cA:
-        st.markdown("""**What this mode does**
+    with st.expander("About this mode", expanded=False):
+        st.info(
+            " **Point Designer is frozen** - It evaluates a single operating point in a constraint-authoritative, assumption-explicit 0‑D framework. "
+            "No optimization, relaxation, or exploration occurs here. Exploration is performed in **Systems Mode**, which calls Point Designer as a fixed evaluator.",
+        )
+        st.markdown("#### Truth Console - mode contract (is / is not)")
+        cA, cB = st.columns(2)
+        with cA:
+            st.markdown("""**What this mode does**
 - Evaluates a single operating point using the frozen 0‑D evaluator
 - Reports pass/fail margins and transparent intermediate outputs
 - Produces reproducible, audit-ready artifacts""")
-    with cB:
-        st.markdown("""**What this mode does not do**
+        with cB:
+            st.markdown("""**What this mode does not do**
 - Optimize, relax, or search for feasibility
 - Suggest parameter changes or apply designs
 - Modify physics, constraints, or policy""")
-
-    with st.expander("Provenance (optional)", expanded=False):
-        st.caption("Read-only metadata for audits and screenshots.")
+        st.caption("Provenance (read-only metadata for audits and screenshots).")
         st.write({"software": APP_NAME, "version": str(st.session_state.get("shams_version","unknown")), "author": APP_AUTHOR})
 
-    tab_cfg, tab_tel, tab_con = st.tabs(["🧭 Configure", "📡 Telemetry", "🧾 Constraints"])
+    tab_cfg, tab_tel, tab_con = st.tabs(["Configure", "Telemetry", "Constraints"])
 
     # IMPORTANT: Streamlit tabs are lazily executed; variables defined inside one tab
     # are NOT guaranteed to exist when another tab is selected. Keep shared flags
@@ -4403,7 +4408,7 @@ if _deck == "🧭 Point Designer":
         except Exception:
             pass
         st.subheader("Control Deck")
-        if st.button("🧹 New machine (clear Point Designer)", use_container_width=True, help="Clear Point Designer outputs/tables/plots so you can start a new machine."):
+        if st.button("New machine (clear Point Designer)", use_container_width=True, help="Clear Point Designer outputs/tables/plots so you can start a new machine."):
             for k in [
                 "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
                 "last_point_out","last_point_inp","last_solver_log",
@@ -4411,7 +4416,7 @@ if _deck == "🧭 Point Designer":
                 st.session_state.pop(k, None)
             st.rerun()
 
-        with st.expander("🏭 Scenario Templates (Industrial, v354)", expanded=False):
+        with st.expander("Scenario Templates (Industrial, v354)", expanded=False):
             st.caption("Deterministic intent templates that set *PointInputs defaults* (no optimization, no solvers).")
             try:
                 from tools.industrial_scenario_templates_v354 import template_names, get_template_payload, get_template
@@ -4420,7 +4425,7 @@ if _deck == "🧭 Point Designer":
                 if _sel_tmpl != "(select)":
                     _payload = get_template_payload(_sel_tmpl)
                     st.code(json.dumps(_payload, indent=2, sort_keys=True), language="json")
-                    if st.button("📥 Load template into Point Designer", use_container_width=True, key="pd_load_industrial_template_btn_v354"):
+                    if st.button("Load template into Point Designer", use_container_width=True, key="pd_load_industrial_template_btn_v354"):
                         # Clear prior outputs and set a new base point for widget defaults.
                         for k in [
                             "pd_last_artifact","pd_last_outputs","pd_last_radial_png_bytes","pd_last_log_lines","pd_last_run_ts","pd_last_inputs_hash",
@@ -10194,7 +10199,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
     # -----------------------------
 
     # --- v92: Stateful Results ---
-    if _deck == "🧭 Point Designer":
+    if _deck == "Point Designer":
         try:
             st.subheader("Stateful Results")
             s = _v92_state_get()
@@ -10234,7 +10239,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
         except Exception:
             pass
 
-if _deck == "🧠 Systems Mode":
+if _deck == "Systems Mode":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "systems_eval"
@@ -10243,7 +10248,7 @@ if _deck == "🧠 Systems Mode":
     # This prevents unbound-name failures on first entry/reruns when downstream blocks execute.
     st.session_state.setdefault("systems_max_iter", 35)
 
-    st.header("🧠 Systems Mode")
+    st.header("Systems Mode")
     st.caption("Feasibility-first system explanation around the frozen Point Designer truth. Deterministic, audit-safe, no hidden solvers.")
     render_mode_scope("systems")
 
@@ -11178,7 +11183,7 @@ if _deck == "🧠 Systems Mode":
 # -----------------------------
 # Systems Mode freeze-readiness helpers (v180+)
 # -----------------------------
-if _deck == "🧠 Systems Mode":
+if _deck == "Systems Mode":
     SYS_RUN_CARD_SCHEMA_VERSION = 1
     SYS_TRACE_SCHEMA_VERSION = 1
     SYS_ARTIFACT_SCHEMA_VERSION = 1
@@ -15587,12 +15592,12 @@ if _deck == "🧠 Systems Mode":
         except Exception:
             pass
 
-if _deck == "🗺️ Scan Lab":
+if _deck == "Scan Lab":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "scan"
 
-    st.header("🗺️ Scan Lab")
+    st.header("Scan Lab")
     st.caption("Cartography over the frozen evaluator: map feasibility, emptiness, fragility, and dominant mechanisms. Deterministic; no internal optimizer.")
     render_mode_scope("scan")
 
@@ -17501,12 +17506,12 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
 
     # NOTE: Scan Lab freeze/legacy/parameter-guide/mapping panels are rendered inside Scan Lab
     # (before Cartography) to reduce scroll fatigue and keep the instrument literacy in one place.
-if _deck == "📈 Pareto Lab":
+if _deck == "Pareto Lab":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "pareto"
 
-    st.header("📈 Pareto Lab")
+    st.header("Pareto Lab")
     st.caption("Trade-off observatory over the feasible set. External optimization is firewalled; truth remains frozen.")
     render_mode_scope("pareto")
     # --- Pareto freeze (read-only semantics) ---
@@ -18627,7 +18632,7 @@ if _deck == "📈 Pareto Lab":
         st.download_button("Download Pareto Freeze Statement", data=_pf, file_name="PARETO_V1_FREEZE_DECLARATION.md", mime="text/markdown", use_container_width=False)
 
 
-if _deck == "🧪 Trade Study Studio":
+if _deck == "Trade Study Studio":
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "trade"
@@ -18639,8 +18644,8 @@ if _deck == "🧪 Trade Study Studio":
         st.error(f"Trade Study Studio failed to load: {e}")
 
 
-if _deck == "⚒️ Reactor Design Forge":
-    st.header("⚒️ Reactor Design Forge")
+if _deck == "Reactor Design Forge":
+    st.header("Reactor Design Forge")
     st.caption("Concept assembly + candidate archives + traces. Feeds the frozen evaluator; does not replace it.")
     render_mode_scope("forge")
 
@@ -22061,8 +22066,8 @@ if _deck == "⚒️ Reactor Design Forge":
                 st.info("No candidates to inspect.")
 
 
-if _deck == "🆚 Compare":
-    st.header("🆚 Compare")
+if _deck == "Compare":
+    st.header("Compare")
     st.caption("Side-by-side artifact comparison to isolate mechanism and constraint-margin deltas.")
     render_mode_scope("compare")
     st.markdown("### Compare sources")
@@ -22197,7 +22202,7 @@ if _deck == "🆚 Compare":
 # (v372.8.7) Studies manager is rendered inside Control Room → Studies tab (no tab-handle leakage).
 # The previous module-scope `with tab_studies:` block was removed to satisfy UI law.
 
-if _deck == "⚒️ Reactor Design Forge":
+if _deck == "Reactor Design Forge":
     st.subheader("🧪 Operating envelope check (multi-point)")
     st.caption("Evaluates startup / nominal / end-of-life proxy points and reports the worst constraint.")
     colA, colB = st.columns([1,3])
@@ -22237,7 +22242,7 @@ if _deck == "⚒️ Reactor Design Forge":
             st.error(f"Envelope check failed: {e}")
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_model:
         st.header("0-D Tokamak Physics Model (Phase‑1)")
 
@@ -22454,7 +22459,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Benchmarks
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_bench:
         st.subheader("Regression Benchmarks")
         st.write("Run a small suite of SPARC-like cases to ensure recent physics/solver changes haven't broken behavior.")
@@ -22722,7 +22727,7 @@ if _deck == "🎛️ Control Room":
         # -----------------------------
         # Variable Registry (auditable meanings/units/sources)
         # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_registry:
         st.subheader("Variable Registry")
         st.markdown(
@@ -22746,7 +22751,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Validation (envelopes)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_validation:
         st.subheader("Validation envelopes")
         st.markdown(
@@ -22811,7 +22816,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Compliance (requirements + model cards)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_compliance:
         st.subheader("Verification & Compliance")
         st.caption("Shows the latest verification/compliance matrix from verification/report.json (if present).")
@@ -22865,7 +22870,7 @@ if _deck == "🎛️ Control Room":
             )
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_docs:
         st.header("Docs")
         st.caption("Built-in documentation bundled with this repository (no internet required).")
@@ -22950,7 +22955,7 @@ def _numeric_delta_table(base_out: Dict[str, Any], scen_out: Dict[str, Any], lim
     return df.head(limit)
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_artifacts:
         st.header("Artifacts Explorer")
         st.caption("Load a SHAMS run artifact and inspect new v50+ artifact sections (constraint ledger, model set, standardized tables).")
@@ -23042,7 +23047,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Case Deck Runner (new)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_deck:
         st.header("Case Deck Runner")
         st.caption("Run a case_deck.v1 YAML/JSON deck and view the resolved config + artifact outputs.")
@@ -23094,7 +23099,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Authority & Confidence (v256.0)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_authority_conf:
         st.header("Authority & Confidence")
         st.caption("Trust ledger: authority tiers, maturity tags, and a design-level confidence class. Post-processing only; truth unchanged.")
@@ -23156,7 +23161,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Decision Consequences (v257.0)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_decision_conseq:
         st.header("Decision Consequences")
         st.caption(
@@ -23220,7 +23225,7 @@ if _deck == "🎛️ Control Room":
 # ----------------------------------
 # Authority Dominance Engine (v330.0)
 # ----------------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_authority_dominance:
         st.header("Authority Dominance")
         st.caption(
@@ -23285,7 +23290,7 @@ if _deck == "🎛️ Control Room":
 # Scenario Delta Viewer (new)
 # -----------------------------
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_epoch_feas:
         st.header("Epoch Feasibility")
         st.caption(
@@ -23356,7 +23361,7 @@ if _deck == "🎛️ Control Room":
                     st.json(chosen.get("constitution") or {}, expanded=False)
                     st.caption("These clauses reclassify constraint enforcement deterministically across epochs.")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_delta:
         st.header("Scenario Delta Viewer")
         st.caption("Compare two run artifacts (baseline vs scenario). Uses embedded scenario_delta when available; otherwise computes a transparent diff.")
@@ -23454,7 +23459,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Run Library (Workspace)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_library:
         st.header("Run Library")
         st.caption("Browse a workspace directory of SHAMS run/study artifacts (no physics changes; read-only).")
@@ -23567,7 +23572,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Constraint Cockpit
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_constraints:
         st.header("Constraint Cockpit")
         st.caption("Interactively triage constraints using the embedded constraint ledger (read-only).")
@@ -23620,7 +23625,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Constraint Inspector (read-only)
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_constraint_inspector:
         st.header("Constraint Inspector")
         st.caption("Read-only, equation-first inspection of a single constraint: raw inequality, margin, meaning, knobs, and provenance (when available).")
@@ -23748,7 +23753,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Sensitivity Explorer
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_sensitivity:
         st.header("Sensitivity Explorer")
         st.caption("Local finite-difference sensitivities around the current point (no model changes).")
@@ -23819,7 +23824,7 @@ if _deck == "🎛️ Control Room":
 # -----------------------------
 # Feasibility Map Viewer
 # -----------------------------
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_feasmap:
         st.header("Feasibility Map")
         st.caption("Visualize feasibility from study sweeps (heatmap).")
@@ -23963,7 +23968,7 @@ def _download_json_button(label: str, data: dict, fname: str, key: str):
     except Exception as e:
         st.warning(f"Download not available: {e}")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_decision:
         st.header("Decision Front Page Builder")
         st.caption("UI-native reconstruction of the decision-grade front-page summary from a run artifact (no physics changes).")
@@ -24001,7 +24006,7 @@ if _deck == "🎛️ Control Room":
             _download_json_button("Download decision summary JSON", d, "decision_summary.json", "dl_decision_summary")
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_nonfeas:
         st.header("Guided Non-Feasibility Mode")
         st.caption("Turn infeasible outcomes into a structured, auditable recovery workflow (UI-only; no physics changes).")
@@ -24231,7 +24236,7 @@ if _deck == "🎛️ Control Room":
                         )
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_cprov:
         st.header("Constraint Provenance Drill-Down")
         st.caption("Click into constraints to see definition fields, fingerprints, and maturity/provenance metadata embedded in the artifact.")
@@ -24260,7 +24265,7 @@ if _deck == "🎛️ Control Room":
                     st.markdown("**Fingerprint fields**")
                     st.code("\n".join([f"{k}: {c.get(k)}" for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_knobs:
         st.header("Knob Trade-Space Explorer")
         st.caption("Explore a 2-knob trade-space by evaluating a small grid around the active point (no optimization; feasibility-first).")
@@ -24350,7 +24355,7 @@ if _deck == "🎛️ Control Room":
                 except Exception as e:
                     st.warning(f"Could not pivot heatmap: {e}")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_regress:
         st.header("What broke? Regression Viewer")
         st.caption("Compare two artifacts: constraints, ledgers, model sets, and key KPIs. This is UI-only; it doesn't modify artifacts.")
@@ -24408,7 +24413,7 @@ if _deck == "🎛️ Control Room":
             msA=artA.get("model_set"); msB=artB.get("model_set")
             st.json({"model_set_A": msA, "model_set_B": msB})
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_study_dash:
         st.header("Study Dashboard")
         st.caption("Manager-grade summary for study outputs (feasible fraction, dominant blockers, robustness).")
@@ -24445,7 +24450,7 @@ if _deck == "🎛️ Control Room":
             else:
                 st.info("No 'cases' list found in study index. (Older study output?)")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_maturity:
         st.header("Engineering Maturity Heatmap")
         st.caption("Visualize model maturity / validity info embedded in the artifact (model_set + model_registry).")
@@ -24487,7 +24492,7 @@ if _deck == "🎛️ Control Room":
                 st.info("No model_registry entries found in artifact.")
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_maintenance:
         st.header("Maintenance & Availability Authority")
         st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
@@ -24547,7 +24552,7 @@ if _deck == "🎛️ Control Room":
                 st.code(str(out.get("maintenance_contract_sha256", "")))
 
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_profile_auth:
         st.header("Profile Authority")
         st.caption("1.5D algebraic profile diagnostics (non-iterative, conservative).")
@@ -24588,7 +24593,7 @@ if _deck == "🎛️ Control Room":
             with st.expander("Validity flags", expanded=False):
                 st.json(out.get("profile_validity", {}))
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_impurity:
         st.header("Impurity & Radiation")
         st.caption("v320 authority: single-species partitions + detachment inversion. v399: multi-species mix → Zeff + partitions + achieved detachment margin (diagnostic; no truth feedback).")
@@ -24614,7 +24619,7 @@ if _deck == "🎛️ Control Room":
             with st.expander("Validity flags", expanded=False):
                 st.json(out.get("impurity_validity", {}))
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_disruption:
         st.header("Disruption Risk")
         st.caption("Conservative screening tier: LOW/MED/HIGH (diagnostic; not predictive).")
@@ -24633,7 +24638,7 @@ if _deck == "🎛️ Control Room":
             with st.expander("Components", expanded=False):
                 st.json(out.get("disruption_risk_components", {}))
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_stability:
         st.header("Stability Risk")
         st.caption("Conservative screening tier: LOW/MED/HIGH for vertical stability + RWM/control budgets (diagnostic; not predictive).")
@@ -24674,7 +24679,7 @@ if _deck == "🎛️ Control Room":
             with st.expander("Control contract margins", expanded=False):
                 st.json(out.get("control_contract_margins", {}))
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_cert_search:
         st.header("Certified Search")
         st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
@@ -25003,7 +25008,7 @@ if _deck == "🎛️ Control Room":
                 except Exception:
                     pass
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_repair:
         st.header("Repair Suggestions")
         st.caption("Explanatory-only: proposes bounded knob deltas to reduce dominant constraint residuals; every proposal must be verified by truth.")
@@ -25147,7 +25152,7 @@ if _deck == "🎛️ Control Room":
                     except Exception:
                         pass
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_refine:
         st.header("Interval Refinement")
         st.caption("Deterministic corner evaluation + contract refinement suggestions (explanatory-only).")
@@ -25254,7 +25259,7 @@ if _deck == "🎛️ Control Room":
                 except Exception:
                     pass
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_narrowing:
         st.header("Interval Narrowing")
         st.caption(
@@ -25266,7 +25271,7 @@ if _deck == "🎛️ Control Room":
         except Exception as _e:
             st.info("Panel unavailable in this build.")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_surrogate:
         st.header("Surrogate Overlay")
         st.caption("Non-authoritative ridge surrogate fitted to the latest Certified Search results.")
@@ -25306,7 +25311,7 @@ if _deck == "🎛️ Control Room":
                     with st.expander("Model details", expanded=False):
                         st.write({"features": list(model.feature_names), "ridge": model.ridge})
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_active_learning:
         st.header("Active Learning")
         st.caption("Propose new points where surrogate uncertainty is high (non-authoritative).")
@@ -25340,7 +25345,7 @@ if _deck == "🎛️ Control Room":
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 st.caption("Verify proposals by setting last_point_inp to a row and running Point Designer. External harness integration can automate that next.")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_assumptions:
         st.header("Assumption Toggle Bar")
         st.caption("Fast scenario exploration by toggling common assumptions and re-evaluating the point (still feasibility-first; no optimization).")
@@ -25380,7 +25385,7 @@ if _deck == "🎛️ Control Room":
                 else:
                     st.write("No failed constraints.")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_export:
         st.header("Export / Communication Panel")
         st.caption("One-click export helpers (JSON, CSV, and a one-slide PNG-style summary) with provenance footer.")
@@ -25429,7 +25434,7 @@ if _deck == "🎛️ Control Room":
             except Exception as e:
                 st.warning(f"PNG summary unavailable: {e}")
 
-if _deck == "🎛️ Control Room":
+if _deck == "Control Room":
     with tab_solver:
         st.header("Solver Introspection")
         st.caption("Inspect solver trace/clamp/residual info from artifacts or the last Point Designer run.")
