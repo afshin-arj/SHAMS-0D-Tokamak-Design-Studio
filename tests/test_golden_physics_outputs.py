@@ -51,8 +51,18 @@ for _p in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from models.inputs import PointInputs
-from physics.hot_ion import hot_ion_point
+from src.models.inputs import PointInputs  # noqa: E402  # app/evaluator context (src.* package)
+from src.physics.hot_ion import hot_ion_point  # noqa: E402
+# NOTE: import as `src.physics.hot_ion` (not top-level `physics.hot_ion`) to match
+# the L0 evaluator choke point (`src.evaluator.core` -> `src.physics.hot_ion`).
+# hot_ion.py's authority overlays use `from ..contracts.*` / `from ..analysis.*`
+# relative imports that only resolve when `hot_ion` is imported as
+# `src.physics.hot_ion` (src as a package). Under the top-level `physics.hot_ion`
+# layout those relative imports raise "attempted relative import beyond
+# top-level package" and the overlays (magnet-tech contract, v389 structural
+# stress, impurity radiation, neutronics-materials) silently no-op, dropping
+# ~32 output keys vs the golden. The application runtime always uses the
+# `src.*` package context, so the golden must pin THAT path.
 
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
