@@ -16,7 +16,7 @@ try:
     from ..models.inputs import PointInputs  # type: ignore
 except Exception:
     from models.inputs import PointInputs  # type: ignore
-from physics.hot_ion import hot_ion_point
+from solvers.evaluator_bridge import evaluate_point
 from constraints.constraints import constraint_is_hard, evaluate_constraints
 from solvers.sensitivity import finite_difference_sensitivities
 
@@ -54,7 +54,7 @@ def directional_nudges(
     - prefer knobs with strong positive effect on *worst* hard constraint margin
     - penalize knobs that worsen objective (higher LCOE)
     """
-    out0 = hot_ion_point(base) or {}
+    out0 = evaluate_point(base, origin="nudges") or {}
     cons0 = evaluate_constraints(out0)
     hard = [c for c in cons0 if constraint_is_hard(c)]
     failing = [c for c in hard if not bool(getattr(c, "passed", True))]
@@ -65,7 +65,7 @@ def directional_nudges(
     # define margin outputs for sensitivity analysis (one key per failing constraint)
     # We compute margins by re-evaluating constraints at perturbed points.
     def evaluator(inp: PointInputs) -> Dict[str, float]:
-        out = hot_ion_point(inp) or {}
+        out = evaluate_point(inp, origin="nudges_sens") or {}
         cons = evaluate_constraints(out)
         d: Dict[str, float] = {}
         for c in cons:

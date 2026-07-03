@@ -18,8 +18,10 @@ try:
     from ..models.inputs import PointInputs  # type: ignore
 except Exception:
     from models.inputs import PointInputs  # type: ignore
-from physics.hot_ion import hot_ion_point
 from constraints.system import build_constraints_from_outputs
+from constraints.system import build_constraints_from_outputs
+from constraints.unified import build_all_constraints
+from solvers.evaluator_bridge import evaluate_point
 from optimization.objectives import get_objective, list_objectives
 
 def default_objectives() -> Dict[str, str]:
@@ -53,8 +55,7 @@ def default_objective(out: Dict[str, float], name: str) -> float:
     return v if spec.sense == "min" else -v
 
 def is_feasible(out: Dict[str, float]) -> bool:
-    cs = build_constraints_from_outputs(out)
-    return all(c.ok for c in cs if c.name != "Radial build closes" or c.value >= 0.5)
+    return bool(build_all_constraints(out).governance_feasible)
 
 def optimize_design(base: PointInputs,
                     objective: str = "min_R0",
@@ -73,7 +74,7 @@ def optimize_design(base: PointInputs,
             "Paux_MW": (0.0, max(base.Paux_MW*2.0, 20.0)),
         }
     best_inp = base
-    best_out = hot_ion_point(base)
+    best_out = evaluate_point(base, origin="optimize_design")
     best_score = default_objective(best_out, objective) if is_feasible(best_out) else 1e99
 
     for _ in range(max(n_iter, 1)):
@@ -81,7 +82,7 @@ def optimize_design(base: PointInputs,
         for k,(lo,hi) in variables.items():
             val = lo + (hi-lo)*rng.random()
             cand = replace(cand, **{k: val})
-        out = hot_ion_point(cand)
+        out = evaluate_point(cand, origin="optimize_design")
         if not is_feasible(out):
             continue
         score = default_objective(out, objective)
@@ -133,7 +134,7 @@ def _pareto_worker(payload):
     # local imports for multiprocessing
     from dataclasses import replace
     from models.inputs import PointInputs
-    from physics.hot_ion import hot_ion_point
+    from solvers.evaluator_bridge import evaluate_point
     from constraints.system import build_constraints_from_outputs
     base = PointInputs(**base_dict)
     inp = base
@@ -141,7 +142,7 @@ def _pareto_worker(payload):
         inp = replace(inp, **{k: float(v)})
     import time as _time
     _t0 = _time.perf_counter()
-    out = hot_ion_point(inp)
+    out = evaluate_point(inp, origin="pareto_worker")
     _eval_s = _time.perf_counter() - _t0
     intent_key = payload.get("intent_key", "Reactor")
     cs = build_constraints_from_outputs(out)
@@ -311,7 +312,7 @@ def pareto_optimize(
             for k, v in s.items():
                 inp = replace(inp, **{k: float(v)})
             _t0 = _time.perf_counter()
-            out = hot_ion_point(inp)
+            out = evaluate_point(inp, origin="pareto_sample")
             _eval_s = _time.perf_counter() - _t0
             cs = build_constraints_from_outputs(out)
             is_feas = _is_feasible_for_intent(cs, intent_key)
@@ -502,7 +503,7 @@ def robust_feasibility_monte_carlo(
         random.seed(seed)
 
     from constraints.constraints import constraint_is_hard, evaluate_constraints
-    from physics.hot_ion import hot_ion_point
+    from solvers.evaluator_bridge import evaluate_point
 
     feas = 0
     margin_samples: Dict[str, list] = {}
@@ -524,7 +525,7 @@ def robust_feasibility_monte_carlo(
             x = max(x, float(min_frac) * b)
             setattr(inp, k, x)
 
-        out = hot_ion_point(inp) or {}
+        out = evaluate_point(inp, origin="mc_feasibility") or {}
         cons = evaluate_constraints(out)
         ok = all(bool(c.passed) for c in cons if constraint_is_hard(c))
         feas += 1 if ok else 0

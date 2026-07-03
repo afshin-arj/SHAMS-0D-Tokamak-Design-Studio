@@ -15,6 +15,7 @@ from .adapters import governance_from_ledger, ledger_from_governance
 from .constraints import Constraint, GovernanceConstraint, constraint_is_hard, evaluate_constraints
 from .registry import ConstraintKind, ConstraintRegistry, ConstraintSpec
 from .system import build_constraints_from_outputs, summarize_constraints
+from .unified import ConstraintBundle, build_all_constraints, diff_constraint_pipelines, dominant_failing_constraint
 
 # Backward-compatible alias for schema ledger type.
 LegacyConstraint = LedgerConstraint
@@ -28,6 +29,10 @@ __all__ = [
     "evaluate_constraints",
     "build_constraints_from_outputs",
     "summarize_constraints",
+    "build_all_constraints",
+    "ConstraintBundle",
+    "diff_constraint_pipelines",
+    "dominant_failing_constraint",
     "ledger_from_governance",
     "governance_from_ledger",
     "ConstraintRegistry",

@@ -86,3 +86,131 @@ def evaluate_impurity_radiation_v399(out: Dict[str, Any], thresholds: Dict[str, 
         derived=derived,
         validity=validity,
     )
+
+
+# --- Post-truth partition overlay (PROPOSAL-022) --------------------------------
+
+import json
+import math
+
+try:
+    from physics.impurities.species_library_v399 import (  # type: ignore
+        ImpurityMixContractV399,
+        evaluate_impurity_radiation_partition_v399,
+    )
+except ImportError:
+    from ..physics.impurities.species_library_v399 import (  # type: ignore
+        ImpurityMixContractV399,
+        evaluate_impurity_radiation_partition_v399,
+    )
+
+
+def _float_out(out: Dict[str, Any], *keys: str) -> float:
+    for k in keys:
+        v = out.get(k)
+        if v is not None:
+            try:
+                fv = float(v)
+                if fv == fv:
+                    return fv
+            except (TypeError, ValueError):
+                continue
+    return float("nan")
+
+
+def evaluate_impurity_radiation_authority_v399(out: Dict[str, Any], inp: Any) -> Dict[str, Any]:
+    """Governance overlay: v399 impurity partition (extracted from L0 host)."""
+    patch: Dict[str, Any] = {}
+    patch["include_impurity_v399"] = float(bool(getattr(inp, "include_impurity_v399", False)))
+    mix_json = str(getattr(inp, "impurity_mix_json_v399", "") or "").strip()
+    patch["impurity_v399_mix_json"] = mix_json
+    patch["zeff_max_v399"] = float(getattr(inp, "zeff_max_v399", float("nan")))
+    patch["prad_core_frac_max_v399"] = float(getattr(inp, "prad_core_frac_max_v399", float("nan")))
+    patch["prad_total_frac_max_v399"] = float(getattr(inp, "prad_total_frac_max_v399", float("nan")))
+    patch["detachment_margin_min_v399"] = float(getattr(inp, "detachment_margin_min_v399", float("nan")))
+
+    def _nan_block() -> None:
+        patch["impurity_v399_prad_total_MW"] = float("nan")
+        patch["impurity_v399_prad_core_MW"] = float("nan")
+        patch["impurity_v399_prad_edge_MW"] = float("nan")
+        patch["impurity_v399_prad_sol_MW"] = float("nan")
+        patch["impurity_v399_prad_div_MW"] = float("nan")
+        patch["impurity_v399_zeff"] = float("nan")
+        patch["impurity_v399_fuel_ion_fraction"] = float("nan")
+        patch["impurity_v399_by_species_MW"] = {}
+        patch["impurity_v399_validity"] = {}
+        patch["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
+        patch["detachment_margin_v399"] = float("nan")
+
+    if not bool(getattr(inp, "include_impurity_v399", False)):
+        _nan_block()
+        return patch
+
+    ne20 = _float_out(out, "ne20", "ne_bar_1e20_m3", "nbar20")
+    volume_m3 = _float_out(out, "volume_m3", "V_m3")
+    t_keV = _float_out(out, "Ti_keV", "Ti")
+    if volume_m3 != volume_m3:
+        try:
+            from phase1_models import tokamak_volume  # type: ignore
+        except ImportError:
+            from ..phase1_models import tokamak_volume  # type: ignore
+        volume_m3 = float(
+            tokamak_volume(
+                float(getattr(inp, "R0_m", float("nan"))),
+                float(getattr(inp, "a_m", float("nan"))),
+                float(getattr(inp, "kappa", 1.7)),
+            )
+        )
+
+    try:
+        if not mix_json:
+            _sp = str(
+                getattr(inp, "impurity_contract_species", getattr(inp, "impurity_species", "")) or ""
+            ).strip()
+            _sp = _sp if _sp in {"C", "N", "Ne", "Ar", "W"} else "Ne"
+            _fz = float(getattr(inp, "impurity_contract_f_z", getattr(inp, "impurity_frac", 0.0)) or 0.0)
+            mix_json = json.dumps(
+                {
+                    "species_fz": {str(_sp): float(_fz)},
+                    "f_core": float(getattr(inp, "impurity_partition_core", 0.50) or 0.50),
+                    "f_edge": float(getattr(inp, "impurity_partition_edge", 0.20) or 0.20),
+                    "f_sol": float(getattr(inp, "impurity_partition_sol", 0.20) or 0.20),
+                    "f_divertor": float(getattr(inp, "impurity_partition_div", 0.10) or 0.10),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            patch["impurity_v399_mix_json"] = mix_json
+
+        mix = ImpurityMixContractV399.from_json(mix_json)
+        rp399 = evaluate_impurity_radiation_partition_v399(
+            mix,
+            ne20=float(ne20),
+            volume_m3=float(volume_m3),
+            t_keV=float(t_keV),
+        )
+        patch["impurity_v399_prad_total_MW"] = float(rp399.prad_total_MW)
+        patch["impurity_v399_prad_core_MW"] = float(rp399.prad_core_MW)
+        patch["impurity_v399_prad_edge_MW"] = float(rp399.prad_edge_MW)
+        patch["impurity_v399_prad_sol_MW"] = float(rp399.prad_sol_MW)
+        patch["impurity_v399_prad_div_MW"] = float(rp399.prad_div_MW)
+        patch["impurity_v399_zeff"] = float(rp399.zeff)
+        patch["impurity_v399_fuel_ion_fraction"] = float(rp399.fuel_ion_fraction)
+        patch["impurity_v399_by_species_MW"] = dict(rp399.by_species_MW)
+        patch["impurity_v399_validity"] = dict(rp399.validity)
+
+        prad_sol_div = float(rp399.prad_sol_MW + rp399.prad_div_MW)
+        prad_req = float(out.get("detachment_prad_sol_div_required_MW", float("nan")))
+        if math.isfinite(prad_req) and prad_req > 0.0:
+            patch["detachment_prad_sol_div_achieved_MW_v399"] = prad_sol_div
+            patch["detachment_margin_v399"] = float(prad_sol_div / prad_req - 1.0)
+        else:
+            patch["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
+            patch["detachment_margin_v399"] = float("nan")
+    except Exception as e:
+        patch["impurity_v399_error"] = f"{type(e).__name__}: {e}"
+        patch["include_impurity_v399"] = 0.0
+        patch["impurity_v399_validity"] = {"error": str(e)}
+        _nan_block()
+
+    return patch

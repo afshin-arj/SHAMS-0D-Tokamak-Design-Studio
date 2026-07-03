@@ -32,7 +32,7 @@ def _evaluate_point(inp: PointInputs) -> Dict[str, Any]:
     """Route robust Pareto interrogation through the Evaluator choke point."""
     global _ROBUST_PARETO_EVALUATOR
     if _ROBUST_PARETO_EVALUATOR is None:
-        _ROBUST_PARETO_EVALUATOR = Evaluator(origin="robust_pareto_lab", cache_enabled=True)
+        _ROBUST_PARETO_EVALUATOR = Evaluator(label="robust_pareto_lab", cache_enabled=True)
     return _ROBUST_PARETO_EVALUATOR.evaluate(inp).out
 
 

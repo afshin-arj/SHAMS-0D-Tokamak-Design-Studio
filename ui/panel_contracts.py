@@ -55,4 +55,10 @@ def get_panel_contracts() -> Dict[str, PanelContract]:
     add("_v100_scan_viewer", "Scan Viewer", requires=["scan_last_outputs","scan_last_artifact"])
     add("_v101_results_explorer", "Results Explorer", requires=["scan_last_outputs"])
 
+    # Deck contracts (UI Phase B)
+    add("render_point_designer_hero", "Point Designer Hero Strip", requires=["pd_last_outputs"], optional=["pd_last_artifact"])
+    add("render_system_suite_header", "System Suite Feasibility Strip", requires=["pd_last_outputs"])
+    add("render_overlay_authority_dashboard", "Authority Overlay Dashboard", requires=[], optional=["last_point_inp"])
+    add("render_point_designer_export", "Point Export Bundle", requires=["pd_last_outputs", "pd_last_artifact"])
+
     return c

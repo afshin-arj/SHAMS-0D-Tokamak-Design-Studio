@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v415.0.0 — Studio audit: constraint ledger parity, Robust Pareto Evaluator choke point
+**Current version:** v416.0.0 — Unified constraints, v399 overlay, solver choke point, UI Phases A–D
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v415.0.0 (Studio Improvement Audit)
+## Latest upgrade — v416.0.0 (PROPOSAL-020–023 + UI Phases A–D)
+
+- Unified constraint builder (`build_all_constraints`), v399 post-truth overlay, solver Evaluator choke point.
+- Verdict-first UI: hero strip, feasibility chips, overlay dashboard, export bundles, constraint trace.
+- See `docs/patch_notes/PATCH_NOTES_v416.md` and `docs/validation/reports/studio_audit_report_20260703_v416.md`.
+
+## Previous upgrade — v415.0.0 (Studio Improvement Audit)
 
 - Constraint ledger parity: v397 q0/bootstrap, v398 stability, v399 impurity caps, v403 granular neutronics.
 - Robust Pareto Lab routes through Evaluator choke point; timezone-aware UTC stamps.

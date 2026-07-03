@@ -69,7 +69,6 @@ from .radiation import (
     total_core_radiation_W,
 )
 from .impurities.species_library import ImpurityContract, evaluate_impurity_radiation_partition
-from .impurities.species_library_v399 import ImpurityMixContractV399, evaluate_impurity_radiation_partition_v399
 from .plant import plant_power_closure, electric_efficiency
 from .current_drive import cd_gamma_and_efficiency
 try:
@@ -1676,79 +1675,7 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         out["impurity_fuel_ion_fraction"] = float(rp.fuel_ion_fraction)
         out["impurity_validity"] = dict(rp.validity)
 
-        # --- (v399.0) Multi-species impurity & radiation partition authority ---
-        out["include_impurity_v399"] = float(bool(getattr(inp, "include_impurity_v399", False)))
-        mix_json = str(getattr(inp, "impurity_mix_json_v399", "") or "").strip()
-        if bool(getattr(inp, "include_impurity_v399", False)):
-            try:
-                # Default mix: carry over v320 single-species knob if JSON is empty.
-                if not mix_json:
-                    mix_json = json.dumps({
-                        "species_fz": {str(_sp): float(_fz)},
-                        "f_core": float(_f_core),
-                        "f_edge": float(_f_edge),
-                        "f_sol": float(_f_sol),
-                        "f_divertor": float(_f_div),
-                    }, sort_keys=True, separators=(",", ":"))
-                mix = ImpurityMixContractV399.from_json(mix_json)
-                rp399 = evaluate_impurity_radiation_partition_v399(
-                    mix,
-                    ne20=float(ne20),
-                    volume_m3=float(V),
-                    t_keV=float(Ti),
-                )
-                out["impurity_v399_mix_json"] = mix_json
-                out["impurity_v399_prad_total_MW"] = float(rp399.prad_total_MW)
-                out["impurity_v399_prad_core_MW"] = float(rp399.prad_core_MW)
-                out["impurity_v399_prad_edge_MW"] = float(rp399.prad_edge_MW)
-                out["impurity_v399_prad_sol_MW"] = float(rp399.prad_sol_MW)
-                out["impurity_v399_prad_div_MW"] = float(rp399.prad_div_MW)
-                out["impurity_v399_zeff"] = float(rp399.zeff)
-                out["impurity_v399_fuel_ion_fraction"] = float(rp399.fuel_ion_fraction)
-                out["impurity_v399_by_species_MW"] = dict(rp399.by_species_MW)
-                out["impurity_v399_validity"] = dict(rp399.validity)
-
-                # Achieved detachment margin vs required (if required present).
-                prad_sol_div = float(rp399.prad_sol_MW + rp399.prad_div_MW)
-                prad_req = float(out.get("detachment_prad_sol_div_required_MW", float("nan")))
-                if math.isfinite(prad_req) and prad_req > 0.0:
-                    out["detachment_prad_sol_div_achieved_MW_v399"] = prad_sol_div
-                    out["detachment_margin_v399"] = float(prad_sol_div / prad_req - 1.0)
-                else:
-                    out["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
-                    out["detachment_margin_v399"] = float("nan")
-            except Exception as e:
-                out["impurity_v399_mix_json"] = mix_json
-                out["impurity_v399_validity"] = {"error": str(e)}
-                out["impurity_v399_prad_total_MW"] = float("nan")
-                out["impurity_v399_prad_core_MW"] = float("nan")
-                out["impurity_v399_prad_edge_MW"] = float("nan")
-                out["impurity_v399_prad_sol_MW"] = float("nan")
-                out["impurity_v399_prad_div_MW"] = float("nan")
-                out["impurity_v399_zeff"] = float("nan")
-                out["impurity_v399_fuel_ion_fraction"] = float("nan")
-                out["impurity_v399_by_species_MW"] = {}
-                out["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
-                out["detachment_margin_v399"] = float("nan")
-        else:
-            out["impurity_v399_mix_json"] = mix_json
-            out["impurity_v399_prad_total_MW"] = float("nan")
-            out["impurity_v399_prad_core_MW"] = float("nan")
-            out["impurity_v399_prad_edge_MW"] = float("nan")
-            out["impurity_v399_prad_sol_MW"] = float("nan")
-            out["impurity_v399_prad_div_MW"] = float("nan")
-            out["impurity_v399_zeff"] = float("nan")
-            out["impurity_v399_fuel_ion_fraction"] = float("nan")
-            out["impurity_v399_by_species_MW"] = {}
-            out["impurity_v399_validity"] = {}
-            out["detachment_prad_sol_div_achieved_MW_v399"] = float("nan")
-            out["detachment_margin_v399"] = float("nan")
-
-        # Pass through v399 caps (for explicit constraints; NaN disables)
-        out["zeff_max_v399"] = float(getattr(inp, "zeff_max_v399", float("nan")))
-        out["prad_core_frac_max_v399"] = float(getattr(inp, "prad_core_frac_max_v399", float("nan")))
-        out["prad_total_frac_max_v399"] = float(getattr(inp, "prad_total_frac_max_v399", float("nan")))
-        out["detachment_margin_min_v399"] = float(getattr(inp, "detachment_margin_min_v399", float("nan")))
+        # v399 impurity authority moved to post-truth overlay (PROPOSAL-022).
 
         # Detachment authority: invert q_div target -> required SOL+div radiation and implied f_z.
         q_target = float(getattr(inp, "q_div_target_MW_m2", float("nan")))
@@ -3530,6 +3457,30 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     except Exception as e:
         out.setdefault('nm_coupling_v372_enabled', False)
         out["nm_coupling_v372_error"] = f"{type(e).__name__}: {e}"
+
+    # =========================================================================
+    # Multi-species impurity radiation authority (v399) — post-truth overlay (PROPOSAL-022/021)
+    # Must run before v402 dominance so ranking sees v399 partition keys.
+    # =========================================================================
+    try:
+        try:
+            from analysis.impurity_radiation_v399 import (
+                evaluate_impurity_radiation_authority_v399,
+            )
+        except ImportError:
+            from ..analysis.impurity_radiation_v399 import (
+                evaluate_impurity_radiation_authority_v399,
+            )
+        v399_patch = evaluate_impurity_radiation_authority_v399(out, inp)
+        if isinstance(v399_patch, dict):
+            out.update(v399_patch)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_impurity_v399",
+            error_key="impurity_v399_error",
+            exc=e,
+        )
 
     # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)

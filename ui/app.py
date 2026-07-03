@@ -616,6 +616,14 @@ def _phase1_stabilize_cache_aliases() -> None:
 from ui.pareto_language import PARETO_LOCK_LINE, PARETO_OPTIMAL_DEF, TRUST_BOUNDARIES, FREEZE_STAMP
 from ui.optimizer_console import render_external_optimizer_launcher, render_optimizer_evidence_packs
 from ui.language_freeze import CANON as _LANG, FORBIDDEN_PHRASES as _FORBIDDEN
+from ui.decks.point_designer_hooks import (
+    render_point_designer_hero,
+    render_point_designer_trace,
+    render_point_designer_export,
+)
+from ui.decks.system_suite_hooks import render_system_suite_header
+from ui.authority_dashboard import render_overlay_authority_dashboard
+from ui.session_api import set_point_evaluation
 
 # --- UI helpers (v87, additive) ---
 
@@ -2786,6 +2794,7 @@ if _deck == "🧰 System Suite":
     st.header("🧰 System Suite")
     st.caption("System-code diagnostics as *read-only overlays* on the frozen Point Designer truth.")
     render_mode_scope("suite")
+    render_system_suite_header(st.session_state)
 
     # Pull the most recent Point Designer artifact from Streamlit session state.
     # (Do not depend on later-defined internal state helpers; keep this block early-safe.)
@@ -4284,6 +4293,8 @@ if _deck == "🧭 Point Designer":
         "No optimization, relaxation, or exploration occurs here. Exploration is performed in **Systems Mode**, which calls Point Designer as a fixed evaluator.",
     )
 
+    render_point_designer_hero(st.session_state)
+
     # Point Designer deck selector (v280+): Truth Console vs outer-loop envelopes/contracts.
     _pd_deck = st.radio(
         "Point Designer deck",
@@ -4360,6 +4371,10 @@ if _deck == "🧭 Point Designer":
         st.session_state["last_point_inp"] = _base_pd
 
     with tab_cfg:
+        try:
+            render_overlay_authority_dashboard(st.session_state, widget_key_prefix="pd_auth")
+        except Exception:
+            pass
         st.subheader("Control Deck")
         if st.button("🧹 New machine (clear Point Designer)", use_container_width=True, help="Clear Point Designer outputs/tables/plots so you can start a new machine."):
             for k in [
@@ -7302,6 +7317,11 @@ if _deck == "🧭 Point Designer":
                 st.info("No Point Designer results yet. Open **🧭 Configure** and click **Evaluate Point**, then return here.")
                 st.caption("Telemetry is read-only; nothing will execute here until a cached Point evaluation exists.")
             else:
+                try:
+                    render_point_designer_trace(st.session_state)
+                    render_point_designer_export(st.session_state)
+                except Exception:
+                    pass
                 # Verdict-first executive header (PASS/FAIL) before any tables.
                 # IMPORTANT: derive from the cached *outputs* (pd_last_outputs) so that
                 # Mission Snapshot / Plot Deck / Ledgers cannot disagree.
@@ -10069,6 +10089,17 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
 
         with tab_con:
             st.subheader("Constraint Briefing")
+            try:
+                from ui.verdict_ui import render_constraint_table_sorted
+                from constraints.unified import build_all_constraints
+
+                _out_con = st.session_state.get("pd_last_outputs")
+                if isinstance(_out_con, dict) and _out_con:
+                    with st.expander("Constraint ledger (sorted by residual)", expanded=False):
+                        _bundle = build_all_constraints(_out_con)
+                        render_constraint_table_sorted(_bundle.governance, use_governance=True)
+            except Exception:
+                pass
             st.markdown(f"**Design intent:** {st.session_state.get('design_intent', 'Power Reactor (net-electric)')}")
             _pol = _constraint_policy_snapshot()
             st.caption(
