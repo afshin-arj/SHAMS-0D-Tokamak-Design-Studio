@@ -644,6 +644,8 @@ class PointInputs:
     elm_heat_fraction_max_v409: float = float('nan')
     elm_energy_fraction_v409: float = 0.05
     elm_duration_ms_v409: float = 0.5
+    elm_duty_cycle_v409: float = 0.02
+    elm_recovery_downtime_frac_v409: float = 0.5
 
     # Optional wall-plug efficiencies per channel (NaN -> use eta_cd_wallplug)
     eta_cd_wallplug_eccd: float = float('nan')

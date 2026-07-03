@@ -8,15 +8,5 @@ This module re-exports the stable public surface.
 
 from __future__ import annotations
 
-try:
-    from src.constraints.system import build_constraints_from_outputs  # type: ignore
-    from src.constraints.system import summarize_constraints  # type: ignore
-except Exception:  # pragma: no cover
-    # Fallback for runtime contexts that already have `src` on the path.
-    from constraints.system import build_constraints_from_outputs  # type: ignore
-    from constraints.system import summarize_constraints  # type: ignore
-
-__all__ = [
-    "build_constraints_from_outputs",
-    "summarize_constraints",
-]
+from src.constraints import *  # noqa: F401,F403
+from src.constraints import __all__ as __all__  # type: ignore

@@ -49,4 +49,13 @@ def evaluate_elm_transient_heat_v409(out: Dict[str, Any], inp: Any) -> Dict[str,
         patch["elm_transient_heat_multiplier_v409"] = float(q_trans / q_par)
     else:
         patch["elm_transient_heat_multiplier_v409"] = float("nan")
+
+    # PHYS-009: ELM duty-cycle → availability ledger coupling proxy
+    duty = _f(getattr(inp, "elm_duty_cycle_v409", 0.02))
+    duty = min(max(duty, 0.0), 1.0)
+    recovery = _f(getattr(inp, "elm_recovery_downtime_frac_v409", 0.5))
+    recovery = min(max(recovery, 0.0), 1.0)
+    patch["elm_duty_cycle_v409"] = float(duty)
+    patch["elm_recovery_downtime_frac_v409"] = float(recovery)
+    patch["elm_availability_downtime_frac_v409"] = float(duty * recovery)
     return patch

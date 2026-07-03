@@ -3512,6 +3512,14 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         elm409 = evaluate_elm_transient_heat_v409(out, inp)
         if isinstance(elm409, dict):
             out.update(elm409)
+            # PHYS-009: couple ELM duty-cycle downtime into availability ledger
+            elm_down = float(out.get("elm_availability_downtime_frac_v409", float("nan")))
+            if elm_down == elm_down and elm_down > 0.0:
+                av0 = float(out.get("availability_model", float("nan")))
+                if av0 == av0:
+                    out["availability_model_before_elm_v409"] = av0
+                    out["availability_model"] = max(0.0, av0 * (1.0 - min(elm_down, 0.5)))
+                    out["elm_availability_coupled_v409"] = 1.0
     except Exception as e:
         _record_overlay_failure(
             out,

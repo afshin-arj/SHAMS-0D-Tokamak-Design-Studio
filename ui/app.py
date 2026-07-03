@@ -620,10 +620,17 @@ from ui.decks.point_designer_hooks import (
     render_point_designer_hero,
     render_point_designer_trace,
     render_point_designer_export,
+    render_point_designer_constraint_diff,
+    render_point_designer_no_solution_atlas,
 )
 from ui.decks.system_suite_hooks import render_system_suite_header
-from ui.authority_dashboard import render_overlay_authority_dashboard
+from ui.authority_dashboard import render_overlay_authority_dashboard, merge_overlay_session_into_inputs
 from ui.session_api import set_point_evaluation
+
+try:
+    from schema.governance_presets import apply_governance_preset, tritium_tight_closure_default
+except ImportError:
+    from src.schema.governance_presets import apply_governance_preset, tritium_tight_closure_default
 
 # --- UI helpers (v87, additive) ---
 
@@ -2285,6 +2292,22 @@ with st.sidebar.expander("Reactor Covenant", expanded=False):
 if st.session_state.get("design_intent") != _design_intent_prev:
 
     _invalidate_mode_caches("design_intent_changed")
+
+    try:
+        from schema.governance_presets import apply_governance_preset, tritium_tight_closure_default
+    except ImportError:
+        from src.schema.governance_presets import apply_governance_preset, tritium_tight_closure_default
+    try:
+        _lpi = st.session_state.get("last_point_inp")
+        if _lpi is not None:
+            from dataclasses import asdict
+            _fields = asdict(_lpi) if hasattr(_lpi, "__dataclass_fields__") else dict(_lpi)
+            apply_governance_preset(_fields, design_intent=str(st.session_state.get("design_intent", "")))
+            st.session_state["include_tritium_tight_closure"] = bool(
+                _fields.get("include_tritium_tight_closure", tritium_tight_closure_default(str(st.session_state.get("design_intent", ""))))
+            )
+    except Exception:
+        pass
 
     try:
         _alog("UI", "DesignIntentChanged", {"from": _design_intent_prev, "to": st.session_state.get("design_intent")})
@@ -4372,7 +4395,11 @@ if _deck == "🧭 Point Designer":
 
     with tab_cfg:
         try:
-            render_overlay_authority_dashboard(st.session_state, widget_key_prefix="pd_auth")
+            render_overlay_authority_dashboard(
+                st.session_state,
+                widget_key_prefix="pd_auth",
+                design_intent=str(st.session_state.get("design_intent", "Power Reactor (net-electric)")),
+            )
         except Exception:
             pass
         st.subheader("Control Deck")
@@ -6708,9 +6735,14 @@ if _deck == "🧭 Point Designer":
 
                     "include_tritium_tight_closure": bool(st.checkbox(
                         "Enable tight tritium closure (inventory+loss+self-sufficiency)",
-                        value=False,
+                        value=bool(
+                            st.session_state.get(
+                                "include_tritium_tight_closure",
+                                tritium_tight_closure_default(str(st.session_state.get("design_intent", "Power Reactor (net-electric)"))),
+                            )
+                        ),
                         disabled=not include_fuelcycle,
-                        help="When enabled, SHAMS computes in-vessel and total tritium inventory proxies, applies optional loss tightening to TBR_eff, and enforces optional self-sufficiency margins (all algebraic; no iteration).",
+                        help="When enabled, SHAMS computes in-vessel and total tritium inventory proxies, applies optional loss tightening to TBR_eff, and enforces optional self-sufficiency margins (all algebraic; no iteration). Reactor intent defaults ON (PHYS-010).",
                     )),
                     "T_processing_delay_days": _maybe(float(_num("Processing delay (days) → in-vessel inventory proxy", 1.0, 0.2, min_value=0.0,
                         help="In-vessel inventory proxy: T_in_vessel = T_burn * delay_days.")), include_fuelcycle),
@@ -7811,6 +7843,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                     )
 
                     # UI-only guardrails: warn on obviously unrealistic knobs (does not block).
+                    base = merge_overlay_session_into_inputs(base, st.session_state)
                     _warn_unrealistic_point_inputs(base, context="🧭 Point Designer")
                     if do_opt:
                         _log(f"Optimization enabled: objective={opt_objective}, iters={opt_iters}, seed={opt_seed}")
@@ -10095,6 +10128,10 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
 
                 _out_con = st.session_state.get("pd_last_outputs")
                 if isinstance(_out_con, dict) and _out_con:
+                    with st.expander("Constraint pipeline diff (registry vs legacy)", expanded=False):
+                        render_point_designer_constraint_diff(st.session_state)
+                    with st.expander("NO-SOLUTION mechanism atlas", expanded=False):
+                        render_point_designer_no_solution_atlas(st.session_state)
                     with st.expander("Constraint ledger (sorted by residual)", expanded=False):
                         _bundle = build_all_constraints(_out_con)
                         render_constraint_table_sorted(_bundle.governance, use_governance=True)

@@ -21,6 +21,8 @@ import math
 from phase1_models import (
     tauE_ipb98y2,
     tauE_iter89p,
+    tauE_mirnov,
+    tauE_shimomura,
 )
 
 # ----------------------------
@@ -121,6 +123,21 @@ def evaluate_transport_envelope_v396(
     add("IPB98(y,2)", tauE_ipb98y2(Ip_MA, Bt_T, ne20, Ploss_MW, R_m, a_m, kappa, M_amu))
     add("ITER89-P", tauE_iter89p(Ip_MA, Bt_T, ne20, Ploss_MW, R_m, a_m, kappa, M_amu))
 
+    # PHYS-008: regime-conditioned H-mode comparators from phase1_models
+    lh_ok = out_partial.get("LH_ok", out_partial.get("lh_ok", float("nan")))
+    regime = str(out_partial.get("plasma_regime", out_partial.get("regime", ""))).lower()
+    h_mode = (
+        (isinstance(lh_ok, (int, float)) and math.isfinite(float(lh_ok)) and float(lh_ok) > 0.5)
+        or "h-mode" in regime
+        or regime.startswith("h")
+    )
+    if h_mode:
+        add("Mirnov H", tauE_mirnov(a_m, kappa, Ip_MA))
+        add("Shimomura H", tauE_shimomura(R_m, a_m, Bt_T, kappa, M_amu))
+        out_partial_tag = "H-mode"
+    else:
+        out_partial_tag = "L-mode"
+
     # Optional user scaling vector
     include_user = bool(getattr(inp, "include_tauE_user_scaling_v396", False))
     if include_user:
@@ -170,6 +187,7 @@ def evaluate_transport_envelope_v396(
 
     return {
         "transport_envelope_v396_enabled": True,
+        "transport_envelope_regime_v396": out_partial_tag,
         "tauE_envelope_min_s_v396": tau_min,
         "tauE_envelope_max_s_v396": tau_max,
         "transport_spread_ratio_v396": spread,

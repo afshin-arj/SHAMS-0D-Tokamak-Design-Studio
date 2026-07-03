@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v417.0.0 — Constraint registry, certification harness, PHYS-002 τE peaking, v408/v409/v405 overlays
+**Current version:** v418.0.0 — Registry code-gen, constraint diff UI, NO-SOLUTION atlas, PHYS-003/008–010, overlay dashboard
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,14 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v417.0.0 (PROPOSAL-024–025 + PHYS-002 + PHYS-004–006)
+## Latest upgrade — v418.0.0 (PROPOSAL-026–028 + PHYS-003/008–010 + UI sprint)
+
+- Registry code-generation from `authority_caps.json`.
+- Constraint pipeline diff dossier and NO-SOLUTION mechanism atlas in Point Designer.
+- v402 thresholds in authority dashboard; H-mode scalings in v396; ELM duty-cycle availability coupling; tritium reactor preset.
+- See `docs/patch_notes/PATCH_NOTES_v418.md` and `docs/validation/reports/studio_audit_report_20260703_v418.md`.
+
+## Previous upgrade — v417.0.0 (PROPOSAL-024–025 + PHYS-002 + PHYS-004–006)
 
 - Single-source authority constraint registry (`authority_caps.json`).
 - Certification deterministic regression harness.

@@ -22,6 +22,7 @@ from .authority_registry import (
     load_authority_specs,
     registry_spec_names,
 )
+from .registry_codegen import generate_registry_module, verify_codegen_sync
 
 # Backward-compatible alias for schema ledger type.
 LegacyConstraint = LedgerConstraint
@@ -42,6 +43,8 @@ __all__ = [
     "load_authority_specs",
     "evaluate_registry_governance",
     "evaluate_registry_ledger",
+    "generate_registry_module",
+    "verify_codegen_sync",
     "ledger_from_governance",
     "governance_from_ledger",
     "ConstraintRegistry",

@@ -41,7 +41,13 @@ def _registry_path() -> Path:
 
 
 def load_authority_specs() -> List[AuthorityCapSpec]:
-    raw = json.loads(_registry_path().read_text(encoding="utf-8"))
+    """Load specs from codegen module (PROPOSAL-026) with JSON fallback."""
+    try:
+        from .data.authority_specs_codegen import REGISTRY_SPECS  # type: ignore
+
+        raw = list(REGISTRY_SPECS)
+    except Exception:
+        raw = json.loads(_registry_path().read_text(encoding="utf-8"))
     specs: List[AuthorityCapSpec] = []
     for row in raw:
         specs.append(
