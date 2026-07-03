@@ -3904,7 +3904,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                 st.caption("Quick interop: send the current run to Compare without downloading/uploading files.")
                                 _c1, _c2, _c3 = st.columns([1, 1, 1])
                                 with _c1:
-                                    if st.button("🅰 Send to Compare Slot A", use_container_width=True, key="pd_send_cmp_A"):
+                                    if st.button("Send to Compare Slot A", use_container_width=True, key="pd_send_cmp_A"):
                                         st.session_state["cmp_slot_A"] = artifact
                                         st.session_state["cmp_slot_A_meta"] = {
                                             "ts_unix": float(time.time()),
@@ -3913,7 +3913,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         }
                                         st.success("Sent current run to Compare Slot A.")
                                 with _c2:
-                                    if st.button("🅱 Send to Compare Slot B", use_container_width=True, key="pd_send_cmp_B"):
+                                    if st.button("Send to Compare Slot B", use_container_width=True, key="pd_send_cmp_B"):
                                         st.session_state["cmp_slot_B"] = artifact
                                         st.session_state["cmp_slot_B_meta"] = {
                                             "ts_unix": float(time.time()),
@@ -5482,7 +5482,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
     
                         # --- Compare to baseline (delta view) ---
                         if _pd_tel_view == "Sensitivity Lab":
-                            with st.expander("🆚 Delta View - Compare to Baseline", expanded=False):
+                            with st.expander("Delta View - Compare to Baseline", expanded=False):
                                 st.caption("Set a baseline (e.g., preset or previous run) and view deltas for key KPIs and tightest constraints.")
                                 if st.button("Set baseline = current point", key="pd_set_baseline", use_container_width=True):
                                     try:
