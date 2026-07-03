@@ -13,12 +13,10 @@ import streamlit as st
 import sys
 
 
+from ._bridge import bridge_deck
+
 def render_reactor_design_forge(_app_module) -> None:
-    _g = globals()
-    for _k, _v in vars(_app_module).items():
-        if not _k.startswith('__'):
-            _g[_k] = _v
-    _g['__file__'] = _app_module.__file__
+    bridge_deck(_app_module, globals())
 
     st.header("Reactor Design Forge")
     st.caption("Concept assembly + candidate archives + traces. Feeds the frozen evaluator; does not replace it.")

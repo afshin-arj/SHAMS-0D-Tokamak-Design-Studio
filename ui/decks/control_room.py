@@ -20,12 +20,10 @@ import streamlit as st
 import sys
 
 
+from ._bridge import bridge_deck
+
 def render_control_room(_app_module) -> None:
-    _g = globals()
-    for _k, _v in vars(_app_module).items():
-        if not _k.startswith('__'):
-            _g[_k] = _v
-    _g['__file__'] = _app_module.__file__
+    bridge_deck(_app_module, globals())
 
     # --- Control Room block 0 (was app.py lines 2831..3409) ---
     st.header("Control Room")

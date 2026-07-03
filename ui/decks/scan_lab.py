@@ -10,12 +10,10 @@ import streamlit as st
 import sys
 
 
+from ._bridge import bridge_deck
+
 def render_scan_lab(_app_module) -> None:
-    _g = globals()
-    for _k, _v in vars(_app_module).items():
-        if not _k.startswith('__'):
-            _g[_k] = _v
-    _g['__file__'] = _app_module.__file__
+    bridge_deck(_app_module, globals())
 
     from ui.components import kpi_row, empty_state
 

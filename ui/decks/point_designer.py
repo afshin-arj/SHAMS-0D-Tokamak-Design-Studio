@@ -8,15 +8,14 @@ cleanup commit. No physics, constraint, solver, evaluator, or golden changes.
 from __future__ import annotations
 
 
+from ._bridge import bridge_deck
+
 def render_point_designer(_app_module) -> None:
     # Namespace bridge: borrow app.py module globals so this extracted block
     # resolves every bare name (st, pd, PD_KEYS, _num, REPO_ROOT, helpers, ...)
     # exactly as it did when it lived inline in app.py. Pure move, no behavior
     # change. To be replaced with explicit dependencies in a later commit.
-    _g = globals()
-    for _k, _v in vars(_app_module).items():
-        if not _k.startswith("__"):
-            _g[_k] = _v
+    bridge_deck(_app_module, globals())
     # Verdict-first (UI redesign): hero strip renders above the fold before any
     # mode-contract copy. Frozen-truth info + mode contract are collapsed into an
     # "About this mode"expander below the sub-deck selector.
