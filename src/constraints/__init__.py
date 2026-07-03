@@ -12,7 +12,7 @@ except ImportError:
     from src.schema.constraints import Constraint as LedgerConstraint  # type: ignore
 
 from .adapters import governance_from_ledger, ledger_from_governance
-from .constraints import Constraint, GovernanceConstraint, evaluate_constraints
+from .constraints import Constraint, GovernanceConstraint, constraint_is_hard, evaluate_constraints
 from .registry import ConstraintKind, ConstraintRegistry, ConstraintSpec
 from .system import build_constraints_from_outputs, summarize_constraints
 
@@ -22,6 +22,7 @@ LegacyConstraint = LedgerConstraint
 __all__ = [
     "Constraint",
     "GovernanceConstraint",
+    "constraint_is_hard",
     "LedgerConstraint",
     "LegacyConstraint",
     "evaluate_constraints",

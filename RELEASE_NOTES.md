@@ -1,3 +1,10 @@
+## v413.0.0 — Post-v412 audit safe fixes
+
+- `constraint_is_hard()` fixes soft-constraint filtering in optimize/nudges paths.
+- v401/v403 min-margin caps added to `evaluate_constraints`; v403 fragile margin in ledger + schema.
+- Certification v374 smoke test; evaluator import cleanup.
+- See `docs/patch_notes/PATCH_NOTES_v413.md`.
+
 ## v412.0.0 — PROPOSAL-008 & PROPOSAL-009 (UI choke point + constraint API)
 
 - **PROPOSAL-008:** `ui/app.py` routes point evaluation through `_ui_evaluate()` → `Evaluator.evaluate()`; AST regression guard in `tests/test_ui_evaluator_choke_point.py`.

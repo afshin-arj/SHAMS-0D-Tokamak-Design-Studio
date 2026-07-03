@@ -266,7 +266,7 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
 
     # Neutronics & Materials Authority 4.0 — Library Stack (v403.0.0) — governance overlay
     # Deterministic multi-layer + 3-group attenuation + derived DPA/He/activation + TBR-lite.
-    add("NM library min margin (v403)", "nm_min_margin_frac_v403", units="-",
+    add("NM library min margin (v403)", "nm_min_margin_frac_v403", lo_key="nm_fragile_margin_frac_v403", units="-",
         description="Minimum normalized margin across v403 library stack contract items (DPA/He/cooldown/TBR/fast attenuation when enabled).")
     add("FW DPA (v403)", "dpa_fw_v403", hi_key="dpa_fw_max_v403", units="DPA/FPY",
         description="First-wall DPA proxy derived from 3-group attenuation + material coefficients (v403). Optional cap.")
@@ -412,7 +412,7 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="TF coil strain proxy must be below allowable (screening). Optional cap.")
 
     # --- (v288.0) Magnet authority 2.0 ---
-    add("TF peak field", "tf_Bpeak_T", hi_key="B_peak_allow_T", units="T",
+    add("TF peak field (v288)", "tf_Bpeak_T", hi_key="B_peak_allow_T", units="T",
     description="TF peak field at winding pack (proxy) must be below allowable.")
     add("HTS margin", "tf_hts_margin", lo_key="hts_margin_min", units="-",
     description="HTS critical-surface margin Jc(B,T,ε)/Jop must exceed minimum if enabled.")

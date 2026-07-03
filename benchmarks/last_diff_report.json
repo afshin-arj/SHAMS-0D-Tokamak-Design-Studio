@@ -1,27 +1,9 @@
 {
   "atol": 1e-06,
-  "created_unix": 1772219781.4333463,
+  "created_unix": 1783058350.8314893,
   "n_failed": 0,
-  "n_rows": 104,
+  "n_rows": 78,
   "rows": [
-    {
-      "abs_err": 0.0,
-      "case": "sparc_alpha_ash_on",
-      "golden": 26.814136702462605,
-      "got": 26.814136702462605,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_alpha_ash_on",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
     {
       "abs_err": 0.0,
       "case": "sparc_alpha_ash_on",
@@ -34,8 +16,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_alpha_ash_on",
-      "golden": 8.066376702732756,
-      "got": 8.066376702732756,
+      "golden": 4.033188351366378,
+      "got": 4.033188351366378,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -79,24 +61,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_baseline",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_baseline",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_baseline",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -106,8 +70,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_baseline",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -151,24 +115,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_coil_tight",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_coil_tight",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_coil_tight",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -178,8 +124,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_coil_tight",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -223,24 +169,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_current_drive",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_current_drive",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_current_drive",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -250,8 +178,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_current_drive",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -295,24 +223,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_double_null",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_double_null",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_double_null",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -322,8 +232,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_double_null",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -361,24 +271,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_high_Q_target",
-      "golden": 64.03535649885096,
-      "got": 64.03535649885096,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_high_Q_target",
-      "golden": 1505.1198817147952,
-      "got": 1505.1198817147952,
-      "key": "Pfus_DT_MW",
       "ok": true,
       "rel_err": 0.0
     },
@@ -394,8 +286,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_high_Q_target",
-      "golden": 8.448698078264028,
-      "got": 8.448698078264028,
+      "golden": 4.224349039132014,
+      "got": 4.224349039132014,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -439,24 +331,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_high_field",
-      "golden": 29.521883893141542,
-      "got": 29.521883893141542,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_high_field",
-      "golden": 1040.8299486740257,
-      "got": 1040.8299486740257,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_high_field",
       "golden": 148.7060536431801,
       "got": 148.7060536431801,
       "key": "P_SOL_MW",
@@ -466,8 +340,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_high_field",
-      "golden": 7.1052849837509955,
-      "got": 7.1052849837509955,
+      "golden": 3.5526424918754977,
+      "got": 3.5526424918754977,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -511,24 +385,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_impurity_ar",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_impurity_ar",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_impurity_ar",
       "golden": 139.423573938988,
       "got": 139.423573938988,
       "key": "P_SOL_MW",
@@ -538,8 +394,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_impurity_ar",
-      "golden": 7.583064111416148,
-      "got": 7.583064111416148,
+      "golden": 3.791532055708074,
+      "got": 3.791532055708074,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -583,24 +439,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_low_aux",
-      "golden": 65.79588605115,
-      "got": 65.79588605115,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_low_aux",
-      "golden": 773.2380149977507,
-      "got": 773.2380149977507,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_low_aux",
       "golden": 101.25913762288874,
       "got": 101.25913762288874,
       "key": "P_SOL_MW",
@@ -610,8 +448,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_low_aux",
-      "golden": 8.079235543327368,
-      "got": 8.079235543327368,
+      "golden": 4.039617771663684,
+      "got": 4.039617771663684,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -655,24 +493,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_particle_balance_diag",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_particle_balance_diag",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_particle_balance_diag",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -682,8 +502,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_particle_balance_diag",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -727,24 +547,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_pedestal_profile",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_pedestal_profile",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_pedestal_profile",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -754,8 +556,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_pedestal_profile",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -799,24 +601,6 @@
     {
       "abs_err": 0.0,
       "case": "sparc_pulsed_20s",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_pulsed_20s",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_pulsed_20s",
       "golden": 124.59527645708924,
       "got": 124.59527645708924,
       "key": "P_SOL_MW",
@@ -826,8 +610,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_pulsed_20s",
-      "golden": 7.852057369271174,
-      "got": 7.852057369271174,
+      "golden": 3.926028684635587,
+      "got": 3.926028684635587,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0
@@ -865,24 +649,6 @@
       "golden": 4250.329264238302,
       "got": 4250.329264238302,
       "key": "sigma_hoop_MPa",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_radiation_mix_physics",
-      "golden": 29.710954794972416,
-      "got": 29.710954794972416,
-      "key": "Q_DT_eqv",
-      "ok": true,
-      "rel_err": 0.0
-    },
-    {
-      "abs_err": 0.0,
-      "case": "sparc_radiation_mix_physics",
-      "golden": 872.9132278685544,
-      "got": 872.9132278685544,
-      "key": "Pfus_DT_MW",
       "ok": true,
       "rel_err": 0.0
     },
@@ -898,8 +664,8 @@
     {
       "abs_err": 0.0,
       "case": "sparc_radiation_mix_physics",
-      "golden": 7.583089861074467,
-      "got": 7.583089861074467,
+      "golden": 3.7915449305372335,
+      "got": 3.7915449305372335,
       "key": "H98",
       "ok": true,
       "rel_err": 0.0

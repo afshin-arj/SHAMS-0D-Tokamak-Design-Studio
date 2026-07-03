@@ -26,8 +26,12 @@ import json
 import math
 from typing import Any, Dict, Optional, Tuple
 
-from src.physics.control_stability import compute_vertical_stability
-from src.physics.mhd_rwm import compute_rwm_screening
+try:
+    from ..physics.control_stability import compute_vertical_stability
+    from ..physics.mhd_rwm import compute_rwm_screening
+except Exception:
+    from physics.control_stability import compute_vertical_stability
+    from physics.mhd_rwm import compute_rwm_screening
 
 
 def _f(x: Any, default: float = float("nan")) -> float:

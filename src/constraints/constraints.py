@@ -97,6 +97,11 @@ class GovernanceConstraint:
 Constraint = GovernanceConstraint
 
 
+def constraint_is_hard(c: GovernanceConstraint) -> bool:
+    """True when a governance constraint should gate feasibility (not diagnostic)."""
+    return str(getattr(c, "severity", "hard")).strip().lower() == "hard"
+
+
 def evaluate_constraints(
     outputs: Dict[str, float],
     policy: Optional[Dict[str, Any]] = None,
@@ -954,5 +959,29 @@ def evaluate_constraints(
         else:
             # soft diagnostic: should not be strongly negative
             ge("struct_min_margin_v404_diag", mmin, -0.2, units="-", note="Structural life minimum margin not deeply negative (diagnostic)", severity="soft", group="structural")
+
+    # Neutronics & Materials Authority v401/v403 — mirror PROCESS ledger caps
+    if "nm_min_margin_frac_v401" in outputs:
+        lim = outputs.get("nm_fragile_margin_frac_v401", float("nan"))
+        if lim == lim:
+            ge(
+                "NM contract min margin (v401)",
+                outputs["nm_min_margin_frac_v401"],
+                lim,
+                units="-",
+                note="Minimum normalized margin across v401 contract items",
+                group="neutronics",
+            )
+    if "nm_min_margin_frac_v403" in outputs:
+        lim = outputs.get("nm_fragile_margin_frac_v403", float("nan"))
+        if lim == lim:
+            ge(
+                "NM library min margin (v403)",
+                outputs["nm_min_margin_frac_v403"],
+                lim,
+                units="-",
+                note="Minimum normalized margin across v403 library stack",
+                group="neutronics",
+            )
 
     return cs

@@ -1750,9 +1750,9 @@
     "semantic_hash": "cdea4448517564905f716dba163537df"
   },
   "src/constraints/system.py": {
-    "mtime": 1781256783.7481897,
-    "ast_hash": "be8e113f62b846236b32390c5a55f4c5",
-    "semantic_hash": "be8e113f62b846236b32390c5a55f4c5"
+    "mtime": 1781278661.0990775,
+    "ast_hash": "3137a5985541cc902bf2a0f6563837ab",
+    "semantic_hash": "3137a5985541cc902bf2a0f6563837ab"
   },
   "src/constraints/taxonomy.py": {
     "mtime": 1781209205.5863647,
@@ -2245,9 +2245,9 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "src/models/inputs.py": {
-    "mtime": 1781261870.8790255,
-    "ast_hash": "8f0b3f317050edc0d044b9add2646d23",
-    "semantic_hash": "8f0b3f317050edc0d044b9add2646d23"
+    "mtime": 1781278620.938632,
+    "ast_hash": "40961bc8be94eb77d86525132838c79d",
+    "semantic_hash": "40961bc8be94eb77d86525132838c79d"
   },
   "src/models/model_registry.py": {
     "mtime": 1781209205.7509215,
@@ -2623,6 +2623,21 @@
     "mtime": 1781209205.9019234,
     "ast_hash": "a5e28c21a3f8fb103c7d2b72c238416f",
     "semantic_hash": "a5e28c21a3f8fb103c7d2b72c238416f"
+  },
+  "src/schema/__init__.py": {
+    "mtime": 1781278597.0737183,
+    "ast_hash": "dc8ce9cd7a309c33360953984eeb30a2",
+    "semantic_hash": "dc8ce9cd7a309c33360953984eeb30a2"
+  },
+  "src/schema/constraints.py": {
+    "mtime": 1781278639.3965626,
+    "ast_hash": "e2ce26ccd21bfe05658c24808d9393a6",
+    "semantic_hash": "e2ce26ccd21bfe05658c24808d9393a6"
+  },
+  "src/schema/inputs.py": {
+    "mtime": 1781261870.8790255,
+    "ast_hash": "8f0b3f317050edc0d044b9add2646d23",
+    "semantic_hash": "8f0b3f317050edc0d044b9add2646d23"
   },
   "src/shams_io/__init__.py": {
     "mtime": 1781209205.9029243,

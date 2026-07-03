@@ -160,7 +160,7 @@
       "P_sync_MW": NaN,
       "Palpha_e_MW": 21.169055291417852,
       "Palpha_i_MW": 119.95797998470114,
-      "S_fuel_required_1e22_per_s": 0.4320347492454833,
+      "S_fuel_required_1e22_per_s": 0.8640694984909666,
       "Zeff": NaN,
       "alpha_loss_frac_eff": 0.05,
       "ash_factor": 1.0,
@@ -168,7 +168,7 @@
       "f_alpha_to_ion_eff": 0.85,
       "rho_star": 0.0023147530758089664,
       "tau_ei_s": 0.5237724507192135,
-      "tau_p_s": 3.4818426804164666
+      "tau_p_s": 1.7409213402082333
     },
     "sparc_pedestal_profile": {
       "P_brem_MW": 33.188888280114575,
@@ -222,7 +222,7 @@
       "tau_p_s": NaN
     }
   },
-  "created_unix": 1772219848.6385236,
+  "created_unix": 1783058475.1173134,
   "keys": [
     "alpha_loss_frac_eff",
     "rho_star",

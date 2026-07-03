@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v412.0.0 — PROPOSAL-008 UI Evaluator choke point; PROPOSAL-009 constraint API consolidation
+**Current version:** v413.0.0 — Post-v412 audit: constraint severity gating, v401/v403 parity, certification smoke
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v412.0.0 (UI Choke Point + Constraint API)
+## Latest upgrade — v413.0.0 (Post-v412 Audit Safe Fixes)
+
+- Constraint `severity` respected in Monte Carlo / nudge feasibility paths.
+- v401/v403 min-margin enforcement in `evaluate_constraints`; v403 fragile margin wired in ledger.
+- Certification v374 smoke test. See `docs/patch_notes/PATCH_NOTES_v413.md`.
+
+## Prior upgrade — v412.0.0 (UI Choke Point + Constraint API)
 
 - **PROPOSAL-008:** UI point evaluation routed through `Evaluator.evaluate()` via `_ui_evaluate()` (one golden-regen bypass documented).
 - **PROPOSAL-009:** `LedgerConstraint` vs `GovernanceConstraint` with adapters and unified `constraints` public API.

@@ -287,6 +287,7 @@ def evaluate_neutronics_materials_library_v403(out: Dict[str, Any], inp: Any) ->
         "fast_attenuation_min_v403": fast_att_floor,
         "nm_contract_items_v403": [{"item": k, "margin_frac": v} for k, v in items],
         "nm_min_margin_frac_v403": float(mm),
+        "nm_fragile_margin_frac_v403": float(getattr(inp, "nm_fragile_margin_frac_v403", 0.10)),
         "nm_dominant_driver_v403": str(dom),
         "nm_regime_tier_v403": str(tier),
         "nm_contract_sha256_v403": "8f3b0c1b4f1f1b0b8a2d6b9e31b2b2aa9b8d7c6e5f4a3b2c1d0e9f8a7b6c5403",

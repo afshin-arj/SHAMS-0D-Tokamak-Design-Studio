@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "project": "SHAMS\u2013FUSION-X",
-  "ran_unix": 1772219855.0412343,
-  "elapsed_s": 10.047396183013916,
+  "ran_unix": 1783058509.2430968,
+  "elapsed_s": 44.45515513420105,
   "overall_ok": true,
   "requirements": [
     {
       "id": "REQ-REG-001",
       "title": "Regression benchmarks must pass",
       "ok": true,
-      "seconds": 3.702728271484375,
+      "seconds": 19.562062740325928,
       "model_cards": [
         "plasma.hot_ion_point"
       ],
@@ -19,7 +19,7 @@
       "id": "REQ-GEO-001",
       "title": "Inboard radial stack closure must be computed and reported",
       "ok": true,
-      "seconds": 0.03880476951599121,
+      "seconds": 0.23653745651245117,
       "model_cards": [
         "engineering.radial_stack"
       ],
@@ -29,7 +29,7 @@
       "id": "REQ-GEO-002",
       "title": "Baseline case should have a closing inboard stack",
       "ok": true,
-      "seconds": 0.002158641815185547,
+      "seconds": 0.16809749603271484,
       "model_cards": [
         "engineering.radial_stack"
       ],
@@ -39,7 +39,7 @@
       "id": "REQ-GEO-003",
       "title": "A deliberately overbuilt coil case should fail inboard stack closure",
       "ok": true,
-      "seconds": 0.04579806327819824,
+      "seconds": 0.1498408317565918,
       "model_cards": [
         "engineering.radial_stack"
       ],
@@ -49,7 +49,7 @@
       "id": "REQ-PROV-001",
       "title": "Model card index must be emitted for audited outputs",
       "ok": true,
-      "seconds": 3.0994415283203125e-06,
+      "seconds": 9.059906005859375e-06,
       "model_cards": [
         "engineering.radial_stack",
         "plasma.hot_ion_point",
@@ -61,7 +61,7 @@
       "id": "REQ-TOPO-001",
       "title": "Feasibility topology regression must remain stable",
       "ok": true,
-      "seconds": 5.934970855712891,
+      "seconds": 23.418710708618164,
       "model_cards": [
         "cartography.topology_slice"
       ],
@@ -71,7 +71,7 @@
       "id": "REQ-IMP-001",
       "title": "Import policy: forbid legacy shams_v1941 imports in runtime paths",
       "ok": true,
-      "seconds": 0.3228752613067627,
+      "seconds": 0.91982102394104,
       "model_cards": [],
       "note": ""
     }
@@ -81,7 +81,7 @@
       "id": "availability_proxy",
       "name": "Availability proxy (planned + forced outages)",
       "version": "0.1",
-      "hash": "c5b6bec169a043d525a2413547babf56d4552b6e97dbb929230afd8973e68315",
+      "hash": "c2e0eb054fc9d425c9c4c7789da5c0883dd31e0a0f0ced6da086fad14411c665",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -93,7 +93,7 @@
       "id": "availability_proxy",
       "name": "Availability proxy (planned + forced outages)",
       "version": "0.1",
-      "hash": "c5b6bec169a043d525a2413547babf56d4552b6e97dbb929230afd8973e68315",
+      "hash": "c2e0eb054fc9d425c9c4c7789da5c0883dd31e0a0f0ced6da086fad14411c665",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -105,7 +105,7 @@
       "id": "bootstrap_sauter_proxy_v1",
       "name": "Bootstrap fraction (Sauter-inspired proxy)",
       "version": "v1",
-      "hash": "991cf5ede70239fc6a7a0eb3db799a770f2cbb4a7ab91199eb2ab27a959d555a",
+      "hash": "fe19e45ea5ce4d4dc0eafe945a52636813b0c521fcecc77ad6c83aa5cfa06370",
       "maturity": {
         "level": "exploratory",
         "trl": 2,
@@ -137,7 +137,7 @@
       "id": "bootstrap_sauter_proxy_v1",
       "name": "Bootstrap fraction (Sauter-inspired proxy)",
       "version": "v1",
-      "hash": "991cf5ede70239fc6a7a0eb3db799a770f2cbb4a7ab91199eb2ab27a959d555a",
+      "hash": "fe19e45ea5ce4d4dc0eafe945a52636813b0c521fcecc77ad6c83aa5cfa06370",
       "maturity": {
         "level": "exploratory",
         "trl": 2,
@@ -169,7 +169,7 @@
       "id": "economics_component_cost_proxy",
       "name": "Component-based CAPEX proxy",
       "version": "0.1",
-      "hash": "be8630a782c510d2e5678f205be95a53ac4510bd6182791404f114ff31f7bde7",
+      "hash": "01b65a5bf2e0915e8b40615386ef807c780af04f5c9efc52527282556391ed57",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -181,7 +181,7 @@
       "id": "economics_component_cost_proxy",
       "name": "Component-based CAPEX proxy",
       "version": "0.1",
-      "hash": "be8630a782c510d2e5678f205be95a53ac4510bd6182791404f114ff31f7bde7",
+      "hash": "01b65a5bf2e0915e8b40615386ef807c780af04f5c9efc52527282556391ed57",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -193,7 +193,7 @@
       "id": "economics.lifecycle_cost_proxy",
       "name": "Lifecycle costing / LCOE proxy",
       "version": "1.0.0",
-      "hash": "f9e992a63cae7130786c2a9eef66993498ba412d25ccab9fbd6cf41ddefe9ba1",
+      "hash": "45c5165fbfb943c40b557cf6b11605a645b65b357e1f6a166ebb892a39c9da8c",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -207,7 +207,7 @@
       "id": "engineering_divertor_proxy_v2",
       "name": "Divertor heat exhaust proxy with tech modes",
       "version": "0.2",
-      "hash": "0d8730787c07227e92415a55222512331f1f432f88739665d42486fab81133eb",
+      "hash": "4b1ccd5aa176fab3f6815a13e29449b68e122c812fc11f30da97ba83c8456fe8",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -224,7 +224,7 @@
       "id": "engineering_divertor_proxy_v2",
       "name": "Divertor heat exhaust proxy with tech modes",
       "version": "0.2",
-      "hash": "0d8730787c07227e92415a55222512331f1f432f88739665d42486fab81133eb",
+      "hash": "4b1ccd5aa176fab3f6815a13e29449b68e122c812fc11f30da97ba83c8456fe8",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -241,7 +241,7 @@
       "id": "engineering_magnet_pack_proxy",
       "name": "TF magnet pack proxy",
       "version": "0.1",
-      "hash": "41f4def052be64b273657fa56a4c7469205b91ac8d588f10d249daf19d47782d",
+      "hash": "019817eb8bbe14807e4bab84dde0a9a36b3019c433455b00301e8bfbcafb2884",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -262,7 +262,7 @@
       "id": "engineering_magnet_pack_proxy",
       "name": "TF magnet pack proxy",
       "version": "0.1",
-      "hash": "41f4def052be64b273657fa56a4c7469205b91ac8d588f10d249daf19d47782d",
+      "hash": "019817eb8bbe14807e4bab84dde0a9a36b3019c433455b00301e8bfbcafb2884",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -283,7 +283,7 @@
       "id": "engineering.radial_stack",
       "name": "Inboard radial build explicit stack closure",
       "version": "1.0.0",
-      "hash": "7365c98c409066ba43a31a8a78f85e4c7c4b5f582c7f841a89c218b67aa4baa3",
+      "hash": "a32c2771caeb21f85ad8278b81862badd823fc78a55b498e60ad7ce8dd486f62",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -297,7 +297,7 @@
       "id": "engineering_tbr_proxy",
       "name": "Tritium breeding ratio monotonic proxy",
       "version": "0.1",
-      "hash": "beab3dd7ae552f52750784a90083fce34e17f56dc5c7614cf4f29cf4ef39b102",
+      "hash": "1565da23fc01d5730345b11ef90d6245125d8dea58370ced4a7f5f1107ad65e4",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -318,7 +318,7 @@
       "id": "engineering_tbr_proxy",
       "name": "Tritium breeding ratio monotonic proxy",
       "version": "0.1",
-      "hash": "beab3dd7ae552f52750784a90083fce34e17f56dc5c7614cf4f29cf4ef39b102",
+      "hash": "1565da23fc01d5730345b11ef90d6245125d8dea58370ced4a7f5f1107ad65e4",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -339,7 +339,7 @@
       "id": "magnet_tech_axis_v1",
       "name": "Magnet technology axis (HTS/LTS/Cu)",
       "version": "v1",
-      "hash": "aca2fb7b345a33199d7f034a8287a326c5126538c3777580db6d480293a669f0",
+      "hash": "e79ab397ad2637022429d2d2dfd98e7c16cd5ed463ea3e1018e2d51e88b96464",
       "maturity": {
         "level": "exploratory",
         "trl": 3,
@@ -362,7 +362,7 @@
       "id": "magnet_tech_axis_v1",
       "name": "Magnet technology axis (HTS/LTS/Cu)",
       "version": "v1",
-      "hash": "aca2fb7b345a33199d7f034a8287a326c5126538c3777580db6d480293a669f0",
+      "hash": "e79ab397ad2637022429d2d2dfd98e7c16cd5ed463ea3e1018e2d51e88b96464",
       "maturity": {
         "level": "exploratory",
         "trl": 3,
@@ -385,7 +385,7 @@
       "id": "physics.divertor_proxy",
       "name": "Divertor heat-load proxy",
       "version": "1.0.0",
-      "hash": "7b70740e5ee7c634a7b73d25249027c74bf6f74276ad8a0a938af6bf9ad16715",
+      "hash": "c2b60b66735835ff346cb09b96d57779f290c7adb6251f10c275de86f0303aa0",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -399,7 +399,7 @@
       "id": "plasma.hot_ion_point",
       "name": "Hot-ion tokamak system proxy (core stack)",
       "version": "1.0.0",
-      "hash": "00b83a9685fc237fa604c6df1ed47c9ec659c70eeebb39bd14704443d71efdb7",
+      "hash": "2149575127049825ecd1d5a3b6a77987d3180116164f91de5e37df7930f28cbc",
       "maturity": {
         "trl": 4,
         "envelope": "baseline",
@@ -424,7 +424,7 @@
       "id": "profiles_analytic_v1",
       "name": "Analytic profiles (\u00bd-D scaffold)",
       "version": "v1",
-      "hash": "1fa8ff2bbd38270818b7a65e47f9a356d4aeae87e7eb13fc83a2967fe120f724",
+      "hash": "7ba1df44096874db44eccb731eea0e5e9657db0af4d483bf910cd1b9caffa75a",
       "maturity": {
         "level": "exploratory",
         "trl": 2,
@@ -442,7 +442,7 @@
       "id": "profiles_analytic_v1",
       "name": "Analytic profiles (\u00bd-D scaffold)",
       "version": "v1",
-      "hash": "1fa8ff2bbd38270818b7a65e47f9a356d4aeae87e7eb13fc83a2967fe120f724",
+      "hash": "7ba1df44096874db44eccb731eea0e5e9657db0af4d483bf910cd1b9caffa75a",
       "maturity": {
         "level": "exploratory",
         "trl": 2,
@@ -460,7 +460,7 @@
       "id": "radiation_impurity_mix_v1",
       "name": "Radiation bookkeeping (brem + sync + impurity line)",
       "version": "v1",
-      "hash": "eaa415bdd0078e047b812674a9cb3cc32e18c66ebe0a64800409e31e37de6db2",
+      "hash": "e6d13674e4a418b6e0b8b316a22d2978f29c1300b51c0c63579d6418307f3899",
       "maturity": {
         "level": "exploratory",
         "trl": 2,
@@ -488,7 +488,7 @@
       "id": "radiation_impurity_mix_v1",
       "name": "Radiation bookkeeping (brem + sync + impurity line)",
       "version": "v1",
-      "hash": "eaa415bdd0078e047b812674a9cb3cc32e18c66ebe0a64800409e31e37de6db2",
+      "hash": "e6d13674e4a418b6e0b8b316a22d2978f29c1300b51c0c63579d6418307f3899",
       "maturity": {
         "level": "exploratory",
         "trl": 2,
@@ -516,7 +516,7 @@
       "id": "radiation_off_v1",
       "name": "Radiation bookkeeping (off)",
       "version": "v1",
-      "hash": "8d5fcaf3fd44ff012a2c79b538796ad664d5cecee75cecec4e9c9b80e7c615ce",
+      "hash": "3601b14ea36346ada1c8a34ef9515d6d11349c90b8d9e4e3588a080485cbdab0",
       "maturity": {
         "level": "stable",
         "trl": 5,
@@ -533,7 +533,7 @@
       "id": "radiation_off_v1",
       "name": "Radiation bookkeeping (off)",
       "version": "v1",
-      "hash": "8d5fcaf3fd44ff012a2c79b538796ad664d5cecee75cecec4e9c9b80e7c615ce",
+      "hash": "3601b14ea36346ada1c8a34ef9515d6d11349c90b8d9e4e3588a080485cbdab0",
       "maturity": {
         "level": "stable",
         "trl": 5,

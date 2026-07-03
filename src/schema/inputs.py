@@ -985,6 +985,8 @@ class PointInputs:
     nm_group_frac_therm_v403: float = 0.02
 
     # Optional caps/floors (NaN disables)
+    nm_fragile_margin_frac_v403: float = 0.10
+
     dpa_fw_max_v403: float = float("nan")
     he_appm_fw_max_v403: float = float("nan")
     cooldown_burden_max_days_v403: float = float("nan")

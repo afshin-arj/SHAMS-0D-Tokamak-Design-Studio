@@ -8,10 +8,7 @@ import time
 try:
     from ..models.inputs import PointInputs  # type: ignore
 except Exception:
-    try:
-        from models.inputs import PointInputs  # type: ignore
-    except Exception:
-        from models.inputs import PointInputs  # type: ignore
+    from models.inputs import PointInputs  # type: ignore
 try:
     # Preferred when imported as `src.*`
     from ..physics.hot_ion import hot_ion_point  # type: ignore

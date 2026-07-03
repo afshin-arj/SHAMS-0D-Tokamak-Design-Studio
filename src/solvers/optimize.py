@@ -501,7 +501,7 @@ def robust_feasibility_monte_carlo(
     if seed is not None:
         random.seed(seed)
 
-    from constraints.constraints import evaluate_constraints
+    from constraints.constraints import constraint_is_hard, evaluate_constraints
     from physics.hot_ion import hot_ion_point
 
     feas = 0
@@ -526,7 +526,7 @@ def robust_feasibility_monte_carlo(
 
         out = hot_ion_point(inp) or {}
         cons = evaluate_constraints(out)
-        ok = all(bool(c.passed) for c in cons if bool(getattr(c, "hard", True)))
+        ok = all(bool(c.passed) for c in cons if constraint_is_hard(c))
         feas += 1 if ok else 0
 
         # collect margins (if present)

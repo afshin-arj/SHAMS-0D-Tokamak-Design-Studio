@@ -17,7 +17,7 @@ try:
 except Exception:
     from models.inputs import PointInputs  # type: ignore
 from physics.hot_ion import hot_ion_point
-from constraints.constraints import evaluate_constraints
+from constraints.constraints import constraint_is_hard, evaluate_constraints
 from solvers.sensitivity import finite_difference_sensitivities
 
 
@@ -56,7 +56,7 @@ def directional_nudges(
     """
     out0 = hot_ion_point(base) or {}
     cons0 = evaluate_constraints(out0)
-    hard = [c for c in cons0 if bool(getattr(c, "hard", True))]
+    hard = [c for c in cons0 if constraint_is_hard(c)]
     failing = [c for c in hard if not bool(getattr(c, "passed", True))]
 
     if not failing:
