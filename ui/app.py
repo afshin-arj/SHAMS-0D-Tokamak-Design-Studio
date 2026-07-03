@@ -125,7 +125,7 @@ def _attach_common_metadata(d: dict) -> dict:
     try:
         from pathlib import Path as _Path
         from src.governance.experimental_anchoring import load_anchoring_db, annotate_constraints, summarize_evidence
-        dbp = _Path(ROOT) / "benchmarks" / "experimental" / "data" / "anchors_default.json"
+        dbp = _Path(ROOT) / "benchmarks"/ "experimental"/ "data"/ "anchors_default.json"
         if dbp.exists() and isinstance(d.get("constraints"), list):
             db = load_anchoring_db(dbp)
             d["constraints"] = annotate_constraints(d["constraints"], db)
@@ -232,9 +232,9 @@ except Exception:  # pragma: no cover
     _HAVE_MPL = False
 
 # --- Global UI preference: make all tables collapsible to prevent scroll walls
-if "ui_tablekit_enabled" not in st.session_state:
+if "ui_tablekit_enabled"not in st.session_state:
     st.session_state["ui_tablekit_enabled"] = True
-if "ui_tablekit_default_expanded" not in st.session_state:
+if "ui_tablekit_default_expanded"not in st.session_state:
     st.session_state["ui_tablekit_default_expanded"] = False
 
 # --- v327.0: Design State Graph (DSG) — inter-panel continuity (exploration layer)
@@ -248,7 +248,7 @@ except Exception:
     except Exception:
         DesignStateGraph = None  # type: ignore
 
-if "_shams_dsg" not in st.session_state and DesignStateGraph is not None:
+if "_shams_dsg"not in st.session_state and DesignStateGraph is not None:
     try:
         st.session_state["_shams_dsg"] = DesignStateGraph.load(_DSG_SNAPSHOT_PATH)
     except Exception:
@@ -351,17 +351,17 @@ import time as _shams_time
 import uuid as _shams_uuid
 import re as _shams_re
 
-if "_shams_app_start_ts" not in st.session_state:
+if "_shams_app_start_ts"not in st.session_state:
     st.session_state["_shams_app_start_ts"] = _shams_time.time()
-if "_shams_owner_token" not in st.session_state:
+if "_shams_owner_token"not in st.session_state:
     st.session_state["_shams_owner_token"] = str(_shams_uuid.uuid4())
 
 def _shams_lock_banner():
     locked, task, started, is_owner = _shams_runlock.status(st.session_state.get("_shams_owner_token"), app_start_ts=st.session_state.get("_shams_app_start_ts"))
     if locked and task:
         age_s = int(_shams_time.time() - float(started or _shams_time.time()))
-        badge = "⚡ Shot in Progress" if not is_owner else "⚡ Running Sequence"
-        st.sidebar.info(f"{badge}: **{task}**  ·  t+{age_s}s")
+        badge = "Shot in Progress"if not is_owner else "Running Sequence"
+        st.sidebar.info(f"{badge}: **{task}** · t+{age_s}s")
     return locked, task, started, is_owner
 
 def _shams_is_solver_label(label: str) -> bool:
@@ -387,7 +387,7 @@ def _shams_button(label, *args, **kwargs):
         )
         if locked2 and (not is_owner2):
             try:
-                st.toast("⛔ Another sequence is already running. Wait for the Black‑Box Chronicle to clear.", icon="⛔")
+                st.toast("Another sequence is already running. Wait for the Black‑Box Chronicle to clear.")
             except Exception:
                 pass
             return False
@@ -407,7 +407,7 @@ try:
         try:
             _sel = st.session_state.get("dsg_selected_node_id") or getattr(_g, "active_node_id", None)
             if _sel:
-                st.caption(f"🧬 Active design node: `{_sel}`  ·  lineage edge kind: `{st.session_state.get('dsg_context_edge_kind','derived')}`")
+                st.caption(f"Active design node: `{_sel}` · lineage edge kind: `{st.session_state.get('dsg_context_edge_kind','derived')}`")
         except Exception:
             pass
 except Exception:
@@ -435,7 +435,7 @@ BASE_DIR = REPO_ROOT
 def _activity_logger():
     lg = _get_activity_logger(st, REPO_ROOT, tz_name="Asia/Tehran")
     # One-time marker so users can confirm logging is working
-    if "activity_log_inited" not in st.session_state:
+    if "activity_log_inited"not in st.session_state:
         st.session_state["activity_log_inited"] = True
         try:
             if bool(st.session_state.get("activity_log_auto", True)):
@@ -592,24 +592,24 @@ def _phase1_stabilize_cache_aliases() -> None:
     ss = st.session_state
 
     # Systems
-    if "systems_last_solution" not in ss and "last_systems_solution" in ss:
+    if "systems_last_solution"not in ss and "last_systems_solution"in ss:
         ss["systems_last_solution"] = ss.get("last_systems_solution")
 
     # Scan
-    if "scan_last_grid" not in ss:
-        if "scan_last_outputs" in ss:
+    if "scan_last_grid"not in ss:
+        if "scan_last_outputs"in ss:
             ss["scan_last_grid"] = ss.get("scan_last_outputs")
-        elif "scan_cartography_artifact" in ss:
+        elif "scan_cartography_artifact"in ss:
             ss["scan_last_grid"] = ss.get("scan_cartography_artifact")
 
     # Pareto
-    if "pareto_last_front" not in ss and "pareto_last" in ss:
+    if "pareto_last_front"not in ss and "pareto_last"in ss:
         ss["pareto_last_front"] = ss.get("pareto_last")
 
     # Point Designer: keep legacy aliases alive
-    if "pd_last_outputs" in ss and "last_point_out" not in ss:
+    if "pd_last_outputs"in ss and "last_point_out"not in ss:
         ss["last_point_out"] = ss.get("pd_last_outputs")
-    if "pd_last_artifact" in ss and "last_point_artifact" not in ss:
+    if "pd_last_artifact"in ss and "last_point_artifact"not in ss:
         ss["last_point_artifact"] = ss.get("pd_last_artifact")
 
 
@@ -797,7 +797,7 @@ def _v175_panel_availability_map_panel():
 
     states = ["ALL"] + sorted({r["state"] for r in rows})
     pick = st.selectbox("Filter by state", states, index=0, key="v175_pam_filter")
-    show = [r for r in rows if pick == "ALL" or r["state"] == pick]
+    show = [r for r in rows if pick == "ALL"or r["state"] == pick]
 
     st.write("Panels:")
     st.dataframe(show, use_container_width=True, hide_index=True)
@@ -830,7 +830,7 @@ def _render_provenance_sidebar():
         st.markdown("---")
         st.subheader("Session")
         _exit_confirm = st.checkbox("Confirm exit", value=False, key="shams_exit_confirm")
-        if st.button("🔴 Exit SHAMS", type="primary", use_container_width=True, disabled=not _exit_confirm, key="shams_exit_btn"):
+        if st.button("Exit SHAMS", type="primary", use_container_width=True, disabled=not _exit_confirm, key="shams_exit_btn"):
             st.info("SHAMS UI shutdown requested by user.")
             # Hard-exit is the only reliable cross-platform Streamlit shutdown mechanism.
             _os._exit(0)
@@ -841,7 +841,7 @@ def _feasibility_narrative(point):
     mins = point.get("min_signed_margin", None)
     acts = point.get("active_constraints", [])
     if feas:
-        return f"Feasible. Min margin = {mins:.3g}." if isinstance(mins, (int,float)) else "Feasible."
+        return f"Feasible. Min margin = {mins:.3g}."if isinstance(mins, (int,float)) else "Feasible."
     return f"Infeasible. Limiting constraints: {', '.join(acts[:3]) if acts else 'unknown'}."
 
 def _margin_waterfall(records):
@@ -1182,7 +1182,7 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
     if not isinstance(out, dict) or not out:
         return
 
-    with st.expander("🧲 Magnet Authority — Technology Regime (v328.0)", expanded=False):
+    with st.expander("Magnet Authority — Technology Regime (v328.0)", expanded=False):
         regime = str(out.get("magnet_regime", "UNKNOWN"))
         tech = str(out.get("magnet_technology", ""))
         contract_sha = str(out.get("magnet_contract_sha256", ""))[:12]
@@ -1463,8 +1463,8 @@ def _warn_unrealistic_point_inputs(pi: Any, context: str = "") -> None:
         if (v < lo) or (v > hi):
             warns.append(f"- {msg}: **{name}={v:g}** (expected roughly {lo:g}–{hi:g})")
     if warns:
-        title = "Unrealistic inputs" + (f" ({context})" if context else "")
-        st.warning(title + "\n" + "\n".join(warns))
+        title = "Unrealistic inputs"+ (f"({context})"if context else "")
+        st.warning(title + "\n"+ "\n".join(warns))
 
 
 # -----------------------------
@@ -1476,12 +1476,12 @@ _PHYS_BLOCKS: Dict[str, str] = {
     "Geometry": "Machine geometry / size assumptions",
     "Magnets & radial build": "TF/HTS coil build, inboard stack closure, peak field mapping, stress",
     "0-D plasma core": "0-D profiles, fusion power, temperatures, density, basic scalings",
-    "🌀 Confinement": "Energy confinement (IPB98-like) + confinement multipliers",
+    "Confinement": "Energy confinement (IPB98-like) + confinement multipliers",
     "H-mode access": "L-H threshold (Martin-08-like) + margin screening",
     "Stability & limits": "q95, \u03b2N, bootstrap fraction and related operational screens",
     "Power balance & radiation": "Zeff/dilution/radiation and alpha deposition assumptions",
     "Divertor / SOL": "SOL power loading proxy (PSOL/R) and divertor heat-flux screen",
-    "☢️ Neutronics": "TBR proxy + HTS fluence/lifetime proxy",
+    "Neutronics": "TBR proxy + HTS fluence/lifetime proxy",
     "Electrical balance": "Recirculating power closure and net electric power screen",
     "Numerics": "Solver bounds/tolerance and feasibility filtering",
 }
@@ -1490,18 +1490,18 @@ _PHYS_BLOCKS: Dict[str, str] = {
 _SCAN_PARAM_META: Dict[str, Dict[str, Any]] = {
     # Machine / plasma assumptions
     "R0": {"req": True, "blocks": ["Geometry", "Magnets & radial build", "0-D plasma core", "Divertor / SOL"]},
-    "B0": {"req": True, "blocks": ["Magnets & radial build", "0-D plasma core", "🌀 Confinement", "Stability & limits"]},
-    "tshield": {"req": True, "blocks": ["Magnets & radial build", "☢️ Neutronics"]},
+    "B0": {"req": True, "blocks": ["Magnets & radial build", "0-D plasma core", "Confinement", "Stability & limits"]},
+    "tshield": {"req": True, "blocks": ["Magnets & radial build", "Neutronics"]},
     "Paux": {"req": True, "blocks": ["0-D plasma core", "Power balance & radiation", "H-mode access", "Electrical balance"]},
     "Paux_for_Q": {"req": True, "blocks": ["0-D plasma core"]},
     "Ti_over_Te": {"req": True, "blocks": ["0-D plasma core", "Power balance & radiation"]},
 
     # Axes
-    "Ti": {"req": True, "blocks": ["0-D plasma core", "🌀 Confinement", "Power balance & radiation"]},
-    "H98": {"req": True, "blocks": ["🌀 Confinement"]},
+    "Ti": {"req": True, "blocks": ["0-D plasma core", "Confinement", "Power balance & radiation"]},
+    "H98": {"req": True, "blocks": ["Confinement"]},
     "a": {"req": True, "blocks": ["Geometry", "0-D plasma core", "Stability & limits", "Divertor / SOL", "Magnets & radial build"]},
     "Q": {"req": True, "blocks": ["0-D plasma core", "Electrical balance"]},
-    "g_conf": {"req": True, "blocks": ["🌀 Confinement"]},
+    "g_conf": {"req": True, "blocks": ["Confinement"]},
 
     # Solver bounds & screens
     "Ip_bounds": {"req": True, "blocks": ["Numerics", "0-D plasma core", "Stability & limits", "Magnets & radial build"]},
@@ -1525,7 +1525,7 @@ _SCAN_PARAM_META: Dict[str, Dict[str, Any]] = {
     "PLH_margin": {"req": False, "blocks": ["H-mode access"]},
 
     # Clean design knobs (engineering screens)
-    "tblanket_m": {"req": False, "blocks": ["Magnets & radial build", "☢️ Neutronics"]},
+    "tblanket_m": {"req": False, "blocks": ["Magnets & radial build", "Neutronics"]},
     "t_vv_m": {"req": False, "blocks": ["Magnets & radial build"]},
     "t_gap_m": {"req": False, "blocks": ["Magnets & radial build"]},
     "t_tf_struct_m": {"req": False, "blocks": ["Magnets & radial build"]},
@@ -1537,8 +1537,8 @@ _SCAN_PARAM_META: Dict[str, Dict[str, Any]] = {
     "Vmax_kV": {"req": False, "blocks": ["Magnets & radial build"]},
     "q_div_max_MW_m2": {"req": False, "blocks": ["Divertor / SOL"]},
     "q_midplane_max_MW_m2": {"req": False, "blocks": ["Divertor / SOL"]},
-    "TBR_min": {"req": False, "blocks": ["☢️ Neutronics"]},
-    "hts_lifetime_min_yr": {"req": False, "blocks": ["☢️ Neutronics"]},
+    "TBR_min": {"req": False, "blocks": ["Neutronics"]},
+    "hts_lifetime_min_yr": {"req": False, "blocks": ["Neutronics"]},
     "P_net_min_MW": {"req": False, "blocks": ["Electrical balance"]},
 }
 
@@ -1547,7 +1547,7 @@ def _scan_badge(param_key: str) -> str:
     meta = _SCAN_PARAM_META.get(param_key)
     # Default to optional if unknown
     is_req = bool(meta.get("req")) if isinstance(meta, dict) else False
-    return "🟥 Mandatory" if is_req else "⬜ Optional"
+    return "Mandatory"if is_req else "Optional"
 
 
 def _scan_blocks(param_key: str) -> List[str]:
@@ -1559,7 +1559,7 @@ def _scan_blocks(param_key: str) -> List[str]:
 
 def _scan_label(base: str, param_key: str) -> str:
     # number_input labels do not render markdown; keep it simple + consistent.
-    return f"{base}  ·  {_scan_badge(param_key)}"
+    return f"{base} · {_scan_badge(param_key)}"
 
 
 def _scan_help(base_help: str, param_key: str) -> str:
@@ -1658,9 +1658,9 @@ def badge(check):
     if isinstance(check, dict):
         stt = check.get('status')
         if stt == 'SKIPPED':
-            return '⚪ SKIPPED'
+            return ' SKIPPED'
         if stt == 'WARN':
-            return '🟡 WARN'
+            return ' WARN'
         if stt == 'FAIL':
             return ' FAIL'
         if stt == 'PASS':
@@ -1670,7 +1670,7 @@ def badge(check):
     else:
         ok = check
     if ok is None:
-        return '⚪ SKIPPED'
+        return ' SKIPPED'
     return ' PASS' if ok else ' FAIL'
 
 
@@ -1786,68 +1786,68 @@ def compute_checks(out: Dict[str, float]) -> List[Dict[str, Any]]:
             add(name, "WARN", v, lim, "min", notes, severity=severity, warn_limit=wl)
         else:
             add(name, "PASS", v, lim, "min", notes, severity=severity, warn_limit=wl)    # --- Build closure ---
-    if "radial_build_ok" in out:
+    if "radial_build_ok"in out:
         v = out.get("radial_build_ok")
         if not fin(v):
             add("Radial build closure", "SKIPPED", out.get("rb_total_inboard_m"), out.get("rinboard_available_m"), "max",
                 "Requires inboard stack thickness ≤ available inboard space (R0 - a).")
         else:
-            add("Radial build closure", "PASS" if (v > 0.5) else "FAIL", out.get("rb_total_inboard_m"), out.get("rinboard_available_m"), "max",
+            add("Radial build closure", "PASS"if (v > 0.5) else "FAIL", out.get("rb_total_inboard_m"), out.get("rinboard_available_m"), "max",
                 "Requires inboard stack thickness ≤ available inboard space (R0 - a).")
 
     # --- Magnet stress ---
 
 
-    if "sigma_hoop_MPa" in out and "sigma_allow_MPa" in out:
+    if "sigma_hoop_MPa"in out and "sigma_allow_MPa"in out:
         eval_max("TF hoop stress", "sigma_hoop_MPa", "sigma_allow_MPa",
                  "Hoop stress proxy must be below allowable structural stress.")
 
     # --- HTS margin ---
-    if "hts_margin" in out and "hts_margin_min" in out:
+    if "hts_margin"in out and "hts_margin_min"in out:
         eval_min("HTS margin", "hts_margin", "hts_margin_min",
                  "HTS operating margin proxy vs (B,T) must exceed minimum.")
 
     # --- Dump voltage ---
-    if "V_dump_kV" in out and "Vmax_kV" in out:
+    if "V_dump_kV"in out and "Vmax_kV"in out:
         eval_max("Dump voltage", "V_dump_kV", "Vmax_kV",
                  "Fast discharge voltage must not exceed protection limit.")
 
     # --- Divertor heat flux ---
 
-    if "q_div_MW_m2" in out and "q_div_max_MW_m2" in out:
+    if "q_div_MW_m2"in out and "q_div_max_MW_m2"in out:
         eval_max("Divertor heat flux", "q_div_MW_m2", "q_div_max_MW_m2",
                  "Peak divertor heat flux proxy must be below limit.")
 
     # --- Tritium breeding ratio ---
-    if "TBR" in out and "TBR_min" in out:
+    if "TBR"in out and "TBR_min"in out:
         eval_min("TBR", "TBR", "TBR_min",
                  "Tritium breeding ratio proxy must exceed minimum.")
 
     # --- TBR proxy validity-domain (v321) ---
-    if "TBR_domain_ok" in out:
+    if "TBR_domain_ok"in out:
         ok = out.get("TBR_domain_ok")
         enf = out.get("neutronics_domain_enforce", 0.0)
         if not fin(ok):
             add("TBR validity domain", "SKIPPED", ok, 1.0, "min", "Proxy validity-domain check not available.")
         else:
             if (fin(enf) and enf > 0.5):
-                add("TBR validity domain", "PASS" if (ok > 0.5) else "FAIL", ok, 1.0, "min", "If enforced, TBR proxy must be inside declared validity domain.")
+                add("TBR validity domain", "PASS"if (ok > 0.5) else "FAIL", ok, 1.0, "min", "If enforced, TBR proxy must be inside declared validity domain.")
             else:
-                add("TBR validity domain", "PASS" if (ok > 0.5) else "WARN", ok, 1.0, "min", "Not enforced by default; WARN means the proxy is out-of-domain.")
+                add("TBR validity domain", "PASS"if (ok > 0.5) else "WARN", ok, 1.0, "min", "Not enforced by default; WARN means the proxy is out-of-domain.")
 
     # --- HTS lifetime ---
-    if "hts_lifetime_yr" in out and "hts_lifetime_min_yr" in out:
+    if "hts_lifetime_yr"in out and "hts_lifetime_min_yr"in out:
         eval_min("HTS lifetime", "hts_lifetime_yr", "hts_lifetime_min_yr",
                  "Neutron lifetime proxy of HTS must exceed minimum.")
 
     # --- Net electric power ---
-    if "P_net_e_MW" in out and "P_net_min_MW" in out:
+    if "P_net_e_MW"in out and "P_net_min_MW"in out:
         eval_min("Net electric power", "P_net_e_MW", "P_net_min_MW",
                  "Net electric power must exceed minimum (system closure).")
 
     # --- H-mode access (only if enforced) ---
     # If require_Hmode is False or physics is disabled, this becomes SKIPPED.
-    if "require_Hmode" in out and "LH_ok" in out:
+    if "require_Hmode"in out and "LH_ok"in out:
         req = out.get("require_Hmode")
         lh_ok = out.get("LH_ok")
         if not (fin(req) and req > 0.5):
@@ -1920,7 +1920,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                 pass
 
     n_total = max(1, len(g_grid) * len(Ti_grid) * len(H_grid) * len(a_grid) * len(Q_grid))
-    _log(f"Scan initialized: {len(g_grid)} g_conf × {len(Ti_grid)} Ti × {len(H_grid)} H98 × {len(a_grid)} a × {len(Q_grid)} Q  => {n_total} evaluations")
+    _log(f"Scan initialized: {len(g_grid)} g_conf × {len(Ti_grid)} Ti × {len(H_grid)} H98 × {len(a_grid)} a × {len(Q_grid)} Q => {n_total} evaluations")
     i_eval = 0
 
     rows: List[Dict[str, Any]] = []
@@ -1950,7 +1950,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                                   stage="setup",
                                   g_conf=float(g_conf), Ti_keV=float(Ti), H98_req=float(Hreq), a_m=float(a), Q_target=float(Qtar))
                         _log(f"Eval {i_eval}/{n_total}: g_conf={g_conf:.3g}, Ti={Ti:.3g} keV, H98_req={Hreq:.3g}, a={a:.3g} m, Q={Qtar:.3g}")
-                        _log("  - Building point inputs (geometry, fields, density/temperature assumptions)")
+                        _log("- Building point inputs (geometry, fields, density/temperature assumptions)")
 
                         H_base_target = Hreq / max(g_conf, 1e-9)
 
@@ -1981,7 +1981,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                         )
 
 
-                        _log("  - Solving nested system: outer Ip for H98, inner fG for Q (bisection)")
+                        _log("- Solving nested system: outer Ip for H98, inner fG for Q (bisection)")
                         _progress(i_eval, n_total, stage="solve")
                         sol_inp, sol_out, ok = solve_Ip_for_H98_with_Q_match(
                             base=base,
@@ -1995,7 +1995,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                             Paux_for_Q_MW=spec["Paux_for_Q"],
                         )
                         if not ok:
-                            _log("  - Solver failed to bracket/converge for this combo (skipping)")
+                            _log("- Solver failed to bracket/converge for this combo (skipping)")
                             continue
 
                         # Effective confinement
@@ -2003,7 +2003,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                         sol_out["H98_eff"] = H98_eff
 
 
-                        _log("  - Evaluating physics proxies (power balance, confinement, operational limits)")
+                        _log("- Evaluating physics proxies (power balance, confinement, operational limits)")
                         _progress(i_eval, n_total, stage="evaluate")
                         # Standard ext checks from CLI
                         ok_ext = True
@@ -2032,13 +2032,13 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                             ok_ext = False
 
                         if not ok_ext:
-                            _log("  - Failed screening checks (skipping)")
+                            _log("- Failed screening checks (skipping)")
                             continue
 
                         if best_g is None or g_conf < best_g:
                             best_g = g_conf
 
-                        _log("  - Feasible point found ✓ (adding to results)")
+                        _log("- Feasible point found (adding to results)")
                         _progress(i_eval, n_total, stage="record")
                         row = dict(sol_out)
                         row.update({
@@ -2075,7 +2075,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                         except Exception:
                             pass                        # --- v327.4: pipeline-native dsg_node_id column for scan tables ---
                         try:
-                            if "dsg_node_id" not in row:
+                            if "dsg_node_id"not in row:
                                 _nid = None
                                 try:
                                     _nid = node.node_id  # type: ignore[name-defined]
@@ -2108,7 +2108,7 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         _dsg_save_best_effort()
     except Exception:
         pass
-    _log(f"Scan complete: feasible={meta['n_feasible']}  best_g_conf_found={meta['best_g_conf_found']}")
+    _log(f"Scan complete: feasible={meta['n_feasible']} best_g_conf_found={meta['best_g_conf_found']}")
 
     return df, meta
 
@@ -2158,7 +2158,7 @@ st.set_page_config(page_title=APP_NAME, layout="wide")
 
 
 # v276: keep last run artifact for cross-panels
-if "last_run_artifact" not in st.session_state:
+if "last_run_artifact"not in st.session_state:
     st.session_state["last_run_artifact"] = {}
 
 _render_branding_header()
@@ -2174,7 +2174,7 @@ def _shams_status_strip():
     if prev_locked and not locked and prev_task:
         try:
             if not st.session_state.get("silence_mode", False):
-                st.toast(f" Sequence Complete: {prev_task}")
+                st.toast(f"Sequence Complete: {prev_task}")
         except Exception:
             pass
 
@@ -2184,7 +2184,7 @@ def _shams_status_strip():
     with _shams_status_strip_placeholder.container():
         if locked and task:
             age_s = int(_shams_time.time() - float(started or _shams_time.time()))
-            st.info(f"⚡ **Running Sequence** · {task} · t+{age_s}s · All other solver actions are locked.", icon="⚡")
+            st.info(f"**Running Sequence** · {task} · t+{age_s}s · All other solver actions are locked.")
             # Show a concise tail of the Black-Box Chronicle
             try:
                 _lg = _activity_logger()
@@ -2196,7 +2196,7 @@ def _shams_status_strip():
             except Exception:
                 pass
         else:
-            # Calm "ready" strip for experts
+            # Calm "ready"strip for experts
             st.caption("Status: Ready · Helm Console armed · Awaiting next sequence.")
 
 _shams_status_strip()
@@ -2254,7 +2254,7 @@ st.sidebar.markdown("## Helm Console - Expert Navigation")
 
 # Session & Authority (professional, read-mostly posture)
 _forge_review_mode = bool(st.session_state.get("forge_review_mode", False))
-_posture = "Review Mode (locked)" if _forge_review_mode else "Explore Mode"
+_posture = "Review Mode (locked)"if _forge_review_mode else "Explore Mode"
 st.sidebar.caption("Captain’s Ledger")
 st.sidebar.markdown(f"""- **Posture:** {_posture}
 - **Authority:** Frozen evaluator
@@ -2276,14 +2276,14 @@ with st.sidebar.expander("Advanced controls", expanded=False):
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-# Design Intent - influences what counts as "hard" in Systems/Optimization
+# Design Intent - influences what counts as "hard"in Systems/Optimization
 # ---------------------------------------------------------------------------
 _design_intent_prev = st.session_state.get("design_intent", "Power Reactor (net-electric)")
 with st.sidebar.expander("Reactor Covenant", expanded=False):
     st.session_state["design_intent"] = st.selectbox(
         "Intent",
         ["Power Reactor (net-electric)", "Experimental Device (research)"],
-        index=0 if ("reactor" in _design_intent_prev.lower() or _design_intent_prev.lower().startswith("power")) else 1,
+        index=0 if ("reactor"in _design_intent_prev.lower() or _design_intent_prev.lower().startswith("power")) else 1,
         help="Reactor intent enforces strict engineering/plant constraints (e.g., TBR, stress, heat flux). Research intent relaxes/softens some constraints to explore physics-relevant machines.",
     )
 
@@ -2316,7 +2316,7 @@ if st.session_state.get("design_intent") != _design_intent_prev:
 
 def _design_intent_key() -> str:
     s = str(st.session_state.get("design_intent", "Power Reactor (net-electric)")).strip().lower()
-    if s.startswith("experimental") or s.startswith("research") or ("research" in s):
+    if s.startswith("experimental") or s.startswith("research") or ("research"in s):
         return "research"
     return "reactor"
 
@@ -2395,13 +2395,13 @@ with st.sidebar.expander("Integrity Gate - Requirements & Health", expanded=Fals
 
         try:
             repo_ok = os.path.exists(os.path.join(ROOT_DIR, "MANIFEST_SHA256.txt"))
-            rows.append({"Check": "Repo manifest", "Status": "present" if repo_ok else "missing"})
+            rows.append({"Check": "Repo manifest", "Status": "present"if repo_ok else "missing"})
         except Exception:
             rows.append({"Check": "Repo manifest", "Status": "unknown"})
 
         try:
             out_dir = os.path.join(ROOT_DIR, "benchmarks", "publication")
-            rows.append({"Check": "Benchmarks folder", "Status": "present" if os.path.isdir(out_dir) else "missing"})
+            rows.append({"Check": "Benchmarks folder", "Status": "present"if os.path.isdir(out_dir) else "missing"})
         except Exception:
             rows.append({"Check": "Benchmarks folder", "Status": "unknown"})
 
@@ -2420,9 +2420,9 @@ with st.sidebar.expander("Integrity Gate - Requirements & Health", expanded=Fals
     needs = _verification_needs_run()
     report_exists = os.path.exists(rep_path)
     status_line = (
-        "🟢 Evidence report: up-to-date" if (report_exists and not needs) else
-        "🟠 Evidence report: needs update" if report_exists else
-        "🔴 Evidence report: missing"
+        "Evidence report: up-to-date"if (report_exists and not needs) else
+        "Evidence report: needs update"if report_exists else
+        "Evidence report: missing"
     )
     st.caption("Run this only when you want an explicit, archived compliance report. Nothing runs automatically.")
     st.markdown(status_line)
@@ -2476,7 +2476,7 @@ with st.sidebar.expander("Integrity Gate - Requirements & Health", expanded=Fals
             elif _o:
                 _msg = _o.splitlines()[0]
             if _msg:
-                st.caption(f"Gatecheck detail: {_msg}  (toggle **Show logs** for full output)")
+                st.caption(f"Gatecheck detail: {_msg} (toggle **Show logs** for full output)")
 
     if show_logs:
         st.text_area("stdout", value=str(st.session_state.get("_last_verify_out", "")), height=160)
@@ -2488,12 +2488,12 @@ with st.sidebar.expander("Integrity Gate - Requirements & Health", expanded=Fals
 # ---------------------------------------------------------------------------
 with st.sidebar.expander("Model Authority & Closures", expanded=False):
     fid = st.session_state.get("fidelity_config", {})
-    plasma = st.selectbox("🔥 Plasma", ["0D","1/2D"], index=0 if fid.get("plasma","0D")=="0D" else 1)
-    magnets = st.selectbox("🧲 Magnets", ["limits","stress"], index=0 if fid.get("magnets","limits")=="limits" else 1)
-    exhaust = st.selectbox("💨 Exhaust", ["proxy","enriched"], index=0 if fid.get("exhaust","proxy")=="proxy" else 1)
-    neutronics = st.selectbox("☢️ Neutronics", ["proxy","enriched"], index=0 if fid.get("neutronics","proxy")=="proxy" else 1)
-    profiles = st.selectbox("Profiles", ["off","analytic"], index=0 if fid.get("profiles","off")=="off" else 1)
-    economics = st.selectbox("💰 Economics", ["proxy","enriched"], index=0 if fid.get("economics","proxy")=="proxy" else 1)
+    plasma = st.selectbox("Plasma", ["0D","1/2D"], index=0 if fid.get("plasma","0D")=="0D"else 1)
+    magnets = st.selectbox("Magnets", ["limits","stress"], index=0 if fid.get("magnets","limits")=="limits"else 1)
+    exhaust = st.selectbox("Exhaust", ["proxy","enriched"], index=0 if fid.get("exhaust","proxy")=="proxy"else 1)
+    neutronics = st.selectbox("Neutronics", ["proxy","enriched"], index=0 if fid.get("neutronics","proxy")=="proxy"else 1)
+    profiles = st.selectbox("Profiles", ["off","analytic"], index=0 if fid.get("profiles","off")=="off"else 1)
+    economics = st.selectbox("Economics", ["proxy","enriched"], index=0 if fid.get("economics","proxy")=="proxy"else 1)
     st.session_state["fidelity_config"] = {
         "plasma": plasma,
         "magnets": magnets,
@@ -2550,13 +2550,13 @@ with st.sidebar.expander("Policy Contracts (feasibility semantics)", expanded=Fa
     st.session_state["q95_enforcement"] = st.selectbox(
         "q95 enforcement",
         ["hard", "diagnostic"],
-        index=0 if str(st.session_state.get("q95_enforcement","hard")).lower().strip()=="hard" else 1,
+        index=0 if str(st.session_state.get("q95_enforcement","hard")).lower().strip()=="hard"else 1,
         help="hard: blocking feasibility gate. diagnostic: computed and reported, but non-blocking (soft).",
     )
     st.session_state["greenwald_enforcement"] = st.selectbox(
         "Greenwald (fG) enforcement",
         ["hard", "diagnostic"],
-        index=0 if str(st.session_state.get("greenwald_enforcement","hard")).lower().strip()=="hard" else 1,
+        index=0 if str(st.session_state.get("greenwald_enforcement","hard")).lower().strip()=="hard"else 1,
         help="hard: blocking feasibility gate. diagnostic: computed and reported, but non-blocking (soft).",
     )
     st.markdown("**Contract**")
@@ -2594,7 +2594,7 @@ with st.sidebar.expander("Technology Readiness (TRL Contracts)", expanded=False)
         _invalidate_mode_caches("tech_tier_changed")
 
 with st.sidebar.expander("Benchmark Vault", expanded=False):
-    tabs = st.tabs(["🏛️ Presets", "📦 Benchmarks"])
+    tabs = st.tabs(["Presets", "Benchmarks"])
     with tabs[0]:
         st.caption("Load frozen, reviewer-safe reference machines into the workspace. Presets do **not** modify physics - they set inputs.")
         try:
@@ -2684,7 +2684,7 @@ def _render_activity_log_sidebar() -> None:
             with _c1:
                 st.download_button(
                     "Download log",
-                    data=(tail_text + "\n" if tail_text else ""),
+                    data=(tail_text + "\n"if tail_text else ""),
                     file_name="activity.log",
                     mime="text/plain",
                     use_container_width=True,
@@ -2720,7 +2720,7 @@ def _render_activity_log_sidebar() -> None:
                 help="Safety latch to prevent accidental shutdown.",
             )
             if st.button(
-                "🔴 Exit SHAMS",
+                "Exit SHAMS",
                 type="primary",
                 use_container_width=True,
                 disabled=not bool(_exit_confirm),
@@ -2777,7 +2777,7 @@ except Exception:
 
 
 # --- Deck Navigation (v372.2 hotfix) ---
-# Streamlit tabs reset to the first tab on reruns, which can cause the UI to "jump" back
+# Streamlit tabs reset to the first tab on reruns, which can cause the UI to "jump"back
 # to Point Designer when interacting with other decks (and can unbind solver parameter
 # names on button-click reruns). We therefore use a deterministic, persisted deck selector.
 # Deck IDs are plain strings (UI redesign: emoji removed from navigation and
@@ -2833,12 +2833,12 @@ if _deck == "Control Room":
     st.caption("Governance, provenance, exports, and expert diagnostics - organized as compact decks (no scroll walls).")
 
     deck_orient, deck_const, deck_prov, deck_art, deck_diag, deck_chron = st.tabs([
-        "🧭 Orientation",
-        "🧾 Constitution",
-        "🔍 Provenance",
-        "📦 Artifacts",
-        " Diagnostics",
-        "🕓 Chronicle",
+        "Orientation",
+        "Constitution",
+        "Provenance",
+        "Artifacts",
+        "Diagnostics",
+        "Chronicle",
     ])
 
     with deck_orient:
@@ -2862,21 +2862,21 @@ if _deck == "Control Room":
                 horizontal=False,
             )
             if _path == "Understand feasibility limits (cartography)":
-                st.info("Recommended: Scan Lab → build Scan Atlas → inspect first-failure topology.", icon="🗺️")
+                st.info("Recommended: Scan Lab → build Scan Atlas → inspect first-failure topology.")
                 st.markdown("""
 - Start with **Scan Lab - Cartography Deck**
 - Choose a compact 2D scan
 - Export the Scan Atlas capsule for review-room replay.
 """)
             elif _path == "Explore reactor concepts (Forge)":
-                st.info("Recommended: Reactor Design Forge → Casebook → Candidate Archive → Machine Dossier.", icon="⚒️")
+                st.info("Recommended: Reactor Design Forge → Casebook → Candidate Archive → Machine Dossier.")
                 st.markdown("""
 - Use **Forge Cockpit** with the **Helm Console**
 - Keep **Margins-first** framing
 - Save capsules for deterministic replay.
 """)
             elif _path == "Review a finished case (Review Room)":
-                st.info("Recommended: Reactor Design Forge → Review Mode → Review Trinity → Do‑Not‑Build Brief.", icon="🧾")
+                st.info("Recommended: Reactor Design Forge → Review Mode → Review Trinity → Do‑Not‑Build Brief.")
                 st.markdown("""
 - Turn on **Review Mode**
 - Use **Review Trinity** and **Conflict Atlas**
@@ -2893,7 +2893,7 @@ if _deck == "Control Room":
             st.subheader("Vocabulary Ledger")
             st.caption("Fusion-native terminology mapping (SHAMS ↔ common literature ↔ PROCESS-style language).")
             try:
-                _vocab = (Path(__file__).resolve().parent.parent / "docs" / "VOCABULARY_LEDGER.md").read_text(encoding="utf-8")
+                _vocab = (Path(__file__).resolve().parent.parent / "docs"/ "VOCABULARY_LEDGER.md").read_text(encoding="utf-8")
             except Exception:
                 _vocab = "(missing docs/VOCABULARY_LEDGER.md)"
             st.markdown(_vocab)
@@ -2910,13 +2910,13 @@ if _deck == "Control Room":
             for name, note in _gallery:
                 with st.expander(name, expanded=False):
                     st.write(note)
-            st.info("Tip: use these as *discussion anchors* when presenting SHAMS outputs to reviewers.", icon="💡")
+            st.info("Tip: use these as *discussion anchors* when presenting SHAMS outputs to reviewers.")
 
         with o_scope:
             st.subheader("Model Scope Card")
             st.caption("Always-visible scope declaration for review rooms.")
             try:
-                _scope = (Path(__file__).resolve().parent.parent / "docs" / "MODEL_SCOPE_CARD.md").read_text(encoding="utf-8")
+                _scope = (Path(__file__).resolve().parent.parent / "docs"/ "MODEL_SCOPE_CARD.md").read_text(encoding="utf-8")
             except Exception:
                 _scope = "(missing docs/MODEL_SCOPE_CARD.md)"
             st.markdown(_scope)
@@ -2980,7 +2980,7 @@ if _deck == "Control Room":
         tab_bench = a_bench
 
     with deck_diag:
-        st.subheader("🩺 Diagnostics")
+        st.subheader("Diagnostics")
         st.caption("Deep tools for debugging and reviewer verification (kept off the main workflow by default).")
         d_pam, d_val, d_comp, d_gate, d_nonfeas, d_solver, d_decision, d_session = st.tabs([
             "Panel Map",
@@ -3188,10 +3188,10 @@ This panel also performs a lightweight hygiene scan of the working tree.
         except Exception:
             st.info('Panel unavailable in this build.')
     st.divider()
-    with st.expander("🗃️ Studies manager", expanded=False):
+    with st.expander("Studies manager", expanded=False):
         st.header("Studies manager")
         st.write("Save, load, and organize study configurations (scan/pareto) as JSON. This keeps studies reproducible across sessions.")
-        if "studies" not in st.session_state:
+        if "studies"not in st.session_state:
             st.session_state.studies = []
 
         c1, c2, c3 = st.columns(3)
@@ -3301,14 +3301,14 @@ This panel also performs a lightweight hygiene scan of the working tree.
     
     
     with tab_pcm:
-        st.markdown("### 📎 Physics Capability Matrix")
+        st.markdown("### Physics Capability Matrix")
         st.caption(
             "Read-only audit map: subsystems → equations/closures → authority tier (proxy/parametric/external) → intended validity domain."
         )
         try:
             # v228+: prefer generator-derived snapshot if present (still read-only).
-            p_gen = (BASE_DIR / "docs" / "PHYSICS_CAPABILITY_MATRIX_GENERATED.md")
-            p_src = (BASE_DIR / "docs" / "PHYSICS_CAPABILITY_MATRIX.md")
+            p_gen = (BASE_DIR / "docs"/ "PHYSICS_CAPABILITY_MATRIX_GENERATED.md")
+            p_src = (BASE_DIR / "docs"/ "PHYSICS_CAPABILITY_MATRIX.md")
             if p_gen.exists():
                 _pcm = p_gen.read_text(encoding="utf-8", errors="ignore")
             else:
@@ -3318,7 +3318,6 @@ This panel also performs a lightweight hygiene scan of the working tree.
         st.markdown(_pcm)
         st.info(
             "Bluemira-inspired lessons are adopted for provenance and capability clarity - without introducing optimization loops or CAD-level coupling.",
-            icon="🧭",
         )
     with tab_bench:
     
@@ -3410,17 +3409,17 @@ This panel also performs a lightweight hygiene scan of the working tree.
             st.write("If you need something here, run a study first, then return to More.")
     
 # Shared state
-if "last_point_out" not in st.session_state:
+if "last_point_out"not in st.session_state:
     st.session_state["last_point_out"] = None
-if "last_point_inp" not in st.session_state:
+if "last_point_inp"not in st.session_state:
     st.session_state["last_point_inp"] = None
-if "scan_df" not in st.session_state:
+if "scan_df"not in st.session_state:
     st.session_state.scan_df = pd.DataFrame()
-if "scan_meta" not in st.session_state:
+if "scan_meta"not in st.session_state:
     st.session_state.scan_meta = {}
-if "studies" not in st.session_state:
+if "studies"not in st.session_state:
     st.session_state.studies = []  # list of study config dicts
-if "compare_artifacts" not in st.session_state:
+if "compare_artifacts"not in st.session_state:
     st.session_state.compare_artifacts = {"A": None, "B": None}
 
 # -----------------------------
@@ -3484,7 +3483,7 @@ if _deck == "Control Room":
           plus derived averages like peaking factors and $\langle n_e^2 \rangle/\langle n_e \rangle^2$.
         - **Radiation options:** legacy fractional radiation (stable for scans) and a physics‑based path (brem + synchrotron + simple impurity line radiation).
         - **Constraint system:** engineering and plasma constraints are represented as reusable objects (external systems codes‑like), usable by scans and vector solvers.
-        - **Solvers:** classic nested 1‑D solves are still available, plus a more general bounded "targets → variables" solve primitive.
+        - **Solvers:** classic nested 1‑D solves are still available, plus a more general bounded "targets → variables"solve primitive.
 
         It is **not** a full transport / equilibrium / neutronics code, but it is designed to grow in that direction while staying usable.
         """)
@@ -3701,7 +3700,7 @@ if _deck == "Control Room":
 
                         df_rep = pd.DataFrame(rows)
                         # show worst first
-                        if "ok" in df_rep.columns and "rel_err" in df_rep.columns:
+                        if "ok"in df_rep.columns and "rel_err"in df_rep.columns:
                             df_rep = df_rep.sort_values(by=["ok","rel_err"], ascending=[True, False])
                         st.dataframe(df_rep, use_container_width=True, height=260)
                     # Structural diffs (constraints/model cards) vs golden artifacts, if present
@@ -3755,16 +3754,16 @@ if _deck == "Control Room":
                 try:
                     m_out = out_md.stat().st_mtime
                     # regenerate if diff report is newer, or tool changed
-                    tool_p = repo_root / "tools" / "release_notes.py"
-                    diff_p = repo_root / "benchmarks" / "last_diff_report.json"
+                    tool_p = repo_root / "tools"/ "release_notes.py"
+                    diff_p = repo_root / "benchmarks"/ "last_diff_report.json"
                     newest = max([p.stat().st_mtime for p in [tool_p, diff_p] if p.exists()] + [0])
                     return newest > m_out
                 except Exception:
                     return False
 
             if (auto and _needs_rn() and not st.session_state.get("_rn_ran_this_session", False)) or run_now_rn:
-                cmd = [sys.executable, str(repo_root / "tools" / "release_notes.py"), "--old", old_path, "--new", str(repo_root), "--out", str(out_md)]
-                st.caption("Running: " + " ".join(cmd))
+                cmd = [sys.executable, str(repo_root / "tools"/ "release_notes.py"), "--old", old_path, "--new", str(repo_root), "--out", str(out_md)]
+                st.caption("Running: "+ " ".join(cmd))
                 try:
                     p = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
                     st.session_state["_rn_last_stdout"] = p.stdout
@@ -3782,7 +3781,7 @@ if _deck == "Control Room":
                 else:
                     st.warning("Release notes generation had issues (see logs).")
                 with st.expander("Logs", expanded=False):
-                    st.code((st.session_state.get("_rn_last_stdout") or "") + "\n" + (st.session_state.get("_rn_last_stderr") or ""))
+                    st.code((st.session_state.get("_rn_last_stdout") or "") + "\n"+ (st.session_state.get("_rn_last_stderr") or ""))
 
             if out_md.exists():
                 st.markdown(out_md.read_text(encoding="utf-8", errors="ignore"))
@@ -3939,7 +3938,7 @@ if _deck == "Control Room":
                 bounds = {"R0_m": (float(R0_lo), float(R0_hi)), "Ip_MA": (float(Ip_lo), float(Ip_hi)), "fG": (float(fG_lo), float(fG_hi))}
                 objectives = {"R0_m": "min", "B_peak_T": "min", "P_e_net_MW": "max"}
                 res = pareto_optimize(base_inp, bounds=bounds, objectives=objectives, n_samples=int(n_lhs), seed=1)
-                st.write(f"Feasible points: {len(res['feasible'])}  |  Pareto points: {len(res['pareto'])}")
+                st.write(f"Feasible points: {len(res['feasible'])} | Pareto points: {len(res['pareto'])}")
                 st.dataframe(res["pareto"], use_container_width=True)
     
         # -----------------------------
@@ -4043,7 +4042,7 @@ if _deck == "Control Room":
             try:
                 here = Path(__file__).resolve()
                 root = here.parent.parent  # ui/ -> repo root
-                rp = root / "verification" / "report.json"
+                rp = root / "verification"/ "report.json"
                 if rp.exists():
                     return json.loads(rp.read_text(encoding="utf-8"))
             except Exception:
@@ -4068,7 +4067,7 @@ if _deck == "Control Room":
             cols[0].metric("Requirements", int(summary.get("n_requirements", 0)))
             cols[1].metric("Passed", int(summary.get("n_pass", 0)))
             cols[2].metric("Failed", int(summary.get("n_fail", 0)))
-            cols[3].metric("Overall", "PASS" if summary.get("all_pass") else "FAIL")
+            cols[3].metric("Overall", "PASS"if summary.get("all_pass") else "FAIL")
 
             # Detailed table
             rows = report.get("results", [])
@@ -4215,7 +4214,7 @@ if _deck == "Control Room":
             st.subheader("Constraint Margin Ledger")
             ledger = art.get("constraint_ledger") or {}
             if isinstance(ledger, dict) and ledger.get("entries"):
-                st.caption(f"schema={ledger.get('schema_version','(missing)')}  fingerprint={ledger.get('ledger_fingerprint_sha256','(missing)')}")
+                st.caption(f"schema={ledger.get('schema_version','(missing)')} fingerprint={ledger.get('ledger_fingerprint_sha256','(missing)')}")
                 top = ledger.get("top_blockers") or []
                 if top:
                     st.markdown("**Top blockers**")
@@ -4411,7 +4410,7 @@ if _deck == "Control Room":
                         st.markdown(f"**Primary risk driver:** `{pr}`")
                     wh = dc.get("worst_hard_margin_frac", None)
                     try:
-                        wh_s = f"{float(wh):.3f}" if wh is not None else "-"
+                        wh_s = f"{float(wh):.3f}"if wh is not None else "-"
                     except Exception:
                         wh_s = "-"
                     st.markdown(f"**Worst hard margin (frac):** {wh_s}")
@@ -4475,7 +4474,7 @@ if _deck == "Control Room":
                     st.markdown(f"**Dominant constraint:** `{str(ad.get('dominant_constraint',''))}`")
                     mm = ad.get("dominant_margin_frac", None)
                     try:
-                        mm_s = f"{float(mm):.4f}" if mm is not None else "-"
+                        mm_s = f"{float(mm):.4f}"if mm is not None else "-"
                     except Exception:
                         mm_s = "-"
                     st.markdown(f"**Dominant margin (frac):** {mm_s}")
@@ -4542,7 +4541,7 @@ if _deck == "Control Room":
                             continue
                         wh = e.get("worst_hard_margin_frac", None)
                         try:
-                            wh_s = f"{float(wh):.3f}" if wh is not None else "-"
+                            wh_s = f"{float(wh):.3f}"if wh is not None else "-"
                         except Exception:
                             wh_s = "-"
                         rows.append({
@@ -4751,7 +4750,7 @@ if _deck == "Control Room":
         else:
             df = pd.DataFrame(runs)
             # Sort: newest first when available
-            if "created_unix" in df.columns:
+            if "created_unix"in df.columns:
                 df = df.sort_values("created_unix", ascending=False, na_position="last")
             st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -4808,7 +4807,7 @@ if _deck == "Control Room":
                 # Basic filters
                 c1, c2, c3 = st.columns([1,1,1])
                 with c1:
-                    sev = st.multiselect("Severity", sorted(df.get("severity", pd.Series(["hard"])).dropna().unique().tolist()), default=["hard","soft"] if "soft" in df.get("severity", pd.Series([])).unique() else ["hard"])
+                    sev = st.multiselect("Severity", sorted(df.get("severity", pd.Series(["hard"])).dropna().unique().tolist()), default=["hard","soft"] if "soft"in df.get("severity", pd.Series([])).unique() else ["hard"])
                 with c2:
                     grp = st.multiselect("Group", sorted(df.get("group", pd.Series(["general"])).dropna().unique().tolist()), default=[])
                 with c3:
@@ -4819,13 +4818,13 @@ if _deck == "Control Room":
                     view = view[view["severity"].isin(sev)]
                 if grp:
                     view = view[view["group"].isin(grp)]
-                if show_only_failed and "passed" in view.columns:
+                if show_only_failed and "passed"in view.columns:
                     view = view[view["passed"] == False]
 
                 # Sort: worst first by margin_frac or margin
-                if "margin_frac" in view.columns:
+                if "margin_frac"in view.columns:
                     view = view.sort_values("margin_frac", ascending=True, na_position="last")
-                elif "margin" in view.columns:
+                elif "margin"in view.columns:
                     view = view.sort_values("margin", ascending=True, na_position="last")
 
                 st.subheader("Ledger")
@@ -4900,7 +4899,7 @@ if _deck == "Control Room":
 
                 st.subheader("Inequality")
                 if sense and value is not None and limit is not None:
-                    st.code(f"{sel}: value {sense} limit    (value={value}, limit={limit}, units={units})", language="text")
+                    st.code(f"{sel}: value {sense} limit (value={value}, limit={limit}, units={units})", language="text")
                 else:
                     st.code(f"{sel}: (insufficient fields to render inequality)", language="text")
 
@@ -5082,7 +5081,7 @@ if _deck == "Control Room":
                     ycol = st.selectbox("Y axis", axis_candidates, index=1 if len(axis_candidates)>1 else 0)
 
                 df = pd.DataFrame(cases)
-                if "ok" not in df.columns:
+                if "ok"not in df.columns:
                     st.error("Study cases table missing 'ok' field.")
                 else:
                     # Build pivot grid
@@ -5154,11 +5153,11 @@ def _guess_point_inputs_from_artifact(art: dict) -> PointInputs | None:
         if isinstance(v, dict):
             cand.update(v)
     cand.update({k: art.get(k) for k in ["R0_m","a_m","kappa","Bt_T","B0_T","Ip_MA","Ti_keV","fG","Paux_MW","Ti_over_Te","fuel_mode"] if k in art})
-    if "B0_T" in cand and "Bt_T" not in cand:
+    if "B0_T"in cand and "Bt_T"not in cand:
         cand["Bt_T"] = cand["B0_T"]
-    if "Ti_Te" in cand and "Ti_over_Te" not in cand:
+    if "Ti_Te"in cand and "Ti_over_Te"not in cand:
         cand["Ti_over_Te"] = cand["Ti_Te"]
-    if "Ti/Te" in cand and "Ti_over_Te" not in cand:
+    if "Ti/Te"in cand and "Ti_over_Te"not in cand:
         cand["Ti_over_Te"] = cand["Ti/Te"]
     try:
         return _make_point_inputs_safe(**cand)
@@ -5169,7 +5168,7 @@ def _decision_summary_from_artifact(art: dict) -> dict:
     kpis = art.get("kpis", {}) if isinstance(art.get("kpis"), dict) else {}
     cons = art.get("constraints", []) if isinstance(art.get("constraints"), list) else []
     ledger = art.get("constraint_ledger", {}) if isinstance(art.get("constraint_ledger"), dict) else {}
-    feas = bool(art.get("is_feasible")) if "is_feasible" in art else None
+    feas = bool(art.get("is_feasible")) if "is_feasible"in art else None
     if feas is None:
         feas = all((not bool(c.get("failed"))) for c in cons) if cons else None
     top = ledger.get("top_blockers") if isinstance(ledger.get("top_blockers"), list) else []
@@ -5198,7 +5197,7 @@ if _deck == "Control Room":
             d = _decision_summary_from_artifact(art)
             c1, c2, c3 = st.columns([1,1,1])
             with c1:
-                st.metric("Feasibility verdict", "FEASIBLE " if d["feasible"] else ("INFEASIBLE " if d["feasible"] is not None else "UNKNOWN"))
+                st.metric("Feasibility verdict", "FEASIBLE "if d["feasible"] else ("INFEASIBLE "if d["feasible"] is not None else "UNKNOWN"))
             with c2:
                 st.metric("Top KPI: Q", f"{d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q', '-'))}")
             with c3:
@@ -5238,7 +5237,7 @@ if _deck == "Control Room":
 
             # Determine hard feasibility
             feasible_hard = None
-            if "feasible_hard" in kpis:
+            if "feasible_hard"in kpis:
                 try:
                     feasible_hard = bool(kpis.get("feasible_hard"))
                 except Exception:
@@ -5261,7 +5260,7 @@ if _deck == "Control Room":
                 if not cert:
                     hard_failed = [
                         c for c in cons
-                        if str(c.get("severity", "hard")).lower() == "hard" and not bool(c.get("passed", True))
+                        if str(c.get("severity", "hard")).lower() == "hard"and not bool(c.get("passed", True))
                     ]
 
                     def _mkey(c):
@@ -5359,7 +5358,7 @@ if _deck == "Control Room":
                                 d = st.number_input(f"{k} new value", value=v0, step=step, key=f"nf_abs_{k}")
                                 deltas[k] = float(d)
 
-                        fuel_mode = st.selectbox("fuel_mode", options=["DT", "DD"], index=0 if getattr(base, "fuel_mode", "DT") == "DT" else 1, key="nf_fuel_mode")
+                        fuel_mode = st.selectbox("fuel_mode", options=["DT", "DD"], index=0 if getattr(base, "fuel_mode", "DT") == "DT"else 1, key="nf_fuel_mode")
 
                         run = st.button("Re-evaluate adjusted point", key="nf_run_eval", use_container_width=True)
                         if run:
@@ -5436,13 +5435,13 @@ if _deck == "Control Room":
                         deck_txt = yaml.safe_dump(case_deck, sort_keys=False) if yaml is not None else json.dumps(case_deck, indent=2)
 
                         st.markdown("### Case deck")
-                        st.code(deck_txt, language="yaml" if yaml is not None else "json")
+                        st.code(deck_txt, language="yaml"if yaml is not None else "json")
 
                         st.download_button(
                             "Download case_deck.yaml",
                             data=deck_txt.encode("utf-8"),
                             file_name="case_deck.yaml",
-                            mime="text/yaml" if yaml is not None else "application/json",
+                            mime="text/yaml"if yaml is not None else "application/json",
                             use_container_width=True,
                         )
                         st.download_button(
@@ -5481,7 +5480,7 @@ if _deck == "Control Room":
                 st.json(c)
                 if isinstance(c, dict):
                     st.markdown("**Fingerprint fields**")
-                    st.code("\n".join([f"{k}: {c.get(k)}" for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
+                    st.code("\n".join([f"{k}: {c.get(k)}"for k in ["fingerprint","provenance_fingerprint","constraint_fingerprint_sha256"] if k in c] or ["(none found)"]))
 
 if _deck == "Control Room":
     with tab_knobs:
@@ -5511,7 +5510,7 @@ if _deck == "Control Room":
                 Paux_MW = st.number_input("Paux (MW)", value=float(base.Paux_MW), step=1.0, key="knob_Paux")
                 Ti_over_Te = st.number_input("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1, key="knob_TiTe")
 
-            fuel_mode = st.selectbox("fuel_mode", options=["DT","DD"], index=0 if getattr(base, "fuel_mode", "DT")=="DT" else 1, key="knob_fuel")
+            fuel_mode = st.selectbox("fuel_mode", options=["DT","DD"], index=0 if getattr(base, "fuel_mode", "DT")=="DT"else 1, key="knob_fuel")
 
             knobs = ["Ip_MA","fG","Bt_T","R0_m","Paux_MW","Ti_keV"]
             kx = st.selectbox("Knob X", knobs, index=0, key="knob_kx")
@@ -5653,7 +5652,7 @@ if _deck == "Control Room":
             cases = idx_data.get("cases", [])
             if isinstance(cases, list) and cases:
                 df = pd.DataFrame(cases)
-                if "ok" in df.columns:
+                if "ok"in df.columns:
                     ok_frac = float(df["ok"].mean())
                     st.metric("Feasible fraction", f"{ok_frac:.3f}")
                 for col in ["dominant_blocker","top_blocker","blocker"]:
@@ -5721,7 +5720,7 @@ if _deck == "Control Room":
         else:
             enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
             if not enabled:
-                st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in 🧭 Point Designer → Engineering & plant feasibility → 🗓️ Maintenance scheduling authority (v368.0).")
+                st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in Point Designer → Engineering & plant feasibility → Maintenance scheduling authority (v368.0).")
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
             c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
@@ -5848,11 +5847,11 @@ if _deck == "Control Room":
             st.metric("Tier", str(out.get("disruption_risk_tier", "UNKNOWN")))
             cols=st.columns(3)
             with cols[0]:
-                st.metric("Risk index", f"{float(out.get('disruption_risk_index', float('nan'))):.3f}" if out.get('disruption_risk_index')==out.get('disruption_risk_index') else "nan")
+                st.metric("Risk index", f"{float(out.get('disruption_risk_index', float('nan'))):.3f}"if out.get('disruption_risk_index')==out.get('disruption_risk_index') else "nan")
             with cols[1]:
                 st.metric("Dominant driver", str(out.get("disruption_dominant_driver", "unknown")))
             with cols[2]:
-                st.metric("fG", f"{float(getattr(st.session_state.get('last_point_inp', None),'fG', float('nan'))):.3f}" if st.session_state.get('last_point_inp') is not None else "nan")
+                st.metric("fG", f"{float(getattr(st.session_state.get('last_point_inp', None),'fG', float('nan'))):.3f}"if st.session_state.get('last_point_inp') is not None else "nan")
             with st.expander("Components", expanded=False):
                 st.json(out.get("disruption_risk_components", {}))
 
@@ -5883,7 +5882,7 @@ if _deck == "Control Room":
                     else "nan",
                 )
             with cols[3]:
-                st.metric("RWM ok", "yes" if bool(out.get("rwm_control_ok", True)) else "no")
+                st.metric("RWM ok", "yes"if bool(out.get("rwm_control_ok", True)) else "no")
 
             st.divider()
             oc = st.columns(2)
@@ -5972,7 +5971,7 @@ if _deck == "Control Room":
                 with ocols[2]:
                     o3 = st.selectbox("Objective #3 (optional)", ["(none)"] + [o[0] for o in obj_menu], index=0, key="cs_p_obj3")
                 senses = {k: s for k, s in obj_menu}
-                for ok in [o1, o2] + ([o3] if str(o3) != "(none)" else []):
+                for ok in [o1, o2] + ([o3] if str(o3) != "(none)"else []):
                     pareto_objectives.append(ParetoObjective(key=str(ok), sense=str(senses.get(str(ok), "min"))))
 
                 cpm = st.columns(2)
@@ -6054,7 +6053,7 @@ if _deck == "Control Room":
                     "n_failed": int(sum(1 for c in cons if c.get("failed"))),
                     "top_blocker": (next((c.get("name") for c in cons if c.get("failed")), None)),
                 }
-                return ("PASS" if ok else "FAIL"), score, evidence
+                return ("PASS"if ok else "FAIL"), score, evidence
 
             if st.button("Run certified search", use_container_width=True, key="run_cert_search"):
                 if not vars_:
@@ -6417,7 +6416,7 @@ if _deck == "Control Room":
                     cons = evaluate_constraints(out, point_inputs=inp_obj)
                     ok = all((not bool(cc.get("failed"))) for cc in cons)
                     dom = next((cc.get("name") for cc in cons if cc.get("failed")), None)
-                    results.append({"corner": c, "verdict": "PASS" if ok else "FAIL", "dominant_mechanism": dom})
+                    results.append({"corner": c, "verdict": "PASS"if ok else "FAIL", "dominant_mechanism": dom})
 
                 st.session_state["v296_ref_corners"] = {"intervals": intervals, "results": results}
 
@@ -6577,7 +6576,7 @@ if _deck == "Control Room":
         else:
             col1,col2,col3=st.columns(3)
             with col1:
-                fuel = st.selectbox("Fuel mode", ["DT","DD"], index=0 if getattr(base,"fuel_mode","DT")=="DT" else 1, key="ass_fuel")
+                fuel = st.selectbox("Fuel mode", ["DT","DD"], index=0 if getattr(base,"fuel_mode","DT")=="DT"else 1, key="ass_fuel")
             with col2:
                 ti = st.number_input("Ti (keV)", value=float(base.Ti_keV), step=0.5, key="ass_Ti")
             with col3:
@@ -6593,7 +6592,7 @@ if _deck == "Control Room":
                 out = _ui_evaluate(pi, origin="systems_point")
                 cons = evaluate_constraints(out, point_inputs=pi)
                 ok = all((not bool(c.get("failed"))) for c in cons)
-                st.metric("Feasible", "YES " if ok else "NO ")
+                st.metric("Feasible", "YES "if ok else "NO ")
                 st.subheader("Key outputs")
                 st.json({k: out.get(k) for k in ["Q_DT_eqv","P_fus_MW","P_net_MW","betaN","q95","fG"] if k in out})
                 st.subheader("Top failed constraints")
@@ -6634,15 +6633,15 @@ if _deck == "Control Room":
                 ax = fig.add_subplot(111)
                 ax.axis("off")
                 title = "SHAMS Decision Summary"
-                verdict = "FEASIBLE" if d["feasible"] else "INFEASIBLE"
+                verdict = "FEASIBLE"if d["feasible"] else "INFEASIBLE"
                 ax.text(0.02, 0.92, f"{title} - {verdict}", fontsize=16, weight="bold")
-                ax.text(0.02, 0.82, f"Q: {d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q','-'))}    Pfus(MW): {d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW','-'))}", fontsize=12)
+                ax.text(0.02, 0.82, f"Q: {d['kpis'].get('Q_DT_eqv', d['kpis'].get('Q','-'))} Pfus(MW): {d['kpis'].get('P_fus_MW', d['kpis'].get('Pfus_MW','-'))}", fontsize=12)
                 ax.text(0.02, 0.72, "Top blockers:", fontsize=12, weight="bold")
                 y=0.66
                 for b in (d["top_blockers"] or [])[:6]:
                     ax.text(0.04, y, f"- {b.get('group','')}: {b.get('name','')}", fontsize=11)
                     y -= 0.06
-                footer = f"repo_version={prov.get('repo_version')}  git={prov.get('git_commit')}  python={prov.get('python')}"
+                footer = f"repo_version={prov.get('repo_version')} git={prov.get('git_commit')} python={prov.get('python')}"
                 ax.text(0.02, 0.03, footer, fontsize=9)
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
@@ -6728,7 +6727,7 @@ def _v88_boundary_map(points):
         st.info("No scan points available.")
         return
     df = pd.DataFrame(points)
-    if "x" in df.columns and "min_signed_margin" in df.columns:
+    if "x"in df.columns and "min_signed_margin"in df.columns:
         st.scatter_chart(df, x="x", y="min_signed_margin", color="feasible")
 
 def _v88_export_svg(fig, name):
@@ -6823,7 +6822,7 @@ def _v89_constraint_intersections(points, topn=10):
 # =====================
 def _v89_1_render_cached_point():
     import streamlit as st
-    if "pd_last_outputs" not in st.session_state or "pd_last_artifact" not in st.session_state:
+    if "pd_last_outputs"not in st.session_state or "pd_last_artifact"not in st.session_state:
         st.info("No cached Point Designer result yet. Click 'Evaluate Point' to compute one.")
         return
     st.info("Showing last Point Designer results (cached). Downloads should not clear results.")
@@ -7003,7 +7002,7 @@ def _v93_stateful_scan_panel():
     if ok: st.success("Schema: PASS")
     else:
         st.warning("Schema: FAIL")
-        for e in errs[:10]: st.write("- " + str(e))
+        for e in errs[:10]: st.write("- "+ str(e))
     st.download_button("Download feasible_scan.json (stateful)",
                        data=_json.dumps(scan_obj, indent=2, sort_keys=True),
                        file_name="feasible_scan.json", mime="application/json",
@@ -7023,7 +7022,7 @@ def _v93_stateful_systems_panel():
     if ok: st.success("Schema: PASS")
     else:
         st.warning("Schema: FAIL")
-        for e in errs[:10]: st.write("- " + str(e))
+        for e in errs[:10]: st.write("- "+ str(e))
     st.download_button("Download systems_artifact.json (stateful)",
                        data=_shams_json_dumps(s.last_systems_result, indent=2, sort_keys=True),
                        file_name="systems_artifact.json", mime="application/json",
@@ -7156,9 +7155,9 @@ def _v184_render_latest_feasible_search_results(*, report: dict, key_prefix: str
         ts_str = ''
 
     if ok:
-        st.success(f"Feasible Search: **OK** - {reason} - best objective: {report.get('best_obj')}  {('(' + ts_str + ')') if ts_str else ''}")
+        st.success(f"Feasible Search: **OK** - {reason} - best objective: {report.get('best_obj')} {('(' + ts_str + ')') if ts_str else ''}")
     else:
-        st.warning(f"Feasible Search: **NO RESULT** - {reason}  {('(' + ts_str + ')') if ts_str else ''}")
+        st.warning(f"Feasible Search: **NO RESULT** - {reason} {('(' + ts_str + ')') if ts_str else ''}")
 
     # Compact summary
     st.json({k: report.get(k) for k in ['ok','reason','objective','budget','topk','multi_seed_runs','radius','seed','vars','start_feasible','best_obj','best_V'] if k in report})
@@ -7201,7 +7200,7 @@ def _v184_render_latest_feasible_search_results(*, report: dict, key_prefix: str
 def _v93_stateful_sandbox_panel():
     import streamlit as st
     s = _v92_state_get()
-    st.subheader("📌 Forge Cache (stateful sandbox)")
+    st.subheader("Forge Cache (stateful sandbox)")
     if s.last_sandbox_run is None:
         st.info("No cached sandbox yet.")
         return
@@ -7260,13 +7259,13 @@ def _v94_unified_export_bundle_panel():
         if ok: st.success("Point artifact schema: PASS")
         else:
             st.warning("Point artifact schema: FAIL")
-            for e in errs[:8]: st.write("- " + str(e))
+            for e in errs[:8]: st.write("- "+ str(e))
     if scan_obj is not None:
         ok, errs = _v93_validate_before_download(scan_obj, "schemas/shams_feasible_set.schema.json")
         if ok: st.success("Scan feasible set schema: PASS")
         else:
             st.warning("Scan feasible set schema: FAIL")
-            for e in errs[:8]: st.write("- " + str(e))
+            for e in errs[:8]: st.write("- "+ str(e))
 
     try:
         from tools.export.bundle import build_export_bundle_bytes
@@ -7307,7 +7306,7 @@ def _v98_validation_gate_ui(title: str, ok: bool, errs):
         return True
     st.error(f"{title}: schema FAIL (download allowed, but NOT publishable)")
     for e in (errs or [])[:12]:
-        st.write("- " + str(e))
+        st.write("- "+ str(e))
     return False
 
 
@@ -7363,7 +7362,7 @@ def _v98_json_diff(a, b, path=""):
     if isinstance(a, dict):
         keys = set(a.keys()) | set(b.keys())
         for k in sorted(keys):
-            diffs += _v98_json_diff(a.get(k, "<missing>"), b.get(k, "<missing>"), (path + "/" + str(k)) if path else "/" + str(k))
+            diffs += _v98_json_diff(a.get(k, "<missing>"), b.get(k, "<missing>"), (path + "/"+ str(k)) if path else "/"+ str(k))
         return diffs
     if isinstance(a, list):
         n = max(len(a), len(b))
@@ -7387,7 +7386,7 @@ def _v98_run_ledger_page():
         with c1: st.write(f"**{rid}** - {r.get('ts')} - {r.get('kind')} ({r.get('mode')})")
         with c2:
             pinned = rid in s.pinned_run_ids
-            if st.button("Unpin" if pinned else "Pin", key=f"pin_{rid}"):
+            if st.button("Unpin"if pinned else "Pin", key=f"pin_{rid}"):
                 if pinned: s.pinned_run_ids.remove(rid)
                 else: s.pinned_run_ids.append(rid)
                 st.rerun()
@@ -7406,7 +7405,7 @@ def _v98_run_ledger_page():
     if A and B:
         diffs = _v98_json_diff(A.get("payload",{}), B.get("payload",{}))
         st.write(f"Changed fields: {len(diffs)}")
-        for d in diffs[:200]: st.write("- " + d)
+        for d in diffs[:200]: st.write("- "+ d)
 
 
 def _v98_process_handoff_panel():
@@ -8086,7 +8085,7 @@ def _v112_literature_overlay_panel():
     st.subheader("Literature Overlay")
     st.caption("Upload a JSON of reference points (ITER/ARC/SPARC/etc.) and overlay on Boundary Atlas slices. SHAMS ships only a template.")
 
-    if "v112_overlay" not in st.session_state:
+    if "v112_overlay"not in st.session_state:
         st.session_state["v112_overlay"] = template_payload(version="v112")
 
     c1, c2 = st.columns(2)
@@ -8225,7 +8224,7 @@ def _v114_preference_panel():
         st.info("Build v113 candidates first (Design Decision Layer).")
         return
 
-    if "v114_prefs" not in st.session_state:
+    if "v114_prefs"not in st.session_state:
         st.session_state["v114_prefs"] = template_preferences()
 
     prefs = st.session_state["v114_prefs"]
@@ -8489,7 +8488,7 @@ def _v117_tolerance_envelope_panel():
         st.error("Selected run does not contain a run artifact payload.")
         return
 
-    if "v117_spec" not in st.session_state:
+    if "v117_spec"not in st.session_state:
         st.session_state["v117_spec"] = template_tolerance_spec()
 
     spec = st.session_state["v117_spec"]
@@ -8497,7 +8496,7 @@ def _v117_tolerance_envelope_panel():
     if not isinstance(tmap, dict):
         tmap = {}
 
-    mode = st.selectbox("Tolerance mode", options=["relative","absolute"], index=0 if spec.get("mode","relative")=="relative" else 1, key="v117_mode")
+    mode = st.selectbox("Tolerance mode", options=["relative","absolute"], index=0 if spec.get("mode","relative")=="relative"else 1, key="v117_mode")
     include_mid = st.checkbox("Include edge midpoints", value=bool(spec.get("include_edge_midpoints", True)), key="v117_mid")
     max_samples = st.number_input("Max samples", min_value=10, max_value=500, value=200, step=10, key="v117_max")
 
@@ -8507,7 +8506,7 @@ def _v117_tolerance_envelope_panel():
     for i,k in enumerate(keys):
         with cols[i % 3]:
             default = float(tmap.get(k, 0.0) or 0.0)
-            tmap[k] = st.number_input(f"{k} tol", min_value=0.0, max_value=1e6, value=default, step=0.005 if mode=="relative" else 0.5, key=f"v117_tol_{k}")
+            tmap[k] = st.number_input(f"{k} tol", min_value=0.0, max_value=1e6, value=default, step=0.005 if mode=="relative"else 0.5, key=f"v117_tol_{k}")
 
     spec["mode"] = mode
     spec["include_edge_midpoints"] = include_mid
@@ -9522,7 +9521,7 @@ def _v128_study_explorer_panel():
             kf["Pfus_MW"] = (float(pflo), None)
 
     idx_obj = parse_study_index(st.session_state["v128_files"])
-    fr = filter_cases(idx_obj, feasible_only=feasible_only, mission=None if mission=="(any)" else mission, kpi_filters=kf)
+    fr = filter_cases(idx_obj, feasible_only=feasible_only, mission=None if mission=="(any)"else mission, kpi_filters=kf)
 
     st.write(f"Filtered cases: {len(fr)} / {len(rows)}")
     show = fr[:200]  # avoid UI overload
@@ -9536,7 +9535,7 @@ def _v128_study_explorer_panel():
     a_id = st.selectbox("Case A", options=case_ids, index=0, key="v128_a")
     b_id = st.selectbox("Case B", options=case_ids, index=1 if len(case_ids)>1 else 0, key="v128_b")
 
-    if st.button("🆚 Compare", key="v128_compare"):
+    if st.button("Compare", key="v128_compare"):
         try:
             files = st.session_state["v128_files"]
             a_row = next(r for r in fr if str(r.get("case_id"))==a_id)
@@ -9605,7 +9604,7 @@ def _v129_pareto_panel():
 
     if st.button("Compute Pareto", key="v129_run"):
         try:
-            rep = build_pareto(study_path=study_path, objectives=objs, feasible_only=bool(feasible_only), mission=None if mission=="(any)" else mission, version="v129")
+            rep = build_pareto(study_path=study_path, objectives=objs, feasible_only=bool(feasible_only), mission=None if mission=="(any)"else mission, version="v129")
             bun = pareto_bundle_zip(rep)
             st.session_state["v129_rep"]=rep
             st.session_state["v129_bun"]=bun
@@ -9661,7 +9660,7 @@ def _v130_run_vault_panel():
         st.dataframe(entries, use_container_width=True)
 
         # allow downloading index file
-        idx_path = root / "out_run_vault" / "INDEX.jsonl"
+        idx_path = root / "out_run_vault"/ "INDEX.jsonl"
         if idx_path.exists():
             st.download_button("Download vault INDEX.jsonl",
                                data=idx_path.read_bytes(),
@@ -9938,8 +9937,8 @@ def _v133_fc_panel():
                 free=list(free_choices),
                 uncertain=list(uncertain_choices),
                 method=str(method),
-                n_per_dim=int(n_per_dim) if method=="grid" else 0,
-                n_random=int(n_random) if method=="random" else 0,
+                n_per_dim=int(n_per_dim) if method=="grid"else 0,
+                n_random=int(n_random) if method=="random"else 0,
                 seed=int(seed),
                 feasible_only_export=bool(feasible_only_export),
             )
@@ -10036,7 +10035,7 @@ def _v138_fc_superpanel():
             lo,hi = suggest_bounds(base_inputs, v)
             b[v] = [lo,hi]
             msgs = sanity_check_bounds(v, lo, hi)
-            st.write(f"- {v}: [{lo:g}, {hi:g}]" + (f" ⚠ {', '.join(msgs)}" if msgs else ""))
+            st.write(f"- {v}: [{lo:g}, {hi:g}]"+ (f"{', '.join(msgs)}"if msgs else ""))
         st.caption("You can copy these into the FC run tab.")
 
     # ---------------- v133 run ----------------
@@ -10085,8 +10084,8 @@ def _v138_fc_superpanel():
                 free=list(free_choices),
                 uncertain=list(uncertain_choices),
                 method=str(method),
-                n_per_dim=int(n_per_dim) if method=="grid" else 0,
-                n_random=int(n_random) if method=="random" else 0,
+                n_per_dim=int(n_per_dim) if method=="grid"else 0,
+                n_random=int(n_random) if method=="random"else 0,
                 seed=int(seed),
                 feasible_only_export=bool(feasible_only),
             )
@@ -11795,7 +11794,7 @@ def _v166_repro_lock_panel():
         rep = replay_check(lock=lock, assumption_set_override=ao if isinstance(ao, dict) else None, policy={"generator":"ui"})
         st.session_state["v166_replay"] = rep
         ok = ((rep.get("payload") or {}).get("ok"))
-        st.success("Replay OK" if ok else "Replay NOT OK")
+        st.success("Replay OK"if ok else "Replay NOT OK")
         st.json((rep.get("payload") or {}).get("checks") or {})
         st.download_button("Download replay_report_v166.json",
                            data=_json.dumps(rep, indent=2, sort_keys=True, default=str),
@@ -12037,8 +12036,8 @@ def _v170_process_export_panel():
     cite = st.session_state.get("v168_citation")
 
     st.markdown("### Optional attachments")
-    st.write("- completion_pack_v163.json:", "yes" if isinstance(comp, dict) else "no")
-    st.write("- citation_bundle_v168.json:", "yes" if isinstance(cite, dict) else "no")
+    st.write("- completion_pack_v163.json:", "yes"if isinstance(comp, dict) else "no")
+    st.write("- citation_bundle_v168.json:", "yes"if isinstance(cite, dict) else "no")
 
     if st.button("Build external systems codes Export Pack ZIP", use_container_width=True, key="v170_build"):
         res = build_process_export_pack(
