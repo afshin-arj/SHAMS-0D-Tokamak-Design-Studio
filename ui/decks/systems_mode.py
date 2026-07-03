@@ -28,6 +28,8 @@ def render_systems_mode(_app_module) -> None:
         if not _k.startswith("__"):
             _g[_k] = _v
 
+    from ui.components import empty_state
+
     # DSG: auto edge-kind tagging by active panel (exploration only)
     if bool(st.session_state.get("dsg_edge_kind_auto", True)):
         st.session_state["dsg_context_edge_kind"] = "systems_eval"
@@ -54,13 +56,13 @@ def render_systems_mode(_app_module) -> None:
             trust_delta = None
 
 
-    st.info(
-        "This is an **explanation layer** around the frozen evaluator: it may propose explicit, user-controlled *what would need to change* narratives, "
-        "but it **never modifies** physics truth, constraints, or evaluator behavior.",
-        icon="🧭",
-    )
+    with st.expander("About this mode", expanded=False):
+        st.info(
+            "This is an **explanation layer** around the frozen evaluator: it may propose explicit, user-controlled *what would need to change* narratives, "
+            "but it **never modifies** physics truth, constraints, or evaluator behavior.",
+        )
+        st.caption("Apply actions (when used) are reversible (undo/redo).")
 
-    st.caption("Apply actions (when used) are reversible (undo/redo).")
     st.session_state.setdefault("systems_run_cards", [])
 
     # Compact Cockpit moved to post-run diagnostics (v374.1)
@@ -85,7 +87,7 @@ def render_systems_mode(_app_module) -> None:
             if v is None:
                 return "-"
             if isinstance(v, bool):
-                return "true" if v else "false"
+                return "true"if v else "false"
             if isinstance(v, (int, float)):
                 if not math.isfinite(float(v)):
                     return "-"
@@ -199,7 +201,7 @@ def render_systems_mode(_app_module) -> None:
 
             # Optional: show copy-ready markdown and a one-click download.
             if bool(st.session_state.get("systems_cockpit_show_md", False)):
-                with st.expander("📋 Copy-ready cockpit summary (markdown)", expanded=False):
+                with st.expander("Copy-ready cockpit summary (markdown)", expanded=False):
                     st.code(cockpit_md, language="markdown")
                     st.download_button(
                         "Download cockpit summary (MD)",
@@ -213,7 +215,7 @@ def render_systems_mode(_app_module) -> None:
             # Optional: pin a mini-cockpit in the sidebar (Streamlit-safe 'sticky').
             if bool(st.session_state.get("systems_cockpit_pin", False)):
                 with st.sidebar:
-                    st.markdown("### 🧭 Systems Cockpit (pinned)")
+                    st.markdown("### Systems Cockpit (pinned)")
                     st.caption("Diagnostic only - external to truth.")
                     st.write(f"**Verdict:** {str(verdict)}")
                     st.write(f"**Confidence:** {str(dc)}")
@@ -248,11 +250,11 @@ def render_systems_mode(_app_module) -> None:
             with m4:
                 st.metric("Mechanism", _sys_fmt(mech, digits=12))
             with m5:
-                st.metric("P_fus", f"{_sys_fmt(Pfus)} MW" if Pfus is not None else "-")
+                st.metric("P_fus", f"{_sys_fmt(Pfus)} MW"if Pfus is not None else "-")
             with m6:
-                st.metric("P_net", f"{_sys_fmt(Pnet)} MW" if Pnet is not None else "-")
+                st.metric("P_net", f"{_sys_fmt(Pnet)} MW"if Pnet is not None else "-")
 
-            _pr = f" • risk: **{primary_risk}**" if primary_risk else ""
+            _pr = f"• risk: **{primary_risk}**"if primary_risk else ""
             st.caption(
                 f"Trust layer (post-processing): confidence = **{dc}**, posture = **{decision_posture}**{_pr}. Truth unchanged."
             )
@@ -324,16 +326,16 @@ def render_systems_mode(_app_module) -> None:
             v = c.get(k)
             if isinstance(v, str) and v:
                 vv = v.lower()
-                if "block" in vv or vv == "hard":
+                if "block"in vv or vv == "hard":
                     return "blocking"
-                if "diag" in vv or "soft" in vv:
+                if "diag"in vv or "soft"in vv:
                     return "diagnostic"
-                if "ignore" in vv or "off" in vv:
+                if "ignore"in vv or "off"in vv:
                     return "ignored"
         status = str(c.get("status") or c.get("verdict") or "").lower()
         if status in ("fail", "pass", "pass+diag"):
             # kind not inferable from status
-            return str(c.get("kind") or "blocking" if status == "fail" else "diagnostic")
+            return str(c.get("kind") or "blocking"if status == "fail"else "diagnostic")
         return "diagnostic"
 
     def _sys_constraint_name(c: dict) -> str:
@@ -360,7 +362,7 @@ def render_systems_mode(_app_module) -> None:
         # infer from margin if possible
         m = _sys_constraint_margin(c)
         if isinstance(m, (int, float)):
-            return "FAIL" if m < 0 else "PASS"
+            return "FAIL"if m < 0 else "PASS"
         return "-"
 
     def _sys_constraint_mechanism(c: dict) -> str:
@@ -392,9 +394,9 @@ def render_systems_mode(_app_module) -> None:
         return []
 
     def _sys_render_verdict_bar(art: dict, *, constraints: list[dict]) -> None:
-        verdict = _sys_pick_first(art, [[ "verdict" ], [ "summary", "verdict" ], [ "ledger", "verdict" ]]) or "-"
-        dom = _sys_pick_first(art, [[ "dominant_constraint" ], [ "summary", "dominant_constraint" ], [ "ledger", "dominant_constraint" ]])
-        mech = _sys_pick_first(art, [[ "dominant_mechanism" ], [ "summary", "dominant_mechanism" ], [ "ledger", "dominant_mechanism" ]])
+        verdict = _sys_pick_first(art, [[ "verdict"], [ "summary", "verdict"], [ "ledger", "verdict"]]) or "-"
+        dom = _sys_pick_first(art, [[ "dominant_constraint"], [ "summary", "dominant_constraint"], [ "ledger", "dominant_constraint"]])
+        mech = _sys_pick_first(art, [[ "dominant_mechanism"], [ "summary", "dominant_mechanism"], [ "ledger", "dominant_mechanism"]])
         # If mechanism missing, infer from dominant constraint entry
         if (not mech) and dom:
             for c in constraints:
@@ -450,9 +452,9 @@ def render_systems_mode(_app_module) -> None:
         st.divider()
 
     def _sys_render_causal_chain(art: dict, *, constraints: list[dict], expert: bool) -> None:
-        verdict = _sys_pick_first(art, [[ "verdict" ], [ "summary", "verdict" ], [ "ledger", "verdict" ]]) or "-"
-        dom = _sys_pick_first(art, [[ "dominant_constraint" ], [ "summary", "dominant_constraint" ], [ "ledger", "dominant_constraint" ]])
-        mech = _sys_pick_first(art, [[ "dominant_mechanism" ], [ "summary", "dominant_mechanism" ], [ "ledger", "dominant_mechanism" ]])
+        verdict = _sys_pick_first(art, [[ "verdict"], [ "summary", "verdict"], [ "ledger", "verdict"]]) or "-"
+        dom = _sys_pick_first(art, [[ "dominant_constraint"], [ "summary", "dominant_constraint"], [ "ledger", "dominant_constraint"]])
+        mech = _sys_pick_first(art, [[ "dominant_mechanism"], [ "summary", "dominant_mechanism"], [ "ledger", "dominant_mechanism"]])
         dom_entry = None
         if dom:
             for c in constraints:
@@ -483,9 +485,9 @@ def render_systems_mode(_app_module) -> None:
         if dom:
             chain.append(f"↳ Dominant constraint: **{str(dom)}**")
         if drivers:
-            chain.append("↳ Dominant drivers: " + ", ".join(drivers))
+            chain.append("↳ Dominant drivers: "+ ", ".join(drivers))
         # Add a minimal RWM hint when relevant (no additional physics, purely explanatory)
-        if dom and "RWM" in str(dom).upper():
+        if dom and "RWM"in str(dom).upper():
             chain.append("↳ RWM screening: required bandwidth/power must fit within CONTROL caps (see Control Contracts).")
         with st.expander("Why-chain (dominant cause)", expanded=False):
             for line in chain:
@@ -509,14 +511,14 @@ def render_systems_mode(_app_module) -> None:
                 k = _sys_constraint_kind(c)
                 if kind and k != kind:
                     continue
-                if mech_sel != "ALL" and _sys_constraint_mechanism(c) != mech_sel:
+                if mech_sel != "ALL"and _sys_constraint_mechanism(c) != mech_sel:
                     continue
                 rows.append(c)
             # sort: worst margin first (None last), then FAIL first
             def keyfn(c):
                 m = _sys_constraint_margin(c)
                 stt = _sys_constraint_status(c)
-                return (0 if stt == "FAIL" else 1, 1e9 if m is None else m)
+                return (0 if stt == "FAIL"else 1, 1e9 if m is None else m)
             rows.sort(key=keyfn)
             max_cards = st.slider("Max cards", min_value=5, max_value=60, value=min(20, max(5, len(rows))), step=5, key=f"systems_max_cards_{kind or 'all'}")
             for c in rows[:max_cards]:
@@ -532,8 +534,8 @@ def render_systems_mode(_app_module) -> None:
                 header = f"{name}"
                 badge = f"{status}"
                 if margin is not None:
-                    badge += f" | m={margin:+.4g}"
-                badge += f" | {mech}"
+                    badge += f"| m={margin:+.4g}"
+                badge += f"| {mech}"
 
                 with st.container(border=True):
                     c1, c2, c3, c4 = st.columns([2.3, 1.0, 1.0, 1.2])
@@ -548,7 +550,7 @@ def render_systems_mode(_app_module) -> None:
                         st.metric("Mechanism", mech)
                     # compressed details
                     if inp:
-                        st.caption("Inputs: " + ", ".join(inp))
+                        st.caption("Inputs: "+ ", ".join(inp))
                     if ex:
                         d1, d2 = st.columns([1,1])
                         with d1:
@@ -724,7 +726,7 @@ def render_systems_mode(_app_module) -> None:
 
     # v182.1: Persist and re-render the latest Systems *solve* results across reruns.
     # Streamlit download_button triggers a rerun; if results are only rendered inside the
-    # `if run:` block, they will appear to "disappear" after downloads.
+    # `if run:` block, they will appear to "disappear"after downloads.
     try:
         _cached = st.session_state.get('systems_last_solve_artifact')
         if not isinstance(_cached, dict):
@@ -855,7 +857,7 @@ def render_systems_mode(_app_module) -> None:
                 switches.append({"at": int(i), "from": str(last), "to": str(d)})
                 last = d
 
-        with st.expander("🧾 Negotiation Chronicle - audit transcript (read-only)", expanded=False):
+        with st.expander("Negotiation Chronicle - audit transcript (read-only)", expanded=False):
             st.caption("A compact, reviewer-safe log of Systems Mode actions and what constraint dominated each step. This does not change any physics or state.")
             if transcript:
                 try:
@@ -874,7 +876,7 @@ def render_systems_mode(_app_module) -> None:
             else:
                 st.info("No Systems run cards yet. Run a workflow step (Precheck/Recovery/Search) to generate transcript entries.")
 
-        with st.expander("🧨 Dominance Switchboard - regime boundary hints", expanded=False):
+        with st.expander("Dominance Switchboard - regime boundary hints", expanded=False):
             st.caption("Where the dominant blocker changes, you crossed a regime boundary in the local feasibility landscape.")
             if switches:
                 try:
@@ -894,7 +896,7 @@ def render_systems_mode(_app_module) -> None:
     # Derive local defaults from session state without setting widget value.
     _default_step = str(st.session_state.get('systems_workflow_step', 'Diagnose'))
     # Back-compat: older builds stored emoji in the raw workflow value.
-    if _default_step == "📤 Export":
+    if _default_step == "Export":
         _default_step = "Export"
     _default_power = bool(st.session_state.get('systems_workflow_power_user', False))
 
@@ -913,19 +915,19 @@ def render_systems_mode(_app_module) -> None:
     with c_wf1:
         _wf_keys = ["Setup", "Diagnose", "Recover", "Explore", "Compare/Apply", "Export", "Advanced"]
         _wf_labels = {
-            "Setup": "🧰 Setup",
-            "Diagnose": "🧪 Diagnose",
-            "Recover": "🧯 Recover",
-            "Explore": "🧭 Explore",
-            "Compare/Apply": "🧩 Compare/Apply",
-            "Export": "📤 Export",
-            "Advanced": "🧠 Advanced",
+            "Setup": "Setup",
+            "Diagnose": "Diagnose",
+            "Recover": "Recover",
+            "Explore": "Explore",
+            "Compare/Apply": "Compare/Apply",
+            "Export": "Export",
+            "Advanced": "Advanced",
         }
 
         # Normalize legacy stored state if present.
         try:
             _legacy = st.session_state.get("systems_workflow_step")
-            if _legacy == "📤 Export":
+            if _legacy == "Export":
                 st.session_state["systems_workflow_step"] = "Export"
         except Exception:
             pass
@@ -966,6 +968,22 @@ def render_systems_mode(_app_module) -> None:
             return step in set(map(str, steps))
         except Exception:
             return True
+
+    # ---- Verdict-first banner (UI redesign batch 3): promote the verdict bar and
+    # compact cockpit above the solve controls so the latest cached verdict is
+    # visible on entry. Read-only: renders from the latest cached Systems artifact;
+    # it triggers no solve and modifies no physics/constraints/state.
+    try:
+        _sys_vf_art = st.session_state.get("systems_last_solve_artifact") or _sys_fetch_latest_systems_artifact()
+        if isinstance(_sys_vf_art, dict):
+            _sys_vf_cons = _sys_extract_constraints(_sys_vf_art)
+            _sys_render_verdict_bar(_sys_vf_art, constraints=_sys_vf_cons)
+            _sys_render_compact_cockpit()
+        else:
+            empty_state("No cached Systems artifact yet. Run Precheck / Solve below to populate the verdict.", kind="info")
+    except Exception:
+        st.caption("Verdict banner unavailable (non-fatal).")
+
     # --- Systems Mode freeze-readiness helpers (v180+) ---
     SYS_RUN_CARD_SCHEMA_VERSION = 1
     SYS_TRACE_SCHEMA_VERSION = 1
@@ -1182,7 +1200,7 @@ def render_systems_mode(_app_module) -> None:
                     st.warning(msg)
                 else:
                     st.info("Compare candidates and apply the selected one to **Base** or **x0**, then re-run Precheck.")
-            elif _step == "📤 Export":
+            elif _step == "Export":
                 st.info("Export the full Systems bundle (run cards, traces, logs, and point artifacts if present).")
             elif _step == "Advanced":
                 st.info("Advanced view shows all tools. Use with care.")
@@ -1241,7 +1259,7 @@ def render_systems_mode(_app_module) -> None:
                 except Exception:
                     v = float("nan")
                 with _col:
-                    st.metric(_k, f"{v:.3g}" if v == v else "NaN")
+                    st.metric(_k, f"{v:.3g}"if v == v else "NaN")
             _m(_kc[0], "Q_DT_eqv")
             _m(_kc[1], "H98")
             _m(_kc[2], "P_e_net_MW")
@@ -1365,7 +1383,7 @@ def render_systems_mode(_app_module) -> None:
                 # Keep family names readable: first few constraints + count
                 head = ", ".join(sig_parts[:3])
                 more = (len(sig_parts) - 3)
-                return f"Signature: {head}" + (f" (+{more})" if more > 0 else "")
+                return f"Signature: {head}"+ (f"(+{more})"if more > 0 else "")
         except Exception:
             pass
 
@@ -1381,7 +1399,7 @@ def render_systems_mode(_app_module) -> None:
         try:
             r0 = (c.get("x") or {}).get("R0_m", None)
             if r0 is not None:
-                return "Compact" if float(r0) < 3.0 else "Large"
+                return "Compact"if float(r0) < 3.0 else "Large"
         except Exception:
             pass
         return "Other"
@@ -1392,7 +1410,7 @@ def render_systems_mode(_app_module) -> None:
         try:
             flags = art.get("typical_range_flags") or art.get("flags") or []
             if isinstance(flags, dict):
-                flags = [f"{k}:{v}" for k, v in flags.items() if v]
+                flags = [f"{k}:{v}"for k, v in flags.items() if v]
             if isinstance(flags, list):
                 out["flags"] = list(flags)
                 # Simple score: fewer flags => higher score
@@ -1436,7 +1454,7 @@ def render_systems_mode(_app_module) -> None:
                 if not runs:
                     st.info("No recorded Systems runs yet. Run Precheck/Recovery/Search/Solve first.")
                 else:
-                    labels = [f"{r.get('id')} - {r.get('ts')} - {r.get('mode','')}" for r in runs]
+                    labels = [f"{r.get('id')} - {r.get('ts')} - {r.get('mode','')}"for r in runs]
                     _ids = [r.get('id') for r in runs]
                     rid = st.selectbox("Pick a recorded Systems run", options=_ids, format_func=lambda x: labels[_ids.index(x)], key="systems_repro_pick")
                     c1,c2 = st.columns(2)
@@ -1458,7 +1476,7 @@ def render_systems_mode(_app_module) -> None:
                     diffs = _v98_json_diff(A, B)
                     st.write(f"Changed fields: {len(diffs)}")
                     for d in diffs[:200]:
-                        st.write("- " + d)
+                        st.write("- "+ d)
 
                     # Regression guard: emit a minimal test case JSON
                     st.markdown("**Create regression test from Run A**")
@@ -1747,7 +1765,7 @@ def render_systems_mode(_app_module) -> None:
 
         if stories:
             st.markdown('**Saved stories**')
-            labels = [f"{i}: {s.get('name','(unnamed)')} ({s.get('ts','')})" for i, s in enumerate(stories)]
+            labels = [f"{i}: {s.get('name','(unnamed)')} ({s.get('ts','')})"for i, s in enumerate(stories)]
             sel = st.selectbox('Select', options=list(range(len(stories))), format_func=lambda i: labels[i], key='systems_story_sel')
             s = stories[int(sel)]
             c1, c2 = st.columns(2)
@@ -1841,7 +1859,7 @@ def render_systems_mode(_app_module) -> None:
                     cnt = Counter(doms)
                     top = cnt.most_common(5)
                     st.markdown('**Most frequent dominant limiters**')
-                    st.write('\n'.join([f"- {k}: {v} steps" for k, v in top]))
+                    st.write('\n'.join([f"- {k}: {v} steps"for k, v in top]))
             except Exception:
                 pass
 
@@ -2125,7 +2143,7 @@ def render_systems_mode(_app_module) -> None:
     # -----------------------------
     # Transport profile authority (v382.0)
     # -----------------------------
-    with st.expander('🧩 Transport profile authority (certified) — 1.5D-lite proxies', expanded=False):
+    with st.expander(' Transport profile authority (certified) — 1.5D-lite proxies', expanded=False):
         st.caption(
             "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
             "Best-effort 1.5D-lite proxies: peaking-factor plausibility (central/avg) and internal inductance (li) bounds by intent tier. "
@@ -2193,7 +2211,7 @@ def render_systems_mode(_app_module) -> None:
     # -----------------------------
     # Materials & lifetime tightening authority (v384.0.0)
     # -----------------------------
-    with st.expander('🧱 Materials & lifetime tightening (certified) — divertor+magnet + downtime→CF', expanded=False):
+    with st.expander(' Materials & lifetime tightening (certified) — divertor+magnet + downtime→CF', expanded=False):
         st.caption(
             "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
             "Summarizes the v384 lifetime proxies and the replacement-coupled capacity factor/cost proxy."
@@ -2255,7 +2273,7 @@ def render_systems_mode(_app_module) -> None:
                 with st.expander('Certification details (JSON)', expanded=False):
                     st.json(cert)
 
-    with st.expander('⚡ Current drive authority (certified) — regime-aware credibility', expanded=False):
+    with st.expander(' Current drive authority (certified) — regime-aware credibility', expanded=False):
         st.caption(
             "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
             "Certifies current-drive and non-inductive fraction claims with conservative efficiency bounds and density-based regime flags."
@@ -2307,7 +2325,7 @@ def render_systems_mode(_app_module) -> None:
     # -----------------------------
     # Current drive multi-channel library certification (v395.0)
     # -----------------------------
-    with st.expander('📡 Current drive library (v395) — multi-channel mix bookkeeping (certified)', expanded=False):
+    with st.expander(' Current drive library (v395) — multi-channel mix bookkeeping (certified)', expanded=False):
         st.caption(
             "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
             "Summarizes v395 multi-channel (ECCD/LHCD/NBI/ICRF) CD bookkeeping if present; otherwise reports UNAVAILABLE."
@@ -2799,7 +2817,7 @@ def render_systems_mode(_app_module) -> None:
 
             # v323.1: Always persist the currently active Systems targets/variables.
             # Rationale: These dictionaries were previously defined only inside an
-            # optional "Advanced" expander. If a user never opens that expander,
+            # optional "Advanced"expander. If a user never opens that expander,
             # Streamlit reruns would leave `systems_targets`/`systems_variables`
             # empty, disabling Precheck/Solve buttons and making the UI appear
             # non-functional.
@@ -3054,7 +3072,7 @@ def render_systems_mode(_app_module) -> None:
         variables = {}
 
     # v323.1: Ensure Systems has a functional default target/variable set even
-    # when the user never opens the "Targets and iteration variables" expander.
+    # when the user never opens the "Targets and iteration variables"expander.
     # This prevents disabled Run Precheck / Run Systems Solve buttons.
     if len(targets) == 0 and len(variables) == 0:
         # Conservative ...
@@ -3151,7 +3169,7 @@ def render_systems_mode(_app_module) -> None:
             st.session_state['last_precheck_report'] = {'ok': False, 'reason': 'precheck_exception', 'error': str(_e)}
             _alog_exc('Systems', 'RunPrecheckException', _e)
 
-    # Always show the latest precheck + assistant if we have a report (so Apply never "hides" it).
+    # Always show the latest precheck + assistant if we have a report (so Apply never "hides"it).
     _pre_last = st.session_state.get('last_precheck_report', None)
     if _pre_last is not None:
         try:
@@ -3166,7 +3184,7 @@ def render_systems_mode(_app_module) -> None:
             else:
                 # v178.6: intent-aware messaging (avoid claiming we're using reactor hard set in research intent).
                 _hs = sorted(list(_hard_constraint_names_for_intent()))
-                st.warning('Precheck: infeasible under current hard-constraint set ' + (f"({', '.join(_hs)})" if _hs else '') + '. In **Experimental Device** intent, this does not block exploration; you can still run solves to study the machine.')
+                st.warning('Precheck: infeasible under current hard-constraint set ' + (f"({', '.join(_hs)})"if _hs else '') + '. In **Experimental Device** intent, this does not block exploration; you can still run solves to study the machine.')
         if _sys_show('Diagnose','Recover','Advanced'):
             with st.expander('Precheck report (detailed)', expanded=False):
                 view_mode = st.radio("View", options=["Summary", "Detailed"], index=0, horizontal=True, key="systems_precheck_view_mode")
@@ -3178,9 +3196,9 @@ def render_systems_mode(_app_module) -> None:
                     n_samp = int(getattr(_pre_last, 'n_samples', _pre_last.get('n_samples', 0)))
                     conf = str(getattr(_pre_last, 'unreachable_targets_confidence', _pre_last.get('unreachable_targets_confidence', '')))
                     failed = list(getattr(_pre_last, 'hard_constraints_failed_at_all_samples', _pre_last.get('hard_constraints_failed_at_all_samples', [])))
-                    st.write(f"Samples: **{n_samp}**" + (f" | Unreachable confidence: **{conf}**" if conf else ""))
+                    st.write(f"Samples: **{n_samp}**"+ (f"| Unreachable confidence: **{conf}**"if conf else ""))
                     if failed:
-                        st.warning("Failed at all samples: " + ", ".join(map(str, failed)))
+                        st.warning("Failed at all samples: "+ ", ".join(map(str, failed)))
                     else:
                         st.success("No hard constraint failed at all samples.")
                 except Exception:
@@ -3231,7 +3249,7 @@ def render_systems_mode(_app_module) -> None:
                         else:
                             # v178.9: avoid an empty detailed report when precheck is feasible.
                             st.caption('No hard constraints failed at all samples.')
-                            # Still show best-margin dictionary if available (useful for "how feasible?" diagnostics).
+                            # Still show best-margin dictionary if available (useful for "how feasible?"diagnostics).
                             if isinstance(bestm, dict) and bestm:
                                 st.caption('Best hard-constraint margins across samples:')
                                 # Keep it compact; Streamlit will allow expand/copy.
@@ -3378,7 +3396,7 @@ def render_systems_mode(_app_module) -> None:
                             for i, pr in enumerate(props, start=1):
                                 cols = st.columns([4,1])
                                 with cols[0]:
-                                    st.write(f"{i}. **{pr.description}**  _(type: {pr.kind})_")
+                                    st.write(f"{i}. **{pr.description}** _(type: {pr.kind})_")
                                     st.caption(f"score: {float(pr.score):.3g}")
                                 with cols[1]:
                                     if st.button('Apply', key=f'v177_apply_prop_persist_{i}', use_container_width=True):
@@ -3832,11 +3850,11 @@ def render_systems_mode(_app_module) -> None:
                                             st.markdown('**Auto summary**')
                                             st.write(
                                                 f"Recovered point is {'feasible' if bool(rep.get('ok')) else 'best-effort'} under intent. "
-                                                + (f"Dominant limiter (tightest margin): `{dom[0]}` (margin={dom[1]:.3g}). " if dom else "")
+                                                + (f"Dominant limiter (tightest margin): `{dom[0]}` (margin={dom[1]:.3g}). "if dom else "")
                                             )
                                             if diffs:
                                                 st.write('Key changes vs Base:')
-                                                st.write('\n'.join([f"- {d}" for d in diffs]))
+                                                st.write('\n'.join([f"- {d}"for d in diffs]))
                                         except Exception as _e:
                                             st.warning(f'Narrative failed: {_e}')
                         except Exception:
@@ -4257,7 +4275,7 @@ def render_systems_mode(_app_module) -> None:
             if _fs_running and _fs_started_ts > 0.0:
                 _fs_age_s = float(time.time()) - _fs_started_ts
                 if _fs_age_s > 30.0:
-                    with st.expander('⚠️ Feasible search appears stuck (watchdog)', expanded=False):
+                    with st.expander(' Feasible search appears stuck (watchdog)', expanded=False):
                         st.warning('A feasible-search run is marked as running, but no completion was recorded. You can safely clear the running flag to re-enable the button.')
                         st.caption(f'running_since = {_fs_age_s:.1f} s')
                         if st.button('Clear feasible-search running flag', use_container_width=True, key='v178_fs_clear_running'):
@@ -4363,7 +4381,7 @@ def render_systems_mode(_app_module) -> None:
                     "n_targets": int(len(targets)),
                     "n_variables": int(len(variables)),
                     "targets": {k: float(v) for k, v in (targets or {}).items()},
-                    "mode": "robust" if robust_mode else "fast",
+                    "mode": "robust"if robust_mode else "fast",
                     "warm_start": bool(warm_start),
                     "continuation": bool(do_continuation),
                     "block_solve": bool(block_solve),
@@ -4512,7 +4530,7 @@ def render_systems_mode(_app_module) -> None:
                 else:
                     # v178.6: intent-aware messaging.
                     _hs = sorted(list(_hard_constraint_names_for_intent()))
-                    st.warning('Precheck: infeasible under current hard-constraint set ' + (f"({', '.join(_hs)})" if _hs else '') + '. In **Experimental Device** intent, this does not block exploration; you can still run solves to study the machine.')
+                    st.warning('Precheck: infeasible under current hard-constraint set ' + (f"({', '.join(_hs)})"if _hs else '') + '. In **Experimental Device** intent, this does not block exploration; you can still run solves to study the machine.')
 
                 with st.expander('Precheck report (detailed)', expanded=False):
                     st.write(f"Samples evaluated: **{int(_pre.n_samples)}**")
@@ -4694,7 +4712,7 @@ def render_systems_mode(_app_module) -> None:
             out_sol = res.out
             st.success(f"Done. Converged={res.ok}, iterations={res.iters}")
 
-            if not res.ok and ("Ip_MA" in variables and "fG" in variables) and ("H98" in targets and "Q_DT_eqv" in targets):
+            if not res.ok and ("Ip_MA"in variables and "fG"in variables) and ("H98"in targets and "Q_DT_eqv"in targets):
                 with st.expander("Target feasibility at (Iₚ, f_G) bound corners", expanded=False):
                     try:
                         from solvers.constraint_solver import evaluate_targets_at_corners
@@ -4998,7 +5016,7 @@ def render_systems_mode(_app_module) -> None:
                     st.warning(f"Sankey unavailable: {e}")
 
             # v374.2: Post-Key-results diagnostics bundle (Compact Cockpit + Systems Console)
-            with st.expander("🔎 Detailed Systems Diagnostics (post-run)", expanded=False):
+            with st.expander("Detailed Systems Diagnostics (post-run)", expanded=False):
                 # Compact Cockpit controls
                 cc1, cc2, cc3 = st.columns([1, 1, 2])
                 with cc1:
@@ -5042,7 +5060,7 @@ def render_systems_mode(_app_module) -> None:
                     st.caption("Detailed diagnostics unavailable (non-fatal).")
 
             # v375.0: Exhaust authority (certified bundle) — kept under Key results
-            with st.expander("🔥 Exhaust & Divertor Authority (certified)", expanded=False):
+            with st.expander("Exhaust & Divertor Authority (certified)", expanded=False):
                 try:
                     _ea = {
                         "lambda_q_mm_raw": float(out_sol.get("lambda_q_mm_raw", float("nan"))),
@@ -5066,7 +5084,7 @@ def render_systems_mode(_app_module) -> None:
                     st.caption(f"Exhaust authority bundle unavailable (non-fatal): {_e}")
 
             # v380.0: Impurity radiation partition + detachment requirement (certified)
-            with st.expander("🧪 Impurity radiation & detachment authority (certified)", expanded=False):
+            with st.expander("Impurity radiation & detachment authority (certified)", expanded=False):
                 try:
                     from src.certification.impurity_radiation_detachment_certification_v380 import (
                         evaluate_impurity_radiation_detachment_authority,
@@ -5082,7 +5100,7 @@ def render_systems_mode(_app_module) -> None:
 
 
                 # v381.0: Current drive authority (certified)
-                with st.expander("⚡ Current drive authority (certified)", expanded=False):
+                with st.expander("Current drive authority (certified)", expanded=False):
                     try:
                         _cert = None
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
@@ -5099,7 +5117,7 @@ def render_systems_mode(_app_module) -> None:
 
 
                 # v383.0: Plant economics & cost authority 2.0 (certified)
-                with st.expander("💰 Plant economics & cost authority (certified)", expanded=False):
+                with st.expander("Plant economics & cost authority (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _pec = _certs.get('plant_economics_v383')
@@ -5115,7 +5133,7 @@ def render_systems_mode(_app_module) -> None:
 
 
                 # v388.0.0: Cost Authority 3.0 — Industrial Depth (certified)
-                with st.expander("🏭 Cost authority — industrial depth (certified)", expanded=False):
+                with st.expander("Cost authority — industrial depth (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _c388 = _certs.get('cost_authority_v388')
@@ -5130,7 +5148,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Cost authority unavailable (non-fatal): {_e}")
 
                 # v389.0.0: Structural Stress Authority (certified)
-                with st.expander("🧱 Structural stress authority (certified)", expanded=False):
+                with st.expander("Structural stress authority (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _s389 = _certs.get('structural_stress_v389')
@@ -5142,7 +5160,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
 
                 # v393.0.0: Damage→Strength Coupling (certified)
-                with st.expander("🧬 Damage → strength coupling (certified)", expanded=False):
+                with st.expander("Damage → strength coupling (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _d393 = _certs.get('damage_strength_coupling_v393')
@@ -5158,7 +5176,7 @@ def render_systems_mode(_app_module) -> None:
 
 
                 # v390.0.0: Neutronics & Activation Authority 3.0 (certified)
-                with st.expander("☢️ Neutronics & activation authority (certified)", expanded=False):
+                with st.expander("Neutronics & activation authority (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _n390 = _certs.get('neutronics_activation_v390')
@@ -5170,7 +5188,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Neutronics & activation authority unavailable (non-fatal): {_e}")
 
                 # v392.0.0: Neutronics Shield Attenuation Authority (certified)
-                with st.expander("🛡️ Neutronics shield attenuation (certified)", expanded=False):
+                with st.expander("Neutronics shield attenuation (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _n392 = _certs.get('neutronics_shield_attenuation_v392')
@@ -5182,7 +5200,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Neutronics shield attenuation unavailable (non-fatal): {_e}")
 
                 # v391.0.0: Availability 2.0 — Reliability Envelope Authority (certified)
-                with st.expander("🧩 Availability & reliability envelope (certified)", expanded=False):
+                with st.expander("Availability & reliability envelope (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _a391 = _certs.get('availability_reliability_v391')
@@ -5198,7 +5216,6 @@ def render_systems_mode(_app_module) -> None:
                 "Full Systems solve skipped: **precheck is infeasible under Reactor intent**. "
                 "Use Seeded Recovery / assistant proposals to regain feasibility, or switch Design Intent "
                 "to **Experimental Device** for exploratory solves.",
-                icon="⛔",
             )
             try:
                 st.session_state['systems_last_solve_blocked_reason'] = 'precheck_infeasible_reactor'
@@ -5214,7 +5231,7 @@ def render_systems_mode(_app_module) -> None:
     # ---------------------------------------------------------------------
     # v374.2+ render contract: if there is a cached Systems solution, ALWAYS
     # render Key results + post-run expanders from cache (no compute here).
-    # This avoids the "results disappeared" symptom on rerun.
+    # This avoids the "results disappeared"symptom on rerun.
     # ---------------------------------------------------------------------
     if not run:
         try:
@@ -5272,7 +5289,7 @@ def render_systems_mode(_app_module) -> None:
                     except Exception as e:
                         st.warning(f"Sankey unavailable: {e}")
 
-                with st.expander("🔎 Detailed Systems Diagnostics (post-run)", expanded=False):
+                with st.expander("Detailed Systems Diagnostics (post-run)", expanded=False):
                     try:
                         _sys_render_compact_cockpit()
                     except Exception:
@@ -5288,7 +5305,7 @@ def render_systems_mode(_app_module) -> None:
                     except Exception:
                         st.caption("Detailed diagnostics unavailable (non-fatal).")
 
-                with st.expander("🔥 Exhaust & Divertor Authority (certified)", expanded=False):
+                with st.expander("Exhaust & Divertor Authority (certified)", expanded=False):
                     try:
                         _ea = {
                             "lambda_q_mm_raw": float(_out_cached.get("lambda_q_mm_raw", float("nan"))),
@@ -5312,7 +5329,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Exhaust authority bundle unavailable (non-fatal): {_e}")
 
                 # v380.0: Impurity radiation partition + detachment requirement (certified)
-                with st.expander("🧪 Impurity radiation & detachment authority (certified)", expanded=False):
+                with st.expander("Impurity radiation & detachment authority (certified)", expanded=False):
                     try:
                         _cert = None
                         # Prefer cached certifications if present (strict render-from-cache).
@@ -5329,7 +5346,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Impurity/detachment authority unavailable (non-fatal): {_e}")
 
                 # v383.0: Plant economics & cost authority 2.0 (certified)
-                with st.expander("💰 Plant economics & cost authority (certified)", expanded=False):
+                with st.expander("Plant economics & cost authority (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _pec = _certs.get('plant_economics_v383')
@@ -5345,7 +5362,7 @@ def render_systems_mode(_app_module) -> None:
 
 
                 # v388.0.0: Cost Authority 3.0 — Industrial Depth (certified)
-                with st.expander("🏭 Cost authority — industrial depth (certified)", expanded=False):
+                with st.expander("Cost authority — industrial depth (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _c388 = _certs.get('cost_authority_v388')
@@ -5360,7 +5377,7 @@ def render_systems_mode(_app_module) -> None:
                         st.caption(f"Cost authority unavailable (non-fatal): {_e}")
 
                 # v389.0.0: Structural Stress Authority (certified)
-                with st.expander("🧱 Structural stress authority (certified)", expanded=False):
+                with st.expander("Structural stress authority (certified)", expanded=False):
                     try:
                         _certs = _art_cached.get('certifications', {}) if isinstance(_art_cached.get('certifications', {}), dict) else {}
                         _s389 = _certs.get('structural_stress_v389')
