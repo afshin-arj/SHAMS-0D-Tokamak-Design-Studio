@@ -1,3 +1,10 @@
+## v411.0.0 — PROPOSAL-007: v402 Dominance Pipeline Import (governance)
+
+- `hot_ion.py`: flat `analysis.authority_dominance_v402` import fallback so default-ON v402 merges in standard `hot_ion_point` path.
+- Governance-only: additive v402 dominance keys; no change to frozen physics scalars.
+- New E2E test `tests/test_v402_pipeline_hot_ion.py`; golden baselines regenerated (10 cases).
+- See `docs/patch_notes/PATCH_NOTES_v411.md`.
+
 ## v410.0.0 — Governance & Confinement Consistency (PROPOSAL-002–006)
 
 User-approved governance batch implementing audit proposals 002–006:

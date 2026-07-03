@@ -3472,9 +3472,14 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
     # Governance-only overlay; deterministic; no truth edits.
     # =========================================================================
     try:
-        from ..analysis.authority_dominance_v402 import (
-            evaluate_authority_dominance_v402,
-        )
+        try:
+            from analysis.authority_dominance_v402 import (
+                evaluate_authority_dominance_v402,
+            )
+        except ImportError:
+            from ..analysis.authority_dominance_v402 import (
+                evaluate_authority_dominance_v402,
+            )
         dom402 = evaluate_authority_dominance_v402(out=out, inp=inp)
         if isinstance(dom402, dict):
             out.update(dom402)

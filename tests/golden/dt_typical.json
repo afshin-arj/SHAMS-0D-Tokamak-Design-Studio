@@ -332,6 +332,14 @@
     "div_regime": "detached",
     "div_replace_interval_y": 0.1,
     "divertor_lifetime_min_yr_v384": "__nan__",
+    "dominance_gap_to_second_v402": "__nan__",
+    "dominance_order_v402": [
+      {
+        "min_margin_frac": 0.5086007400259422,
+        "notes": "spread_ratio=1.47; cap=ref=3",
+        "rank": 1
+      }
+    ],
     "downtime_scheduled_frac": 1.0,
     "downtime_trips_frac": 0.0273972602739726,
     "dpa_per_fpy_max_v390": "__nan__",
@@ -416,6 +424,7 @@
     "fw_sigma_margin_MPa": "__nan__",
     "fw_sigma_oper_MPa": "__nan__",
     "gamma_VS_s_inv": "__nan__",
+    "global_min_margin_v402": 0.5086007400259422,
     "group_edges_MeV_v407": [],
     "hts_fluence_limit_n_m2": 3e+22,
     "hts_fluence_per_fpy_n_m2": 8.490143434487443e+22,
@@ -499,6 +508,8 @@
     "materials_lifetime_schema_version": "v367.0",
     "mhd_risk_max": "__nan__",
     "mhd_risk_proxy": 1.0079597701149425,
+    "mirage_flag_v402": false,
+    "mirage_reasons_v402": [],
     "model_cards": {
       "availability.proxy": {
         "hash": "c2e0eb054fc9d425c9c4c7789da5c0883dd31e0a0f0ced6da086fad14411c665",
@@ -1217,6 +1228,7 @@
     ],
     "radiation_db": "proxy_v1",
     "radiation_model": "fractional",
+    "regime_class_v402": "TRANSPORT_FRAGILITY",
     "replacement_cost_MUSD_per_year_v367_total": "__nan__",
     "replacement_cost_max_MUSD_per_y_v384": "__nan__",
     "rho_ped": "__nan__",

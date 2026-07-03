@@ -61,13 +61,11 @@ Additive governance modules post-process `hot_ion_point` outputs. None mutate L0
 | v399 | `src/physics/impurities/species_library_v399.py` | OFF | Zeff/Prad caps | yes |
 | v400 | `src/analysis/magnet_technology_authority_v400.py` | **ON** | `constraints.py` caps | yes |
 | v401 | `src/analysis/neutronics_materials_authority_v401.py` | OFF | nm fragile margin | yes |
-| v402 | `src/analysis/authority_dominance_v402.py` | ON* | not wired | yes (isolated) |
+| v402 | `src/analysis/authority_dominance_v402.py` | ON | not wired | yes (isolated + pipeline) |
 | v403 | `src/analysis/neutronics_materials_library_v403.py` | OFF | nm v403 caps | yes |
 | v404 | `src/analysis/structural_life_authority_v404.py` | OFF | `constraints.py` | yes |
 | v406 | `src/extopt/frontier_intake_v406.py` | N/A | extopt intake | yes |
 | v407 | `src/analysis/nuclear_data_authority_v407.py` | OFF | not wired | yes |
 | v408 | `src/nuclear_data/intake.py` | N/A | tooling only | yes |
-
-\* v402 schema default is ON but pipeline merge uses a relative import that can fail silently when `physics.hot_ion` is loaded as a top-level module; see audit PROPOSAL-007.
 
 Canonical implementations live under `src/analysis/` with repo-root `analysis/` shims for legacy imports. Constraint wiring split: `constraints/system.py` (PROCESS ledger) vs `constraints/constraints.py` (runtime checks).
