@@ -5,7 +5,7 @@ from .metadata import default_best_knobs
 from typing import Any, Dict, List, Optional
 
 @dataclass(frozen=True)
-class Constraint:
+class GovernanceConstraint:
     name: str
     value: float
     limit: float
@@ -91,6 +91,11 @@ class Constraint:
             if isinstance(b, dict) and key in b:
                 return b.get(key, default)
         return default
+
+
+# Backward-compatible alias (governance cartography / evaluate_constraints).
+Constraint = GovernanceConstraint
+
 
 def evaluate_constraints(
     outputs: Dict[str, float],

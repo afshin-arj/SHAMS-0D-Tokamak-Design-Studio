@@ -1,14 +1,14 @@
 """Constraint record (L0 schema).
 
-The :class:`Constraint` dataclass used by the PointInputs -> physics ->
+The :class:`LedgerConstraint` dataclass used by the PointInputs -> physics ->
 constraints data flow. Moved here from :mod:`constraints.system` in Tier-3
 Batch B1 so the pure data record lives in the schema layer, independent of the
 constraint-building logic. ``constraints.system`` re-imports it, so
 ``from constraints.system import Constraint`` keeps working unchanged.
 
-Note: a *different*, richer ``Constraint`` type exists in
-:mod:`constraints.constraints` (governance/cartography metadata). That type is
-unrelated and is intentionally left where it is.
+Governance cartography constraints (rich metadata) live in
+:mod:`constraints.constraints` as :class:`~constraints.constraints.GovernanceConstraint`.
+Use :mod:`constraints.adapters` to convert between the two representations.
 """
 from __future__ import annotations
 
@@ -42,3 +42,7 @@ class Constraint:
             denom = abs(self.hi) if abs(self.hi) > 1e-9 else 1.0
             return (self.value - self.hi) / denom
         return 0.0
+
+
+# Explicit public name for PROCESS ledger constraints (PROPOSAL-009).
+LedgerConstraint = Constraint

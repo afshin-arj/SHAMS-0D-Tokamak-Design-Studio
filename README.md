@@ -1,6 +1,6 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Current version:** v411.0.0 — PROPOSAL-007: v402 dominance pipeline import wiring (governance-only)
+**Current version:** v412.0.0 — PROPOSAL-008 UI Evaluator choke point; PROPOSAL-009 constraint API consolidation
 
 **SHAMS** is a **feasibility-authoritative tokamak system code and governance platform**.
 
@@ -26,7 +26,13 @@ All physics is evaluated using a **frozen, deterministic, algebraic evaluator**:
 
 ---
 
-## Latest upgrade — v411.0.0 (v402 Dominance Pipeline)
+## Latest upgrade — v412.0.0 (UI Choke Point + Constraint API)
+
+- **PROPOSAL-008:** UI point evaluation routed through `Evaluator.evaluate()` via `_ui_evaluate()` (one golden-regen bypass documented).
+- **PROPOSAL-009:** `LedgerConstraint` vs `GovernanceConstraint` with adapters and unified `constraints` public API.
+- See `docs/patch_notes/PATCH_NOTES_v412.md`.
+
+## Prior upgrade — v411.0.0 (v402 Dominance Pipeline)
 
 - **PROPOSAL-007:** `hot_ion.py` flat import fallback for `authority_dominance_v402` — default-ON overlay now merges in standard eval path.
 - Additive v402 dominance keys in golden baselines. See `docs/patch_notes/PATCH_NOTES_v411.md`.

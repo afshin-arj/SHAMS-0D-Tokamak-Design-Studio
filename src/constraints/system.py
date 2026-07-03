@@ -18,9 +18,9 @@ from typing import Dict, List, Optional
 # Constraint was moved to the schema layer (Tier-3 Batch B1). Re-imported here so
 # that ``from constraints.system import Constraint`` keeps working unchanged.
 try:
-    from schema.constraints import Constraint  # type: ignore  # noqa: F401
+    from schema.constraints import LedgerConstraint as Constraint  # type: ignore  # noqa: F401
 except ImportError:
-    from src.schema.constraints import Constraint  # type: ignore  # noqa: F401
+    from src.schema.constraints import LedgerConstraint as Constraint  # type: ignore  # noqa: F401
 
 
 def _safe(out: Dict[str, float], k: str) -> float:

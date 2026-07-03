@@ -1,3 +1,9 @@
+## v412.0.0 — PROPOSAL-008 & PROPOSAL-009 (UI choke point + constraint API)
+
+- **PROPOSAL-008:** `ui/app.py` routes point evaluation through `_ui_evaluate()` → `Evaluator.evaluate()`; AST regression guard in `tests/test_ui_evaluator_choke_point.py`.
+- **PROPOSAL-009:** `LedgerConstraint` (schema) vs `GovernanceConstraint` (cartography); adapters in `constraints/adapters.py`; unified exports in `constraints/__init__.py`.
+- No golden drift. See `docs/patch_notes/PATCH_NOTES_v412.md`.
+
 ## v411.0.0 — PROPOSAL-007: v402 Dominance Pipeline Import (governance)
 
 - `hot_ion.py`: flat `analysis.authority_dominance_v402` import fallback so default-ON v402 merges in standard `hot_ion_point` path.

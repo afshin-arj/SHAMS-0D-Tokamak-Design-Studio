@@ -79,7 +79,7 @@ class Evaluator:
 
 
     
-    def evaluate(self, inp: PointInputs) -> EvalResult:
+    def evaluate(self, inp: PointInputs, Paux_for_Q_MW: Optional[float] = None) -> EvalResult:
             """
             Evaluate the reactor point model with transparent calibration + provenance.
 
@@ -92,7 +92,8 @@ class Evaluator:
             t0 = time.perf_counter()
 
             # Deterministic cache key (canonical JSON -> SHA-256) for caching
-            cache_key = sha256_cache_key(inp)
+            cache_payload: Any = (inp, Paux_for_Q_MW) if Paux_for_Q_MW is not None else inp
+            cache_key = sha256_cache_key(cache_payload)
             cache = getattr(self, "_cache", {})
             if bool(getattr(self, "_cache_enabled", True)) and cache_key in cache:
                 self._cache_hits = int(getattr(self, "_cache_hits", 0) or 0) + 1
@@ -103,7 +104,7 @@ class Evaluator:
             msg = ""
             out: Dict[str, Any] = {}
             try:
-                out = hot_ion_point(inp)
+                out = hot_ion_point(inp, Paux_for_Q_MW=Paux_for_Q_MW)
 
                 # Transparent reference calibration registry (defaults are 1.0 => unchanged behavior)
                 calib = {

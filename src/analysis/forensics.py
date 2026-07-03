@@ -21,11 +21,13 @@ import math
 try:
     from ..models.inputs import PointInputs
     from ..physics.hot_ion import hot_ion_point
-    from ..constraints.system import build_constraints_from_outputs, Constraint
+    from ..constraints.system import build_constraints_from_outputs
+    from schema.constraints import LedgerConstraint as Constraint
 except Exception:  # pragma: no cover
     from models.inputs import PointInputs
     from physics.hot_ion import hot_ion_point
-    from constraints.system import build_constraints_from_outputs, Constraint
+    from constraints.system import build_constraints_from_outputs
+    from schema.constraints import LedgerConstraint as Constraint
 
 try:
     from ...tools.process_compat.process_compat import constraints_to_records, active_constraints

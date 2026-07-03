@@ -306,8 +306,8 @@ def _dsg_evaluator(*, origin: str = "UI", **evaluator_kwargs: Any):
             self._ev = _ev
             self._origin = str(_origin)
 
-        def evaluate(self, inp: Any):
-            res = self._ev.evaluate(inp)
+        def evaluate(self, inp: Any, Paux_for_Q_MW: Optional[float] = None):
+            res = self._ev.evaluate(inp, Paux_for_Q_MW=Paux_for_Q_MW)
             parent = st.session_state.get("dsg_selected_node_id") or st.session_state.get("active_design_node_id")
             kind = st.session_state.get("dsg_context_edge_kind") or "derived"
             parents = [str(parent)] if parent else None
@@ -324,6 +324,19 @@ def _dsg_evaluator(*, origin: str = "UI", **evaluator_kwargs: Any):
             return self._ev.reset_cache_stats()
 
     return _Wrap(ev, origin)
+
+
+def _ui_evaluate(
+    inp: Any,
+    *,
+    origin: str = "UI",
+    Paux_for_Q_MW: Optional[float] = None,
+    **evaluator_kwargs: Any,
+) -> Dict[str, Any]:
+    """Route UI point evaluation through the Evaluator choke point (PROPOSAL-008)."""
+    return _dsg_evaluator(origin=origin, **evaluator_kwargs).evaluate(inp, Paux_for_Q_MW=Paux_for_Q_MW).out
+
+
 install_expandable_tables(st)
 
 from ui.icons import label as ui_label, render_mode_scope
@@ -1334,7 +1347,6 @@ def _run_verification_capture():
 
 from phase1_core import (
     PointInputs,
-    hot_ion_point,
     solve_Ip_for_H98_with_Q_match,
     solve_Ip_for_H98_with_Q_match_stream,
     solve_sparc_envelope,
@@ -9546,7 +9558,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             pi0 = sol_inp if sol_inp is not None else base
                                         except Exception:
                                             pi0 = base
-                                        base_out = hot_ion_point(pi0, Paux_for_Q_MW=Paux_for_Q)
+                                        base_out = _ui_evaluate(pi0, origin="Point Designer", Paux_for_Q_MW=Paux_for_Q)
                                         base_failed = [c.name for c in (evaluate_constraints(base_out) or []) if (getattr(c, 'severity', 'hard') == 'hard') and (not bool(getattr(c,'passed', False)))]
                                         keys = ["R0_m","a_m","kappa","Bt_T","Ip_MA","fG","Ti_keV","Paux_MW"]
                                         rows = []
@@ -9569,7 +9581,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                         setattr(pi, k, x0 * fac)
                                                     except Exception:
                                                         pass
-                                                y = hot_ion_point(pi, Paux_for_Q_MW=Paux_for_Q)
+                                                y = _ui_evaluate(pi, origin="Point Designer", Paux_for_Q_MW=Paux_for_Q)
                                                 failed = [c.name for c in (evaluate_constraints(y) or []) if (getattr(c, 'severity', 'hard') == 'hard') and (not bool(getattr(c,'passed', False)))]
                                                 rows.append({
                                                     "param": k,
@@ -9750,7 +9762,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     params = ["R0_m","a_m","kappa","B0_T","Ip_MA","fG","H98","eta_CD","n_neu_frac","Zeff"]
                                     outs = ["Q_DT_eqv","P_net_e_MW","betaN","q_div_MW_m2","B_peak_T"]
                                     def _eval(pi):
-                                        return hot_ion_point(pi)
+                                        return _ui_evaluate(pi, origin="Point Designer")
                                     sens = finite_difference_sensitivities(base, _eval, params=params, outputs=outs, rel_step=1e-3)
                                     # Show a compact table: normalized sensitivities (per 1% change), where possible
                                     rows = []
@@ -11635,9 +11647,8 @@ if _deck == "🧠 Systems Mode":
         if st.button("Compute sensitivities", use_container_width=True, key="systems_sens_btn"):
             try:
                 from solvers.sensitivity import local_sensitivities
-                from phase1_hot_ion_point import hot_ion_point
                 def _ev(x: PointInputs):
-                    out = hot_ion_point(x)
+                    out = _ui_evaluate(x, origin="Systems")
                     return out if isinstance(out, dict) else {}
                 sens = local_sensitivities(base, params=_sens_knobs, outputs=_sens_outputs, evaluator=_ev, h=float(_h))
                 # render as table
@@ -14761,7 +14772,7 @@ if _deck == "🧠 Systems Mode":
         # -----------------------------
         if coupled and do_continuation and cont_steps >= 2:
             try:
-                out0 = hot_ion_point(base_for_solve)
+                out0 = _ui_evaluate(base_for_solve, origin="Systems")
             except Exception:
                 out0 = {}
 
@@ -18609,7 +18620,6 @@ if _deck == "⚒️ Reactor Design Forge":
 
     # --- Imports (local to keep UI start-up fast) ---
     from src.models.inputs import PointInputs
-    from physics.hot_ion import hot_ion_point
     from constraints.system import build_constraints_from_outputs
     from tools.process_compat.process_compat import (
         constraints_to_records,
@@ -18816,7 +18826,7 @@ if _deck == "⚒️ Reactor Design Forge":
         """Audit a candidate with frozen evaluator. Returns a rich dict for archive/trace."""
         # Build PointInputs (fills defaults and validates)
         pi = PointInputs(**inp)
-        outputs = hot_ion_point(pi)
+        outputs = _ui_evaluate(pi, origin="audit_candidate")
         cons = build_constraints_from_outputs(outputs, design_intent=intent)
         records = constraints_to_records(cons)
         feas = feasibility_flag(records, design_intent=intent)
@@ -22125,7 +22135,6 @@ if _deck == "⚒️ Reactor Design Forge":
     if run_env:
         try:
             from envelope.points import default_envelope_points
-            from physics.hot_ion import hot_ion_point
             from constraints.system import build_constraints_from_outputs, summarize_constraints
             base_inp = st.session_state.get("last_point_inp", None)
             if base_inp is None:
@@ -22136,7 +22145,7 @@ if _deck == "⚒️ Reactor Design Forge":
                 env_rows = []
                 worst = None
                 for i, p in enumerate(pts):
-                    out = hot_ion_point(p)
+                    out = _ui_evaluate(p, origin="envelope_scan")
                     cs = build_constraints_from_outputs(out)
                     summ = summarize_constraints(cs)
                     dom = summ.get("dominant", {})
@@ -22538,6 +22547,8 @@ if _deck == "🎛️ Control Room":
                         if k in d:
                             d[k] = v
                     inp_case = PointInputs(**d)
+                    # Golden parity: matches tests/test_golden_physics_outputs.py (bypasses Evaluator).
+                    from physics.hot_ion import hot_ion_point
                     results[name] = hot_ion_point(inp_case)
     
                 if regen:
@@ -24064,7 +24075,11 @@ if _deck == "🎛️ Control Room":
                                 d["fuel_mode"] = str(fuel_mode)
                                 pi = PointInputs(**d)
 
-                                out2 = hot_ion_point(pi, Paux_for_Q_MW=float(getattr(pi, "Paux_MW", 0.0)))
+                                out2 = _ui_evaluate(
+                                    pi,
+                                    origin="run_artifact",
+                                    Paux_for_Q_MW=float(getattr(pi, "Paux_MW", 0.0)),
+                                )
                                 cons2 = evaluate_constraints(out2)
                                 art2 = build_run_artifact(
                                     inputs=dict(pi.__dict__),
@@ -24240,7 +24255,7 @@ if _deck == "🎛️ Control Room":
                             pi = _setv(pi, kx, float(xv))
                             pi = _setv(pi, ky, float(yv))
                             try:
-                                out = hot_ion_point(pi)
+                                out = _ui_evaluate(pi, origin="scan_grid")
                                 cons = evaluate_constraints(out, point_inputs=pi)
                                 ok = all((not bool(c.get("failed"))) for c in cons)
                                 top=None
@@ -24723,7 +24738,7 @@ if _deck == "🎛️ Control Room":
                 return replace(b, **{k: float(v) for k,v in overrides.items()})
 
             def _verifier(inp_obj):
-                out = hot_ion_point(inp_obj)
+                out = _ui_evaluate(inp_obj, origin="certified_search_verifier")
                 cons = evaluate_constraints(out, point_inputs=inp_obj)
                 try:
                     from constraints.bookkeeping import summarize as _summarize_constraints
@@ -24787,7 +24802,7 @@ if _deck == "🎛️ Control Room":
                         )
                     if str(mode) == "Pareto frontier (v405)":
                         def _eval_fn(inp_obj):
-                            return hot_ion_point(inp_obj)
+                            return _ui_evaluate(inp_obj, origin="pareto_frontier_v405")
 
                         def _cons_fn(out_obj, inp_obj):
                             return evaluate_constraints(out_obj, point_inputs=inp_obj)
@@ -24971,7 +24986,7 @@ if _deck == "🎛️ Control Room":
 
                 # Finite-difference jacobian (deterministic): d(residual)/dvar
                 def _eval_res(inp_obj):
-                    out = hot_ion_point(inp_obj)
+                    out = _ui_evaluate(inp_obj, origin="jacobian_fd")
                     cons2 = evaluate_constraints(out, point_inputs=inp_obj)
                     res={}
                     for c in cons2:
@@ -25104,7 +25119,7 @@ if _deck == "🎛️ Control Room":
                 for c in corners:
                     inp_obj=base
                     inp_obj=replace(inp_obj, **{k: float(v) for k,v in c.items()})
-                    out = hot_ion_point(inp_obj)
+                    out = _ui_evaluate(inp_obj, origin="corner_probe")
                     cons = evaluate_constraints(out, point_inputs=inp_obj)
                     ok = all((not bool(cc.get("failed"))) for cc in cons)
                     dom = next((cc.get("name") for cc in cons if cc.get("failed")), None)
@@ -25281,7 +25296,7 @@ if _deck == "🎛️ Control Room":
                                  Bt_T=float(base.Bt_T), Ip_MA=float(base.Ip_MA), Ti_keV=float(ti),
                                  fG=float(base.fG), Paux_MW=float(paux), Ti_over_Te=float(tite),
                                  fuel_mode=str(fuel))
-                out = hot_ion_point(pi)
+                out = _ui_evaluate(pi, origin="systems_point")
                 cons = evaluate_constraints(out, point_inputs=pi)
                 ok = all((not bool(c.get("failed"))) for c in cons)
                 st.metric("Feasible", "YES " if ok else "NO ")
