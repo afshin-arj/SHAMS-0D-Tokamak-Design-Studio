@@ -7,6 +7,18 @@ cleanup commit. No physics, constraint, solver, evaluator, or golden changes.
 """
 from __future__ import annotations
 
+try:
+    from ui.point_inputs_factory import (
+        make_point_inputs,
+        make_point_inputs_from,
+        strip_point_input_knob_dupes,
+    )
+except ImportError:
+    from point_inputs_factory import (
+        make_point_inputs,
+        make_point_inputs_from,
+        strip_point_input_knob_dupes,
+    )
 
 from ._bridge import bridge_deck
 
@@ -2839,11 +2851,14 @@ def render_point_designer(_app_module) -> None:
                 try:
                     with st.spinner("Evaluating frozen 0-D point…"):
                         # Defensive de-dup of fields that are passed explicitly below.
-                        _ck = dict(clean_knobs) if isinstance(clean_knobs, dict) else {}
-                        for _k in ("Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta", "Ip_MA", "fG", "Paux_MW", "Ti_keV"):
-                            _ck.pop(_k, None)
+                        _ck = strip_point_input_knob_dupes(
+                            clean_knobs,
+                            "Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta",
+                            "Ip_MA", "fG", "Paux_MW", "Ti_keV",
+                        )
         
-                        base = make_point_inputs(
+                        base = make_point_inputs_from(
+                            _ck,
                             R0_m=float(R0), a_m=float(a), kappa=float(kappa), delta=float(delta), Bt_T=float(B0),
                             magnet_technology=str(tech),
                             Tcoil_K=float(Tcoil),
@@ -2995,11 +3010,13 @@ def render_point_designer(_app_module) -> None:
                             include_plant_economics_v360=bool(locals().get("include_plant_economics_v360", False)),
                             discount_rate=float(locals().get("discount_rate", 0.07)),
                             wallplug_eff=float(locals().get("wallplug_eff", 0.3)),
-                            **_ck,
                         )
-        
+
+                        base = merge_overlay_session_into_inputs(base, st.session_state)
+                        _warn_unrealistic_point_inputs(base, context="Point Designer")
+
                         _ev = _dsg_evaluator(origin="Point Designer", cache_enabled=True, cache_max=4096)
-                        _res = _ev.evaluate(base)
+                        _res = _ev.evaluate(base, Paux_for_Q_MW=float(Paux_for_Q))
                         out = _res.out if (_res is not None and getattr(_res, "ok", True) and isinstance(getattr(_res, "out", None), dict)) else {}
         
                         # Cache under canonical keys (Telemetry/Constraints are read-only views).
@@ -3270,13 +3287,11 @@ def render_point_designer(_app_module) -> None:
                     # in clean_knobs depending on preset + sync pathways. Passing duplicates causes
                     # "got multiple values for keyword"errors.
                     if isinstance(clean_knobs, dict):
-                        clean_knobs = dict(clean_knobs)
-                        for _k in (
+                        clean_knobs = strip_point_input_knob_dupes(
+                            clean_knobs,
                             "Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta",
-                            # v383 economics knobs that may be injected via presets
                             "fixed_charge_rate", "capacity_factor", "capacity_factor_used",
                             "capex_structured_max_MUSD", "opex_structured_max_MUSD_per_y", "lcoe_lite_max_USD_per_MWh",
-                            # v384 materials/lifetime knobs that may be injected via presets
                             "fw_capex_fraction_of_blanket", "blanket_capex_fraction_of_blanket",
                             "divertor_capex_fraction_of_total", "base_capacity_factor", "capacity_factor_max",
                             "fw_downtime_days", "blanket_downtime_days", "divertor_downtime_days", "magnet_downtime_days",
@@ -3284,11 +3299,10 @@ def render_point_designer(_app_module) -> None:
                             "magnet_life_ref_yr", "magnet_margin_ref", "magnet_margin_exp",
                             "fw_lifetime_min_yr_v384", "blanket_lifetime_min_yr_v384", "divertor_lifetime_min_yr_v384",
                             "magnet_lifetime_min_yr_v384", "replacement_cost_max_MUSD_per_y_v384", "capacity_factor_min_v384",
-                        ):
-                            if _k in clean_knobs:
-                                clean_knobs.pop(_k, None)
+                        )
 
-                    base = make_point_inputs(
+                    base = make_point_inputs_from(
+                        clean_knobs,
                         R0_m=R0, a_m=a, kappa=kappa, delta=delta, Bt_T=B0,
                         magnet_technology=str(tech),
                         Tcoil_K=float(Tcoil),
@@ -3544,8 +3558,6 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                         magnet_lifetime_min_yr_v384=float(locals().get('magnet_lifetime_min_yr_v384', float('nan'))),
                         replacement_cost_max_MUSD_per_y_v384=float(locals().get('replacement_cost_max_MUSD_per_y_v384', float('nan'))),
                         capacity_factor_min_v384=float(locals().get('capacity_factor_min_v384', float('nan'))),
-
-                        **clean_knobs,
                     )
 
                     # UI-only guardrails: warn on obviously unrealistic knobs (does not block).

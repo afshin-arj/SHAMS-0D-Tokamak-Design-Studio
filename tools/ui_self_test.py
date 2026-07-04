@@ -112,7 +112,7 @@ def main() -> int:
     fig_base.parent.mkdir(parents=True, exist_ok=True)
     plot_radial_build_dual_export(art, str(fig_base))
 
-    levers = {"R0_m": (1.0, 3.0), "a_m": (0.3, 1.0), "Bt_T": (6.0, 16.0), "Ip_MA": (2.0, 14.0), "fG": (0.3, 1.1)}
+    levers = {"R0_m": (1.05, 3.0), "a_m": (0.3, 0.95), "Bt_T": (6.0, 16.0), "Ip_MA": (2.0, 14.0), "fG": (0.3, 1.1)}
     atlas = build_feasibility_atlas(base, levers=levers, targets=None, n_random=40, seed=int(args.seed), n_slices=3)
     _write_json(outdir / "feasibility_atlas.json", atlas)
 
@@ -134,7 +134,7 @@ def main() -> int:
         for k, (lo, hi) in lever_bounds.items():
             if k in kw:
                 kw[k] = lo + (hi - lo) * _rand.random()
-        bi = PointInputs(**kw)
+        bi = PointInputs.from_dict(kw)
         o = hot_ion_point(bi)
         con = evaluate_constraints(o)
         payloads.append(build_run_artifact(inputs=bi.to_dict(), outputs=o, constraints=con, meta={"mode":"ui_self_test","label":f"sample_{i+1}"}))

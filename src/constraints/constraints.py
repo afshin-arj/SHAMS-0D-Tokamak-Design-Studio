@@ -596,6 +596,16 @@ def evaluate_constraints(
                 severity="hard",
                 group="materials_lifetime",
             )
+        if "blanket_lifetime_yr" in outputs and plant_life == plant_life:
+            ge(
+                "blanket_life_covers_plant",
+                outputs["blanket_lifetime_yr"],
+                plant_life,
+                units="yr",
+                note="Blanket lifetime proxy ≥ plant design lifetime (policy enforcement)",
+                severity="hard",
+                group="materials_lifetime",
+            )
 
     # (v384.0.0) Materials & lifetime tightening: divertor+magnet lifetime + downtime→CF + annualized replacement cost
     # These are governance constraints (policy caps), enforced only when the corresponding limits are finite.
@@ -641,16 +651,6 @@ def evaluate_constraints(
                 lim,
                 units="-",
                 note="Replacement-coupled capacity factor ≥ minimum",
-                group="materials_lifetime",
-            )
-        if "blanket_lifetime_yr" in outputs and plant_life == plant_life:
-            ge(
-                "blanket_life_covers_plant",
-                outputs["blanket_lifetime_yr"],
-                plant_life,
-                units="yr",
-                note="Blanket lifetime proxy ≥ plant design lifetime (policy enforcement)",
-                severity="hard",
                 group="materials_lifetime",
             )
 

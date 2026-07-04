@@ -1386,12 +1386,12 @@ from solvers.sensitivity import finite_difference_sensitivities
 
 # --- Defensive constructor: UI may pass knobs that are absent in older/newer src/PointInputs
 # This keeps the UI stable across PointInputs refactors (extra fields are ignored).
-_POINTINPUTS_FIELDS = {f.name for f in fields(PointInputs)}
-
-def make_point_inputs(**kwargs) -> PointInputs:
-    """Create PointInputs using only supported dataclass fields."""
-    filtered = {k: v for k, v in kwargs.items() if k in _POINTINPUTS_FIELDS}
-    return PointInputs(**filtered)
+from ui.point_inputs_factory import (
+    make_point_inputs,
+    make_point_inputs_from,
+    _make_point_inputs_safe,
+    strip_point_input_knob_dupes,
+)
 
 
 
@@ -1462,6 +1462,25 @@ def _warn_unrealistic_point_inputs(pi: Any, context: str = "") -> None:
             continue
         if (v < lo) or (v > hi):
             warns.append(f"- {msg}: **{name}={v:g}** (expected roughly {lo:g}–{hi:g})")
+    try:
+        paux = float(getattr(pi, "Paux_MW", 0.0))
+        if paux < 1.0:
+            warns.append(
+                f"- Very low auxiliary power **Paux_MW={paux:g}**: "
+                "Q_DT_eqv = P_fus / Paux_for_Q can look unrealistically large below ~1 MW; "
+                "use the *Aux power used in Q definition* knob or interpret Q with caution."
+            )
+    except Exception:
+        pass
+    try:
+        r0 = float(getattr(pi, "R0_m", 0.0))
+        a = float(getattr(pi, "a_m", 0.0))
+        if r0 > 0.0 and a > 0.0 and r0 <= a:
+            warns.append(
+                f"- Geometry **R0_m={r0:g}** must exceed **a_m={a:g}** (aspect ratio > 1)."
+            )
+    except Exception:
+        pass
     if warns:
         title = "Unrealistic inputs"+ (f"({context})"if context else "")
         st.warning(title + "\n"+ "\n".join(warns))
@@ -1954,7 +1973,8 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
 
                         H_base_target = Hreq / max(g_conf, 1e-9)
 
-                        base = make_point_inputs(
+                        base = make_point_inputs_from(
+                            spec.get("clean_knobs", {}),
                             R0_m=spec["R0"],
                             a_m=a,
                             kappa=spec["kappa"],
@@ -1976,8 +1996,6 @@ def run_scan(spec: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
                             C_bs=spec["C_bs"],
                             require_Hmode=spec["require_Hmode"],
                             PLH_margin=spec["PLH_margin"],
-                            # --- Clean design knobs (passed through PointInputs defaults if present in your src)
-                            **spec.get("clean_knobs", {}),
                         )
 
 

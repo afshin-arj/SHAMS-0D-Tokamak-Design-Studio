@@ -94,6 +94,11 @@ def find_nearest_feasible(
         d = base.to_dict()
         for k, v in upd.items():
             d[k] = clamp(k, v)
+        try:
+            from schema.inputs import enforce_geometry_coupling
+        except ImportError:
+            from src.schema.inputs import enforce_geometry_coupling
+        d = enforce_geometry_coupling(d)
         return PointInputs.from_dict(d)
 
     def score(inp: PointInputs, out: Dict[str, float]) -> Tuple[bool, float, Dict[str, Any]]:

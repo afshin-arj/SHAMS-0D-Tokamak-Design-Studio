@@ -1152,5 +1152,18 @@ class PointInputs:
     def from_dict(d: dict) -> "PointInputs":
         """Construct PointInputs from a dict (ignores unknown keys)."""
         fields = {f.name for f in PointInputs.__dataclass_fields__.values()}  # type: ignore
-        clean = {k: v for k, v in (d or {}).items() if k in fields}
+        clean = {k: v for k, v in enforce_geometry_coupling(d or {}).items() if k in fields}
         return PointInputs(**clean)
+
+
+def enforce_geometry_coupling(d: dict, *, eps: float = 1e-3) -> dict:
+    """Ensure R0_m > a_m when both keys are present (returns a copy)."""
+    out = dict(d or {})
+    try:
+        r0 = float(out.get("R0_m", 0.0))
+        a = float(out.get("a_m", 0.0))
+    except (TypeError, ValueError):
+        return out
+    if r0 > 0.0 and a > 0.0 and r0 <= a:
+        out["a_m"] = max(1e-6, r0 - eps)
+    return out

@@ -27,6 +27,11 @@ _OVERLAY_TOGGLES: List[Tuple[str, str, str]] = [
 
 _OVERLAY_TOGGLES_FIELDS = [t[0] for t in _OVERLAY_TOGGLES]
 
+try:
+    from ui.point_inputs_factory import strip_point_input_knob_dupes
+except ImportError:
+    from point_inputs_factory import strip_point_input_knob_dupes
+
 
 def merge_overlay_session_into_inputs(inp: Any, session_state: Any) -> Any:
     """Apply authority-dashboard session toggles to PointInputs before evaluate."""
