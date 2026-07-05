@@ -236,61 +236,45 @@ def render_operating_targets(session: DesignSession, *, embedded: bool = False) 
                     on_change=lambda e: setattr(session, "pd_pnet_target", e.value),
                 )
 
-        ui.separator()
-
-        ui.label("Optimization (experimental)").classes("text-subtitle2")
-
-        ui.label("Random-search input proposals — SHAMS re-evaluates with frozen physics.").classes("text-caption")
-
-        ui.checkbox(
-
-            "Run constrained optimization before evaluate",
-
-            value=bool(session.pd_do_opt),
-
-            on_change=lambda e: setattr(session, "pd_do_opt", bool(e.value)),
-
-        )
-
-        if session.pd_do_opt:
-
-            with ui.grid(columns=3).classes("w-full gap-2"):
-
-                ui.select(
-
-                    ["min_R0", "min_Bpeak", "max_Pnet", "min_recirc"],
-
-                    label="Objective",
-
-                    value=session.pd_opt_objective,
-
-                    on_change=lambda e: setattr(session, "pd_opt_objective", str(e.value)),
-
+        if session.pd_expert_view:
+            with ui.expansion(
+                "Experimental input search (expert only)",
+                icon="science",
+            ).classes("w-full q-mt-sm"):
+                ui.label(
+                    "Random-search input proposals before evaluate — SHAMS re-evaluates every "
+                    "candidate with frozen physics. Not L0 optimization; use Trade Study Studio "
+                    "or external optimizers for certified campaigns."
+                ).classes("text-caption q-mb-sm")
+                ui.checkbox(
+                    "Run constrained search before evaluate",
+                    value=bool(session.pd_do_opt),
+                    on_change=lambda e: setattr(session, "pd_do_opt", bool(e.value)),
                 )
-
-                ui.number(
-
-                    "Iterations",
-
-                    value=session.pd_opt_iters,
-
-                    min=20, step=10,
-
-                    on_change=lambda e: setattr(session, "pd_opt_iters", int(e.value or 200)),
-
-                )
-
-                ui.number(
-
-                    "Seed",
-
-                    value=session.pd_opt_seed,
-
-                    min=0, step=1,
-
-                    on_change=lambda e: setattr(session, "pd_opt_seed", int(e.value or 1)),
-
-                )
+                if session.pd_do_opt:
+                    with ui.grid(columns=3).classes("w-full gap-2"):
+                        ui.select(
+                            ["min_R0", "min_Bpeak", "max_Pnet", "min_recirc"],
+                            label="Objective",
+                            value=session.pd_opt_objective,
+                            on_change=lambda e: setattr(session, "pd_opt_objective", str(e.value)),
+                        )
+                        ui.number(
+                            "Iterations",
+                            value=session.pd_opt_iters,
+                            min=20,
+                            step=10,
+                            on_change=lambda e: setattr(
+                                session, "pd_opt_iters", int(e.value or 200)
+                            ),
+                        )
+                        ui.number(
+                            "Seed",
+                            value=session.pd_opt_seed,
+                            min=0,
+                            step=1,
+                            on_change=lambda e: setattr(session, "pd_opt_seed", int(e.value or 1)),
+                        )
 
 
 

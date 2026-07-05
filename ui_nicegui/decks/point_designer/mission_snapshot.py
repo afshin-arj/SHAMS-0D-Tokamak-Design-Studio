@@ -4,7 +4,6 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.components.kpi_row import kpi_row
-from ui_nicegui.decks.point_designer.hero import render_hero
 from ui_nicegui.decks.point_designer.pd_physics_deepening import DEEP_VIEWS, render_physics_deepening
 from ui_nicegui.lib.pd_parity_helpers import (
     assumptions_snapshot,
@@ -33,7 +32,6 @@ def render_mission_snapshot(session: DesignSession) -> None:
     if not isinstance(out, dict):
         return
 
-    render_hero(session)
     kpis = headline_kpi_pairs(out)
     for i in range(0, len(kpis), 4):
         kpi_row([(lab, val) for lab, val in kpis[i : i + 4]])

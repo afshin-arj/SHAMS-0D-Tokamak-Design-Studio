@@ -12,6 +12,7 @@ from nicegui import ui
 
 
 
+from ui_nicegui.components.pd_authority_dashboard import render_authority_status_board
 from ui_nicegui.decks.point_designer.configure_advanced_materials import render_advanced_materials
 from ui_nicegui.decks.point_designer.configure_engineering import render_engineering_plant
 from ui_nicegui.decks.point_designer.configure_governance import render_design_governance
@@ -112,6 +113,7 @@ def render_configure(session: DesignSession, *, on_evaluate) -> None:
     ).props("outline").classes("q-mb-sm")
 
     render_design_governance(session)
+    render_authority_status_board(session)
 
     for section_id in CONFIGURE_SECTION_ORDER:
 

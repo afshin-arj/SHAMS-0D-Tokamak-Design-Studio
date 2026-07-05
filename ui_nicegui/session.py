@@ -500,6 +500,11 @@ class DesignSession:
     cr_scenario_base: Optional[dict[str, Any]] = None
     cr_scenario_variant: Optional[dict[str, Any]] = None
     cr_constraint_inspect_name: str = ""
+    # Point Designer workflow (Truth Console)
+    pd_workflow_tab: str = "1 · Configure"
+    pd_teaching_mode: bool = True
+    pd_expert_view: bool = False
+    pd_decision_state: str = "Set machine & authority overlays"
     # Point Designer Phase 11 — outer-loop + forensics
     pd_telemetry_view: str = "Verdict & KPIs"
     phase_envelopes_phases_json: str = ""
