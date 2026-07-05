@@ -115,7 +115,7 @@ SHAMS is organized as a **layered authority stack**: one frozen physics core (L0
 ```mermaid
 flowchart TB
   subgraph UI["NiceGUI Studio · ui_nicegui/"]
-    HC[Helm Console<br/>intent · TRL · reference machines · gatecheck]
+    HC[Helm Console<br/>workflow compass · resize · ☰ toggle]
     PD[Point Designer]
     SL[Scan Lab]
     SM[Systems Mode]
