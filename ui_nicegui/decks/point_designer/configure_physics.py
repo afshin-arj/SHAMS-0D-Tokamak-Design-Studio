@@ -89,20 +89,17 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
                     on_change=lambda e: session.knobs.__setitem__("H_required_max_robust", e.value),
                 )
 
-        # transport envelope
+        # transport envelope — toggle only; numeric caps live in Authority overlay panels below
         with ui.expansion("Multi-scaling confinement envelope", icon="stacked_line_chart").classes("w-full"):
-            en396 = _overlay(session, "include_transport_envelope_v396", True)
+            en396 = _overlay(session, "include_transport_envelope_v396", False)
             ui.checkbox(
-                "Enable transport envelope diagnostics",
+                "Enable transport envelope diagnostics (v396)",
                 value=en396,
                 on_change=lambda e: _set_overlay(session, "include_transport_envelope_v396", e.value),
             )
-            ui.number(
-                "Max transport spread ratio",
-                value=float(_knob(session, "transport_spread_max_v396", 4.0)),
-                min=1.0, max=20.0, step=0.1,
-                on_change=lambda e: session.knobs.__setitem__("transport_spread_max_v396", e.value),
-            )
+            ui.label(
+                "Spread caps and τE scaling vector knobs appear in Authority overlay numeric panels when enabled."
+            ).classes("text-caption")
             user_scaling = bool(_inp(session, "include_tauE_user_scaling_v396", False))
             ui.checkbox(
                 "Include user τE scaling vector",
@@ -168,6 +165,18 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
             value=str(_inp(session, "profile_model", "none")),
             on_change=lambda e: inp.__setitem__("profile_model", e.value),
         ).classes("w-full")
+
+        ui.checkbox(
+            "Enable pedestal shaping (diagnostic scaffold)",
+            value=bool(_inp(session, "pedestal_enabled", False)),
+            on_change=lambda e: inp.__setitem__("pedestal_enabled", bool(e.value)),
+        )
+        ui.number(
+            "Pedestal width (a-units)",
+            value=float(_inp(session, "pedestal_width_a", 0.05)),
+            min=0.01, max=0.25, step=0.005,
+            on_change=lambda e: inp.__setitem__("pedestal_width_a", e.value),
+        )
 
         with ui.grid(columns=2).classes("w-full gap-2"):
             ui.number(
@@ -328,6 +337,17 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 value=str(_inp(session, "impurity_species", "C")),
                 on_change=lambda e: inp.__setitem__("impurity_species", e.value),
             ).classes("w-full")
+            ui.select(
+                ["fixed", "from_impurity", "from_mix"],
+                label="Z_eff handling",
+                value=str(_inp(session, "zeff_mode", "fixed")),
+                on_change=lambda e: inp.__setitem__("zeff_mode", e.value),
+            ).classes("w-full")
+            ui.input(
+                label="Impurity mix (optional JSON)",
+                value=str(_inp(session, "impurity_mix", "") or ""),
+                on_change=lambda e: inp.__setitem__("impurity_mix", str(e.value or "")),
+            ).classes("w-full")
             session.overlay.setdefault("include_synchrotron", True)
             ui.checkbox(
                 "Include synchrotron radiation",
@@ -394,6 +414,59 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 on_change=lambda e: inp.__setitem__("alpha_loss_frac", e.value),
             )
 
+        with ui.expansion("Advanced fast-particle / ash closures (optional)", icon="science").classes("w-full"):
+            ui.label("Opt-in only — defaults preserve legacy SHAMS behavior.").classes("text-caption")
+            ui.select(
+                ["fixed", "rho_star"],
+                label="Alpha prompt-loss model",
+                value=str(_inp(session, "alpha_loss_model", "fixed")),
+                on_change=lambda e: inp.__setitem__("alpha_loss_model", e.value),
+            ).classes("w-full")
+            ui.number(
+                "Prompt-loss slope k (ρ* scaling)",
+                value=float(_inp(session, "alpha_prompt_loss_k", 0.0)),
+                min=0.0, max=1.0, step=0.01,
+                on_change=lambda e: inp.__setitem__("alpha_prompt_loss_k", e.value),
+            )
+            ui.select(
+                ["fixed", "Te_ratio"],
+                label="Alpha ion/electron partition",
+                value=str(_inp(session, "alpha_partition_model", "fixed")),
+                on_change=lambda e: inp.__setitem__("alpha_partition_model", e.value),
+            ).classes("w-full")
+            ui.number(
+                "Partition slope k",
+                value=float(_inp(session, "alpha_partition_k", 0.0)),
+                min=0.0, max=2.0, step=0.01,
+                on_change=lambda e: inp.__setitem__("alpha_partition_k", e.value),
+            )
+            ui.select(
+                ["off", "fixed_fraction"],
+                label="Helium-ash dilution penalty",
+                value=str(_inp(session, "ash_dilution_mode", "off")),
+                on_change=lambda e: inp.__setitem__("ash_dilution_mode", e.value),
+            ).classes("w-full")
+            ui.number(
+                "Helium-ash fraction f_He_ash",
+                value=float(_inp(session, "f_He_ash", 0.0)),
+                min=0.0, max=0.9, step=0.01,
+                on_change=lambda e: inp.__setitem__("f_He_ash", e.value),
+            )
+
+        if bool(session.overlay.get("include_hmode_physics", True)):
+            with ui.expansion("H-mode access enforcement", icon="whatshot").classes("w-full"):
+                ui.checkbox(
+                    "Require H-mode (P_aux ≥ (1+margin)·P_LH)",
+                    value=bool(_inp(session, "require_Hmode", False)),
+                    on_change=lambda e: inp.__setitem__("require_Hmode", bool(e.value)),
+                )
+                ui.number(
+                    "P_LH margin",
+                    value=float(_inp(session, "PLH_margin", 0.0)),
+                    min=0.0, max=5.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("PLH_margin", e.value),
+                )
+
         with ui.expansion("Power-channel bookkeeping", icon="bolt").classes("w-full"):
             ui.slider(
                 min=0.0, max=1.0, step=0.01,
@@ -407,6 +480,30 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 on_change=lambda e: inp.__setitem__("f_aux_to_ion", e.value),
             ).props('label color="primary"').classes("w-full")
             ui.label("Aux deposition to ions f_aux→i").classes("text-caption")
+            ui.checkbox(
+                "Include ion↔electron equilibration P_ie (diagnostic)",
+                value=bool(_inp(session, "include_P_ie", True)),
+                on_change=lambda e: inp.__setitem__("include_P_ie", bool(e.value)),
+            )
+
+        with ui.expansion("Particle sustainability (diagnostic)", icon="bubble_chart").classes("w-full"):
+            ui.checkbox(
+                "Enable particle balance closure",
+                value=bool(_inp(session, "include_particle_balance", False)),
+                on_change=lambda e: inp.__setitem__("include_particle_balance", bool(e.value)),
+            )
+            ui.number(
+                "τ_p / τ_E,eff",
+                value=float(_inp(session, "tau_p_over_tauE", 3.0)),
+                min=0.0, step=0.2,
+                on_change=lambda e: inp.__setitem__("tau_p_over_tauE", e.value),
+            )
+            ui.number(
+                "Max fueling source S_max (1e22/s); blank = off",
+                value=finite_ui_number(_inp(session, "S_fuel_max_1e22_per_s", float("nan"))),
+                min=0.0, step=0.1,
+                on_change=lambda e: inp.__setitem__("S_fuel_max_1e22_per_s", e.value),
+            )
 
         with ui.expansion("Non-inductive & risk screens", icon="electric_bolt").classes("w-full"):
             ui.checkbox(
@@ -420,6 +517,15 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 value=str(_inp(session, "cd_method", "NBI")),
                 on_change=lambda e: inp.__setitem__("cd_method", e.value),
             ).classes("w-full")
+            ui.number(
+                "Fraction of Paux allocated to CD",
+                value=float(_inp(session, "cd_fraction_of_Paux", 0.5)),
+                min=0.0, max=1.0, step=0.05,
+                on_change=lambda e: inp.__setitem__("cd_fraction_of_Paux", e.value),
+            )
+            ui.label(
+                "For full CD plant ledger, also enable **include_current_drive** in Engineering overlays."
+            ).classes("text-caption")
             ui.number(
                 "Min non-inductive fraction f_NI,min",
                 value=finite_ui_number(_knob(session, "f_NI_min", float("nan"))),

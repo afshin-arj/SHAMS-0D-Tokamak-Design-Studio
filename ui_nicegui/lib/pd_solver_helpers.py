@@ -106,6 +106,7 @@ def compute_pd_inputs_fingerprint(session: DesignSession) -> Dict[str, Any]:
         "pd_eval_mode": str(session.pd_eval_mode),
         "overlay": {k: session.overlay.get(k) for k in sorted(session.overlay.keys())},
         "knobs": {k: session.knobs.get(k) for k in sorted(session.knobs.keys())},
+        "pd_confidence": str(session.knobs.get("pd_confidence", "Nominal")),
     }
     if str(session.pd_eval_mode) == "envelope":
         fp["pd_pfus_target"] = _sf(session.pd_pfus_target)

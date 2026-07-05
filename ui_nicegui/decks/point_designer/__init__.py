@@ -25,6 +25,7 @@ from ui_nicegui.lib.pd_workflow_labels import (
     normalize_pd_tab,
     teaching_banner,
 )
+from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.session import DesignSession
@@ -109,12 +110,25 @@ def render_point_designer(session: DesignSession) -> None:
         session.last_error = None
         mode = str(session.pd_eval_mode)
         ui.notify(f"Evaluating frozen 0-D point ({mode})…", type="info")
+        log_ui_event(session, "PointDesigner", "EvaluatePoint", {"mode": mode})
         try:
             result = await run.io_bound(run_point_designer_evaluation, session)
             ok = bool(result.get("ok", True))
             out = result.get("outputs") or {}
             inputs_dict = result.get("inputs") or dict(session.inputs)
             set_point_evaluation(session, outputs=out, inputs=inputs_dict)
+            log_ui_event(
+                session,
+                "PointDesigner",
+                "EvaluatePointResult",
+                {
+                    "ok": ok,
+                    "mode": mode,
+                    "Q_DT_eqv": out.get("Q_DT_eqv"),
+                    "H98": out.get("H98"),
+                    "verdict": "FEASIBLE" if ok else "partial",
+                },
+            )
             if ok:
                 ui.notify("Point evaluation complete. Open Telemetry for results.", type="positive")
                 session.pd_workflow_tab = "2 · Telemetry"
@@ -198,7 +212,7 @@ def _render_hero(session: DesignSession) -> None:
 def _render_tab_body(session: DesignSession, *, on_evaluate) -> None:
     tab_key = normalize_pd_tab(session.pd_workflow_tab)
     if tab_key == "1 · Configure":
-        render_configure(session, on_evaluate=on_evaluate)
+        render_configure(session, on_evaluate=on_evaluate, on_refresh=lambda: _render_tab_body.refresh())
     elif tab_key == "2 · Telemetry":
         render_telemetry(session)
     else:

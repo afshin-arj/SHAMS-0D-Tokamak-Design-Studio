@@ -84,3 +84,32 @@ def test_run_summary_on_artifact() -> None:
 def test_pd_pfus_default_ignores_envelope() -> None:
     s = DesignSession()
     assert s.pd_pfus_target == 0.0
+
+
+def test_build_point_inputs_physics_parity_fields() -> None:
+    from ui_nicegui.lib.point_inputs_builder import build_point_inputs
+
+    s = DesignSession()
+    s.inputs["require_Hmode"] = True
+    s.inputs["PLH_margin"] = 0.1
+    s.inputs["ash_dilution_mode"] = "fixed_fraction"
+    s.inputs["f_He_ash"] = 0.05
+    s.inputs["include_particle_balance"] = True
+    s.inputs["pedestal_enabled"] = True
+    inp = build_point_inputs(s)
+    assert bool(inp.require_Hmode) is True
+    assert float(inp.PLH_margin) == 0.1
+    assert str(inp.ash_dilution_mode) == "fixed_fraction"
+    assert bool(inp.include_particle_balance) is True
+    assert bool(inp.pedestal_enabled) is True
+
+
+def test_subsystem_enabled_stamped_on_eval() -> None:
+    from ui_nicegui.evaluate import ui_evaluate
+    from ui_nicegui.lib.session_store import set_point_evaluation
+
+    s = DesignSession()
+    s.knobs["_subsystem_enabled"] = {"magnets": True, "fuelcycle": False}
+    out = ui_evaluate(s.build_point_inputs(), origin="test")
+    set_point_evaluation(s, outputs=out, inputs=dict(s.inputs))
+    assert s.pd_last_outputs.get("_subsystem_enabled", {}).get("fuelcycle") is False

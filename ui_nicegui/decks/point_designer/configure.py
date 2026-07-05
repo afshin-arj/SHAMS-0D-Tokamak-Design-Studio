@@ -91,7 +91,7 @@ def _render_overlay_groups(session: DesignSession) -> None:
 
 
 
-def render_configure(session: DesignSession, *, on_evaluate) -> None:
+def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) -> None:
 
     inp = session.inputs
 
@@ -178,6 +178,9 @@ def render_configure(session: DesignSession, *, on_evaluate) -> None:
                         apply_template_overrides(session, overrides)
 
                         ui.notify(f"Loaded template: {sel.value}", type="positive")
+
+                        if on_refresh:
+                            on_refresh()
 
 
 

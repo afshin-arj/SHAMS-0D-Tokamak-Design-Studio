@@ -83,6 +83,10 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
             on_change=lambda e: _apply_confidence(session, str(e.value)),
         ).props("spread no-caps").classes("q-mb-sm")
         ui.label("Confidence level — controls default assumptions and WARN bands.").classes("text-caption")
+        ui.label(
+            "Availability v391 and structural life v404 numeric caps: enable overlays below, "
+            "then open Authority overlay numeric panels at the bottom of Configure."
+        ).classes("text-caption q-mb-sm")
 
         with ui.grid(columns=2).classes("w-full gap-2"):
             for key, label, default in (

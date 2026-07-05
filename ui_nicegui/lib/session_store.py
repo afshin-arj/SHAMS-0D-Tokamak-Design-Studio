@@ -39,6 +39,12 @@ def set_point_evaluation(
     session.last_eval = dict(outputs)
 
     session.pd_last_outputs = dict(outputs)
+    subs = session.knobs.get("_subsystem_enabled")
+    if isinstance(subs, dict):
+        outputs = dict(outputs)
+        outputs["_subsystem_enabled"] = dict(subs)
+        session.pd_last_outputs = outputs
+        session.last_eval = outputs
 
     inp_dict = dict(inputs or session.inputs)
 

@@ -535,7 +535,7 @@ class DesignSession:
     pd_opt_objective: str = "min_Bpeak"
     pd_opt_iters: int = 200
     pd_opt_seed: int = 1
-    pd_include_secondary_dt: bool = False
+    pd_include_secondary_dt: bool = True
     pd_tritium_retention: float = 0.5
     pd_tau_t_loss_s: float = 5.0
     pd_solver_trace: list[dict[str, Any]] = field(default_factory=list)
