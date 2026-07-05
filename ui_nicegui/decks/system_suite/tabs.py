@@ -345,6 +345,10 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
         ui.label(
             "Robust pass = envelope-certified; optimistic pass with robust fail = certification gap only."
         ).classes("text-caption q-mb-sm")
+    else:
+        ui.label(
+            "Tip: robust-feasible implies envelope-certified; optimistic-only pass is a certification gap (not envelope-certified)."
+        ).classes("text-caption text-grey q-mb-sm")
 
     def _run() -> None:
         d = dict(ctx.point_inp or {})
@@ -433,8 +437,10 @@ def render_tab_envelope_robustness(ctx: SuiteContext) -> None:
         icon="timeline",
         value=_expansion_defaults(ctx.session, panel_id="env_phase", default_open=True),
     ).classes("w-full"):
+        from ui_nicegui.components.mode_scope import render_mode_scope
         from ui_nicegui.decks.point_designer.phase_envelopes import render_phase_envelopes
 
+        render_mode_scope("suite", default_open=False)
         render_phase_envelopes(ctx.session, ui_key_prefix="suite_phase_env", embedded=True)
 
     with ui.expansion(
@@ -442,6 +448,9 @@ def render_tab_envelope_robustness(ctx: SuiteContext) -> None:
         icon="grid_view",
         value=_expansion_defaults(ctx.session, panel_id="env_profile", default_open=False),
     ).classes("w-full q-mt-sm"):
+        from ui_nicegui.components.mode_scope import render_mode_scope
+
+        render_mode_scope("profile_contracts", default_open=False)
         ui.label(
             "Finite corner set over certified profile/transport envelopes — optimistic vs robust tiers."
         ).classes("text-caption q-mb-sm")
@@ -481,6 +490,7 @@ def _fidelity_badge(out: dict) -> None:
 
 
 def render_campaign_pack(ctx: SuiteContext) -> None:
+    from ui_nicegui.components.mode_scope import render_mode_scope
     from ui_nicegui.lib.suite_extended_helpers import (
         default_campaign_template,
         evaluate_campaign_batch,
@@ -492,6 +502,7 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
     ui.label(
         "Generate candidate sets and export firewalled packs for external optimizers."
     ).classes("text-caption q-mb-sm")
+    render_mode_scope("campaign_pack", default_open=False)
     _fidelity_badge(ctx.point_out)
 
     if not ctx.session.suite_campaign_spec_json:
@@ -579,6 +590,17 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             ("Feasible", str(summary.get("n_feasible", "-"))),
             ("Pass rate", f"{100.0 * float(summary.get('pass_rate', 0.0)):.1f}%"),
         ])
+        with ui.expansion("Summary JSON", icon="summarize").classes("w-full"):
+            ui.json(summary)
+        preview = ctx.session.suite_campaign_results_preview
+        if isinstance(preview, list) and preview:
+            cols = list(preview[0].keys())[:10] if isinstance(preview[0], dict) else []
+            with ui.expansion(f"Results preview ({len(preview)} rows)", icon="table_chart").classes("w-full"):
+                ui.table(
+                    columns=[{"name": c, "label": c, "field": c, "align": "left"} for c in cols],
+                    rows=[{c: r.get(c) for c in cols} for r in preview if isinstance(r, dict)],
+                    row_key=cols[0] if cols else "case",
+                ).classes("w-full")
         data = ctx.session.suite_campaign_jsonl_bytes
         if isinstance(data, (bytes, bytearray)):
             ui.button(
@@ -592,6 +614,7 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
 
 
 def render_benchmark_parity(ctx: SuiteContext) -> None:
+    from ui_nicegui.components.mode_scope import render_mode_scope
     from ui_nicegui.lib.suite_extended_helpers import (
         list_parity_cases,
         load_parity_case,
@@ -602,14 +625,17 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
     ui.label(
         "Run frozen-evaluator benchmark cases; optional PROCESS reference upload."
     ).classes("text-caption q-mb-sm")
+    render_mode_scope("parity_harness", default_open=False)
 
+    if not ctx.session.suite_parity_suite:
+        ctx.session.suite_parity_suite = "v364"
     suite_in = ui.input(
         "Benchmark suite ID",
-        value="default",
-        on_change=lambda e: setattr(ctx.session, "suite_parity_suite", "v364"),
+        value=ctx.session.suite_parity_suite,
+        on_change=lambda e: setattr(ctx.session, "suite_parity_suite", str(e.value or "v364")),
     ).classes("w-full")
-    ui.label("Internal default suite loaded from repository benchmarks.").classes("text-caption")
-    suite_internal = ctx.session.suite_parity_suite or "v364"
+    ui.label("Suite ID selects case files under repository benchmarks.").classes("text-caption")
+    suite_internal = str(ctx.session.suite_parity_suite or "v364")
     preset = ui.select(["C8", "C16", "C32"], label="Profile preset", value=ctx.session.suite_parity_preset or "C8")
     tier = ui.select(["optimistic", "robust", "both"], label="Profile tier", value=ctx.session.suite_parity_tier or "both")
 

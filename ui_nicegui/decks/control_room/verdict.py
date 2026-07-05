@@ -1,4 +1,4 @@
-"""Control Room governance verdict row (Batch 10)."""
+"""Control Room governance verdict row."""
 from __future__ import annotations
 
 from nicegui import ui

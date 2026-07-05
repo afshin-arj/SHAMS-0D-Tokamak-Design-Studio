@@ -1,4 +1,4 @@
-"""System Suite extended panels — Campaign Pack & Benchmark Parity (Phase 15)."""
+"""System Suite extended panels — Campaign Pack & Benchmark Parity."""
 from __future__ import annotations
 
 import json

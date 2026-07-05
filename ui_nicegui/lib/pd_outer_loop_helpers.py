@@ -1,4 +1,4 @@
-"""Point Designer outer-loop helpers — Phase Envelopes & UQ Contracts (Phase 11)."""
+"""Point Designer outer-loop helpers — Phase Envelopes & UQ Contracts."""
 from __future__ import annotations
 
 import json

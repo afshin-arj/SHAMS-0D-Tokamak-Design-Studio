@@ -63,7 +63,10 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
             ["±% around baseline", "absolute [lo,hi]"],
             label="Interval mode",
             value=session.uq_contract_mode,
-            on_change=lambda e: setattr(session, "uq_contract_mode", str(e.value)),
+            on_change=lambda e: (
+                setattr(session, "uq_contract_mode", str(e.value)),
+                _abs_bounds_panel.refresh(),
+            ),
         ).classes("min-w-[180px]")
 
     opts = filter_fields_by_group(numeric_fields, session.uq_contract_group)
@@ -90,6 +93,42 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
         if n >= 16:
             ui.label("High N — corner count may be unwieldy.").classes("text-orange text-caption")
 
+    abs_bounds_container = ui.column().classes("w-full")
+
+    @ui.refreshable
+    def _abs_bounds_panel() -> None:
+        abs_bounds_container.clear()
+        with abs_bounds_container:
+            if not str(session.uq_contract_mode).startswith("absolute"):
+                return
+            dims = list(session.uq_contract_dims or [])
+            if not dims:
+                ui.label("Select uncertain variables for absolute bounds.").classes("text-caption")
+                return
+            ui.label("Absolute [lo, hi] per variable (baseline shown in label).").classes("text-caption q-mb-xs")
+            bounds = dict(session.uq_contract_abs_bounds or {})
+            for k in dims:
+                base_v = float(point_inp.get(k) or 0.0)
+                lo, hi = bounds.get(k, (base_v * 0.95, base_v * 1.05))
+                if not isinstance(lo, (int, float)):
+                    lo = base_v * 0.95
+                if not isinstance(hi, (int, float)):
+                    hi = base_v * 1.05
+                with ui.row().classes("w-full gap-2 items-center"):
+                    ui.label(f"{k} (baseline {base_v:.4g})").classes("text-caption flex-1")
+                    lo_in = ui.number("lo", value=float(lo), step=0.01).classes("w-24")
+                    hi_in = ui.number("hi", value=float(hi), step=0.01).classes("w-24")
+
+                    def _store(key=k, lo_n=lo_in, hi_n=hi_in) -> None:
+                        cur = dict(session.uq_contract_abs_bounds or {})
+                        cur[key] = (float(lo_n.value), float(hi_n.value))
+                        session.uq_contract_abs_bounds = cur
+
+                    lo_in.on("update:model-value", lambda: _store())
+                    hi_in.on("update:model-value", lambda: _store())
+
+    _abs_bounds_panel()
+
     async def _run() -> None:
         session.uq_contract_running = True
         ui.notify("Running uncertainty contract…", type="info")
@@ -100,6 +139,10 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
                 dims=list(session.uq_contract_dims or []),
                 mode=session.uq_contract_mode,
                 pct=float(session.uq_contract_pct),
+                abs_bounds={
+                    k: tuple(v) for k, v in (session.uq_contract_abs_bounds or {}).items()
+                    if isinstance(v, (list, tuple)) and len(v) >= 2
+                },
             )
             con = await run.io_bound(
                 run_uncertainty_contract_for_point,

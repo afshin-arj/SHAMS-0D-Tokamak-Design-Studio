@@ -325,26 +325,26 @@ def fuel_cycle_metric_groups(out: Dict[str, Any]) -> List[List[Tuple[str, str]]]
     av359 = _safe_float(out.get("availability_v359", float("nan")))
     if math.isfinite(av359):
         groups.append([
-            ("Availability (v359)", _m("availability_v359", "{:.2f}")),
-            ("Net MWh/y (v359)", _m("net_electric_MWh_per_year_v359", "{:.3g}")),
-            ("LCOE (v359) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}")),
+            ("Availability (replacement ledger)", _m("availability_v359", "{:.2f}")),
+            ("Net MWh/y (replacement ledger)", _m("net_electric_MWh_per_year_v359", "{:.3g}")),
+            ("LCOE (replacement ledger) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}")),
             ("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v359", "{:.2f}")),
         ])
     av368 = _safe_float(out.get("availability_v368", float("nan")))
     if math.isfinite(av368):
         groups.append([
-            ("Availability (v368)", _m("availability_v368", "{:.2f}")),
-            ("Outage total (v368)", _m("outage_total_frac_v368", "{:.2f}")),
-            ("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}")),
+            ("Availability (maintenance scheduling)", _m("availability_v368", "{:.2f}")),
+            ("Outage total (maintenance scheduling)", _m("outage_total_frac_v368", "{:.2f}")),
+            ("Net MWh/y (maintenance scheduling)", _m("net_electric_MWh_per_year_v368", "{:.3g}")),
             ("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.2f}")),
         ])
     av391 = _safe_float(out.get("availability_cert_v391", float("nan")))
     if math.isfinite(av391):
         groups.append([
-            ("Availability (v391)", _m("availability_cert_v391", "{:.3f}")),
-            ("Planned (v391)", _m("planned_outage_frac_v391", "{:.3f}")),
-            ("Maint (v391)", _m("maint_downtime_frac_v391", "{:.3f}")),
-            ("Unplanned (v391)", _m("unplanned_downtime_frac_v391", "{:.3f}")),
+            ("Availability (reliability envelope)", _m("availability_cert_v391", "{:.3f}")),
+            ("Planned outage (reliability envelope)", _m("planned_outage_frac_v391", "{:.3f}")),
+            ("Maintenance downtime (reliability envelope)", _m("maint_downtime_frac_v391", "{:.3f}")),
+            ("Unplanned downtime (reliability envelope)", _m("unplanned_downtime_frac_v391", "{:.3f}")),
         ])
     return groups
 
@@ -797,7 +797,7 @@ def tau_peaking_panel_data(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     enabled = float(out.get("include_profile_proxy_v397", out.get("profile_proxy_v397_enabled", 0)) or 0) > 0.5
     if factor in (None, float("nan")):
         if not enabled:
-            return {"enabled": False, "message": "v397 profile proxy disabled — τE peaking factor not computed."}
+            return {"enabled": False, "message": "Profile peaking proxy disabled — τE peaking factor not computed."}
         return None
     f = _safe_float(factor)
     if not math.isfinite(f):

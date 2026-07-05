@@ -1,4 +1,4 @@
-"""Regulatory Evidence Pack Builder v387 (Phase 16)."""
+"""Regulatory Evidence Pack Builder v387."""
 from __future__ import annotations
 
 import json
@@ -12,7 +12,7 @@ from ui_nicegui.session import DesignSession
 
 
 def render_evidence_pack_v387(session: DesignSession) -> None:
-    ui.label("Regulatory Evidence Pack Builder (v387)").classes("text-h6")
+    ui.label("Regulatory Evidence Pack Builder").classes("text-h6")
     ui.label(
         "Deterministic, hash-locked evidence ZIP from cached runs (export-only). "
         "Does not recompute physics."

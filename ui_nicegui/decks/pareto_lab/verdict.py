@@ -1,4 +1,4 @@
-"""Pareto Lab frontier dashboard (Batch 5)."""
+"""Pareto Lab frontier dashboard."""
 from __future__ import annotations
 
 from nicegui import ui

@@ -67,8 +67,8 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
             ),
         ).classes("w-full")
 
-        # v371 transport contracts
-        with ui.expansion("Transport feasibility contracts (v371)", icon="route").classes("w-full"):
+        # transport contracts
+        with ui.expansion("Transport feasibility contracts", icon="route").classes("w-full"):
             en = _overlay(session, "include_transport_contracts_v371", False)
             ui.checkbox(
                 "Enable transport contract diagnostics",
@@ -89,8 +89,8 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
                     on_change=lambda e: session.knobs.__setitem__("H_required_max_robust", e.value),
                 )
 
-        # v396 transport envelope
-        with ui.expansion("Multi-scaling confinement envelope (v396)", icon="stacked_line_chart").classes("w-full"):
+        # transport envelope
+        with ui.expansion("Multi-scaling confinement envelope", icon="stacked_line_chart").classes("w-full"):
             en396 = _overlay(session, "include_transport_envelope_v396", True)
             ui.checkbox(
                 "Enable transport envelope diagnostics",
@@ -110,8 +110,8 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
                 on_change=lambda e: inp.__setitem__("include_tauE_user_scaling_v396", bool(e.value)),
             )
 
-        # v397 profile proxy
-        with ui.expansion("Kinetic profile peaking proxy (v397)", icon="show_chart").classes("w-full"):
+        # profile proxy
+        with ui.expansion("Kinetic profile peaking proxy", icon="show_chart").classes("w-full"):
             en397 = _overlay(session, "include_profile_proxy_v397", False)
             ui.checkbox(
                 "Enable profile proxy authority",
@@ -138,10 +138,10 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
                 value=float(_knob(session, "profile_shear_shape_v397", 0.5)),
                 on_change=lambda e: session.knobs.__setitem__("profile_shear_shape_v397", e.value),
             ).props('label color="primary"').classes("w-full")
-            ui.label("Shear-shape knob (v397)").classes("text-caption")
+            ui.label("Shear-shape knob").classes("text-caption")
 
-        # v372 neutronics–materials coupling
-        with ui.expansion("Neutronics–materials coupling (v372)", icon="science").classes("w-full"):
+        # neutronics–materials coupling
+        with ui.expansion("Neutronics–materials coupling", icon="science").classes("w-full"):
             en372 = _overlay(session, "include_neutronics_materials_coupling_v372", False)
             ui.checkbox(
                 "Enable neutronics–materials coupling",
@@ -189,8 +189,8 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
             on_change=lambda e: inp.__setitem__("profile_mode", bool(e.value)),
         )
 
-        # v358 profile family
-        with ui.expansion("Profile family library (v358)", icon="category").classes("w-full"):
+        # profile family
+        with ui.expansion("Profile family library", icon="category").classes("w-full"):
             en358 = _overlay(session, "include_profile_family_v358", False)
             ui.checkbox(
                 "Enable profile family transport proxy",
@@ -246,7 +246,7 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
 
         en349 = _overlay(session, "include_bootstrap_pressure_selfconsistency", False)
         ui.checkbox(
-            "Bootstrap–pressure self-consistency (v349)",
+            "Bootstrap–pressure self-consistency",
             value=en349,
             on_change=lambda e: _set_overlay(session, "include_bootstrap_pressure_selfconsistency", e.value),
         )
@@ -335,7 +335,7 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 on_change=lambda e: session.overlay.__setitem__("include_synchrotron", bool(e.value)),
             )
 
-            with ui.expansion("Impurity radiation & detachment (v320)", icon="opacity").classes("w-full"):
+            with ui.expansion("Impurity radiation & detachment", icon="opacity").classes("w-full"):
                 with ui.grid(columns=2).classes("w-full gap-2"):
                     ui.select(
                         ["C", "N", "Ne", "Ar", "W"],
@@ -373,7 +373,7 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                     on_change=lambda e: session.knobs.__setitem__("q_div_target_MW_m2", e.value),
                 )
 
-            with ui.expansion("Edge–core coupled exhaust (v348)", icon="sync_alt").classes("w-full"):
+            with ui.expansion("Edge–core coupled exhaust", icon="sync_alt").classes("w-full"):
                 ui.checkbox(
                     "Enable edge–core coupled exhaust",
                     value=bool(_inp(session, "include_edge_core_coupled_exhaust", False)),

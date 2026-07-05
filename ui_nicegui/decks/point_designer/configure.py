@@ -129,7 +129,7 @@ def render_configure(session: DesignSession, *, on_evaluate) -> None:
 
                 if not names:
 
-                    ui.label("No industrial templates found under scenarios/industrial_v354/.").classes("text-caption")
+                    ui.label("No industrial scenario templates found.").classes("text-caption")
 
                 else:
 

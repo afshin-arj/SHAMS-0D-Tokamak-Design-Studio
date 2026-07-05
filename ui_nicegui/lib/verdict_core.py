@@ -66,6 +66,7 @@ def verdict_summary(out: Dict[str, Any]) -> Dict[str, Any]:
     dom = dominant_failing_constraint(bundle, use_governance=True)
     feasible = dom is None and bundle.governance_feasible
     q_s, nt_s = tier_badges(out)
+    parity = bundle.parity if isinstance(bundle.parity, dict) else {}
     return {
         "loaded": True,
         "feasible": feasible,
@@ -74,7 +75,10 @@ def verdict_summary(out: Dict[str, Any]) -> Dict[str, Any]:
         "q_label": q_s,
         "nt_label": nt_s,
         "subsystems": subsystem_status(out),
-        "parity_aligned": bool(bundle.parity.get("pipelines_aligned", True)),
+        "parity_aligned": bool(parity.get("pipelines_aligned", True)),
+        "parity_n_mismatch": int(parity.get("n_pass_mismatch") or 0),
+        "parity_n_gov": int(parity.get("n_governance") or 0),
+        "parity_n_ledger": int(parity.get("n_ledger") or 0),
     }
 
 

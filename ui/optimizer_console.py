@@ -905,7 +905,7 @@ def render_optimizer_evidence_packs(repo_root: Path) -> None:
                             with c2:
                                 ycol = st.selectbox("Y axis", num_cols, index=num_cols.index(y_default) if y_default in num_cols else 1, key="frontier_atlas_y_v243")
                             st.markdown("**Frontier scatter**")
-                            st.scatter_chart({"x": [float(v) for v in df[xcol].tolist()], "y": [float(v) for v in df[ycol].tolist()]})                        # Mechanism filtering + switch points along frontier (v246.0)
+                            st.scatter_chart({"x": [float(v) for v in df[xcol].tolist()], "y": [float(v) for v in df[ycol].tolist()]})                        # Mechanism filtering + switch points along frontier
                         try:
                             from tools.frontier_mechanism import (
                                 discover_mechanism_column,
@@ -1192,7 +1192,7 @@ def render_optimizer_evidence_packs(repo_root: Path) -> None:
                                             }])
                                 except Exception as e:
                                     st.caption(f"Could not render island {iid}: {e}")
-    # Frontier family narrative (v246.0) — compact publication-ready summary
+    # Frontier family narrative — compact publication-ready summary
     fn_md = run_dir / "frontier_family_narrative.md"
     fn_js = run_dir / "frontier_family_narrative.json"
     if fn_md.exists() or fn_js.exists():
@@ -1287,7 +1287,7 @@ def render_optimizer_evidence_packs(repo_root: Path) -> None:
 
 
     with st.container(border=True):
-        st.markdown("**Objective contract (v2)**")
+        st.markdown("**Objective contract (version 2)**")
         if obj_contract:
             st.json(obj_contract)
         else:

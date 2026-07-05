@@ -1,4 +1,4 @@
-"""Scan Lab verdict-first banner (Batch 4)."""
+"""Scan Lab verdict-first banner."""
 from __future__ import annotations
 
 from nicegui import ui

@@ -15,7 +15,7 @@ def render_external_optimizer_suite(repo_root: Path):
     st.markdown("## 📦 External Optimizer Suite")
     st.caption("Reference firewalled optimizers (NSGA2-lite, CMAES-lite) + repair kernel. Produces audit bundles.")
 
-    tabs = st.tabs(["📦 Orchestrator 2.0 (import & verify)", "🧭 Frontier Intake (v406)", "⚡ Feasible-first surrogate accelerator (v386)", "🧪 Lite optimizers (reference)"])
+    tabs = st.tabs(["📦 Orchestrator 2.0 (import & verify)", "🧭 Frontier Intake", "⚡ Feasible-first surrogate accelerator", "🧪 Lite optimizers (reference)"])
 
     # --- v385 Orchestrator 2.0 ---
     with tabs[0]:
@@ -125,7 +125,7 @@ def render_external_optimizer_suite(repo_root: Path):
 
     # --- v406 Frontier Intake (CSV/JSON -> deterministic verification + Pareto + lanes) ---
     with tabs[1]:
-        st.markdown("### 🧭 Frontier Intake (v406) — External Candidate Sets")
+        st.markdown("### 🧭 Frontier Intake — External Candidate Sets")
         st.caption(
             "Upload a base_inputs.json and a candidate set (CSV or JSON). SHAMS re-evaluates every candidate through frozen truth, "
             "applies optimistic/robust uncertainty lanes, detects mirages, and reconstructs feasible-only Pareto fronts. "
@@ -174,7 +174,7 @@ def render_external_optimizer_suite(repo_root: Path):
         out_dir = repo_root / "ui_runs" / "extopt_frontier_intake_v406"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        if st.button("Run v406 intake + deterministic verification", use_container_width=True, key="v406_run_btn"):
+        if st.button("Run frontier intake + deterministic verification", use_container_width=True, key="v406_run_btn"):
             if up_base is None or up_cands is None:
                 st.error("Please upload both base_inputs.json and a candidate set (CSV or JSON).")
                 st.stop()
@@ -198,7 +198,7 @@ def render_external_optimizer_suite(repo_root: Path):
                 )
                 from src.uq_contracts.spec import UncertaintyContractSpec
             except Exception as e:
-                st.error(f"v406 import failed: {e}")
+                st.error(f"Frontier intake import failed: {e}")
                 st.stop()
 
             try:
@@ -242,13 +242,13 @@ def render_external_optimizer_suite(repo_root: Path):
                     robust_spec=rob_spec,
                 )
             except Exception as e:
-                st.error(f"v406 run failed: {e}")
+                st.error(f"Frontier intake run failed: {e}")
                 st.stop()
 
             rep_path = out_dir / "extopt_frontier_intake_report_v406.json"
             rep_path.write_text(json.dumps(report, sort_keys=True, indent=2), encoding="utf-8")
 
-            st.success("v406 intake report generated.")
+            st.success("Frontier intake report generated.")
             st.markdown("#### Candidate summary")
             cands = report.get("candidates") if isinstance(report, dict) else []
             if isinstance(cands, list) and cands:
@@ -283,7 +283,7 @@ def render_external_optimizer_suite(repo_root: Path):
                 key="v406_download_report_btn",
             )
     with tabs[2]:
-        st.markdown("### ⚡ Feasible-First Surrogate Accelerator (v386)")
+        st.markdown("### ⚡ Feasible-First Surrogate Accelerator")
         st.caption(
             "Non-authoritative surrogate screening to reduce truth evaluations. "
             "All reported results still come from frozen truth. Deterministic and auditable."

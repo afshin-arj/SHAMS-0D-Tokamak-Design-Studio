@@ -1,4 +1,4 @@
-"""Feasibility forensics wrapper for NiceGUI (Phase 11)."""
+"""Feasibility forensics wrapper for NiceGUI."""
 from __future__ import annotations
 
 from typing import Any, Dict, Optional

@@ -7,8 +7,10 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.system_suite import tabs as suite_tabs
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.suite_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -42,6 +44,11 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
             color = {"pass": "green", "fail": "red"}.get(status, "grey")
             ui.badge(name.title(), color=color).props("outline")
     render_overlay_status_panel(point_out)
+    if not summary.get("parity_aligned", True):
+        ui.label(
+            f"Constraint pipeline parity: {summary.get('parity_n_mismatch', 0)} pass mismatches "
+            f"({summary.get('parity_n_gov', 0)} gov / {summary.get('parity_n_ledger', 0)} ledger)."
+        ).classes("text-caption text-orange q-mt-xs")
 
 
 @ui.refreshable
@@ -60,8 +67,10 @@ def _render_tab_content(session: DesignSession, ctx: suite_tabs.SuiteContext) ->
 
 
 def render_system_suite(session: DesignSession) -> None:
+    apply_deck_dsg_context(session, "suite")
     ui.label("System Suite").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
+    render_mode_scope("suite", default_open=False)
 
     art, point_inp, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):

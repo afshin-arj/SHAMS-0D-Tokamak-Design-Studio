@@ -64,7 +64,7 @@ def render_systems_mode(_app_module) -> None:
 
     st.session_state.setdefault("systems_run_cards", [])
 
-    # Compact Cockpit moved to post-run diagnostics (v374.1)
+    # Compact Cockpit moved to post-run diagnostics
 
     def _sys_get_in(d: Any, path: List[str]) -> Any:
         cur: Any = d
@@ -275,7 +275,7 @@ def render_systems_mode(_app_module) -> None:
             return
 
     # Render the compact cockpit as early as possible.
-    # _sys_render_compact_cockpit()  # moved to post-run diagnostics (v374.1)
+    # _sys_render_compact_cockpit()  # moved to post-run diagnostics
     # -----------------------------
     # Systems Console (v231 bundle): Verdict Bar + Mechanism Filter + Constraint Cards + Causal Chain + Expert Toggle
     #
@@ -564,7 +564,7 @@ def render_systems_mode(_app_module) -> None:
             render_kind("diagnostic")
         with t_all:
             render_kind(None)
-    # Systems Console rendering moved to post-run diagnostics (v374.1)
+    # Systems Console rendering moved to post-run diagnostics
 
 
     # v185: additional Systems Mode freeze-grade state
@@ -800,7 +800,7 @@ def render_systems_mode(_app_module) -> None:
     # -----------------------------
     
     # -----------------------------
-    # Negotiation Chronicle (v218) - transcript + dominance switching (read-only)
+    # Negotiation Chronicle - transcript + dominance switching (read-only)
     # -----------------------------
     try:
         run_cards = st.session_state.get('systems_run_cards', []) or []
@@ -888,9 +888,9 @@ def render_systems_mode(_app_module) -> None:
     except Exception:
         pass
 
-# Workflow navigator (v180)
+# Workflow navigator
     # -----------------------------
-    # Workflow navigator (v180) - session-safe (no widget/state conflict)
+    # Workflow navigator - session-safe (no widget/state conflict)
     # -----------------------------
     # Derive local defaults from session state without setting widget value.
     _default_step = str(st.session_state.get('systems_workflow_step', 'Diagnose'))
@@ -1208,7 +1208,7 @@ def render_systems_mode(_app_module) -> None:
 
 
 # -------------------------------------------------------------------------
-# World-class Systems Mode decision support (v183)
+# World-class Systems Mode decision support
 # -------------------------------------------------------------------------
     # Persistent decision journal (Design Stories 2.0)
     st.session_state.setdefault("systems_journal", [])
@@ -1864,7 +1864,7 @@ def render_systems_mode(_app_module) -> None:
 
 
     # -----------------------------
-    # Stability & control margin certification (v374.0)
+    # Stability & control margin certification
     # -----------------------------
     with st.expander('Stability & control margin certification (vertical / RWM / volt-seconds)', expanded=False):
         st.caption(
@@ -1948,7 +1948,7 @@ def render_systems_mode(_app_module) -> None:
                     st.json(cert)
 
     # -----------------------------
-    # Control & actuation authority (v378.0)
+    # Control & actuation authority
     # -----------------------------
     with st.expander('Control & actuation authority (PF/RWM, certified) — actuator margins', expanded=False):
         st.caption(
@@ -2061,7 +2061,7 @@ def render_systems_mode(_app_module) -> None:
                     st.json(cert)
 
     # -----------------------------
-    # Confinement & transport certification (v376.0)
+    # Confinement & transport certification
     # -----------------------------
     with st.expander('Confinement & transport authority (certified) — H98 credibility', expanded=False):
         st.caption(
@@ -2140,7 +2140,7 @@ def render_systems_mode(_app_module) -> None:
 
 
     # -----------------------------
-    # Transport profile authority (v382.0)
+    # Transport profile authority
     # -----------------------------
     with st.expander(' Transport profile authority (certified) — 1.5D-lite proxies', expanded=False):
         st.caption(
@@ -2205,10 +2205,10 @@ def render_systems_mode(_app_module) -> None:
                 with st.expander('Certification details (JSON)', expanded=False):
                     st.json(cert)
     # -----------------------------
-    # Current drive authority (v381.0)
+    # Current drive authority
     # -----------------------------
     # -----------------------------
-    # Materials & lifetime tightening authority (v384.0.0)
+    # Materials & lifetime tightening authority
     # -----------------------------
     with st.expander(' Materials & lifetime tightening (certified) — divertor+magnet + downtime→CF', expanded=False):
         st.caption(
@@ -2240,7 +2240,7 @@ def render_systems_mode(_app_module) -> None:
                     ).to_dict()
 
                     st.session_state['systems_materials_lifetime_v384_cert'] = cert
-                    st.success('Certification computed and cached (systems_materials_lifetime_v384_cert).')
+                    st.success('Certification computed and cached (materials lifetime).')
                 except Exception as _e:
                     st.error(f'Certification failed: {_e}')
 
@@ -2322,9 +2322,9 @@ def render_systems_mode(_app_module) -> None:
                     st.json(cert)
 
     # -----------------------------
-    # Current drive multi-channel library certification (v395.0)
+    # Current drive multi-channel library certification
     # -----------------------------
-    with st.expander(' Current drive library (v395) — multi-channel mix bookkeeping (certified)', expanded=False):
+    with st.expander(' Current drive library — multi-channel mix bookkeeping (certified)', expanded=False):
         st.caption(
             "Deterministic governance-only certification derived from the last Systems artifact (no solves, no iteration). "
             "Summarizes v395 multi-channel (ECCD/LHCD/NBI/ICRF) CD bookkeeping if present; otherwise reports UNAVAILABLE."
@@ -2342,7 +2342,7 @@ def render_systems_mode(_app_module) -> None:
                     outs = dict(last_sys_art.get('outputs') or {})
                     _cert = certify_current_drive_library_v395(outs).to_dict()
                     st.session_state['systems_current_drive_lib_v395_cert'] = _cert
-                    st.success('Certification computed and cached (systems_current_drive_lib_v395_cert).')
+                    st.success('Certification computed and cached (current drive library).')
                 except Exception as _e:
                     st.error(f'Certification failed: {_e}')
 
@@ -2375,7 +2375,7 @@ def render_systems_mode(_app_module) -> None:
                     st.json(cert)
 
     # -----------------------------
-    # Disruption severity & quench proxy authority (v377.0)
+    # Disruption severity & quench proxy authority
     # -----------------------------
     with st.expander('Disruption & quench authority (certified) — severity proxies', expanded=False):
         st.caption(
@@ -4178,7 +4178,7 @@ def render_systems_mode(_app_module) -> None:
 
                 best_x = dict(x_start)
                 best_obj = float(obj0) if math.isfinite(obj0) else float('inf')
-                best_V = float(V0) if math.isfinite(V0) else float('inf')
+                best_V = float if math.isfinite else float('inf')
 
                 cands = []
                 # Trace (COULD): store a lightweight evaluation trace for frontier plots and reproducibility.
@@ -4188,10 +4188,10 @@ def render_systems_mode(_app_module) -> None:
                 # Always record the start point as candidate in research mode; in reactor mode
                 # we keep backward behavior (feasible-only candidates).
                 if (_intent_key_fs == 'research') or feas0:
-                    cands.append({'x': dict(x_start), 'obj': float(obj0), 'V': float(V0), 'feasible': bool(feas0), 'margins': _fs_margins(out0), 'headline': {'Q': out0.get('Q_DT_eqv'), 'H98': out0.get('H98'), 'P_net': out0.get('P_e_net_MW')}, 'metrics': {k: out0.get(k) for k in _MET_KEYS}})
+                    cands.append({'x': dict(x_start), 'obj': float(obj0), 'V': float, 'feasible': bool(feas0), 'margins': _fs_margins(out0), 'headline': {'Q': out0.get('Q_DT_eqv'), 'H98': out0.get('H98'), 'P_net': out0.get('P_e_net_MW')}, 'metrics': {k: out0.get(k) for k in _MET_KEYS}})
                 try:
                     if len(trace) < trace_keep:
-                        trace.append({'i': 0, 'x': dict(x_start), 'obj': float(obj0) if math.isfinite(obj0) else None, 'V': float(V0) if math.isfinite(V0) else None, 'feasible': bool(feas0), 'metrics': {k: out0.get(k) for k in _MET_KEYS}})
+                        trace.append({'i': 0, 'x': dict(x_start), 'obj': float(obj0) if math.isfinite(obj0) else None, 'V': float if math.isfinite else None, 'feasible': bool(feas0), 'metrics': {k: out0.get(k) for k in _MET_KEYS}})
                 except Exception:
                     pass
                 for i in range(max(0, budget-1)):
@@ -4257,7 +4257,7 @@ def render_systems_mode(_app_module) -> None:
                     'bounds': bounds,
                     'start_feasible': bool(feas0),
                     'start_obj': float(obj0) if math.isfinite(obj0) else None,
-                    'start_V': float(V0) if math.isfinite(V0) else None,
+                    'start_V': float if math.isfinite else None,
                     'best_V': float(best_V) if math.isfinite(best_V) else None,
                     'best_obj': float(best_obj) if math.isfinite(best_obj) else None,
                     'best_x': dict(best_x) if best_x else None,
@@ -5154,7 +5154,7 @@ def render_systems_mode(_app_module) -> None:
                         if isinstance(_s389, dict):
                             st.json(_s389)
                         else:
-                            st.caption("Structural stress authority (v389) not enabled or unavailable in this artifact.")
+                            st.caption("Structural stress authority not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
 
@@ -5166,7 +5166,7 @@ def render_systems_mode(_app_module) -> None:
                         if isinstance(_d393, dict):
                             st.json(_d393)
                         else:
-                            st.caption("Damage → strength coupling (v393) not enabled or unavailable in this artifact.")
+                            st.caption("Damage → strength coupling not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Damage → strength coupling unavailable (non-fatal): {_e}")
 
@@ -5182,7 +5182,7 @@ def render_systems_mode(_app_module) -> None:
                         if isinstance(_n390, dict):
                             st.json(_n390)
                         else:
-                            st.caption("Neutronics & activation authority (v390) not enabled or unavailable in this artifact.")
+                            st.caption("Neutronics & activation authority not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Neutronics & activation authority unavailable (non-fatal): {_e}")
 
@@ -5194,7 +5194,7 @@ def render_systems_mode(_app_module) -> None:
                         if isinstance(_n392, dict):
                             st.json(_n392)
                         else:
-                            st.caption("Neutronics shield attenuation (v392) not enabled or unavailable in this artifact.")
+                            st.caption("Neutronics shield attenuation not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Neutronics shield attenuation unavailable (non-fatal): {_e}")
 
@@ -5206,7 +5206,7 @@ def render_systems_mode(_app_module) -> None:
                         if isinstance(_a391, dict):
                             st.json(_a391)
                         else:
-                            st.caption("Availability reliability envelope (v391) not enabled or unavailable in this artifact.")
+                            st.caption("Availability reliability envelope not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Availability reliability envelope unavailable (non-fatal): {_e}")
 
@@ -5383,7 +5383,7 @@ def render_systems_mode(_app_module) -> None:
                         if isinstance(_s389, dict):
                             st.json(_s389)
                         else:
-                            st.caption("Structural stress authority (v389) not enabled or unavailable in this artifact.")
+                            st.caption("Structural stress authority not enabled or unavailable in this artifact.")
                     except Exception as _e:
                         st.caption(f"Structural stress authority unavailable (non-fatal): {_e}")
 

@@ -78,7 +78,7 @@ def render_v402_threshold_panel(
     widget_key_prefix: str = "auth_dash",
 ) -> Dict[str, float]:
     """PHYS-003: v402 reference thresholds in authority dashboard."""
-    st.markdown("##### v402 dominance reference thresholds")
+    st.markdown("##### Dominance reference thresholds")
     c1, c2, c3 = st.columns(3)
     with c1:
         transport_spread_ref_v402 = st.number_input(
@@ -121,13 +121,13 @@ def render_profile_tau_peaking_panel(out: Dict[str, Any]) -> None:
     factor = out.get("tau_e_profile_factor_v397", out.get("tau_e_density_peaking_factor_v397"))
     if factor in (None, float("nan")):
         if not float(out.get("include_profile_proxy_v397", out.get("profile_proxy_v397_enabled", 0)) or 0) > 0.5:
-            st.caption("v397 profile proxy disabled — τE peaking factor not computed.")
+            st.caption("Profile transport proxy disabled — τE peaking factor not computed.")
         return
     try:
         f = float(factor)
         if f != f:
             return
-        st.metric("τE profile peaking factor (v397)", f"{f:.3f}", help="PHYS-002: density/pressure peaking degrades volume-averaged τE proxy.")
+        st.metric("τE profile peaking factor", f"{f:.3f}", help="PHYS-002: density/pressure peaking degrades volume-averaged τE proxy.")
         tau0 = out.get("tauE_s")
         if tau0 is not None:
             try:

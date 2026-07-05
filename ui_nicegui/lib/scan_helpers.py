@@ -1,4 +1,4 @@
-"""Scan Lab helpers — cartography runner and report summaries (Batch 4)."""
+"""Scan Lab helpers — cartography runner and report summaries."""
 from __future__ import annotations
 
 import json

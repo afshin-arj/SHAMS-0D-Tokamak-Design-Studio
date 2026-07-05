@@ -1,4 +1,4 @@
-"""Publication Benchmark Pack generator (Phase 16)."""
+"""Publication Benchmark Pack generator."""
 from __future__ import annotations
 
 from nicegui import run, ui

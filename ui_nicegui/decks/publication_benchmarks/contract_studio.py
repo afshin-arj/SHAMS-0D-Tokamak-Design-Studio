@@ -1,4 +1,4 @@
-"""Contract Studio panel — NiceGUI (Phase 16)."""
+"""Contract Studio panel — NiceGUI."""
 from __future__ import annotations
 
 import json

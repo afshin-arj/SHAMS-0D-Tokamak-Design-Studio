@@ -1,4 +1,4 @@
-"""Nuclear dataset intake (v408) — external multi-group dataset builder."""
+"""Nuclear dataset intake — external multi-group dataset builder."""
 from __future__ import annotations
 
 from nicegui import ui
@@ -11,7 +11,7 @@ def _parse_vec_txt(txt: str) -> list[float]:
 
 
 def render_nuclear_dataset_intake(session: DesignSession) -> None:
-    with ui.expansion("Nuclear dataset intake (external, v408)", icon="upload_file").classes("w-full"):
+    with ui.expansion("Nuclear dataset intake (external)", icon="upload_file").classes("w-full"):
         ui.label(
             "Import screening datasets into data/nuclear_datasets with SHA-256 provenance. "
             "Does not mutate frozen physics — registry intake only."

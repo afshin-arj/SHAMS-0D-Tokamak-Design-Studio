@@ -28,7 +28,7 @@ def render_publication_benchmarks(_app_module) -> None:
         "Cross‑Code Constitutions",
         "Publication Benchmarks",
         "Contract Studio",
-        "Regulatory Evidence Pack Builder (v387)",
+        "Regulatory Evidence Pack Builder",
     ])
     with _pb_tabs[0]:
         st.subheader("Tokamak Constitutional Atlas")
@@ -421,14 +421,14 @@ def render_publication_benchmarks(_app_module) -> None:
                 st.markdown("### Evidence exports")
                 st.caption("Generate reviewer/regulator and licensing packs from the current session artifact (read-only).")
 
-                with st.expander("Regulatory & Reviewer Evidence Packs (v334)", expanded=False):
+                with st.expander("Regulatory & Reviewer Evidence Packs", expanded=False):
                     try:
                         from ui.regulatory_evidence_pack import render_regulatory_evidence_pack_panel
                         render_regulatory_evidence_pack_panel(REPO_ROOT)
                     except Exception as _e:
                         st.error(f"Regulatory evidence pack panel import failed: {_e}")
 
-                with st.expander("Licensing Evidence Tier 2 (v355)", expanded=False):
+                with st.expander("Licensing Evidence Tier 2", expanded=False):
                     try:
                         from ui.licensing_evidence_tier2 import render_licensing_evidence_tier2_panel
                         render_licensing_evidence_tier2_panel(REPO_ROOT)
@@ -450,7 +450,7 @@ def render_publication_benchmarks(_app_module) -> None:
                 pass
 
     with _pb_tabs[4]:
-        st.subheader("Regulatory Evidence Pack Builder (v387)")
+        st.subheader("Regulatory Evidence Pack Builder")
         st.caption("Deterministic, hash-locked evidence ZIP from cached runs (export-only).")
 
         try:

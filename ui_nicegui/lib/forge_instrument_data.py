@@ -1,0 +1,101 @@
+"""Reactor Design Forge instrument registry — all Streamlit workbench views grouped for experts."""
+from __future__ import annotations
+
+INSTRUMENT_GROUPS: dict[str, list[str]] = {
+    "Run intelligence": [
+        "Run dashboard",
+        "Forge timeline",
+        "Trace telemetry",
+        "Budget allocation",
+        "Resistance brief",
+    ],
+    "Archive & regimes": [
+        "Filtered archive",
+        "Archive regimes & coverage",
+        "Machine existence report",
+        "Feasibility skeleton",
+        "Pareto (multi-objective)",
+    ],
+    "Candidate review": [
+        "Machine dossier",
+        "Review Trinity",
+        "Attack simulation",
+        "Expert compare",
+        "Casebook runner",
+    ],
+    "Closure & margins": [
+        "Closure certificate",
+        "Reactor accounting console",
+        "Margin ledger",
+        "Reality gates",
+        "Engineering reality budget",
+        "Failure-mode canon",
+        "Economics deck",
+        "Report pack",
+    ],
+    "Design artifacts": [
+        "Design narrative",
+        "Design card",
+        "Design packet",
+        "Design class",
+        "Citation blocks",
+        "Reference reproduction",
+        "Reviewer packet",
+    ],
+    "Resistance & navigation": [
+        "Conflict atlas",
+        "Boundary navigator",
+        "Constraint spend map",
+        "Robustness envelope",
+        "Design navigation (steering)",
+        "Scan ↔ Forge grounding",
+    ],
+    "Advanced analysis": [
+        "Inverse design / Why not?",
+        "Discovered relations",
+        "Counterfactual lens",
+        "Intent trajectories",
+        "Confidence sweep",
+        "Sensitivity fingerprint",
+        "Local cartography",
+        "Uncertainty (Monte Carlo)",
+        "Counter-optimization",
+    ],
+    "Epistemic & lineage": [
+        "Epistemic gap map",
+        "Constraint personas",
+        "Design genealogy",
+        "Lineage graph",
+        "Provenance graph",
+        "Process of elimination",
+        "Do-not-build brief",
+        "Paper-ready signals",
+        "Exposure readiness",
+    ],
+    "Governance & parity": [
+        "PROCESS parity benchmarks",
+        "Parity validation packs",
+        "Parity calibration",
+        "Decision scenarios",
+        "Collaboration (review sessions)",
+        "Epistemic guarantees",
+        "Standards & DOI export",
+        "Design-space verdicts",
+        "Epistemic confidence bounds",
+        "Intent-conditional design laws",
+        "Machine genealogy",
+        "Reproducibility",
+        "Silence mode",
+    ],
+}
+
+ALL_INSTRUMENTS: list[str] = [t for tools in INSTRUMENT_GROUPS.values() for t in tools]
+
+INSTRUMENT_CAPTIONS: dict[str, str] = {
+    "Run dashboard": "Run contract, trace stats, archive counts, and resistance headline.",
+    "Machine dossier": "Structured candidate dossier: truth, closure, margins, economics, existence, Scan Lab bridge.",
+    "Review Trinity": "Existence proof → stress story → positioning (review-grade markdown).",
+    "Conflict atlas": "Accumulated constraint conflicts across runs — descriptive, not causal.",
+    "Inverse design / Why not?": "Explain infeasibility and residual distance to declared targets.",
+    "Silence mode": "Review-room calm — suppresses celebratory UI noise (display only).",
+}

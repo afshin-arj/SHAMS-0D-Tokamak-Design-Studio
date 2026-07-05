@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""🧪 Trade Study Studio UI (v303.0).
+"""🧪 Trade Study Studio UI.
 
 This is the PROCESS-replacement ergonomics layer:
   - feasibility-first trade studies
@@ -105,13 +105,13 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         "Studio deck",
         [
             "🎛️ Study Setup & Run",
-            "🗺️ Multi-Objective Feasible Frontier Atlas (v351)",
-            "🧾 Robust Design Envelope Certification (v352)",
+            "🗺️ Multi-Objective Feasible Frontier Atlas",
+            "🧾 Robust Design Envelope Certification",
             "⚡ Feasible-First Surrogate Accelerator",
             "🧰 Optimizer Kits (External)",
             "⚡ Fast Optimistic Design (Two-Lane)",
             "🧬 Design Family Atlas",
-            "🗺️ Regime Maps & Narratives (v324)",
+            "🗺️ Regime Maps & Narratives",
             "🧭 Mirage Pathfinding",
         ],
         key="trade_study_deck",
@@ -279,8 +279,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
     # -----------------------------------------------
     # Deck 2: Multi-Objective Feasible Frontier Atlas
     # -----------------------------------------------
-    if deck == "🗺️ Multi-Objective Feasible Frontier Atlas (v351)":
-        st.subheader("🗺️ Multi-Objective Feasible Frontier Atlas (v351)")
+    if deck == "🗺️ Multi-Objective Feasible Frontier Atlas":
+        st.subheader("🗺️ Multi-Objective Feasible Frontier Atlas")
         st.caption(
             "Descriptive atlas over evaluated points: feasible envelope, robust envelope, mirage set, and empty-region maps. "
             "No optimization is performed here."
@@ -364,7 +364,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                 _pareto_front = None
 
         if _pareto_front is None:
-            st.error("v351 atlas module failed to import.")
+            st.error("Frontier atlas module failed to import.")
             return
 
         pareto_rows = _pareto_front(dfF.to_dict(orient="records"), objectives=list(chosen), senses=senses)
@@ -464,7 +464,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                 },
             }
             st.download_button(
-                "Download v351 atlas JSON",
+                "Download frontier atlas JSON",
                 data=json.dumps(payload, indent=2, sort_keys=True),
                 file_name="shams_frontier_atlas_v351.json",
                 mime="application/json",
@@ -473,7 +473,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         except Exception:
             pass
 
-        st.caption("v351 atlas deck is descriptive-only and does not push points back into truth. Promote designs via the Study Setup deck.")
+        st.caption("Frontier atlas is descriptive-only and does not push points back into truth. Promote designs via the Study Setup deck.")
 
     # -------------------------------------------
     # Deck: Feasible-First Surrogate Acceleration
@@ -483,8 +483,8 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
     # --------------------
     # Deck: v352 Robust Envelope Certification
     # --------------------
-    elif deck == "🧾 Robust Design Envelope Certification (v352)":
-        st.subheader("🧾 Robust Design Envelope Certification (v352)")
+    elif deck == "🧾 Robust Design Envelope Certification":
+        st.subheader("🧾 Robust Design Envelope Certification")
         st.caption(
             "Governance-grade certification of a candidate set under the ROBUST UQ-lite contract. "
             "Budgeted deterministic corner enumeration (no optimization; no truth modification)."
@@ -510,12 +510,12 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         lane_df = st.session_state.get("v351_lane_df", None)
 
         if rep is None and lane_df is None:
-            st.warning("No candidate set available yet. Run a Trade Study (or v351 lane classification) first.")
+            st.warning("No candidate set available yet. Run a Trade Study (or lane classification) first.")
             return
 
         source = st.selectbox(
             "Candidate source",
-            ["Trade Study: Feasible", "Trade Study: Pareto", "v351: Lane Table (Pareto+labels)"],
+            ["Trade Study: Feasible", "Trade Study: Pareto", "Frontier atlas: Lane table (Pareto+labels)"],
             index=1,
             key="v352_source",
         )
@@ -524,7 +524,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
         if source.startswith("Trade Study") and isinstance(rep, dict):
             key = "feasible" if "Feasible" in source else "pareto"
             rows = list(rep.get(key, []) or [])
-        elif source.startswith("v351") and lane_df is not None:
+        elif source.startswith("Frontier") and lane_df is not None:
             try:
                 rows = lane_df.to_dict(orient="records")
             except Exception:
@@ -617,7 +617,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             zbytes = st.session_state.get("v352_zip_bytes")
             if isinstance(zbytes, (bytes, bytearray)) and len(zbytes) > 0:
                 st.download_button(
-                    "⬇️ Download v352 evidence ZIP",
+                    "⬇️ Download robust envelope evidence ZIP",
                     data=bytes(zbytes),
                     file_name="v352_robust_envelope_evidence.zip",
                     mime="application/zip",
@@ -941,9 +941,9 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
             render_dataframe_with_selection(df=pd.DataFrame([{"family": f.key, "title": f.title, "notes": f.notes} for f in FAMILIES]), key="trade_table_13", store_key="trade_selected_dsg_node_ids", dataframe_kwargs={"use_container_width": True})
 
     # --------------------
-    # Deck 5: Regime Maps & Narratives (v324)
+    # Deck 5: Regime Maps & Narratives
     # --------------------
-    elif deck == "🗺️ Regime Maps & Narratives (v324)":
+    elif deck == "🗺️ Regime Maps & Narratives":
         from tools.regime_maps import build_regime_maps_report, select_default_features
 
         st.subheader("🗺️ Regime Maps & Narratives")
@@ -987,7 +987,7 @@ def render_trade_study_studio(st: Any, *, repo_root: Path) -> None:
                 st.session_state["v324_regime_maps"] = rpt
                 st.success(f"Built regime report with {len(rpt.get('clusters', []) or [])} clusters.")
             except Exception as e:
-                st.error(f"v324 failed: {e!r}")
+                st.error(f"Regime map report failed: {e!r}")
 
         rpt = st.session_state.get("v324_regime_maps")
         if not isinstance(rpt, dict):

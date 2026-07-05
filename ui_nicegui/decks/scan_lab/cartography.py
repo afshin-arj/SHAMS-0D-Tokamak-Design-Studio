@@ -1,4 +1,4 @@
-"""Scan Lab cartography controls and run (Batch 4)."""
+"""Scan Lab cartography controls and run."""
 from __future__ import annotations
 
 from typing import Callable, Optional
@@ -12,6 +12,7 @@ from ui_nicegui.lib.scan_helpers import (
     default_scan_bounds,
     run_cartography_scan,
 )
+from ui_nicegui.lib.scan_labels import INTENT_HELP, PROJECTION_CAVEAT
 from ui_nicegui.session import DesignSession
 
 
@@ -34,23 +35,26 @@ def render_cartography_controls(
         base, session.scan_cart_x_key, session.scan_cart_y_key
     )
 
-    ui.label("Cartography").classes("text-subtitle1")
+    ui.label("Run cartography").classes("text-subtitle1")
     ui.label(
-        "Map feasibility, dominance, and failure mechanisms across a 2D parameter slice."
+        "Map feasibility, dominant limiters, and failure mechanisms across a 2D parameter slice."
     ).classes("text-caption text-grey q-mb-sm")
+    ui.markdown(INTENT_HELP).classes("text-caption q-mb-xs")
+    ui.markdown(PROJECTION_CAVEAT).classes("text-caption text-orange q-mb-sm")
 
-    _render_golden_presets(session, base, x_lo_def, x_hi_def, y_lo_def, y_hi_def)
+    if session.scan_cart_base_override:
+        ui.badge("Golden-scan baseline override active", color="orange").props("outline q-mb-sm")
 
     with ui.row().classes("w-full gap-4"):
         ui.select(
             SCAN_VAR_KEYS,
-            label="x-axis",
+            label="X axis",
             value=session.scan_cart_x_key,
             on_change=lambda e: setattr(session, "scan_cart_x_key", str(e.value)),
         ).props("dense").classes("flex-1")
         ui.select(
             SCAN_VAR_KEYS,
-            label="y-axis",
+            label="Y axis",
             value=session.scan_cart_y_key,
             on_change=lambda e: setattr(session, "scan_cart_y_key", str(e.value)),
         ).props("dense").classes("flex-1")
@@ -81,7 +85,7 @@ def render_cartography_controls(
         ui.slider(min=11, max=61, step=2, value=session.scan_cart_ny, on_change=lambda e: setattr(session, "scan_cart_ny", int(e.value))).props("label").classes("flex-1")
         ui.label(f"Ny={session.scan_cart_ny}").classes("text-caption")
         ui.checkbox(
-            "Include compact outputs",
+            "Include compact outputs (for contour maps)",
             value=session.scan_cart_include_outputs,
             on_change=lambda e: setattr(session, "scan_cart_include_outputs", bool(e.value)),
         )
@@ -164,49 +168,3 @@ def render_cartography_controls(
     btn = ui.button("Run cartography scan", icon="play_arrow", on_click=_run_scan).props("color=primary")
     if session.scan_running:
         btn.props("disable")
-
-
-def _render_golden_presets(session, base, x_lo_def, x_hi_def, y_lo_def, y_hi_def) -> None:
-    try:
-        from tools.golden_scans import build_golden_scan_presets
-    except ImportError:
-        return
-
-    presets = []
-    try:
-        presets = build_golden_scan_presets(base_inputs=base)
-    except Exception:
-        return
-    if not presets:
-        return
-
-    labels = [str(p.get("label") or p.get("id") or "preset") for p in presets]
-    with ui.expansion("Golden scans (teaching + QA)", icon="star").classes("w-full q-mb-sm"):
-        pick = ui.select(labels, label="Preset", value=labels[0]).classes("w-full")
-
-        def _load_golden() -> None:
-            idx = labels.index(pick.value) if pick.value in labels else 0
-            gp = presets[idx]
-            session.scan_cart_x_key = str(gp.get("x_key") or session.scan_cart_x_key)
-            session.scan_cart_y_key = str(gp.get("y_key") or session.scan_cart_y_key)
-            session.scan_cart_intents = list(gp.get("intents") or ["Reactor"])
-            xr = gp.get("x_range") or []
-            yr = gp.get("y_range") or []
-            if len(xr) >= 2:
-                session.scan_cart_x_lo = float(xr[0])
-                session.scan_cart_x_hi = float(xr[1])
-            if len(yr) >= 2:
-                session.scan_cart_y_lo = float(yr[0])
-                session.scan_cart_y_hi = float(yr[1])
-            session.scan_cart_nx = int(gp.get("n_x") or session.scan_cart_nx)
-            session.scan_cart_ny = int(gp.get("n_y") or session.scan_cart_ny)
-            bi = gp.get("base_inputs")
-            if bi is not None:
-                try:
-                    from dataclasses import asdict
-                    session.scan_cart_base_override = asdict(bi)
-                except Exception:
-                    session.scan_cart_base_override = None
-            ui.notify("Loaded golden scan settings", type="positive")
-
-        ui.button("Load golden scan", icon="upload", on_click=_load_golden).props("outline flat")

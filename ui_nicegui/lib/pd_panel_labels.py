@@ -1,6 +1,6 @@
 """Central user-facing labels for Point Designer Configure & Telemetry.
 
-Plain physics/engineering names for UI; version codes live in captions for traceability.
+Plain physics/engineering names for Point Designer Configure & Telemetry UI.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ CONFIGURE_SECTIONS: Dict[str, Tuple[str, str, str]] = {
     "templates": (
         "Industrial scenario templates",
         "factory",
-        "Pre-built reference machines from scenarios/industrial_v354 (overlay v354).",
+        "Pre-built reference machines from industrial scenario templates.",
     ),
     "machine_geometry": (
         "Machine geometry",
@@ -399,10 +399,7 @@ def overlay_traceability(key: str) -> Optional[str]:
 
 
 def overlay_caption(key: str) -> str:
-    label, code, caption = OVERLAY_LABELS[key]
-    if code:
-        return f"{code} · {caption}"
-    return caption
+    return OVERLAY_LABELS[key][2]
 
 
 def overlay_group_title(group_id: str) -> str:

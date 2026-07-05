@@ -3,7 +3,7 @@
 SHAMS law compliance:
 - Truth remains frozen (uses Point Designer evaluator as a black box).
 - No optimization; this is a robustness *interrogation* layer over candidate points.
-- Deterministic corner enumeration (v281) and ordered quasi-static phases (v280).
+- Deterministic corner enumeration and ordered quasi-static phases.
 
 v286.0: Robust / Fragile / Mirage frontier classification.
 """
@@ -167,7 +167,7 @@ def _classify(nominal_feasible: bool, env_verdict: str, uq_verdict: str) -> str:
 def render_robust_pareto_lab(repo_root: Path) -> None:
     st.markdown("### 🛡️ Robust Pareto Frontier (Phase+UQ)")
     st.caption(
-        "Re-interrogates candidate points under quasi-static phase envelopes (v280) and deterministic uncertainty corners (v281). "
+        "Re-interrogates candidate points under quasi-static phase envelopes and deterministic uncertainty corners. "
         "Outputs a ROBUST / FRAGILE / MIRAGE classification. No optimization occurs here."
     )
 

@@ -1,4 +1,4 @@
-"""Compare deck helpers (Batch 8)."""
+"""Compare deck helpers — artifact normalization and diff tables."""
 from __future__ import annotations
 
 import hashlib
@@ -72,6 +72,10 @@ def normalize_compare_artifact(art: dict) -> dict:
         "constraints": list(cons or []),
         "inputs_hash": ih,
         "label": art.get("label") or art.get("deck") or "artifact",
+        "kpis": art.get("kpis") if isinstance(art.get("kpis"), dict) else {},
+        "scenario_delta": art.get("scenario_delta"),
+        "model_cards": art.get("model_cards") if isinstance(art.get("model_cards"), dict) else {},
+        "schema_version": art.get("schema_version"),
     }
 
 
@@ -167,4 +171,143 @@ def comparison_markdown(art_a: dict, art_b: dict) -> str:
     lines.extend(["", "## Worst constraints (B)", ""])
     for c in constraint_rows(art_b):
         lines.append(f"- {c.get('name')}: residual={c.get('residual')}")
+    inp = input_diff_rows(art_a, art_b)
+    if inp:
+        lines.extend(["", "## Changed inputs", ""])
+        for r in inp:
+            lines.append(f"- {r.get('field')}: A={r.get('A')} → B={r.get('B')}")
     return "\n".join(lines)
+
+
+def _as_float(x: Any) -> float | None:
+    try:
+        v = float(x)
+        if v != v:
+            return None
+        return v
+    except (TypeError, ValueError):
+        return None
+
+
+def input_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
+    na = normalize_compare_artifact(art_a)
+    nb = normalize_compare_artifact(art_b)
+    ia = na.get("inputs") or {}
+    ib = nb.get("inputs") or {}
+    rows: List[Dict[str, Any]] = []
+    for k in sorted(set(ia.keys()) | set(ib.keys())):
+        va = ia.get(k)
+        vb = ib.get(k)
+        if va != vb:
+            rows.append({"field": k, "A": va, "B": vb})
+    return rows
+
+
+def numeric_output_diff_rows(
+    art_a: dict, art_b: dict, *, limit: int = 60
+) -> List[Dict[str, Any]]:
+    out_a = normalize_compare_artifact(art_a).get("outputs") or {}
+    out_b = normalize_compare_artifact(art_b).get("outputs") or {}
+    keys = sorted(set(out_a.keys()) | set(out_b.keys()))
+    rows: List[Dict[str, Any]] = []
+    for k in keys:
+        a = _as_float(out_a.get(k))
+        b = _as_float(out_b.get(k))
+        if a is None or b is None:
+            continue
+        d = b - a
+        if abs(d) < 1e-12:
+            continue
+        frac = (d / a) if abs(a) > 1e-12 else None
+        rows.append({"metric": k, "A": a, "B": b, "B-A": d, "frac": frac})
+    rows.sort(key=lambda r: abs(float(r.get("B-A", 0))), reverse=True)
+    return rows[:limit]
+
+
+def constraint_margin_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
+    ca = {c.get("name"): c for c in constraint_rows(art_a, limit=500) if c.get("name")}
+    cb = {c.get("name"): c for c in constraint_rows(art_b, limit=500) if c.get("name")}
+    names = sorted(set(ca.keys()) | set(cb.keys()))
+    rows: List[Dict[str, Any]] = []
+    for n in names:
+        a = ca.get(n, {})
+        b = cb.get(n, {})
+        fa = bool(a.get("failed") or a.get("passed") is False)
+        fb = bool(b.get("failed") or b.get("passed") is False)
+        ma = a.get("margin", a.get("residual"))
+        mb = b.get("margin", b.get("residual"))
+        md = None
+        try:
+            if ma is not None and mb is not None:
+                md = float(mb) - float(ma)
+        except (TypeError, ValueError):
+            md = None
+        rows.append(
+            {
+                "name": n,
+                "failed_A": fa,
+                "failed_B": fb,
+                "margin_A": ma,
+                "margin_B": mb,
+                "margin_delta": md,
+                "new_failure": fb and not fa,
+            }
+        )
+    rows.sort(
+        key=lambda r: (
+            0 if r.get("new_failure") else 1,
+            -(abs(float(r["margin_delta"])) if r.get("margin_delta") is not None else 0),
+        )
+    )
+    return rows
+
+
+def kpi_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
+    ka = normalize_compare_artifact(art_a).get("kpis") or {}
+    kb = normalize_compare_artifact(art_b).get("kpis") or {}
+    if not isinstance(ka, dict):
+        ka = {}
+    if not isinstance(kb, dict):
+        kb = {}
+    rows: List[Dict[str, Any]] = []
+    for k in sorted(set(ka.keys()) | set(kb.keys())):
+        a = ka.get(k)
+        b = kb.get(k)
+        d = ""
+        try:
+            d = float(b) - float(a)
+        except (TypeError, ValueError):
+            pass
+        rows.append({"kpi": k, "A": a, "B": b, "B-A": d})
+    return rows
+
+
+def embedded_scenario_delta(art_b: dict) -> Any:
+    nb = normalize_compare_artifact(art_b)
+    raw = art_b if isinstance(art_b, dict) else {}
+    return raw.get("scenario_delta") or nb.get("scenario_delta")
+
+
+def structural_diff_report(art_a: dict, art_b: dict) -> dict | None:
+    try:
+        from shams_io.structural_diff import structural_diff
+
+        return structural_diff(
+            new_artifact=normalize_compare_artifact(art_b),
+            old_artifact=normalize_compare_artifact(art_a),
+        )
+    except Exception:
+        return None
+
+
+def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
+    return {
+        "summary": summarize_comparison(art_a, art_b),
+        "key_metrics": metric_diff_rows(art_a, art_b),
+        "all_output_deltas": numeric_output_diff_rows(art_a, art_b, limit=200),
+        "constraint_margins": constraint_margin_diff_rows(art_a, art_b),
+        "input_changes": input_diff_rows(art_a, art_b),
+        "kpi_diff": kpi_diff_rows(art_a, art_b),
+        "scenario_delta": embedded_scenario_delta(art_b),
+        "structural_diff": structural_diff_report(art_a, art_b),
+    }

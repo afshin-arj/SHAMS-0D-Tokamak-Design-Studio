@@ -1,4 +1,4 @@
-"""Intent Compiler panel (Batch 7)."""
+"""Intent Compiler panel."""
 from __future__ import annotations
 
 from typing import Callable, Optional

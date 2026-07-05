@@ -23,9 +23,9 @@ def _pick_artifact_from_session() -> Optional[Dict[str, Any]]:
 
 
 def render_licensing_evidence_tier2_panel(repo_root: Path) -> None:
-    st.subheader("🏛️ Licensing Evidence Tier 2 (v355.0)")
+    st.subheader("🏛️ Licensing Evidence Tier 2")
     st.caption(
-        "Tier 2 is a governance-strengthened, deterministic ZIP pack (schema v3). "
+        "Tier 2 is a governance-strengthened, deterministic ZIP pack (standard replay schema). "
         "Read-only; does not modify truth. Includes contract registry + authority audit + replay payload."
     )
 
@@ -59,12 +59,12 @@ def render_licensing_evidence_tier2_panel(repo_root: Path) -> None:
             expanded=False,
         )
     with c2:
-        st.markdown("### Export (schema v3)")
+        st.markdown("### Export (standard replay schema)")
         if st.button("Generate Tier 2 licensing pack ZIP", use_container_width=True, key="licpack_gen_btn_v355"):
             try:
                 export_licensing_evidence_tier2_zip(repo_root, art, out_zip, extra=extra, basename="licensing_pack_tier2")
                 st.session_state["licensing_pack_tier2_zip_path"] = str(out_zip)
-                st.success("Licensing Tier 2 pack generated (v355.0).")
+                st.success("Licensing Tier 2 pack generated.")
             except Exception as e:
                 st.error(f"Tier 2 pack build failed: {e}")
 
@@ -95,7 +95,7 @@ def render_licensing_evidence_tier2_panel(repo_root: Path) -> None:
                             for e in res.errors:
                                 st.error(e)
 
-    with st.expander("What Tier 2 contains (schema v3)", expanded=False):
+    with st.expander("What Tier 2 contains (standard replay schema)", expanded=False):
         st.markdown(
             "- `artifact.json`: full run artifact\n"
             "- `contracts/contracts_index.json`: full contract fingerprint registry (all contracts/*.json)\n"
@@ -104,5 +104,5 @@ def render_licensing_evidence_tier2_panel(repo_root: Path) -> None:
             "- `analysis/regime_transitions.json`: regime transition report (when present)\n"
             "- `certification/robust_envelope_certification.json`: v352 certification (when present)\n"
             "- `repo/*`: README/VERSION/RELEASE_NOTES + manifests (when present)\n"
-            "- `PACK_MANIFEST.json`: strict schema v3 pack manifest + per-file SHA-256\n"
+            "- `PACK_MANIFEST.json`: strict standard replay schema pack manifest + per-file SHA-256\n"
         )

@@ -109,7 +109,7 @@ def render_control_contracts(session: DesignSession) -> None:
             ).classes("text-caption")
 
             v398 = v398_control_ledger(out)
-            with ui.expansion("v398 Control Ledger (VS budget + headroom + RWM overlay)", icon="account_balance").classes(
+            with ui.expansion("Control ledger (VS budget + headroom + RWM overlay)", icon="account_balance").classes(
                 "w-full"
             ):
                 if v398:
@@ -132,11 +132,11 @@ def render_control_contracts(session: DesignSession) -> None:
                         )
                         if k in v398
                     })
-                    ui.label("v398 is governance-only: no PF circuit solve; no transport/equilibrium iteration.").classes(
+                    ui.label("Governance-only overlay: no PF circuit solve; no transport/equilibrium iteration.").classes(
                         "text-caption"
                     )
                 else:
-                    ui.label("v398 control ledger disabled (enable in Configure).").classes("text-caption")
+                    ui.label("Control stability ledger disabled (enable in Configure).").classes("text-caption")
 
             ui.label("Caps (optional)").classes("text-subtitle2 q-mt-sm")
             _dict_table_row(control_pf_caps_row(out))
@@ -197,7 +197,7 @@ def render_control_contracts(session: DesignSession) -> None:
                     _dict_table_row(margins)
 
     v400 = magnet_v400_summary(out)
-    with ui.expansion("v400 Magnet Technology Authority (B–T–J–stress–quench ledger)", icon="bolt").classes(
+    with ui.expansion("Magnet technology authority (B–T–J–stress–quench ledger)", icon="bolt").classes(
         "w-full q-mt-md"
     ):
         if v400:
@@ -212,4 +212,4 @@ def render_control_contracts(session: DesignSession) -> None:
             ui.label("Per-aspect tiers").classes("text-subtitle2 q-mt-sm")
             ui.json(v400["per_aspect_tiers"])
         else:
-            ui.label("v400 magnet ledger is disabled or unavailable for this run.").classes("text-caption")
+            ui.label("Magnet technology ledger is disabled or unavailable for this run.").classes("text-caption")

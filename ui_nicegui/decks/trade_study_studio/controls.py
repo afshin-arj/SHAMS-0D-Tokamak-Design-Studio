@@ -1,4 +1,4 @@
-"""Trade Study setup and run controls (Batch 6)."""
+"""Trade Study setup and run controls."""
 from __future__ import annotations
 
 from typing import Callable, Optional
@@ -22,6 +22,7 @@ except ImportError:
 def render_study_controls(
     session: DesignSession,
     *,
+    flat: bool = False,
     on_complete: Optional[Callable[[], None]] = None,
 ) -> None:
     knob_sets = default_knob_sets()

@@ -476,10 +476,68 @@ def _cockpit_view(session: DesignSession) -> None:
 
 
 def _render_feasible_optimizer(session: DesignSession) -> None:
-    ui.label("Launch external feasible optimizer via pending config (same as Streamlit launcher).").classes(
-        "text-caption"
-    )
-    ui.markdown("Use **Certified Optimization Orchestrator** or **Optimizer Kits** in Trade Study for full workflow.")
+    from ui_nicegui.lib.external_optimizer_helpers import launch_optimizer_kit
+    from ui_nicegui.lib.pareto_helpers import default_bounds
+
+    ui.label(
+        "External feasible optimizer — proposes inputs only; SHAMS re-evaluates with frozen truth."
+    ).classes("text-caption")
+    base = session.build_point_inputs()
+    bounds = dict(session.pareto_bounds or default_bounds(base))
+    kit = ui.select(["NSGA2-lite", "CMAES-lite", "BO-lite"], label="Optimizer kit", value="NSGA2-lite")
+    seed = ui.number("Seed", value=session.pareto_seed, min=0, step=1)
+    budget = ui.number("Budget (evaluations)", value=200, min=50, max=5000, step=50)
+    obj_opts = ["P_e_net_MW", "R0_m", "B_peak_T", "Q_DT_eqv", "q_div_MW_m2"]
+    objs = ui.select(obj_opts, label="Objectives", value=["P_e_net_MW", "R0_m"], multiple=True)
+
+    with ui.expansion("Knob bounds (same hyper-rectangle as Internal Pareto)", icon="crop").classes("w-full"):
+        for key in ("R0_m", "Bt_T", "Ip_MA", "fG"):
+            lo, hi = bounds.get(key, (0.0, 1.0))
+            ui.label(f"{key}: [{lo:.3g}, {hi:.3g}]").classes("text-caption")
+
+    async def _run() -> None:
+        chosen = list(objs.value) if isinstance(objs.value, list) else [str(objs.value)]
+        if len(chosen) < 1:
+            ui.notify("Select at least one objective", type="warning")
+            return
+        senses = {o: "max" if o == "P_e_net_MW" else "min" for o in chosen}
+        ui.notify("Launching external optimizer kit…", type="info")
+        try:
+            res = await run.io_bound(
+                launch_optimizer_kit,
+                kit=str(kit.value),
+                seed=int(seed.value or 1),
+                n=int(budget.value or 200),
+                objectives=chosen,
+                senses=senses,
+                bounds=bounds,
+                base=base,
+            )
+            session.feasible_optimizer_last = res
+            rc = int(res.get("returncode", 1))
+            if rc == 0:
+                ui.notify("Optimizer kit finished", type="positive")
+            else:
+                ui.notify(f"Kit exited with code {rc} — see log below", type="warning")
+            _feas_opt_view.refresh()
+        except Exception as exc:
+            ui.notify(f"Launch failed: {exc}", type="negative")
+
+    ui.button("Run feasible optimizer kit", icon="rocket_launch", on_click=_run).props("color=primary outline")
+    _feas_opt_view(session)
+
+
+@ui.refreshable
+def _feas_opt_view(session: DesignSession) -> None:
+    res = session.feasible_optimizer_last
+    if not isinstance(res, dict):
+        return
+    with ui.expansion("Run log", icon="terminal").classes("w-full"):
+        ui.label(f"Config: {res.get('config_path', '-')}").classes("text-caption")
+        if res.get("stdout"):
+            ui.code(str(res.get("stdout"))[:6000]).classes("w-full")
+        if res.get("stderr"):
+            ui.code(str(res.get("stderr"))[:4000]).classes("w-full text-orange")
 
 
 def _render_evidence_packs(session: DesignSession) -> None:

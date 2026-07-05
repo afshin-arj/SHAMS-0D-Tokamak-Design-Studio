@@ -1,4 +1,4 @@
-"""Pareto Lab study controls (Batch 5)."""
+"""Pareto Lab study controls."""
 from __future__ import annotations
 
 from typing import Callable, Optional
@@ -18,12 +18,16 @@ from ui_nicegui.session import DesignSession
 def render_pareto_controls(
     session: DesignSession,
     *,
+    flat: bool = False,
     on_complete: Optional[Callable[[], None]] = None,
 ) -> None:
     base = session.build_point_inputs()
     bounds_def = default_bounds(base)
 
-    with ui.expansion("Bounds (sampling hyper-rectangle)", icon="crop").classes("w-full"):
+    bounds_ctx = ui.column().classes("w-full") if flat else ui.expansion(
+        "Bounds (sampling hyper-rectangle)", icon="crop", value=flat
+    ).classes("w-full")
+    with bounds_ctx:
         b = session.pareto_bounds or bounds_def
         with ui.row().classes("w-full gap-2"):
             ui.number("R0 min [m]", value=b["R0_m"][0], step=0.01, on_change=lambda e: _set_bound(session, "R0_m", 0, e.value)).classes("flex-1")
@@ -36,7 +40,10 @@ def render_pareto_controls(
             ui.number("fG min [-]", value=b["fG"][0], step=0.05, on_change=lambda e: _set_bound(session, "fG", 0, e.value)).classes("flex-1")
             ui.number("fG max [-]", value=b["fG"][1], step=0.05, on_change=lambda e: _set_bound(session, "fG", 1, e.value)).classes("flex-1")
 
-    with ui.expansion("Objective contract", icon="rule").classes("w-full q-mt-sm"):
+    obj_ctx = ui.column().classes("w-full q-mt-sm") if flat else ui.expansion(
+        "Objective contract", icon="rule", value=True
+    ).classes("w-full q-mt-sm")
+    with obj_ctx:
         ui.select(
             list(OBJ_TEMPLATES.keys()),
             label="Objective template",
@@ -56,6 +63,7 @@ def render_pareto_controls(
             multiple=True,
             on_change=lambda e: _set_objectives(session, list(e.value) if e.value else []),
         ).classes("w-full")
+        _render_objective_senses(session)
         with ui.row().classes("w-full gap-4"):
             ui.number(
                 "Robust margin threshold",
@@ -164,3 +172,25 @@ def _objectives_dict(session: DesignSession) -> dict[str, str]:
     for k in session.pareto_sel_objs:
         out[k] = str(session.pareto_obj_senses.get(k, default_objective_sense(k)))
     return out
+
+
+def _render_objective_senses(session: DesignSession) -> None:
+    if len(session.pareto_sel_objs) < 1:
+        return
+    ui.label("Min / max sense per objective").classes("text-caption q-mt-xs")
+    with ui.row().classes("w-full gap-2 flex-wrap"):
+        for k in session.pareto_sel_objs:
+            sense = session.pareto_obj_senses.get(k, default_objective_sense(k))
+            ui.toggle(
+                ["min", "max"],
+                value=sense,
+                on_change=lambda e, key=k: _set_sense(session, key, str(e.value)),
+            ).props("dense").classes("flex-none").tooltip(
+                f"{k} [{OBJ_CATALOG.get(k, {}).get('units', '-')}]"
+            )
+
+
+def _set_sense(session: DesignSession, key: str, sense: str) -> None:
+    senses = dict(session.pareto_obj_senses)
+    senses[key] = sense
+    session.pareto_obj_senses = senses

@@ -1,4 +1,4 @@
-"""Build canonical run artifacts for NiceGUI Point Designer (Phase 11)."""
+"""Build canonical run artifacts for NiceGUI Point Designer."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional

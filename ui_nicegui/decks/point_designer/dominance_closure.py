@@ -1,4 +1,4 @@
-"""Dominance Compass + Closure Trace telemetry (Phase 11)."""
+"""Dominance Compass + Closure Trace telemetry."""
 from __future__ import annotations
 
 import math

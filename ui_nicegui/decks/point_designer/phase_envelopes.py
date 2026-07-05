@@ -12,7 +12,11 @@ from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.pd_outer_loop_helpers import (
     DEFAULT_PHASES_JSON,
+    VAR_GROUPS,
+    field_group,
+    filter_fields_by_group,
     make_point_inputs,
+    numeric_point_fields,
     parse_phases_json,
     phase_table_rows,
 )
@@ -46,6 +50,8 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
     base_inputs = make_point_inputs(point_inp)
     if not session.phase_envelopes_phases_json:
         session.phase_envelopes_phases_json = DEFAULT_PHASES_JSON
+
+    _render_phase_cockpit(session, point_inp)
 
     ui.label("Phase specification (JSON)").classes("text-subtitle2")
     ui.label(
@@ -92,6 +98,72 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
         ui.button("Run Phase Envelope", icon="play_arrow", on_click=_run).props("color=primary")
 
     _results(session)
+
+
+def _render_phase_cockpit(session: DesignSession, point_inp: dict) -> None:
+    try:
+        parsed = json.loads(session.phase_envelopes_phases_json or DEFAULT_PHASES_JSON)
+    except Exception:
+        parsed = []
+    phase_names = [str(p.get("name")) for p in parsed if isinstance(p, dict) and p.get("name")]
+    if not phase_names:
+        phase_names = ["ramp_up", "flat_top", "ramp_down"]
+
+    numeric_fields, other_fields = numeric_point_fields(point_inp)
+    all_fields = numeric_fields + other_fields
+    override_state: dict[str, dict[str, float]] = {pn: {} for pn in phase_names}
+
+    with ui.expansion("Phase cockpit editor (writes JSON)", icon="tune", value=False).classes("w-full q-mb-sm"):
+        ui.label(
+            "Structured per-phase overrides — updates the JSON spec below without touching frozen truth."
+        ).classes("text-caption q-mb-sm")
+        grp = ui.select(VAR_GROUPS, label="Variable group", value="PLASMA").classes("w-full")
+        candidates = filter_fields_by_group(all_fields, str(grp.value or "PLASMA"))
+        sel = ui.select(candidates, label="Override variables", value=[], multiple=True).classes("w-full")
+        cols_container = ui.column().classes("w-full")
+
+        def _render_phase_cols() -> None:
+            cols_container.clear()
+            with cols_container:
+                vars_pick = list(sel.value or [])
+                if not vars_pick:
+                    ui.label("Select override variables above.").classes("text-caption")
+                    return
+                with ui.row().classes("w-full gap-2"):
+                    for pn in phase_names:
+                        with ui.column().classes("flex-1"):
+                            ui.label(pn).classes("text-subtitle2")
+                            for k in vars_pick:
+                                base_v = point_inp.get(k)
+                                if isinstance(base_v, (int, float)):
+                                    def _set(ph: str, key: str, e) -> None:
+                                        override_state.setdefault(ph, {})[key] = float(e.value)
+
+                                    ui.number(
+                                        k,
+                                        value=float(base_v),
+                                        on_change=lambda e, ph=pn, key=k: _set(ph, key, e),
+                                    ).classes("w-full")
+
+        sel.on("update:model-value", lambda: _render_phase_cols())
+        _render_phase_cols()
+
+        def _sync_from_cockpit() -> None:
+            spec = []
+            for pn in phase_names:
+                base_phase = next((p for p in parsed if isinstance(p, dict) and p.get("name") == pn), {})
+                spec.append(
+                    {
+                        "name": pn,
+                        "input_overrides": dict(override_state.get(pn) or {}),
+                        "policy_overrides": dict(base_phase.get("policy_overrides") or {}),
+                        "notes": str(base_phase.get("notes") or "Quasi-static check (no dynamics)."),
+                    }
+                )
+            session.phase_envelopes_phases_json = json.dumps(spec, indent=2, sort_keys=True)
+            ui.notify("Phase JSON updated from cockpit.", type="positive")
+
+        ui.button("Update JSON from cockpit", icon="sync", on_click=_sync_from_cockpit).props("outline q-mt-sm")
 
 
 @ui.refreshable

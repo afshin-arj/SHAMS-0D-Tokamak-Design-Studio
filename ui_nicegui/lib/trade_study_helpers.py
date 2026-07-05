@@ -1,4 +1,4 @@
-"""Trade Study Studio helpers (Batch 6)."""
+"""Trade Study Studio helpers."""
 from __future__ import annotations
 
 import hashlib
@@ -21,16 +21,22 @@ except ImportError:
     from optimization.objectives import list_objectives  # type: ignore
 
 
+from ui_nicegui.lib.display_labels import (
+    DECK_FRONTIER_ATLAS,
+    DECK_REGIME_MAPS,
+    DECK_ROBUST_CERT,
+)
+
 STUDY_SETUP_DECK = "Study Setup & Run"
 
 ADVANCED_DECKS = [
-    "Multi-Objective Feasible Frontier Atlas (v351)",
-    "Robust Design Envelope Certification (v352)",
+    DECK_FRONTIER_ATLAS,
+    DECK_ROBUST_CERT,
     "Feasible-First Surrogate Accelerator",
     "Optimizer Kits (External)",
     "Fast Optimistic Design (Two-Lane)",
     "Design Family Atlas",
-    "Regime Maps & Narratives (v324)",
+    DECK_REGIME_MAPS,
     "Mirage Pathfinding",
 ]
 

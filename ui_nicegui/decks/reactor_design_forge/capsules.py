@@ -1,4 +1,4 @@
-"""Capsules panel — import/export/replay/diff (Phase 14)."""
+"""Capsules panel — import/export/replay/diff."""
 from __future__ import annotations
 
 from typing import Callable, Optional
@@ -21,7 +21,7 @@ def render_capsules(
 ) -> None:
     ui.label("Run Capsules").classes("text-subtitle1")
     ui.label(
-        "Import/export Optimization Run Capsules (v2). Metadata replay only — truth remains the frozen evaluator."
+        "Import and export optimization run capsules. Metadata replay only — truth remains the frozen evaluator."
     ).classes("text-caption text-grey q-mb-sm")
 
     with ui.expansion("Restore capsule", icon="upload").classes("w-full q-mb-sm"):
@@ -65,7 +65,9 @@ async def _handle_restore(session: DesignSession, e, on_complete: Optional[Calla
         run_rep = restore_workbench_from_capsule(capsule)
         session.forge_workbench_run = run_rep
         session.forge_lens_contract = capsule.get("lens") if isinstance(capsule.get("lens"), dict) else None
-        ui.notify("Capsule restored into workbench", type="positive")
+        session.forge_workflow_step = "3 · Workbench"
+        session.forge_deck = "Machine Finder"
+        ui.notify("Capsule restored — open **Workbench** tab if not already there.", type="positive")
         if on_complete:
             on_complete()
     except Exception as exc:
@@ -99,7 +101,7 @@ def _render_export(session: DesignSession) -> None:
         ui.label("Run Machine Finder or restore a capsule to enable export.").classes("text-caption text-grey")
         return
 
-    with ui.expansion("Export capsule zip (v2)", icon="download").classes("w-full"):
+    with ui.expansion("Export capsule zip", icon="download").classes("w-full"):
         ui.label("Builds run_capsule.json + archive snapshot + optional resistance report.").classes("text-caption")
 
         async def _build_zip() -> None:

@@ -129,7 +129,7 @@ def render_point_designer(_app_module) -> None:
                 st.session_state.pop(k, None)
             st.rerun()
 
-        with st.expander("Scenario Templates (Industrial, v354)", expanded=False):
+        with st.expander("Industrial scenario templates", expanded=False):
             st.caption("Deterministic intent templates that set *PointInputs defaults* (no optimization, no solvers).")
             try:
                 from tools.industrial_scenario_templates_v354 import template_names, get_template_payload, get_template
@@ -209,16 +209,16 @@ def render_point_designer(_app_module) -> None:
                     key=PD_KEYS["Tcoil_K"],
                 )
 
-                with st.expander("Magnet Technology Authority (v400) — explicit ledger caps", expanded=False):
+                with st.expander("Magnet technology authority — explicit ledger caps", expanded=False):
                     include_magnet_technology_authority_v400 = st.checkbox(
-                        "Enable v400 magnet margin ledger overlay",
+                        "Enable magnet margin ledger overlay",
                         value=bool(getattr(_base_pd, "include_magnet_technology_authority_v400", True)),
                         key=PD_KEYS["include_magnet_technology_authority_v400"],
                         help="Governance-only: computes explicit B/J/stress/SC/T-window (and Cu ohmic) margin ledger; does not mutate truth.",
                     )
                     st.caption("Optional explicit caps (set NaN to disable each). All are feasibility-first constraints when finite.")
                     magnet_margin_min_v400 = _num(
-                        "Combined magnet margin min (v400)",
+                        "Combined magnet margin min",
                         float(getattr(_base_pd, "magnet_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -226,7 +226,7 @@ def render_point_designer(_app_module) -> None:
                         key=PD_KEYS["magnet_margin_min_v400"],
                     )
                     b_margin_min_v400 = _num(
-                        "B margin min (v400): B_allow/B_peak - 1",
+                        "B margin min: B_allow/B_peak - 1",
                         float(getattr(_base_pd, "b_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -234,7 +234,7 @@ def render_point_designer(_app_module) -> None:
                         key=PD_KEYS["b_margin_min_v400"],
                     )
                     j_margin_min_v400 = _num(
-                        "J margin min (v400): J_allow/J_req - 1",
+                        "J margin min: J_allow/J_req - 1",
                         float(getattr(_base_pd, "j_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -242,7 +242,7 @@ def render_point_designer(_app_module) -> None:
                         key=PD_KEYS["j_margin_min_v400"],
                     )
                     stress_margin_min_v400 = _num(
-                        "Stress margin min (v400): sigma_allow/sigma - 1",
+                        "Stress margin min: sigma_allow/sigma - 1",
                         float(getattr(_base_pd, "stress_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -250,7 +250,7 @@ def render_point_designer(_app_module) -> None:
                         key=PD_KEYS["stress_margin_min_v400"],
                     )
                     sc_margin_min_v400 = _num(
-                        "SC operating margin min (v400): (sc_margin/sc_min)-1",
+                        "SC operating margin min: (sc_margin/sc_min)-1",
                         float(getattr(_base_pd, "sc_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -258,7 +258,7 @@ def render_point_designer(_app_module) -> None:
                         key=PD_KEYS["sc_margin_min_v400"],
                     )
                     t_margin_min_v400 = _num(
-                        "T-window margin min (v400)",
+                        "T-window margin min",
                         float(getattr(_base_pd, "t_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -266,7 +266,7 @@ def render_point_designer(_app_module) -> None:
                         key=PD_KEYS["t_margin_min_v400"],
                     )
                     p_tf_ohmic_margin_min_v400 = _num(
-                        "Cu ohmic power margin min (v400): P_max/P_ohmic - 1",
+                        "Cu ohmic power margin min: P_max/P_ohmic - 1",
                         float(getattr(_base_pd, "p_tf_ohmic_margin_min_v400", float("nan"))),
                         0.01,
                         min_value=-2.0,
@@ -303,7 +303,7 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v371.0: Transport contract library (governance-only)
                 # -----------------------------------------------------------------
-                with st.expander("Transport contract library (v371)", expanded=False):
+                with st.expander("Transport feasibility contracts", expanded=False):
                     include_transport_contracts_v371 = st.checkbox(
                         "Enable transport contract diagnostics",
                         value=bool(getattr(_base_pd, "include_transport_contracts_v371", False)),
@@ -344,9 +344,9 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v396.0: Transport Envelope 2.0 (governance-only)
                 # -----------------------------------------------------------------
-                with st.expander("Transport Envelope 2.0 (v396)", expanded=False):
+                with st.expander("Multi-scaling confinement envelope", expanded=False):
                     include_transport_envelope_v396 = st.checkbox(
-                        "Enable Transport Envelope 2.0 diagnostics",
+                        "Enable multi-scaling confinement envelope diagnostics",
                         value=bool(getattr(_base_pd, "include_transport_envelope_v396", True)),
                         key=PD_KEYS["include_transport_envelope_v396"],
                         help=(
@@ -375,7 +375,7 @@ def render_point_designer(_app_module) -> None:
                         value=bool(getattr(_base_pd, "include_tauE_user_scaling_v396", False)),
                         key=PD_KEYS["include_tauE_user_scaling_v396"],
                         disabled=not include_transport_envelope_v396,
-                        help="Adds USER(v396) τE scaling to the envelope. Provide C and exponents; otherwise it is ignored.",
+                        help="Adds custom USER τE scaling to the envelope. Provide C and exponents; otherwise it is ignored.",
                     )
 
                     cU1, cU2, cU3 = st.columns(3)
@@ -395,9 +395,9 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v397.0: 1.5D Profile Proxy Authority (governance-only)
                 # -----------------------------------------------------------------
-                with st.expander("Profile Proxy Authority (v397)", expanded=False):
+                with st.expander("Kinetic profile peaking proxy", expanded=False):
                     include_profile_proxy_v397 = st.checkbox(
-                        "Enable Profile Proxy Authority diagnostics",
+                        "Enable kinetic profile peaking proxy diagnostics",
                         value=bool(getattr(_base_pd, "include_profile_proxy_v397", False)),
                         key=PD_KEYS["include_profile_proxy_v397"],
                         help=(
@@ -473,7 +473,7 @@ def render_point_designer(_app_module) -> None:
                         step=0.05,
                         key=PD_KEYS["profile_shear_shape_v397"],
                         disabled=not include_profile_proxy_v397,
-                        help="Higher values modestly increase q0_proxy (stabilizing) in the v397 proxy mapping.",
+                        help="Higher values modestly increase q0_proxy (stabilizing) in the profile proxy mapping.",
                     )
 
                     st.divider()
@@ -523,7 +523,7 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v372.0: Neutronics–Materials coupling (governance-only)
                 # -----------------------------------------------------------------
-                with st.expander("Neutronics–Materials coupling (v372)", expanded=False):
+                with st.expander("Neutronics–materials coupling", expanded=False):
                     include_neutronics_materials_coupling_v372 = st.checkbox(
                         "Enable neutronics–materials coupling diagnostics",
                         value=bool(getattr(_base_pd, "include_neutronics_materials_coupling_v372", False)),
@@ -629,7 +629,7 @@ def render_point_designer(_app_module) -> None:
                 # -----------------------------------------------------------------
                 # v358.0: Profile Family Library Authority (transport proxy)
                 # -----------------------------------------------------------------
-                with st.expander("Profile family library (v358)", expanded=False):
+                with st.expander("Profile family library", expanded=False):
                     include_profile_family_v358 = st.checkbox(
                         "Enable profile family transport proxy",
                         value=bool(getattr(_base_pd, "include_profile_family_v358", False)),
@@ -723,7 +723,7 @@ def render_point_designer(_app_module) -> None:
                 )
 
                 include_bootstrap_pressure_selfconsistency = st.checkbox(
-                    "Enable Bootstrap–Pressure Self-Consistency Authority (v349)",
+                    "Enable bootstrap–pressure self-consistency",
                     value=bool(getattr(_base_pd, "include_bootstrap_pressure_selfconsistency", False)),
                     key=PD_KEYS["include_bootstrap_pressure_selfconsistency"],
                     help="Deterministic check: compares f_bs proxy from the profile bundle vs a pressure-derived expectation under the selected bootstrap proxy model. No iteration.",
@@ -765,7 +765,7 @@ def render_point_designer(_app_module) -> None:
                 zeff_mode = "fixed"
                 impurity_mix = ""
 
-                # v320 impurity + detachment authority contract defaults
+                # impurity + detachment authority contract defaults
                 impurity_contract_species = "Ne"
                 impurity_contract_f_z = 3e-4
                 impurity_partition_core = 0.50
@@ -777,7 +777,7 @@ def render_point_designer(_app_module) -> None:
                 T_sol_keV = 0.08
                 f_V_sol_div = 0.12
                 detachment_fz_max = float('nan')
-                # v399 multi-species impurity mix authority defaults
+                # multi-species impurity mix authority defaults
                 include_impurity_v399 = False
                 impurity_mix_json_v399 = ""
                 zeff_max_v399 = float('nan')
@@ -844,7 +844,7 @@ def render_point_designer(_app_module) -> None:
                         help="Optional multi-impurity number fractions, e.g. {\"C\":0.01, \"Ne\":0.002}. Used by the physics radiation model and (if selected) to estimate Z_eff.",
                     )
 
-                    with st.expander("Impurity radiation & detachment authority (v320)", expanded=False):
+                    with st.expander("Impurity radiation & detachment authority", expanded=False):
                         st.caption(
                             "Algebraic contracts: (i) impurity radiation partitions using a bounded Lz envelope, "
                             "and (ii) detachment budget inversion from q_div target → required SOL+div radiation → implied f_z. "
@@ -907,18 +907,18 @@ def render_point_designer(_app_module) -> None:
                         with c4:
                             f_V_sol_div = _num("Effective radiating volume fraction V_SOL+div / V", float(f_V_sol_div), 0.01, min_value=0.005, max_value=0.5)
 
-                        # --- (v399.0) Multi-species impurity & radiation authority ---
-                        with st.expander("v399 Multi-species impurity & radiation (Zeff + partitions)", expanded=False):
+                        # --- Multi-species impurity & radiation authority ---
+                        with st.expander("Multi-species impurity & radiation (Zeff + partitions)", expanded=False):
                             st.caption("Deterministic multi-species impurity mix → Zeff + Prad partitions (core/edge/SOL/div). "
                                        "This is a *proxy* authority: algebraic, bounded, audit-friendly.")
                             include_impurity_v399 = st.checkbox(
-                                "Enable v399 impurity mix authority",
+                                "Enable multi-species impurity mix authority",
                                 value=bool(st.session_state.get("include_impurity_v399_default", False)),
-                                help="When enabled, SHAMS computes v399 multi-species Zeff and radiation partitions (no feedback into truth).",
+                                help="When enabled, SHAMS computes multi-species Zeff and radiation partitions (no feedback into truth).",
                             )
                             default_json = '{"species_fz":{"Ne":3e-4,"Ar":0.0,"W":0.0},"f_core":0.50,"f_edge":0.20,"f_sol":0.20,"f_divertor":0.10}'
                             impurity_mix_json_v399 = st.text_area(
-                                "Impurity mix JSON (v399)",
+                                "Impurity mix JSON",
                                 value=str(impurity_mix_json_v399).strip() if str(impurity_mix_json_v399).strip() else default_json,
                                 height=90,
                                 help="Fractions are f_z = n_z / n_e. Partitions apply to total impurity radiation. Unknown species map conservatively to Ne.",
@@ -926,20 +926,20 @@ def render_point_designer(_app_module) -> None:
                             st.markdown("**Optional feasibility caps (soft constraints; NaN disables)**")
                             cA, cB, cC, cD = st.columns(4)
                             with cA:
-                                zeff_max_v399 = _num("Zeff max (v399)", float(zeff_max_v399) if zeff_max_v399==zeff_max_v399 else float('nan'),
+                                zeff_max_v399 = _num("Zeff max", float(zeff_max_v399) if zeff_max_v399==zeff_max_v399 else float('nan'),
                                                     0.1, min_value=1.0, max_value=10.0)
                             with cB:
-                                prad_core_frac_max_v399 = _num("Prad_core/Pin max (v399)", float(prad_core_frac_max_v399) if prad_core_frac_max_v399==prad_core_frac_max_v399 else float('nan'),
+                                prad_core_frac_max_v399 = _num("Prad_core/Pin max", float(prad_core_frac_max_v399) if prad_core_frac_max_v399==prad_core_frac_max_v399 else float('nan'),
                                                                0.01, min_value=0.0, max_value=1.0)
                             with cC:
-                                prad_total_frac_max_v399 = _num("Prad_total/Pin max (v399)", float(prad_total_frac_max_v399) if prad_total_frac_max_v399==prad_total_frac_max_v399 else float('nan'),
+                                prad_total_frac_max_v399 = _num("Prad_total/Pin max", float(prad_total_frac_max_v399) if prad_total_frac_max_v399==prad_total_frac_max_v399 else float('nan'),
                                                                 0.01, min_value=0.0, max_value=1.0)
                             with cD:
-                                detachment_margin_min_v399 = _num("Detachment margin min (v399)", float(detachment_margin_min_v399) if detachment_margin_min_v399==detachment_margin_min_v399 else float('nan'),
+                                detachment_margin_min_v399 = _num("Detachment margin min", float(detachment_margin_min_v399) if detachment_margin_min_v399==detachment_margin_min_v399 else float('nan'),
                                                                   0.05, min_value=-1.0, max_value=5.0,
                                                                   help="Margin = (Prad_SOL+div achieved)/(required) - 1 (>=0 means meets required budget).")
 
-                        st.markdown('**Edge–core coupled exhaust (v348)**')
+                        st.markdown('**Edge–core coupled exhaust**')
                         include_edge_core_coupled_exhaust = st.checkbox(
                             'Enable edge–core coupled exhaust re-evaluation',
                             value=bool(include_edge_core_coupled_exhaust),
@@ -1167,11 +1167,11 @@ def render_point_designer(_app_module) -> None:
 
                 defaults = _base_pd  # safe local defaults source for optional authority overlays
 
-                # --- (v359.0) Availability & replacement ledger authority (optional) ---
-                with st.expander("Availability & replacement ledger (v359.0)", expanded=False):
+                # --- Availability & replacement ledger authority (optional) ---
+                with st.expander("Component replacement ledger", expanded=False):
                     st.caption("Deterministic algebraic ledger: planned baseline + forced baseline (forced_outage_base) + replacement downtime + annualized replacement cost. Disabled by default.")
                     include_availability_replacement_v359 = st.checkbox(
-                        "Enable availability+replacement ledger authority (v359.0)",
+                        "Enable component replacement ledger",
                         value=bool(getattr(defaults, "include_availability_replacement_v359", False)),
                         help="Adds availability_v359, replacement cost rate, and an optional LCOE cap. Does not modify plasma truth or legacy economics outputs.",
                     )
@@ -1185,11 +1185,11 @@ def render_point_designer(_app_module) -> None:
                             step=0.01,
                         )
                         availability_v359_min = st.number_input(
-                            "Min availability (v359) (NaN disables)",
+                            "Min availability (NaN disables)",
                             value=float(getattr(defaults, "availability_v359_min", float('nan'))),
                         )
                         LCOE_max_USD_per_MWh = st.number_input(
-                            "Max LCOE proxy (v359) (USD/MWh) (NaN disables)",
+                            "Max LCOE proxy (USD/MWh) (NaN disables)",
                             value=float(getattr(defaults, "LCOE_max_USD_per_MWh", float('nan'))),
                         )
                     with cB:
@@ -1222,14 +1222,14 @@ def render_point_designer(_app_module) -> None:
                             step=1.0,
                         )
 
-                # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
-                with st.expander("Maintenance scheduling authority (v368.0)", expanded=False):
+                # --- Maintenance Scheduling Authority 1.0 (optional) ---
+                with st.expander("Maintenance scheduling model", expanded=False):
                     st.caption(
                         "Deterministic outage calendar proxy: planned+forced baselines plus a bundled replacement schedule derived from cadences and durations. "
                         "No time simulation; no optimization; does not modify plasma truth."
                     )
                     include_maintenance_scheduling_v368 = st.checkbox(
-                        "Enable maintenance scheduling authority (v368.0)",
+                        "Enable maintenance scheduling model",
                         value=bool(getattr(defaults, "include_maintenance_scheduling_v368", False)),
                         help="Adds availability_v368, outage_total_frac_v368, replacement_cost_MUSD_per_year_v368 and an explicit maintenance_events_v368 table.",
                     )
@@ -1262,11 +1262,11 @@ def render_point_designer(_app_module) -> None:
                         )
                     with cM2:
                         availability_v368_min = st.number_input(
-                            "Min availability (v368) (NaN disables)",
+                            "Min availability (NaN disables)",
                             value=float(getattr(defaults, "availability_v368_min", float('nan'))),
                         )
                         outage_fraction_v368_max = st.number_input(
-                            "Max total outage fraction (v368) (NaN disables)",
+                            "Max total outage fraction (NaN disables)",
                             value=float(getattr(defaults, "outage_fraction_v368_max", float('nan'))),
                         )
                         maintenance_planning_horizon_yr = st.number_input(
@@ -1277,14 +1277,14 @@ def render_point_designer(_app_module) -> None:
                             step=1.0,
                         )
 
-                # --- (v391.0.0) Availability 2.0 — Reliability Envelope Authority (optional) ---
-                with st.expander("Availability & reliability envelope (v391.0.0)", expanded=False):
+                # --- Availability 2.0 — Reliability Envelope Authority (optional) ---
+                with st.expander("Availability & reliability envelope", expanded=False):
                     st.caption(
                         "Deterministic availability envelope driven by explicit MTBF/MTTR proxies plus planned and maintenance downtime. "
                         "Governance-only; OFF by default. No RAMI simulation (no Monte Carlo / Markov chains)."
                     )
                     include_availability_reliability_v391 = st.checkbox(
-                        "Enable availability reliability envelope authority (v391.0.0)",
+                        "Enable availability & reliability envelope",
                         value=bool(getattr(defaults, "include_availability_reliability_v391", False)),
                         help="Adds availability_cert_v391 plus explicit downtime decomposition and a subsystem ledger.",
                     )
@@ -1319,27 +1319,27 @@ def render_point_designer(_app_module) -> None:
                     cR3, cR4 = st.columns(2)
                     with cR3:
                         availability_min_v391 = st.number_input(
-                            "Min availability (v391) (NaN disables)",
+                            "Min availability (NaN disables)",
                             value=float(getattr(defaults, "availability_min_v391", float('nan'))),
                         )
                         planned_outage_max_frac_v391 = st.number_input(
-                            "Max planned outage fraction (v391) (NaN disables)",
+                            "Max planned outage fraction (NaN disables)",
                             value=float(getattr(defaults, "planned_outage_max_frac_v391", float('nan'))),
                         )
                     with cR4:
                         unplanned_downtime_max_frac_v391 = st.number_input(
-                            "Max unplanned downtime fraction (v391) (NaN disables)",
+                            "Max unplanned downtime fraction (NaN disables)",
                             value=float(getattr(defaults, "unplanned_downtime_max_frac_v391", float('nan'))),
                         )
                         maint_downtime_max_frac_v391 = st.number_input(
-                            "Max maintenance downtime fraction (v391) (NaN disables)",
+                            "Max maintenance downtime fraction (NaN disables)",
                             value=float(getattr(defaults, "maint_downtime_max_frac_v391", float('nan'))),
                         )
-                # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
-                with st.expander("Plant Economics Authority (v360.0)", expanded=False):
+                # --- Plant Economics Authority 1.0 (optional) ---
+                with st.expander("Plant economics (capital & LCOE)", expanded=False):
                     st.caption("Deterministic CAPEX+OPEX decomposition and availability-coupled LCOE proxy. Diagnostic overlay; OFF by default.")
                     include_economics_v360 = st.checkbox(
-                        "Enable plant economics authority (v360.0)",
+                        "Enable plant economics (capital & LCOE)",
                         value=bool(getattr(defaults, "include_economics_v360", False)),
                         help="Adds OPEX component breakdown and LCOE_proxy_v360_USD_per_MWh. Does not modify plasma truth or legacy economics unless enabled.",
                     )
@@ -1365,18 +1365,18 @@ def render_point_designer(_app_module) -> None:
                             step=10.0,
                         )
                         OPEX_max_MUSD_per_y = st.number_input(
-                            "Max OPEX (v360) (MUSD/y) (NaN disables)",
+                            "Max OPEX (MUSD/y) (NaN disables)",
                             value=float(getattr(defaults, "OPEX_max_MUSD_per_y", float('nan'))),
                         )
 
-                # --- (v383.0) Plant Economics & Cost Authority 2.0 (optional) ---
-                with st.expander("Plant Economics & Cost Authority (v383.0)", expanded=False):
+                # --- Plant Economics & Cost Authority 2.0 (optional) ---
+                with st.expander("Plant economics depth model", expanded=False):
                     st.caption(
                         "Deterministic structured CAPEX+OPEX with availability-tiered capacity factor and LCOE-lite proxy. "
                         "Governance overlay only; OFF by default."
                     )
                     include_economics_v383 = st.checkbox(
-                        "Enable plant economics & cost authority (v383.0)",
+                        "Enable plant economics depth model",
                         value=bool(getattr(defaults, "include_economics_v383", False)),
                         help="Adds CAPEX_structured_v383_MUSD, OPEX_structured_v383_MUSD_per_y, LCOE_lite_v383_USD_per_MWh, and tiered availability proxy.",
                         key="pd_include_economics_v383",
@@ -1384,47 +1384,47 @@ def render_point_designer(_app_module) -> None:
                     cE3, cE4 = st.columns(2)
                     with cE3:
                         CAPEX_structured_max_MUSD = st.number_input(
-                            "Max structured CAPEX (v383) (MUSD) (NaN disables)",
+                            "Max structured CAPEX (MUSD) (NaN disables)",
                             value=float(getattr(defaults, "CAPEX_structured_max_MUSD", float('nan'))),
                             key="pd_CAPEX_structured_max_MUSD_v383",
                         )
                         OPEX_structured_max_MUSD_per_y = st.number_input(
-                            "Max structured OPEX (v383) (MUSD/y) (NaN disables)",
+                            "Max structured OPEX (MUSD/y) (NaN disables)",
                             value=float(getattr(defaults, "OPEX_structured_max_MUSD_per_y", float('nan'))),
                             key="pd_OPEX_structured_max_MUSD_per_y_v383",
                         )
                     with cE4:
                         LCOE_lite_max_USD_per_MWh = st.number_input(
-                            "Max LCOE-lite (v383) (USD/MWh) (NaN disables)",
+                            "Max LCOE-lite (USD/MWh) (NaN disables)",
                             value=float(getattr(defaults, "LCOE_lite_max_USD_per_MWh", float('nan'))),
                             key="pd_LCOE_lite_max_USD_per_MWh_v383",
                         )
 
 
 
-                # --- (v388.0.0) Cost Authority 3.0 — Industrial Depth (optional) ---
-                with st.expander("Cost Authority — Industrial Depth (v388.0.0)", expanded=False):
+                # --- Cost Authority 3.0 — Industrial Depth (optional) ---
+                with st.expander("Cost authority & escalation", expanded=False):
                     st.caption("Deterministic, engineering-driven subsystem cost scaling envelopes (industrial depth). Governance-only; OFF by default. Requires the Economics overlay toggle above so cost outputs are computed.")
                     include_cost_authority_v388 = st.checkbox(
-                        "Enable cost authority 3.0 (v388.0.0)",
+                        "Enable cost authority & escalation",
                         value=bool(getattr(defaults, "include_cost_authority_v388", False)),
                         key="pd_include_cost_authority_v388",
                     )
                     cC1, cC2 = st.columns(2)
                     with cC1:
                         CAPEX_industrial_max_MUSD = st.number_input(
-                            "Max industrial CAPEX (v388) (MUSD) (NaN disables)",
+                            "Max industrial CAPEX (MUSD) (NaN disables)",
                             value=float(getattr(defaults, "CAPEX_industrial_max_MUSD", float('nan'))),
                             key="pd_CAPEX_industrial_max_MUSD_v388",
                         )
                         OPEX_industrial_max_MUSD_per_y = st.number_input(
-                            "Max industrial OPEX (v388) (MUSD/y) (NaN disables)",
+                            "Max industrial OPEX (MUSD/y) (NaN disables)",
                             value=float(getattr(defaults, "OPEX_industrial_max_MUSD_per_y", float('nan'))),
                             key="pd_OPEX_industrial_max_MUSD_per_y_v388",
                         )
                     with cC2:
                         LCOE_lite_v388_max_USD_per_MWh = st.number_input(
-                            "Max LCOE-lite (v388) (USD/MWh) (NaN disables)",
+                            "Max LCOE-lite (USD/MWh) (NaN disables)",
                             value=float(getattr(defaults, "LCOE_lite_v388_max_USD_per_MWh", float('nan'))),
                             key="pd_LCOE_lite_v388_max_USD_per_MWh_v388",
                         )
@@ -1432,134 +1432,134 @@ def render_point_designer(_app_module) -> None:
 
 
 
-                # --- (v389.0.0) Structural Stress Authority — v389.0.0 (optional) ---
-                with st.expander("Structural Stress Authority — v389.0.0", expanded=False):
+                # --- Structural stress limits (optional) ---
+                with st.expander("Structural stress limits", expanded=False):
                     st.caption("Deterministic thin-shell structural stress proxies (TF / CS / vacuum vessel). Governance-only; OFF by default. When enabled, explicit margin-minima constraints are applied in feasibility-first mode.")
                     include_structural_stress_v389 = st.checkbox(
-                        "Enable structural stress authority (v389.0.0)",
+                        "Enable structural stress limits",
                         value=bool(getattr(defaults, "include_structural_stress_v389", False)),
                         key="pd_include_structural_stress_v389",
                     )
                     sS1, sS2 = st.columns(2)
                     with sS1:
                         tf_struct_margin_min_v389 = st.number_input(
-                            "TF structural margin min (v389) (-)",
+                            "TF structural margin min (-)",
                             value=float(getattr(defaults, "tf_struct_margin_min_v389", 1.0)),
                             key="pd_tf_struct_margin_min_v389",
                         )
                         t_cs_struct_m_v389 = st.number_input(
-                            "CS structural thickness proxy t_cs (v389) (m)",
+                            "CS structural thickness proxy t_cs (m)",
                             value=float(getattr(defaults, "t_cs_struct_m_v389", 0.20)),
                             key="pd_t_cs_struct_m_v389",
                         )
                         sigma_cs_allow_MPa_v389 = st.number_input(
-                            "CS allowable stress proxy (v389) (MPa)",
+                            "CS allowable stress proxy (MPa)",
                             value=float(getattr(defaults, "sigma_cs_allow_MPa_v389", 300.0)),
                             key="pd_sigma_cs_allow_MPa_v389",
                         )
                         cs_struct_margin_min_v389 = st.number_input(
-                            "CS/PF structural margin min (v389) (-)",
+                            "CS/PF structural margin min (-)",
                             value=float(getattr(defaults, "cs_struct_margin_min_v389", 1.0)),
                             key="pd_cs_struct_margin_min_v389",
                         )
                     with sS2:
                         vv_ext_pressure_MPa_v389 = st.number_input(
-                            "Vacuum vessel external pressure (v389) (MPa)",
+                            "Vacuum vessel external pressure (MPa)",
                             value=float(getattr(defaults, "vv_ext_pressure_MPa_v389", 0.101)),
                             key="pd_vv_ext_pressure_MPa_v389",
                         )
                         sigma_vv_allow_MPa_v389 = st.number_input(
-                            "Vacuum vessel allowable stress proxy (v389) (MPa)",
+                            "Vacuum vessel allowable stress proxy (MPa)",
                             value=float(getattr(defaults, "sigma_vv_allow_MPa_v389", 200.0)),
                             key="pd_sigma_vv_allow_MPa_v389",
                         )
                         vv_struct_margin_min_v389 = st.number_input(
-                            "Vacuum vessel structural margin min (v389) (-)",
+                            "Vacuum vessel structural margin min (-)",
                             value=float(getattr(defaults, "vv_struct_margin_min_v389", 1.0)),
                             key="pd_vv_struct_margin_min_v389",
                         )
 
 
-                # --- (v393.0.0) Damage→Strength Coupling Authority (optional) ---
-                with st.expander("Irradiation damage → strength coupling — v393.0.0", expanded=False):
+                # --- Damage→Strength Coupling Authority (optional) ---
+                with st.expander("Irradiation damage → strength coupling", expanded=False):
                     st.caption(
-                        "Deterministic degradation envelope that couples v390 DPA-rate proxy to v389 structural allowables, "
+                        "Deterministic degradation envelope that couples activation DPA-rate proxy to structural allowables, "
                         "yielding *derived* degraded margins (truth remains immutable). OFF by default. "
                         "Optional degraded-margin minima are explicit; NaN disables."
                     )
                     include_damage_strength_coupling_v393 = st.checkbox(
-                        "Enable damage → strength coupling (v393.0.0)",
+                        "Enable irradiation damage → strength coupling",
                         value=bool(getattr(defaults, "include_damage_strength_coupling_v393", False)),
                         key="pd_include_damage_strength_coupling_v393",
                     )
                     dS1, dS2 = st.columns(2)
                     with dS1:
                         design_life_fpy_v393 = st.number_input(
-                            "Design life for damage accumulation (v393) (FPY)",
+                            "Design life for damage accumulation (FPY)",
                             min_value=0.0,
                             value=float(getattr(defaults, "design_life_fpy_v393", 10.0)),
                             key="pd_design_life_fpy_v393",
                         )
                         k_allow_deg_per_dpa_v393 = st.number_input(
-                            "Degradation slope k (v393) (1/DPA)",
+                            "Degradation slope k (1/DPA)",
                             min_value=0.0,
                             value=float(getattr(defaults, "k_allow_deg_per_dpa_v393", 0.003)),
                             key="pd_k_allow_deg_per_dpa_v393",
                         )
                         min_allow_frac_v393 = st.number_input(
-                            "Minimum allowable fraction floor (v393) (-)",
+                            "Minimum allowable fraction floor (-)",
                             min_value=0.0,
                             max_value=1.0,
                             value=float(getattr(defaults, "min_allow_frac_v393", 0.50)),
                             key="pd_min_allow_frac_v393",
                         )
                         tf_struct_margin_degraded_min_v393 = st.number_input(
-                            "TF degraded margin min (v393) (-) (NaN disables)",
+                            "TF degraded margin min (-) (NaN disables)",
                             value=float(getattr(defaults, "tf_struct_margin_degraded_min_v393", float('nan'))),
                             key="pd_tf_struct_margin_degraded_min_v393",
                         )
                         cs_struct_margin_degraded_min_v393 = st.number_input(
-                            "CS degraded margin min (v393) (-) (NaN disables)",
+                            "CS degraded margin min (-) (NaN disables)",
                             value=float(getattr(defaults, "cs_struct_margin_degraded_min_v393", float('nan'))),
                             key="pd_cs_struct_margin_degraded_min_v393",
                         )
                         vv_struct_margin_degraded_min_v393 = st.number_input(
-                            "VV degraded margin min (v393) (-) (NaN disables)",
+                            "VV degraded margin min (-) (NaN disables)",
                             value=float(getattr(defaults, "vv_struct_margin_degraded_min_v393", float('nan'))),
                             key="pd_vv_struct_margin_degraded_min_v393",
                         )
                     with dS2:
                         dpa_factor_tf_v393 = st.number_input(
-                            "DPA shielding factor TF (v393) (-)",
+                            "DPA shielding factor TF (-)",
                             min_value=0.0,
                             value=float(getattr(defaults, "dpa_factor_tf_v393", 0.05)),
                             key="pd_dpa_factor_tf_v393",
-                            help="Proxy: DPA_TF = DPA_rate(v390) × life × factor.",
+                            help="Proxy: DPA_TF = DPA_rate proxy × life × factor.",
                         )
                         dpa_factor_cs_v393 = st.number_input(
-                            "DPA shielding factor CS/PF (v393) (-)",
+                            "DPA shielding factor CS/PF (-)",
                             min_value=0.0,
                             value=float(getattr(defaults, "dpa_factor_cs_v393", 0.05)),
                             key="pd_dpa_factor_cs_v393",
                         )
                         dpa_factor_vv_v393 = st.number_input(
-                            "DPA shielding factor vacuum vessel (v393) (-)",
+                            "DPA shielding factor vacuum vessel (-)",
                             min_value=0.0,
                             value=float(getattr(defaults, "dpa_factor_vv_v393", 0.20)),
                             key="pd_dpa_factor_vv_v393",
                         )
 
 
-                # --- (v390.0.0) Neutronics & Activation Authority 3.0 (optional) ---
-                with st.expander("Neutronics & Activation Authority — v390.0.0", expanded=False):
+                # --- Neutronics & Activation Authority 3.0 (optional) ---
+                with st.expander("Activation & waste routing", expanded=False):
                     st.caption("Deterministic shielding envelope + activation index + FW damage proxies. Governance-only; OFF by default. Optional minima/caps are explicit; NaN disables.")
                     include_neutronics_activation_v390 = st.checkbox(
-                        "Enable neutronics & activation authority (v390.0.0)",
+                        "Enable activation & waste routing",
                         value=bool(getattr(defaults, "include_neutronics_activation_v390", False)),
                         key="pd_include_neutronics_activation_v390",
                     )
                     blanket_class_v390 = st.selectbox(
-                        "Blanket class (v390)",
+                        "Blanket class",
                         options=["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"],
                         index=["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"].index(str(getattr(defaults, "blanket_class_v390", "STANDARD") or "STANDARD").upper()) if str(getattr(defaults, "blanket_class_v390", "STANDARD") or "STANDARD").upper() in ["STANDARD", "DEMO", "PILOT", "COMPACT", "HEAVY_SHIELD"] else 0,
                         key="pd_blanket_class_v390",
@@ -1568,149 +1568,149 @@ def render_point_designer(_app_module) -> None:
                     nA1, nA2 = st.columns(2)
                     with nA1:
                         shield_req_Pfus_exp_v390 = st.number_input(
-                            "Shield requirement exponent a for Pfus (v390) (-)",
+                            "Shield requirement exponent a for Pfus (-)",
                             value=float(getattr(defaults, "shield_req_Pfus_exp_v390", 0.25)),
                             key="pd_shield_req_Pfus_exp_v390",
                         )
                         shield_req_qwall_exp_v390 = st.number_input(
-                            "Shield requirement exponent b for q_wall (v390) (-)",
+                            "Shield requirement exponent b for q_wall (-)",
                             value=float(getattr(defaults, "shield_req_qwall_exp_v390", 0.50)),
                             key="pd_shield_req_qwall_exp_v390",
                         )
                         fw_dpa_per_fpy_per_MWm2_v390 = st.number_input(
-                            "FW DPA rate coefficient k (DPA/FPY per MW/m²) (v390)",
+                            "FW DPA rate coefficient k (DPA/FPY per MW/m²)",
                             min_value=0.0,
                             value=float(getattr(defaults, "fw_dpa_per_fpy_per_MWm2_v390", 15.0)),
                             key="pd_fw_dpa_per_fpy_per_MWm2_v390",
                         )
                         fw_dpa_limit_v390 = st.number_input(
-                            "FW DPA total limit (v390) (DPA)",
+                            "FW DPA total limit (DPA)",
                             min_value=0.0,
                             value=float(getattr(defaults, "fw_dpa_limit_v390", 20.0)),
                             key="pd_fw_dpa_limit_v390",
                         )
                     with nA2:
                         shield_margin_min_cm_v390 = st.number_input(
-                            "Min shield margin (t_eff - t_req) (v390) (cm) (NaN disables)",
+                            "Min shield margin (t_eff - t_req) (cm) (NaN disables)",
                             value=float(getattr(defaults, "shield_margin_min_cm_v390", float('nan'))),
                             key="pd_shield_margin_min_cm_v390",
                         )
                         fw_life_min_fpy_v390 = st.number_input(
-                            "Min FW lifetime (v390) (FPY) (NaN disables)",
+                            "Min FW lifetime (FPY) (NaN disables)",
                             value=float(getattr(defaults, "fw_life_min_fpy_v390", float('nan'))),
                             key="pd_fw_life_min_fpy_v390",
                         )
                         dpa_per_fpy_max_v390 = st.number_input(
-                            "Max FW DPA rate (v390) (DPA/FPY) (NaN disables)",
+                            "Max FW DPA rate (DPA/FPY) (NaN disables)",
                             value=float(getattr(defaults, "dpa_per_fpy_max_v390", float('nan'))),
                             key="pd_dpa_per_fpy_max_v390",
                         )
                         activation_index_max_v390 = st.number_input(
-                            "Max activation index (v390) (-) (NaN disables)",
+                            "Max activation index (-) (NaN disables)",
                             value=float(getattr(defaults, "activation_index_max_v390", float('nan'))),
                             key="pd_activation_index_max_v390",
                         )
 
 
 
-                # --- (v392.0.0) Neutronics Shield Attenuation Authority (optional) ---
-                with st.expander("Neutronics Shield Attenuation Authority — v392.0.0", expanded=False):
+                # --- Neutronics Shield Attenuation Authority (optional) ---
+                with st.expander("Shield attenuation model", expanded=False):
                     st.caption(
                         "Deterministic attenuation-length envelope for ex-vessel fluence (TF case / cryostat) and outside-bioshield dose proxy. "
                         "Governance-only; OFF by default. Optional caps are explicit; NaN disables."
                     )
                     include_neutronics_shield_attenuation_v392 = st.checkbox(
-                        "Enable neutronics shield attenuation authority (v392.0.0)",
+                        "Enable shield attenuation model",
                         value=bool(getattr(defaults, "include_neutronics_shield_attenuation_v392", False)),
                         key="pd_include_neutronics_shield_attenuation_v392",
                     )
                     nS1, nS2 = st.columns(2)
                     with nS1:
                         gap_to_tf_case_m_v392 = st.number_input(
-                            "Gap to TF case (v392) (m)",
+                            "Gap to TF case (m)",
                             min_value=0.0,
                             value=float(getattr(defaults, "gap_to_tf_case_m_v392", 0.20)),
                             key="pd_gap_to_tf_case_m_v392",
                         )
                         gap_to_cryostat_m_v392 = st.number_input(
-                            "Gap to cryostat (v392) (m)",
+                            "Gap to cryostat (m)",
                             min_value=0.0,
                             value=float(getattr(defaults, "gap_to_cryostat_m_v392", 0.80)),
                             key="pd_gap_to_cryostat_m_v392",
                         )
                         gap_to_bioshield_m_v392 = st.number_input(
-                            "Gap to bioshield (v392) (m)",
+                            "Gap to bioshield (m)",
                             min_value=0.0,
                             value=float(getattr(defaults, "gap_to_bioshield_m_v392", 1.20)),
                             key="pd_gap_to_bioshield_m_v392",
                         )
                         t_bioshield_m_v392 = st.number_input(
-                            "Bioshield thickness (v392) (m)",
+                            "Bioshield thickness (m)",
                             min_value=0.0,
                             value=float(getattr(defaults, "t_bioshield_m_v392", 1.20)),
                             key="pd_t_bioshield_m_v392",
                         )
                         use_inv_square_geom_v392 = st.checkbox(
-                            "Use inverse-square geometric dilution (v392)",
+                            "Use inverse-square geometric dilution",
                             value=bool(getattr(defaults, "use_inv_square_geom_v392", True)),
                             key="pd_use_inv_square_geom_v392",
                             help="Screening-only 1/r^2 dilution using R0 as reference; disable for conservative (no dilution) envelope.",
                         )
                     with nS2:
                         atten_len_stack_m_v392 = st.number_input(
-                            "Attenuation length (stack) override (v392) (m) (NaN -> use atten_len_m)",
+                            "Attenuation length (stack) override (m) (NaN -> use atten_len_m)",
                             value=float(getattr(defaults, "atten_len_stack_m_v392", float('nan'))),
                             key="pd_atten_len_stack_m_v392",
                         )
                         atten_len_bioshield_m_v392 = st.number_input(
-                            "Attenuation length (bioshield) (v392) (m)",
+                            "Attenuation length (bioshield) (m)",
                             min_value=1e-6,
                             value=float(getattr(defaults, "atten_len_bioshield_m_v392", 0.35)),
                             key="pd_atten_len_bioshield_m_v392",
                         )
                         dose_uSv_h_per_flux_n_m2_s_v392 = st.number_input(
-                            "Dose conversion proxy (v392) (uSv/h per n/m²/s)",
+                            "Dose conversion proxy (uSv/h per n/m²/s)",
                             min_value=0.0,
                             value=float(getattr(defaults, "dose_uSv_h_per_flux_n_m2_s_v392", 1.0e-20)),
                             format="%.3e",
                             key="pd_dose_uSv_h_per_flux_n_m2_s_v392",
                         )
                         tf_case_fluence_max_n_m2_per_fpy_v392 = st.number_input(
-                            "Max TF-case fluence (v392) (n/m²/FPY) (NaN disables)",
+                            "Max TF-case fluence (n/m²/FPY) (NaN disables)",
                             value=float(getattr(defaults, "tf_case_fluence_max_n_m2_per_fpy_v392", float('nan'))),
                             format="%.3e",
                             key="pd_tf_case_fluence_max_n_m2_per_fpy_v392",
                         )
                         cryostat_fluence_max_n_m2_per_fpy_v392 = st.number_input(
-                            "Max cryostat fluence (v392) (n/m²/FPY) (NaN disables)",
+                            "Max cryostat fluence (n/m²/FPY) (NaN disables)",
                             value=float(getattr(defaults, "cryostat_fluence_max_n_m2_per_fpy_v392", float('nan'))),
                             format="%.3e",
                             key="pd_cryostat_fluence_max_n_m2_per_fpy_v392",
                         )
                         bioshield_dose_rate_max_uSv_h_v392 = st.number_input(
-                            "Max bioshield dose rate (v392) (uSv/h) (NaN disables)",
+                            "Max bioshield dose rate (uSv/h) (NaN disables)",
                             value=float(getattr(defaults, "bioshield_dose_rate_max_uSv_h_v392", float('nan'))),
                             key="pd_bioshield_dose_rate_max_uSv_h_v392",
                         )
 
 
 
-                # --- (v403.0.0) Neutronics & Materials Authority 4.0 — Library Stack (optional) ---
-                with st.expander("Neutronics & Materials Library Stack — v403.0.0", expanded=False):
+                # --- Neutronics & Materials Authority 4.0 — Library Stack (optional) ---
+                with st.expander("Nuclear materials library", expanded=False):
                     st.caption(
                         "Deterministic governance overlay: explicit multi-layer shielding/blanket stack (material+thickness) with "
                         "3-group attenuation ledger and derived DPA/He/activation + TBR-lite proxy. OFF by default. "
                         "No Monte Carlo; no solvers; truth unchanged."
                     )
                     include_neutronics_materials_library_v403 = st.checkbox(
-                        "Enable NM library stack authority (v403.0.0)",
+                        "Enable NM library stack authority",
                         value=bool(getattr(defaults, "include_neutronics_materials_library_v403", False)),
                         key="pd_include_neutronics_materials_library_v403",
                     )
                     cS1, cS2 = st.columns([1.0, 1.0])
                     with cS1:
                         nm_group_frac_fast_v403 = st.number_input(
-                            "Incident fast-group fraction (v403)",
+                            "Incident fast-group fraction",
                             min_value=0.0,
                             max_value=1.0,
                             value=float(getattr(defaults, "nm_group_frac_fast_v403", 0.90)),
@@ -1718,7 +1718,7 @@ def render_point_designer(_app_module) -> None:
                             key="pd_nm_group_frac_fast_v403",
                         )
                         nm_group_frac_epi_v403 = st.number_input(
-                            "Incident epi-group fraction (v403)",
+                            "Incident epi-group fraction",
                             min_value=0.0,
                             max_value=1.0,
                             value=float(getattr(defaults, "nm_group_frac_epi_v403", 0.08)),
@@ -1726,7 +1726,7 @@ def render_point_designer(_app_module) -> None:
                             key="pd_nm_group_frac_epi_v403",
                         )
                         nm_group_frac_therm_v403 = st.number_input(
-                            "Incident thermal-group fraction (v403)",
+                            "Incident thermal-group fraction",
                             min_value=0.0,
                             max_value=1.0,
                             value=float(getattr(defaults, "nm_group_frac_therm_v403", 0.02)),
@@ -1735,33 +1735,33 @@ def render_point_designer(_app_module) -> None:
                         )
                     with cS2:
                         dpa_fw_max_v403 = st.number_input(
-                            "FW DPA max (v403) (DPA/FPY) (NaN disables)",
+                            "FW DPA max (DPA/FPY) (NaN disables)",
                             value=float(getattr(defaults, "dpa_fw_max_v403", float('nan'))),
                             key="pd_dpa_fw_max_v403",
                         )
                         he_appm_fw_max_v403 = st.number_input(
-                            "FW He max (v403) (appm/FPY) (NaN disables)",
+                            "FW He max (appm/FPY) (NaN disables)",
                             value=float(getattr(defaults, "he_appm_fw_max_v403", float('nan'))),
                             key="pd_he_appm_fw_max_v403",
                         )
                         cooldown_burden_max_days_v403 = st.number_input(
-                            "Cooldown burden max (v403) (days) (NaN disables)",
+                            "Cooldown burden max (days) (NaN disables)",
                             value=float(getattr(defaults, "cooldown_burden_max_days_v403", float('nan'))),
                             key="pd_cooldown_burden_max_days_v403",
                         )
                         tbr_proxy_min_v403 = st.number_input(
-                            "TBR proxy min (v403) (-) (NaN disables)",
+                            "TBR proxy min (-) (NaN disables)",
                             value=float(getattr(defaults, "tbr_proxy_min_v403", float('nan'))),
                             key="pd_tbr_proxy_min_v403",
                         )
                         fast_attenuation_min_v403 = st.number_input(
-                            "Fast attenuation min (v403) (-) (NaN disables)",
+                            "Fast attenuation min (-) (NaN disables)",
                             value=float(getattr(defaults, "fast_attenuation_min_v403", float('nan'))),
                             key="pd_fast_attenuation_min_v403",
                         )
 
                     st.markdown("**Stack JSON (layers from plasma-side outward)**")
-                    st.caption("Materials available in v403 library: SS316, W, H2O, B4C, LiPb, FLiBe.")
+                    st.caption("Materials available in nuclear materials library: SS316, W, H2O, B4C, LiPb, FLiBe.")
                     nm_stack_json_v403 = st.text_area(
                         "nm_stack_json_v403",
                         value=str(getattr(defaults, "nm_stack_json_v403", "")),
@@ -1774,14 +1774,14 @@ def render_point_designer(_app_module) -> None:
                 
 
 
-                # --- (v407.0.0) Nuclear Data Authority Deepening (optional) ---
-                with st.expander("Nuclear Data Authority Deepening — v407.0.0", expanded=False):
+                # --- Nuclear Data Authority Deepening (optional) ---
+                with st.expander("Nuclear data authority", expanded=False):
                     st.caption(
                         "Governance-only overlay: multi-group attenuation through the NM stack using an explicitly versioned "
                         "dataset registry with SHA-256 provenance. Screening proxy only (no MC transport, no spectral iteration)."
                     )
                     include_nuclear_data_authority_v407 = st.checkbox(
-                        "Enable nuclear data authority (v407.0.0)",
+                        "Enable nuclear data authority",
                         value=bool(getattr(defaults, "include_nuclear_data_authority_v407", False)),
                         key="pd_include_nuclear_data_authority_v407",
                     )
@@ -1799,24 +1799,24 @@ def render_point_designer(_app_module) -> None:
                         _group_ids_v407 = ["G6_V407"]
 
                     nuclear_dataset_id_v407 = st.selectbox(
-                        "Dataset id (v407)",
+                        "Dataset id",
                         options=_dataset_ids_v407,
                         index=_dataset_ids_v407.index("SCREENING_PROXY_V407") if "SCREENING_PROXY_V407"in _dataset_ids_v407 else 0,
                         key="pd_nuclear_dataset_id_v407",
                         help=(
                             "Built-in default is a screening-proxy table (not ENDF/TENDL-derived). "
-                            "v408 allows importing external datasets into data/nuclear_datasets with explicit provenance + SHA-256 pinning."
+                            "Dataset intake allows importing external datasets into data/nuclear_datasets with explicit provenance + SHA-256 pinning."
                         ),
                     )
                     nuclear_group_structure_id_v407 = st.selectbox(
-                        "Group structure (v407)",
+                        "Group structure",
                         options=_group_ids_v407,
                         index=_group_ids_v407.index("G6_V407") if "G6_V407"in _group_ids_v407 else 0,
                         key="pd_nuclear_group_structure_id_v407",
                     )
 
-                # --- (v408.0.0) Nuclear Dataset Intake & Provenance Builder (external, firewalled) ---
-                with st.expander("Nuclear Dataset Intake & Provenance Builder — v408.0.0", expanded=False):
+                # --- Nuclear Dataset Intake & Provenance Builder (external, firewalled) ---
+                with st.expander("Nuclear dataset intake & provenance builder", expanded=False):
                     st.caption(
                         "Imports external multi-group screening datasets into data/nuclear_datasets with strict schema validation and "
                         "SHA-256 pinning. This is a tooling layer only; it does not modify plasma truth physics." 
@@ -1859,7 +1859,7 @@ def render_point_designer(_app_module) -> None:
                         key="v408_tbrw_text",
                     )
 
-                    build_btn = st.button("Build + validate dataset (v408)", key="v408_build_btn")
+                    build_btn = st.button("Build + validate dataset", key="v408_build_btn")
                     save_btn = st.button("Save dataset to registry (data/nuclear_datasets)", key="v408_save_btn")
 
                     if "v408_built_dataset"not in st.session_state:
@@ -1918,26 +1918,26 @@ def render_point_designer(_app_module) -> None:
                             st.info("Restart the app (or re-open this panel) to refresh the dataset list in selectors.")
                         except Exception as e:
                             st.error(f"Save failed: {e}")
-# --- (v401.0.0) Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
-                with st.expander("Neutronics & Materials Contract Tiers — v401.0.0", expanded=False):
+# --- Neutronics & Materials Authority 3.0 — Contract Tiers (optional) ---
+                with st.expander("Neutronics contract tiers", expanded=False):
                     st.caption(
                         "Governance-only overlay that applies explicit OPTIMISTIC/NOMINAL/ROBUST contracts to already-computed "
                         "neutronics/materials + activation + shield-attenuation proxies. Reports margins and dominant limiter; OFF by default."
                     )
                     include_neutronics_materials_authority_v401 = st.checkbox(
-                        "Enable neutronics/materials contract tiers (v401.0.0)",
+                        "Enable neutronics/materials contract tiers",
                         value=bool(getattr(defaults, "include_neutronics_materials_authority_v401", False)),
                         key="pd_include_neutronics_materials_authority_v401",
                     )
                     nm_contract_tier_v401 = st.selectbox(
-                        "Contract tier (v401)",
+                        "Contract tier",
                         options=["OPTIMISTIC", "NOMINAL", "ROBUST"],
                         index=["OPTIMISTIC", "NOMINAL", "ROBUST"].index(str(getattr(defaults, "nm_contract_tier_v401", "NOMINAL") or "NOMINAL").upper())
                         if str(getattr(defaults, "nm_contract_tier_v401", "NOMINAL") or "NOMINAL").upper() in ["OPTIMISTIC", "NOMINAL", "ROBUST"] else 1,
                         key="pd_nm_contract_tier_v401",
                     )
                     nm_fragile_margin_frac_v401 = st.number_input(
-                        "Fragile threshold on min margin (v401) (-)",
+                        "Fragile threshold on min margin (-)",
                         min_value=0.0,
                         max_value=0.50,
                         value=float(getattr(defaults, "nm_fragile_margin_frac_v401", 0.10)),
@@ -1989,40 +1989,40 @@ def render_point_designer(_app_module) -> None:
 
                 
 
-                # --- (v404.0.0) Structural Life Authority 3.0 (optional) ---
-                with st.expander("Structural Life Authority — v404.0.0", expanded=False):
+                # --- Structural Life Authority 3.0 (optional) ---
+                with st.expander("Structural life authority", expanded=False):
                     st.caption(
                         "Deterministic structural life envelopes: irradiation+temperature degraded allowables, "
                         "fatigue (Miner proxy), creep-rupture proxy, and optional buckling margins. "
                         "Governance-only overlay (no truth mutation)."
                     )
                     include_structural_life_v404 = st.checkbox(
-                        "Enable structural life authority (v404)",
+                        "Enable structural life authority",
                         value=bool(getattr(defaults, "include_structural_life_v404", False)),
                         key="pd_include_structural_life_v404",
                     )
                     struct_min_margin_frac_v404 = st.number_input(
-                        "Minimum structural life margin (v404) (NaN disables)",
+                        "Minimum structural life margin (NaN disables)",
                         value=float(getattr(defaults, "struct_min_margin_frac_v404", float('nan'))),
                         key="pd_struct_min_margin_frac_v404",
                     )
                     colA, colB, colC = st.columns(3)
                     with colA:
                         pulse_count_v404 = st.number_input(
-                            "Pulse count (v404) (NaN -> default)",
+                            "Pulse count (NaN -> default)",
                             value=float(getattr(defaults, "pulse_count_v404", float('nan'))),
                             key="pd_pulse_count_v404",
                         )
                     with colB:
                         hot_fraction_v404 = st.number_input(
-                            "Hot fraction (v404)",
+                            "Hot fraction",
                             value=float(getattr(defaults, "hot_fraction_v404", 0.2)),
                             min_value=0.0, max_value=1.0,
                             key="pd_hot_fraction_v404",
                         )
                     with colC:
                         service_years_v404 = st.number_input(
-                            "Service years (v404)",
+                            "Service years",
                             value=float(getattr(defaults, "service_years_v404", 1.0)),
                             min_value=0.1, max_value=60.0,
                             key="pd_service_years_v404",
@@ -2032,21 +2032,21 @@ def render_point_designer(_app_module) -> None:
                     colM1, colM2, colM3 = st.columns(3)
                     with colM1:
                         material_fw_v404 = st.selectbox(
-                            "FW material (v404)",
+                            "FW material",
                             options=["EUROFER","SS316","INCONEL","W","CuCrZr"],
                             index=["EUROFER","SS316","INCONEL","W","CuCrZr"].index(str(getattr(defaults,"material_fw_v404","EUROFER"))),
                             key="pd_material_fw_v404",
                         )
                     with colM2:
                         material_vv_v404 = st.selectbox(
-                            "VV material (v404)",
+                            "VV material",
                             options=["SS316","EUROFER","INCONEL","W","CuCrZr"],
                             index=["SS316","EUROFER","INCONEL","W","CuCrZr"].index(str(getattr(defaults,"material_vv_v404","SS316"))),
                             key="pd_material_vv_v404",
                         )
                     with colM3:
                         material_tf_v404 = st.selectbox(
-                            "TF material (v404)",
+                            "TF material",
                             options=["INCONEL","SS316","EUROFER","W","CuCrZr"],
                             index=["INCONEL","SS316","EUROFER","W","CuCrZr"].index(str(getattr(defaults,"material_tf_v404","INCONEL"))),
                             key="pd_material_tf_v404",
@@ -2056,19 +2056,19 @@ def render_point_designer(_app_module) -> None:
                     colT1, colT2, colT3 = st.columns(3)
                     with colT1:
                         T_fw_K_v404 = st.number_input(
-                            "T_fw [K] (v404)",
+                            "T_fw [K]",
                             value=float(getattr(defaults, "T_fw_K_v404", 700.0)),
                             key="pd_T_fw_K_v404",
                         )
                     with colT2:
                         T_vv_K_v404 = st.number_input(
-                            "T_vv [K] (v404)",
+                            "T_vv [K]",
                             value=float(getattr(defaults, "T_vv_K_v404", 450.0)),
                             key="pd_T_vv_K_v404",
                         )
                     with colT3:
                         T_tf_K_v404 = st.number_input(
-                            "T_tf [K] (v404)",
+                            "T_tf [K]",
                             value=float(getattr(defaults, "T_tf_K_v404", 350.0)),
                             key="pd_T_tf_K_v404",
                         )
@@ -2077,47 +2077,47 @@ def render_point_designer(_app_module) -> None:
                     colG1, colG2, colG3 = st.columns(3)
                     with colG1:
                         vv_t_m_v404 = st.number_input(
-                            "VV thickness [m] (v404) (NaN disables)",
+                            "VV thickness [m] (NaN disables)",
                             value=float(getattr(defaults, "vv_t_m_v404", float('nan'))),
                             key="pd_vv_t_m_v404",
                         )
                         vv_R_m_v404 = st.number_input(
-                            "VV radius [m] (v404)",
+                            "VV radius [m]",
                             value=float(getattr(defaults, "vv_R_m_v404", float('nan'))),
                             key="pd_vv_R_m_v404",
                         )
                     with colG2:
                         tf_t_m_v404 = st.number_input(
-                            "TF case thickness [m] (v404)",
+                            "TF case thickness [m]",
                             value=float(getattr(defaults, "tf_t_m_v404", float('nan'))),
                             key="pd_tf_t_m_v404",
                         )
                         tf_R_m_v404 = st.number_input(
-                            "TF case radius [m] (v404)",
+                            "TF case radius [m]",
                             value=float(getattr(defaults, "tf_R_m_v404", float('nan'))),
                             key="pd_tf_R_m_v404",
                         )
                     with colG3:
                         fw_t_m_v404 = st.number_input(
-                            "FW panel thickness [m] (v404)",
+                            "FW panel thickness [m]",
                             value=float(getattr(defaults, "fw_t_m_v404", float('nan'))),
                             key="pd_fw_t_m_v404",
                         )
                         fw_R_m_v404 = st.number_input(
-                            "FW panel radius [m] (v404)",
+                            "FW panel radius [m]",
                             value=float(getattr(defaults, "fw_R_m_v404", float('nan'))),
                             key="pd_fw_R_m_v404",
                         )
 
-# --- (v402.0.0) Authority Dominance Engine 2.0 (global regime & ranking) ---
-                with st.expander("Global Authority Dominance — v402.0.0", expanded=False):
+# --- Authority Dominance Engine 2.0 (global regime & ranking) ---
+                with st.expander("Global authority dominance engine", expanded=False):
                     st.caption(
                         "Deterministic governance overlay: aggregates major authority margins into a global dominance ranking, "
                         "classifies the limiting regime (MAGNET/EXHAUST/CONTROL/TRANSPORT/PROFILE/NM), and flags feasibility mirages "
                         "(feasible but credibility-fragile). No solvers; truth is unchanged."
                     )
                     include_authority_dominance_v402 = st.checkbox(
-                        "Enable global authority dominance engine (v402.0.0)",
+                        "Enable global authority dominance engine",
                         value=bool(getattr(defaults, "include_authority_dominance_v402", True)),
                         key="pd_include_authority_dominance_v402",
                     )
@@ -2147,14 +2147,14 @@ def render_point_designer(_app_module) -> None:
 
 
 
-                # --- (v384.0.0) Materials & Lifetime Tightening (optional) ---
-                with st.expander("Materials & Lifetime Tightening (v384.0.0)", expanded=False):
+                # --- Materials & Lifetime Tightening (optional) ---
+                with st.expander("Materials lifetime ledger", expanded=False):
                     st.caption(
                         "Deterministic governance overlay: adds divertor + magnet lifetime proxies, annualized replacement cost, "
                         "and replacement-downtime coupling to a capacity factor used by economics overlays. OFF by default; truth is unchanged."
                     )
                     include_materials_lifetime_v384 = st.checkbox(
-                        "Enable materials & lifetime tightening (v384.0.0)",
+                        "Enable materials & lifetime tightening",
                         value=bool(getattr(defaults, "include_materials_lifetime_v384", False)),
                         key="pd_include_materials_lifetime_v384",
                     )
@@ -2347,21 +2347,21 @@ def render_point_designer(_app_module) -> None:
                     "include_hts_critical_surface": bool(st.checkbox("Use HTS critical-surface model (Jc(B,T,ε))", value=False, disabled=not include_magnets, help="Off by default (legacy behavior). When enabled, computes hts_margin_cs using Jc(B,T,ε_tf)/Jop and applies the same hts_margin_min threshold.")),
                     "Vmax_kV": _maybe(float(_num("Max dump voltage limit (kV)", preset["Vmax_kV"], 1.0, min_value=1.0)), include_magnets),
 
-                    # Magnet quench / protection authority (v285.0)
+                    # Magnet quench / protection authority
                     "quench_energy_density_max_MJ_m3": _maybe(float(_num("Max allowable quench energy density (MJ/m³)", float('nan'), 1.0, min_value=0.0, help="Used to normalize stored-energy proxy into magnet_quench_risk_proxy. Leave NaN to disable.")), include_magnets),
                     "magnet_quench_risk_max": _maybe(float(_num("Max magnet quench risk proxy (–)", float('nan'), 0.05, min_value=0.0, help="Optional cap on stored-energy/allowable proxy. Leave NaN to disable.")), include_magnets),
 
                     # Divertor / SOL
                     "q_div_max_MW_m2": _maybe(float(_num("Max divertor heat flux limit (MW/m²)", preset["q_div_max_MW_m2"], 0.5, min_value=0.1)), include_divertor),
 
-                    # Exhaust authority (v285.0)
+                    # Exhaust authority
                     "detachment_index_min": _maybe(float(_num("Detachment index floor (proxy)", float('nan'), 0.01, help="Optional floor on P_SOL/(n_e^2 R). Leave NaN to disable.")), include_divertor),
                     "detachment_index_max": _maybe(float(_num("Detachment index cap (proxy)", float('nan'), 0.01, help="Optional cap on P_SOL/(n_e^2 R). Leave NaN to disable.")), include_divertor),
                     "f_rad_total_max": _maybe(float(_num("Max total radiated fraction f_rad,total (–)", float('nan'), 0.01, min_value=0.0, max_value=1.0, help="Optional cap on (f_rad_core+f_rad_div). Leave NaN to disable.")), include_divertor),
                     "fuel_ion_fraction_min": _maybe(float(_num("Min fuel ion fraction (dilution)", float('nan'), 0.01, min_value=0.0, max_value=1.0, help="Optional minimum fuel-ion fraction (proxy). Leave NaN to disable.")), include_divertor),
                     "Q_effective_min": _maybe(float(_num("Min effective Q (dilution-adjusted)", float('nan'), 0.05, min_value=0.0, help="Optional minimum on Q_eff = Q*fuel^2. Leave NaN to disable.")), include_divertor),
 
-                    # Neutronics & Materials (v309.0) — fast optimistic knobs + explicit contracts
+                    # Neutronics & Materials — fast optimistic knobs + explicit contracts
                     "TBR_min": _maybe(float(_num("Minimum tritium breeding ratio (TBR)", preset["TBR_min"], 0.01, min_value=0.0)), include_neutronics),
                     "port_fraction": _maybe(float(_num("Port/penetration fraction (coverage penalty)", float(preset.get("port_fraction", 0.08)), 0.01, min_value=0.0, max_value=0.8, help="Penalty to blanket coverage in the TBR proxy.")), include_neutronics),
                     "li6_enrichment": _maybe(float(_num("Li-6 enrichment fraction (0..1)", float(preset.get("li6_enrichment", 0.30)), 0.01, min_value=0.0, max_value=0.95)), include_neutronics),
@@ -2378,36 +2378,36 @@ def render_point_designer(_app_module) -> None:
                     "fw_lifetime_min_yr": _maybe(float(_num("Min first-wall replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
                     "blanket_lifetime_min_yr": _maybe(float(_num("Min blanket replacement lifetime (yr) (optional)", float('nan'), 0.5, min_value=0.0, help="Uses DPA/He rate proxies + material limits. Leave NaN to disable.")), include_neutronics),
 
-                    # (v367.0) Materials lifetime closure: deterministic policy/cadence knobs
+                    # Materials lifetime closure: deterministic policy/cadence knobs
                     "plant_design_lifetime_yr": _maybe(float(_num(
-                        "Plant design lifetime (yr) (v367 materials policy)",
+                        "Plant design lifetime (yr) (materials policy)",
                         float(getattr(defaults, "plant_design_lifetime_yr", 30.0) or 30.0),
                         1.0,
                         min_value=1.0,
-                        help="Used by v367 materials lifetime closure to compute replacement counts/costs. No time-domain simulation.",
+                        help="Used by materials lifetime closure to compute replacement counts/costs. No time-domain simulation.",
                     )), include_neutronics),
                     "materials_life_cover_plant_enforce": bool(st.checkbox(
-                        "Enforce FW/blanket lifetime ≥ plant lifetime (v367) (HARD)",
+                        "Enforce FW/blanket lifetime ≥ plant lifetime (HARD)",
                         value=bool(getattr(defaults, "materials_life_cover_plant_enforce", False)),
                         disabled=not include_neutronics,
                         help="Policy constraint: requires fw_lifetime_yr and blanket_lifetime_yr to cover plant_design_lifetime_yr when enabled.",
                     )),
                     "fw_replace_interval_min_yr": _maybe(float(_num(
-                        "Min FW replacement cadence (yr) (v367) (optional)",
+                        "Min FW replacement cadence (yr) (optional)",
                         float(getattr(defaults, "fw_replace_interval_min_yr", float('nan'))),
                         0.5,
                         min_value=0.0,
                         help="Optional minimum on the FW replacement interval used by the replacement ledger. Leave NaN to disable.",
                     )), include_neutronics),
                     "blanket_replace_interval_min_yr": _maybe(float(_num(
-                        "Min blanket replacement cadence (yr) (v367) (optional)",
+                        "Min blanket replacement cadence (yr) (optional)",
                         float(getattr(defaults, "blanket_replace_interval_min_yr", float('nan'))),
                         0.5,
                         min_value=0.0,
                         help="Optional minimum on the blanket replacement interval used by the replacement ledger. Leave NaN to disable.",
                     )), include_neutronics),
                     "fw_capex_fraction_of_blanket": _maybe(float(_num(
-                        "FW CAPEX fraction of blanket+shield (0..1) (v367)",
+                        "FW CAPEX fraction of blanket+shield (0..1)",
                         float(getattr(defaults, "fw_capex_fraction_of_blanket", 0.20) or 0.20),
                         0.01,
                         min_value=0.0,
@@ -2415,7 +2415,7 @@ def render_point_designer(_app_module) -> None:
                         help="Used to estimate FW replacement CAPEX from capex_blanket_shield_MUSD (or a fallback).",
                     )), include_neutronics),
                     "blanket_capex_fraction_of_blanket": _maybe(float(_num(
-                        "Blanket CAPEX fraction of blanket+shield (0..1) (v367)",
+                        "Blanket CAPEX fraction of blanket+shield (0..1)",
                         float(getattr(defaults, "blanket_capex_fraction_of_blanket", 1.00) or 1.00),
                         0.01,
                         min_value=0.0,
@@ -2441,7 +2441,7 @@ def render_point_designer(_app_module) -> None:
 
 
 
-                    # Fuel-cycle / tritium ledger (v350.0) — optional tight closure
+                    # Fuel-cycle / tritium ledger — optional tight closure
                     "T_reserve_days": _maybe(float(_num("Tritium reserve (days)", 3.0, 0.5, min_value=0.0,
                         help="Reserve inventory proxy: T_inventory_reserve = T_burn * reserve_days.")), include_fuelcycle),
                     "T_processing_margin": _maybe(float(_num("Tritium processing margin factor (–)", 1.25, 0.05, min_value=0.1,
@@ -2475,20 +2475,20 @@ def render_point_designer(_app_module) -> None:
                     "TBR_self_sufficiency_margin": _maybe(float(_num("Self-sufficiency margin on TBR_eff (optional)", float('nan'), 0.01, min_value=0.0, max_value=0.5,
                         help="If set, requires TBR_eff ≥ 1 + margin (after declared losses).")), include_fuelcycle),
 
-                    # Economics overlay (v356.0) — optional component CAPEX proxy cap (diagnostic)
+                    # Economics overlay — optional component CAPEX proxy cap (diagnostic)
                     "cost_k_heating_cd": _maybe(float(_num(
                         "Heating/CD CAPEX factor (MUSD per MW launched)",
                         25.0,
                         1.0,
                         min_value=0.0,
-                        help="Used only for the v356 component CAPEX proxy: capex_heating_cd = k * P_CD_launch_MW (fallback Paux).",
+                        help="Used only for the component CAPEX proxy: capex_heating_cd = k * P_CD_launch_MW (fallback Paux).",
                     )), include_economics),
                     "cost_k_tritium_plant": _maybe(float(_num(
                         "Tritium plant CAPEX factor (MUSD per kg/day burn)",
                         40.0,
                         1.0,
                         min_value=0.0,
-                        help="Used only for the v356 component CAPEX proxy: capex_tritium_plant = k * T_burn_kg_per_day.",
+                        help="Used only for the component CAPEX proxy: capex_tritium_plant = k * T_burn_kg_per_day.",
                     )), include_economics),
                     "CAPEX_max_proxy_MUSD": _maybe(float(_num(
                         "Max component CAPEX proxy (MUSD) (optional)",
@@ -2498,23 +2498,23 @@ def render_point_designer(_app_module) -> None:
                         help="Optional hard feasibility cap on CAPEX_component_proxy_MUSD. Leave NaN to disable.",
                     )), include_economics),
 
-                    # Current drive + NI closure + channel caps (v357.0)
+                    # Current drive + NI closure + channel caps
                     "include_current_drive": bool(st.checkbox(
                         "Current drive & NI closure (compute P_cd)",
                         value=False,
                         help="Enables deterministic non-inductive closure: choose actuator, CD efficiency model, and target f_NI; SHAMS computes required launched P_cd (capped by Pcd_max_MW).",
                     )),
                     "include_cd_library_v357": bool(st.checkbox(
-                        "CD channel library caps (v357.0)",
+                        "CD channel library caps",
                         value=False,
                         disabled=False,
                         help="Adds explicit channel feasibility diagnostics and optional hard caps for LH accessibility, ECCD launcher power density, and NBI shine-through.",
                     )),
                     "include_cd_library_v395": bool(st.checkbox(
-                        "CD multi-channel library (v395.0) — ECCD/LHCD/NBI/ICRF mix",
+                        "CD multi-channel actuator mix — ECCD/LHCD/NBI/ICRF mix",
                         value=False,
                         disabled=False,
-                        help="Enables the v395 multi-channel CD library (power split across actuators) when cd_model=channel_library_v395 and cd_mix_enable=True. Purely algebraic; no solvers.",
+                        help="Enables the multi-channel CD library (power split across actuators) when cd_model=channel_library_v395 and cd_mix_enable=True. Purely algebraic; no solvers.",
                     )),
 
                     "f_noninductive_target": float(_num(
@@ -2552,7 +2552,7 @@ def render_point_designer(_app_module) -> None:
                         "CD actuator channel",
                         options=["ECCD", "LHCD", "NBI", "ICRF"],
                         index=0,
-                        help="Actuator used for CD efficiency trends and v357 channel diagnostics.",
+                        help="Actuator used for CD efficiency trends and channel diagnostics.",
                     )),
                     "cd_model": str(st.selectbox(
                         "CD efficiency model",
@@ -2561,9 +2561,9 @@ def render_point_designer(_app_module) -> None:
                         help="Deterministic CD efficiency proxy model.",
                     )),
 
-                    # v395 multi-channel mix knobs (used only when cd_model=channel_library_v395)
+                    # multi-channel mix knobs (used only when cd_model=channel_library_v395)
                     "cd_mix_enable": bool(st.checkbox(
-                        "Enable CD actuator mix (v395)",
+                        "Enable CD actuator mix",
                         value=False,
                         help="If enabled and cd_model=channel_library_v395, SHAMS splits launched P_cd across ECCD/LHCD/NBI/ICRF using the fractions below and computes a power-weighted effective γ_cd.",
                     )),
@@ -2615,7 +2615,7 @@ def render_point_designer(_app_module) -> None:
                         2.0,
                         0.1,
                         min_value=0.1,
-                        help="Used to compute launcher power density P_cd/A for v357 cap checks.",
+                        help="Used to compute launcher power density P_cd/A for channel cap checks.",
                     )),
                     "eccd_launch_factor": float(_num(
                         "ECCD launch factor (–)",
@@ -2623,7 +2623,7 @@ def render_point_designer(_app_module) -> None:
                         0.05,
                         min_value=0.2,
                         max_value=2.0,
-                        help="Captures qualitative steering/optics effects as a declared multiplier on γ_cd for the v357 model.",
+                        help="Captures qualitative steering/optics effects as a declared multiplier on γ_cd for the channel library model.",
                     )),
                     "eccd_launcher_power_density_max_MW_m2": float(_num(
                         "ECCD launcher power density max (MW/m²) (optional)",
@@ -2640,7 +2640,7 @@ def render_point_designer(_app_module) -> None:
                         25.0,
                         min_value=50.0,
                         max_value=5000.0,
-                        help="Used only when cd_actuator=NBI in the v357 model (trend scaling + shine-through proxy).",
+                        help="Used only when cd_actuator=NBI in the channel library model (trend scaling + shine-through proxy).",
                     )),
                     "nbi_shinethrough_frac_max": float(_num(
                         "NBI shine-through max (fraction) (optional)",
@@ -2695,7 +2695,7 @@ def render_point_designer(_app_module) -> None:
                     )),
 
                     # ---------------------------------------------------------
-                    # Control & stability authority (v298.0) — optional caps
+                    # Control & stability authority — optional caps
                     # ---------------------------------------------------------
                     "include_control_contracts": bool(st.checkbox(
                         "Enable control contracts (deterministic envelopes)",
@@ -2704,32 +2704,32 @@ def render_point_designer(_app_module) -> None:
                     )),
 
                     # ---------------------------------------------------------
-                    # v398.0 Control & Stability Ledger Authority (optional)
+                    # Control & Stability Ledger Authority (optional)
                     # ---------------------------------------------------------
                     "include_control_stability_authority_v398": bool(st.checkbox(
-                        "Enable v398 control ledger (VS budget + headroom + RWM proximity overlay)",
+                        "Enable control ledger (VS budget + headroom + RWM proximity overlay)",
                         value=False,
                         help="Governance-only overlay that consolidates CS flux budget and VS/RWM headroom into explicit margins/tiers (no physics mutation).",
                     )),
                     "vs_budget_margin_min_v398": float(_num(
-                        "Min VS budget margin (v398) (optional)",
+                        "Min VS budget margin (optional)",
                         float("nan"),
                         0.0,
                         help="Optional feasibility bound on VS/CS flux margin: (psi_av-psi_req)/psi_req >= min. Leave NaN to disable.",
                     )),
                     "vde_headroom_min_v398": float(_num(
-                        "Min vertical control headroom (v398) (optional)",
+                        "Min vertical control headroom (optional)",
                         float("nan"),
                         0.0,
                         help="Optional feasibility bound on min(VS power headroom, VS bandwidth headroom). Leave NaN to disable.",
                     )),
                     "rwm_proximity_index_max_v398": float(_num(
-                        "Max RWM proximity index (v398) (optional)",
+                        "Max RWM proximity index (optional)",
                         float("nan"),
                         0.66,
                         min_value=0.0,
                         max_value=1.0,
-                        help="Optional feasibility cap on v398 RWM proximity index (0 benign → 1 critical). Leave NaN to disable.",
+                        help="Optional feasibility cap on RWM proximity index (0 benign → 1 critical). Leave NaN to disable.",
                     )),
 
                     "cs_V_loop_max_V": float(_num(
@@ -4009,7 +4009,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         "Select deck",
                                         options=[
                                             "Regime & Confinement",
-                                            "Global Dominance & Regime (v402)",
+                                            "Global dominance & regime",
                                             "Current Profile & Current Drive",
                                             "Bootstrap–Pressure Self-Consistency Authority",
                                             "Current Drive Tech Authority",
@@ -4038,13 +4038,13 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         cD.metric("P_LH (MW)", f"{_safe_num('P_LH_MW'):.1f}"if _safe_num('P_LH_MW') == _safe_num('P_LH_MW') else "n/a")
                                         st.caption("H_regime is reported only when couple_regime_to_confinement=True; it uses IPB98 for H-regime and ITER89P for L-regime.")
 
-                                    elif _deep_view == "Global Dominance & Regime (v402)":
+                                    elif _deep_view == "Global dominance & regime":
                                         st.caption(
-                                            "v402 aggregates governance-only authority margins into a global dominance ranking (worst→best), "
+                                            "Dominance engine aggregates governance-only authority margins into a global dominance ranking (worst→best), "
                                             "labels the limiting regime, and flags feasibility mirages (feasible but credibility-fragile)."
                                         )
                                         if not bool(out.get("include_authority_dominance_v402", False)):
-                                            st.info("v402 is OFF. Enable it in Point Designer → Global Authority Dominance (v402.0.0).")
+                                            st.info("Dominance engine is OFF. Enable it in Point Designer → Global authority dominance engine.")
                                         else:
                                             g1, g2, g3, g4 = st.columns([1.0, 1.0, 1.0, 1.0])
                                             _m = _safe_num("global_min_margin_v402")
@@ -4056,17 +4056,17 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
 
                                             mir = bool(out.get("mirage_flag_v402", False))
                                             if mir:
-                                                st.warning("Feasibility mirage flagged (v402): credible-feasibility is fragile.")
+                                                st.warning("Feasibility mirage flagged: credible-feasibility is fragile.")
                                                 rs = out.get("mirage_reasons_v402", [])
                                                 if isinstance(rs, list) and rs:
                                                     st.caption("Reasons: "+ ", ".join([str(x) for x in rs][:10]))
                                             else:
-                                                st.success("No mirage flagged by v402.")
+                                                st.success("No mirage flagged by dominance engine.")
 
                                             
                                             # v404.0.0: Structural Life Authority (summary)
                                             if bool(out.get("include_structural_life_v404", False)):
-                                                with st.expander("Structural life summary (v404)", expanded=False):
+                                                with st.expander("Structural life summary", expanded=False):
                                                     st.caption(
                                                         f"**Global min margin:** {float(out.get('struct_global_min_margin_v404', float('nan'))):+.3f} | "
                                                         f"**Dominant:** {str(out.get('struct_dominant_component_v404','?'))} / {str(out.get('struct_dominant_mode_v404','?'))}"
@@ -4075,12 +4075,12 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                     if isinstance(tbl, list) and tbl:
                                                         st.dataframe(tbl, use_container_width=True, hide_index=True)
                                                     else:
-                                                        st.info("No v404 structural table rows available.")
+                                                        st.info("No structural life table rows available.")
                                             else:
                                                 # show hint only if user enabled dominance engine (they are here)
                                                 pass
 
-                                            with st.expander("Dominance ranking table (v402)", expanded=False):
+                                            with st.expander("Dominance ranking table", expanded=False):
                                                 rows = out.get("dominance_order_v402", [])
                                                 if isinstance(rows, list) and rows:
                                                     st.dataframe(rows, use_container_width=True, hide_index=True)
@@ -4273,20 +4273,20 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         # v403.0.0: library-backed stack authority (governance-only)
                                         if bool(out.get("include_neutronics_materials_library_v403", False)):
                                             st.caption(
-                                                f"**NM library tier (v403):** `{out.get('nm_regime_tier_v403','UNKNOWN')}` | "
+                                                f"**NM library tier:** `{out.get('nm_regime_tier_v403','UNKNOWN')}` | "
                                                 f"**Min margin:** {float(out.get('nm_min_margin_frac_v403', float('nan'))):+.3f} | "
                                                 f"**Dominant driver:** `{out.get('nm_dominant_driver_v403','unknown')}` | "
                                                 f"**TBR proxy:** {float(out.get('tbr_proxy_v403', float('nan'))):.2f} | "
                                                 f"**FW DPA:** {float(out.get('dpa_fw_v403', float('nan'))):.2f} | "
                                                 f"**FW He:** {float(out.get('he_appm_fw_v403', float('nan'))):.1f}"
                                             )
-                                            with st.expander("v403 stack ledger (layers, attenuation, contract items)", expanded=False):
+                                            with st.expander("Nuclear materials stack ledger (layers, attenuation, contract items)", expanded=False):
                                                 st.markdown("**Layers**")
                                                 layers = out.get("nm_stack_layers_v403", [])
                                                 if isinstance(layers, list) and layers:
                                                     st.dataframe(layers, use_container_width=True, hide_index=True)
                                                 else:
-                                                    st.info("No v403 layers were found in this artifact.")
+                                                    st.info("No stack layers were found in this artifact.")
                                                 st.markdown("**Attenuation factors**")
                                                 st.json(out.get("nm_attenuation_factor_v403", {}))
                                                 st.markdown("**Contract items (margins)**")
@@ -4295,7 +4295,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                     st.dataframe(rows, use_container_width=True, hide_index=True)
                                                 sha403 = str(out.get("nm_contract_sha256_v403", "") or "")
                                                 if sha403:
-                                                    st.caption(f"v403 contract hash (SHA-256): {sha403[:16]}…")
+                                                    st.caption(f"Contract hash (SHA-256): {sha403[:16]}…")
 
 
 
@@ -4306,10 +4306,10 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             tf_flu = float(out.get("tf_case_fluence_n_m2_per_fpy_v407", float('nan')))
                                             tbrmg = float(out.get("tbr_mg_proxy_v407", float('nan')))
                                             st.caption(
-                                                f"**Nuclear data (v407):** dataset `{dsid}` | hash `{dsha[:12]}…` | "
+                                                f"**Nuclear data:** dataset `{dsid}` | hash `{dsha[:12]}…` | "
                                                 f"TF-case fluence {tf_flu:.3e} n/m²/FPY | TBR(mg proxy) {tbrmg:.2f}"
                                             )
-                                            with st.expander("v407 multi-group ledger (edges, spectrum, attenuation, fluence)", expanded=False):
+                                            with st.expander("Multi-group nuclear ledger (edges, spectrum, attenuation, fluence)", expanded=False):
                                                 st.markdown("**Group edges (MeV)**")
                                                 st.write(out.get("group_edges_MeV_v407", []))
                                                 st.markdown("**FW spectrum fractions (normalized)**")
@@ -4325,20 +4325,20 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         # v401.0.0: contract-tier overlay (governance-only)
                                         if bool(out.get("include_neutronics_materials_authority_v401", False)):
                                             st.caption(
-                                                f"**NM contract tier (v401):** `{out.get('nm_contract_tier_v401','NOMINAL')}` | "
+                                                f"**NM contract tier:** `{out.get('nm_contract_tier_v401','NOMINAL')}` | "
                                                 f"**Fragility:** `{out.get('nm_fragility_class_v401','UNKNOWN')}` | "
                                                 f"**Min margin:** {float(out.get('nm_min_margin_frac_v401', float('nan'))):+.3f} | "
                                                 f"**Dominant driver:** `{out.get('nm_dominant_driver_v401','unknown')}`"
                                             )
-                                            with st.expander("v401 contract items (margins)", expanded=False):
+                                            with st.expander("Neutronics contract items (margins)", expanded=False):
                                                 rows = out.get("nm_contract_items_v401", [])
                                                 if isinstance(rows, list) and rows:
                                                     st.dataframe(rows, use_container_width=True, hide_index=True)
                                                 else:
-                                                    st.info("v401 enabled but no contract items were found in this artifact.")
+                                                    st.info("Neutronics contract tiers enabled but no contract items were found in this artifact.")
                                             sha401 = str(out.get("nm_contract_sha256_v401", "") or "")
                                             if sha401:
-                                                st.caption(f"v401 contract hash (SHA-256): {sha401[:16]}…")
+                                                st.caption(f"Contract hash (SHA-256): {sha401[:16]}…")
                                         st.divider()
                                         d1, d2, d3, d4 = st.columns([1.0, 1.0, 1.0, 1.0])
                                         d1.metric("Stack attenuation", f"{_safe_num('neutron_attenuation_factor'):.3g}"if _safe_num('neutron_attenuation_factor') == _safe_num('neutron_attenuation_factor') else "n/a")
@@ -4365,7 +4365,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
 
                                         st.caption("Neutronics/materials: all quantities are deterministic proxies. Fast/gamma attenuation and nuclear heating partitioning are parametric; DPA/He + temperature/stress checks are screening models. Constraints are enforced only when corresponding caps/flags are set.")
 
-                                        # (v367.0) Materials lifetime closure (replacement cadence + cost-rate)
+                                        # Materials lifetime closure (replacement cadence + cost-rate)
                                         if ("materials_lifetime_schema_version"in out) or ("fw_replace_interval_y_v367"in out) or ("replacement_cost_MUSD_per_year_v367_total"in out):
                                             st.divider()
                                             m1, m2, m3, m4 = st.columns([1.0, 1.0, 1.0, 1.0])
@@ -4465,56 +4465,56 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     c3.metric("FW interval (y)", _m("fw_replace_interval_y", "{:.2f}"))
                                     c4.metric("DIV interval (y)", _m("div_replace_interval_y", "{:.2f}"))
 
-                                    # (v359.0) Availability & replacement ledger overlay (optional)
+                                    # Availability & replacement ledger overlay (optional)
                                     try:
                                         _av359 = float(out.get("availability_v359", float('nan')))
                                     except Exception:
                                         _av359 = float('nan')
                                     if _av359 == _av359:
                                         c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-                                        c1.metric("Availability (v359)", _m("availability_v359", "{:.2f}"))
-                                        c2.metric("Net MWh/y (v359)", _m("net_electric_MWh_per_year_v359", "{:.3g}"))
-                                        c3.metric("LCOE (v359) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}"))
+                                        c1.metric("Availability", _m("availability_v359", "{:.2f}"))
+                                        c2.metric("Net MWh/y", _m("net_electric_MWh_per_year_v359", "{:.3g}"))
+                                        c3.metric("LCOE (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}"))
                                         c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v359", "{:.2f}"))
-                                        st.caption("v359 ledger uses planned_outage_base + forced_outage_base + replacement downtime; it does not modify truth or legacy economics outputs.")
+                                        st.caption("Component replacement ledger uses planned_outage_base + forced_outage_base + replacement downtime; it does not modify truth or legacy economics outputs.")
 
-                                    # (v368.0) Maintenance scheduling authority quicklook (optional)
+                                    # Maintenance scheduling authority quicklook (optional)
                                     try:
                                         _av368 = float(out.get("availability_v368", float('nan')))
                                     except Exception:
                                         _av368 = float('nan')
                                     if _av368 == _av368:
                                         c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-                                        c1.metric("Availability (v368)", _m("availability_v368", "{:.2f}"))
-                                        c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.2f}"))
-                                        c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+                                        c1.metric("Availability", _m("availability_v368", "{:.2f}"))
+                                        c2.metric("Outage total", _m("outage_total_frac_v368", "{:.2f}"))
+                                        c3.metric("Net MWh/y", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
                                         c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.2f}"))
-                                        st.caption("v368 adds a deterministic maintenance event ledger and schedule-dominated availability; no time simulation.")
+                                        st.caption("Maintenance scheduling adds a deterministic maintenance event ledger and schedule-dominated availability; no time simulation.")
 
-                                    # (v391.0.0) Availability 2.0 — Reliability envelope (optional)
+                                    # Availability 2.0 — Reliability envelope (optional)
                                     try:
                                         _av391 = float(out.get("availability_cert_v391", float('nan')))
                                     except Exception:
                                         _av391 = float('nan')
                                     if _av391 == _av391:
                                         c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-                                        c1.metric("Availability (v391)", _m("availability_cert_v391", "{:.3f}"))
-                                        c2.metric("Planned (v391)", _m("planned_outage_frac_v391", "{:.3f}"))
-                                        c3.metric("Maint (v391)", _m("maint_downtime_frac_v391", "{:.3f}"))
-                                        c4.metric("Unplanned (v391)", _m("unplanned_downtime_frac_v391", "{:.3f}"))
+                                        c1.metric("Availability", _m("availability_cert_v391", "{:.3f}"))
+                                        c2.metric("Planned", _m("planned_outage_frac_v391", "{:.3f}"))
+                                        c3.metric("Maint", _m("maint_downtime_frac_v391", "{:.3f}"))
+                                        c4.metric("Unplanned", _m("unplanned_downtime_frac_v391", "{:.3f}"))
                                         drv = str(out.get("availability_driver_v391", ""))
                                         reg = str(out.get("availability_regime_v391", ""))
                                         if drv or reg:
-                                            st.caption(f"v391 driver={drv or 'n/a'}; regime={reg or 'n/a'}. Uses MTBF/MTTR product proxy + planned outage + maintenance burden (v368/v359 + v390).")
+                                            st.caption(f"Availability driver={drv or 'n/a'}; regime={reg or 'n/a'}. Uses MTBF/MTTR product proxy + planned outage + maintenance burden from scheduling, replacement, and activation overlays.")
                                         led = out.get("availability_ledger_v391")
-                                        with st.expander("Availability reliability ledger (v391)", expanded=False):
+                                        with st.expander("Availability reliability ledger", expanded=False):
                                             try:
                                                 if isinstance(led, list) and led:
                                                     import pandas as _pd
                                                     _df = _pd.DataFrame(led)
                                                     st.dataframe(_df, use_container_width=True, height=320, hide_index=True)
                                                 else:
-                                                    st.info("No availability_ledger_v391 found (enable v391 and re-run).")
+                                                    st.info("No availability ledger found — enable the availability & reliability envelope and re-run.")
                                             except Exception as e:
                                                 st.caption(f"Ledger render failed: {e}")
 
@@ -5085,7 +5085,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     c3.metric("V_peak (V)", _fmt(out.get("pf_V_peak_V")))
                                     c4.metric("P_peak (MW)", _fmt(out.get("pf_P_peak_MW")))
                                     st.metric("Pulse energy proxy (MJ)", _fmt(out.get("pf_E_pulse_MJ")))
-                                    # CS/Volt-seconds bookkeeping (v298.0)
+                                    # CS/Volt-seconds bookkeeping
                                     st.markdown("**CS / Volt-seconds (pulsed) bookkeeping**")
                                     _cs_row = {
                                         "cs_flux_required_Wb": out.get("cs_flux_required_Wb"),
@@ -5096,7 +5096,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     }
                                     st.dataframe(pd.DataFrame([_cs_row]), use_container_width=True, hide_index=True)
                                     st.caption("Canonical ramp–flat–ramp waveform; V ≈ L_eff·dI/dt + R_eff·I. L_eff is inferred from CS flux requirement if not provided.")
-                                    with st.expander("v398 Control Ledger (VS budget + headroom + RWM overlay)", expanded=False):
+                                    with st.expander("Control ledger (VS budget + headroom + RWM overlay)", expanded=False):
                                         if bool(out.get("control_stability_v398_enabled", False)):
                                             c1, c2, c3 = st.columns(3)
                                             c1.metric("VS budget margin", _fmt(out.get("vs_budget_margin_v398")))
@@ -5117,9 +5117,9 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 "rwm_index": out.get("rwm_proximity_index_v398"),
                                             }
                                             st.dataframe(pd.DataFrame([_v398_row]), use_container_width=True, hide_index=True)
-                                            st.caption("v398 is a governance-only overlay: no PF circuit solve; no transport/equilibrium iteration.")
+                                            st.caption("Control ledger is a governance-only overlay: no PF circuit solve; no transport/equilibrium iteration.")
                                         else:
-                                            st.info("v398 control ledger is disabled for this run (enable in inputs).")
+                                            st.info("Control ledger is disabled for this run (enable in inputs).")
 
                                     st.markdown("**Caps (optional)**")
                                     d2 = {
@@ -5204,7 +5204,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             }]), use_container_width=True, hide_index=True)
     
 
-                                    with st.expander("v400 Magnet Technology Authority (B–T–J–stress–quench ledger)", expanded=False):
+                                    with st.expander("Magnet technology authority (B–T–J–stress–quench ledger)", expanded=False):
                                         if bool(out.get("magnet_v400_enabled", False)):
                                             c1, c2, c3, c4 = st.columns(4)
                                             c1.metric("Combined margin", _fmt(out.get("magnet_v400_margin")))
@@ -5230,7 +5230,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                                 "Cu ohmic tier": out.get("magnet_v400_p_tf_ohmic_tier"),
                                             })
                                         else:
-                                            st.info("v400 magnet ledger is disabled or unavailable for this run.")
+                                            st.info("Magnet technology ledger is disabled or unavailable for this run.")
                         if _pd_tel_view == "Mission Snapshot":
                             with st.expander("Regime Compass - Sanity Dashboard", expanded=False):
                                 st.caption("Expert quick-check panel. Values are diagnostic unless explicitly constrained.")
@@ -5795,7 +5795,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     "boot_loc_v397": out.get("bootstrap_localization_index_v397"),
                                 }
                                 plot_bars(conf_vals, "Confinement / H metrics")
-                                with st.expander("Transport Envelope 2.0 scalings (v396)", expanded=False):
+                                with st.expander("Multi-scaling confinement envelope scalings", expanded=False):
                                     d = out.get("tauE_scalings_v396", {}) if isinstance(out, dict) else {}
                                     if isinstance(d, dict) and len(d) > 0:
                                         try:
@@ -5805,11 +5805,11 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                         except Exception:
                                             st.json(d)
                                     else:
-                                        st.caption("No v396 scaling dictionary available for this run (module disabled or invalid inputs).")
+                                        st.caption("No multi-scaling confinement dictionary available for this run (module disabled or invalid inputs).")
                                 with st.expander("Notes", expanded=False):
                                     st.markdown("H98 is defined as tauE_eff / tauE_IPB98(y,2). H_scaling compares against the selected reference scaling. See also the IPB98(y,2) and ITER89-P scaling references.")
 
-                                with st.expander("Profile Proxy Authority (v397)", expanded=False):
+                                with st.expander("Kinetic profile peaking proxy", expanded=False):
                                     if bool(out.get("profile_proxy_v397_enabled", False)):
                                         st.caption("Deterministic 1.5D proxy diagnostics (no solvers).")
                                         st.write(
@@ -5833,7 +5833,7 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                             except Exception:
                                                 st.json(samp)
                                     else:
-                                        st.caption("v397 profile proxy is disabled for this run (enable in Point Designer).")
+                                        st.caption("Profile proxy is disabled for this run (enable in Point Designer).")
 
                             st.markdown("### Raw telemetry")
                             st.dataframe(pd.DataFrame([out]).T.rename(columns={0: "value"}), use_container_width=True)

@@ -231,7 +231,7 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
             ).classes("w-full")
             session.overlay.setdefault("cd_mix_enable", False)
             ui.checkbox(
-                "Enable CD actuator mix (v395)",
+                "Enable CD actuator mix",
                 value=bool(session.overlay.get("cd_mix_enable", False)),
                 on_change=lambda e: session.overlay.__setitem__("cd_mix_enable", bool(e.value)),
             )
@@ -256,10 +256,10 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
                         on_change=lambda e, k=key: session.knobs.__setitem__(k, e.value),
                     )
 
-        with ui.expansion("Irradiation damage → strength (v393)", icon="construction").classes("w-full"):
+        with ui.expansion("Irradiation damage → strength", icon="construction").classes("w-full"):
             session.overlay.setdefault("include_damage_strength_coupling_v393", False)
             ui.checkbox(
-                "Enable damage → strength coupling (v393)",
+                "Enable damage → strength coupling",
                 value=bool(session.overlay.get("include_damage_strength_coupling_v393", False)),
                 on_change=lambda e: session.overlay.__setitem__(
                     "include_damage_strength_coupling_v393", bool(e.value)

@@ -25,9 +25,9 @@ def default_base_bounds(base: Any, key: str) -> tuple[float, float]:
         v0 = float(getattr(base, key))
     except Exception:
         return 0.0, 1.0
-    if key == "delta" and abs(v0) < 1e-6:
+    if key == "delta" and abs < 1e-6:
         return 0.0, 0.5
-    span = max(1e-9, abs(v0))
+    span = max(1e-9, abs)
     lo = max(0.0, v0 - 0.20 * span)
     hi = v0 + 0.20 * span
     return float(lo), float(hi)

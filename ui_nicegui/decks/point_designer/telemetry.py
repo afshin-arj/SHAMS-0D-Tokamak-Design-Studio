@@ -24,7 +24,7 @@ def render_tau_peaking_panel(out: dict) -> None:
     if not data.get("enabled", True):
         ui.label(str(data.get("message", ""))).classes("text-caption")
         return
-    with ui.expansion("τE profile peaking (v397)", icon="timeline").classes("w-full q-mb-sm"):
+    with ui.expansion("Energy confinement time profile peaking", icon="timeline").classes("w-full q-mb-sm"):
         ui.label(f"τE profile peaking factor: {data.get('factor_label', 'n/a')}").classes("text-body1")
         cap = data.get("tauE_s_caption")
         if cap:

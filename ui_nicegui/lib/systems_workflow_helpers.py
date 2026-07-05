@@ -1,4 +1,4 @@
-"""Systems Mode workflow helpers — recovery, search, apply, export (Phase 12)."""
+"""Systems Mode workflow helpers — recovery, search, apply, export."""
 from __future__ import annotations
 
 import json

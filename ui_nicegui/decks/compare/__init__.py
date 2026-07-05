@@ -1,179 +1,150 @@
-"""Compare deck — NiceGUI Batch 8.
-
-Side-by-side artifact comparison from session slots or Point Designer handoff.
-"""
+"""Compare deck — 5-tab workflow on frozen evaluator (NiceGUI complete)."""
 from __future__ import annotations
-
-import json
 
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
-from ui_nicegui.decks.compare import results, verdict
-from ui_nicegui.lib.compare_helpers import (
-    artifact_from_point,
-    normalize_compare_artifact,
-    slot_meta,
-    summarize_comparison,
+from ui_nicegui.components.mode_scope import render_mode_scope
+from ui_nicegui.decks.compare import (
+    constraints_panel,
+    export_panel,
+    inputs_structure,
+    metrics,
+    setup,
+    verdict,
 )
-from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+from ui_nicegui.lib.compare_helpers import summarize_comparison
+from ui_nicegui.lib.compare_labels import (
+    COMPARE_TABS,
+    DECISION_STATES,
+    DECISION_TO_TAB,
+    DECK_SUBTITLE,
+    TAB_HELP,
+    normalize_compare_tab,
+    teaching_banner,
+)
+from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.session import DesignSession
 
 
-def _refresh() -> None:
+def _refresh_all() -> None:
     _render_verdict.refresh()
-    _render_comparison.refresh()
+    _render_tab_body.refresh()
 
 
 def render_compare(session: DesignSession) -> None:
+    apply_deck_dsg_context(session, "compare")
     ui.label("Compare").classes("text-h5")
-    ui.label(
-        "Side-by-side artifact comparison to isolate mechanism and constraint-margin deltas."
-    ).classes("text-caption text-grey q-mb-sm")
+    ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
+    render_mode_scope("compare", default_open=False)
 
-    ui.label("Compare sources").classes("text-subtitle2")
-    ui.label("Use session slots (recommended) or upload JSON artifacts.").classes("text-caption q-mb-sm")
+    with ui.row().classes("w-full items-center justify-between q-mb-sm"):
+        art_a, art_b = setup.resolve_artifacts(session)
+        if art_a and art_b:
+            ui.label("Both slots loaded — ready to compare").classes("text-caption text-positive")
+        elif art_a or art_b:
+            ui.label("One slot loaded — load the other on tab 1").classes("text-caption text-orange")
+        else:
+            ui.label("Load artifacts on tab 1 to begin").classes("text-caption text-grey")
+        with ui.row().classes("gap-4"):
+            ui.switch(
+                "Guided mode",
+                value=session.cmp_teaching_mode,
+                on_change=lambda e: (
+                    setattr(session, "cmp_teaching_mode", bool(e.value)),
+                    _render_tab_body.refresh(),
+                ),
+            )
+            ui.switch(
+                "Expert view",
+                value=session.cmp_expert_view,
+                on_change=lambda e: (
+                    setattr(session, "cmp_expert_view", bool(e.value)),
+                    _render_tab_body.refresh(),
+                ),
+            )
 
-    _render_slot_controls(session)
-    ui.separator()
     _render_verdict(session)
-    _render_comparison(session)
 
+    def _on_decision(e) -> None:
+        state = str(e.value)
+        session.cmp_decision_state = state
+        tab = DECISION_TO_TAB.get(state)
+        if tab and session.cmp_teaching_mode:
+            session.cmp_workflow_step = tab
+            _render_tab_body.refresh()
 
-def _render_slot_controls(session: DesignSession) -> None:
-    meta_a = session.cmp_slot_a_meta or {}
-    meta_b = session.cmp_slot_b_meta or {}
-    have_a = isinstance(session.cmp_slot_a, dict)
-    have_b = isinstance(session.cmp_slot_b, dict)
+    ui.select(
+        DECISION_STATES,
+        label="What are you trying to learn?",
+        value=session.cmp_decision_state
+        if session.cmp_decision_state in DECISION_STATES
+        else DECISION_STATES[0],
+        on_change=_on_decision,
+    ).classes("w-full q-mb-xs")
 
-    with ui.row().classes("w-full gap-4 items-start"):
-        with ui.column().classes("flex-1"):
-            ui.checkbox(
-                "Use session Slot A",
-                value=session.cmp_use_slot_a,
-                on_change=lambda e: setattr(session, "cmp_use_slot_a", bool(e.value)),
-            )
-            if have_a:
-                ui.label(
-                    f"Slot A: {meta_a.get('label', '')} | {str(meta_a.get('inputs_hash', ''))[:8]}"
-                ).classes("text-caption")
-            else:
-                ui.label("Slot A: (empty)").classes("text-caption text-grey")
-            ui.button(
-                "Load Point Designer → A",
-                on_click=lambda: _load_pd_to_slot(session, "A"),
-            ).props("flat dense outline")
-        with ui.column().classes("flex-1"):
-            ui.checkbox(
-                "Use session Slot B",
-                value=session.cmp_use_slot_b,
-                on_change=lambda e: setattr(session, "cmp_use_slot_b", bool(e.value)),
-            )
-            if have_b:
-                ui.label(
-                    f"Slot B: {meta_b.get('label', '')} | {str(meta_b.get('inputs_hash', ''))[:8]}"
-                ).classes("text-caption")
-            else:
-                ui.label("Slot B: (empty)").classes("text-caption text-grey")
-            ui.button(
-                "Load Point Designer → B",
-                on_click=lambda: _load_pd_to_slot(session, "B"),
-            ).props("flat dense outline")
-        with ui.column().classes("flex-0"):
-            ui.button("Clear slots", icon="clear", on_click=lambda: _clear_slots(session)).props("outline")
+    banner = teaching_banner(session)
+    if banner:
+        ui.markdown(banner).classes("text-caption q-mb-sm")
 
-    with ui.expansion("Upload artifacts (JSON)", icon="upload").classes("w-full q-mt-sm"):
-        async def _on_upload_a(e) -> None:
-            await _store_upload(session, "A", e)
-            _refresh()
+    session.cmp_workflow_step = normalize_compare_tab(session.cmp_workflow_step)
+    ui.toggle(
+        COMPARE_TABS,
+        value=session.cmp_workflow_step,
+        on_change=lambda e: (
+            setattr(session, "cmp_workflow_step", normalize_compare_tab(str(e.value))),
+            _render_tab_body.refresh(),
+        ),
+    ).classes("w-full")
+    help_text = TAB_HELP.get(normalize_compare_tab(session.cmp_workflow_step), "")
+    if help_text:
+        ui.label(help_text).classes("text-caption text-grey q-mb-sm")
 
-        async def _on_upload_b(e) -> None:
-            await _store_upload(session, "B", e)
-            _refresh()
-
-        with ui.row().classes("w-full gap-4"):
-            ui.upload(label="Artifact A", auto_upload=True, on_upload=_on_upload_a).classes("flex-1")
-            ui.upload(label="Artifact B", auto_upload=True, on_upload=_on_upload_b).classes("flex-1")
-
-
-def _load_pd_to_slot(session: DesignSession, slot: str) -> None:
-    art = artifact_from_point(session)
-    if not art:
-        ui.notify("No Point Designer evaluation available", type="warning")
-        return
-    if slot == "A":
-        session.cmp_slot_a = art
-        session.cmp_slot_a_meta = slot_meta(art, label="Point Designer")
-        session.cmp_use_slot_a = True
-    else:
-        session.cmp_slot_b = art
-        session.cmp_slot_b_meta = slot_meta(art, label="Point Designer")
-        session.cmp_use_slot_b = True
-    ui.notify(f"Loaded Point Designer artifact into Slot {slot}", type="positive")
-    _refresh()
-
-
-def _clear_slots(session: DesignSession) -> None:
-    session.cmp_slot_a = None
-    session.cmp_slot_b = None
-    session.cmp_slot_a_meta = {}
-    session.cmp_slot_b_meta = {}
-    ui.notify("Cleared Compare slots", type="info")
-    _refresh()
-
-
-async def _store_upload(session: DesignSession, slot: str, e) -> None:
-    try:
-        content = e.content.read()
-        art = json.loads(content.decode("utf-8") if isinstance(content, bytes) else content)
-    except Exception as exc:
-        ui.notify(f"Invalid JSON upload: {exc}", type="negative")
-        return
-    norm = normalize_compare_artifact(art)
-    if slot == "A":
-        session.cmp_slot_a = norm
-        session.cmp_slot_a_meta = slot_meta(norm, label="Uploaded")
-        session.cmp_use_slot_a = True
-    else:
-        session.cmp_slot_b = norm
-        session.cmp_slot_b_meta = slot_meta(norm, label="Uploaded")
-        session.cmp_use_slot_b = True
-    ui.notify(f"Stored upload in Slot {slot}", type="positive")
-
-
-def _resolve_artifacts(session: DesignSession) -> tuple[dict | None, dict | None]:
-    art_a = session.cmp_slot_a if session.cmp_use_slot_a else None
-    art_b = session.cmp_slot_b if session.cmp_use_slot_b else None
-    return (
-        normalize_compare_artifact(art_a) if isinstance(art_a, dict) else None,
-        normalize_compare_artifact(art_b) if isinstance(art_b, dict) else None,
-    )
+    _render_tab_body(session)
 
 
 @ui.refreshable
 def _render_verdict(session: DesignSession) -> None:
-    art_a, art_b = _resolve_artifacts(session)
+    art_a, art_b = setup.resolve_artifacts(session)
     if art_a and art_b:
         summary = summarize_comparison(art_a, art_b)
     else:
         summary = None
         if session.cmp_use_slot_a and not session.cmp_slot_a:
-            empty_state("Slot A is selected but empty.", kind="warn")
+            empty_state(
+                "Slot A is selected but empty — load from Point Designer or upload JSON.",
+                kind="warn",
+            )
         if session.cmp_use_slot_b and not session.cmp_slot_b:
-            empty_state("Slot B is selected but empty.", kind="warn")
+            empty_state(
+                "Slot B is selected but empty — load from Point Designer or upload JSON.",
+                kind="warn",
+            )
     verdict.render_compare_verdict(summary)
 
 
 @ui.refreshable
-def _render_comparison(session: DesignSession) -> None:
-    art_a, art_b = _resolve_artifacts(session)
-    if not (art_a and art_b):
-        _, _, point_out = get_point_artifact_triple(session)
-        if not isinstance(point_out, dict):
-            empty_state(
-                "Run **Point Designer** and load artifacts into slots A/B to compare.",
-                kind="info",
-            )
+def _render_tab_body(session: DesignSession) -> None:
+    step = normalize_compare_tab(session.cmp_workflow_step)
+    art_a, art_b = setup.resolve_artifacts(session)
+    both = bool(art_a and art_b)
+
+    if step == "1 · Load A & B":
+        setup.render_setup_panel(session, on_change=_refresh_all)
         return
-    ui.separator()
-    results.render_comparison_results(art_a, art_b)
+
+    if not both:
+        empty_state(
+            "Load artifacts into **both slots** on tab 1 before exploring deltas.",
+            kind="info",
+        )
+        return
+
+    if step == "2 · Performance":
+        metrics.render_metrics_panel(session, art_a, art_b)
+    elif step == "3 · Constraints":
+        constraints_panel.render_constraints_panel(art_a, art_b)
+    elif step == "4 · Inputs & Structure":
+        inputs_structure.render_inputs_structure_panel(art_a, art_b)
+    elif step == "5 · Export":
+        export_panel.render_export_panel(art_a, art_b)

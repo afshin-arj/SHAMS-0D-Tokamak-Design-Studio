@@ -1,4 +1,4 @@
-"""Systems Mode — Explore / feasible search (Phase 12)."""
+"""Systems Mode — Explore / feasible search."""
 from __future__ import annotations
 
 from nicegui import run, ui

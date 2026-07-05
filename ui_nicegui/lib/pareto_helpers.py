@@ -1,4 +1,4 @@
-"""Pareto Lab helpers — LHS sampling study via frozen evaluator (Batch 5)."""
+"""Pareto Lab helpers — LHS sampling study via frozen evaluator."""
 from __future__ import annotations
 
 import json

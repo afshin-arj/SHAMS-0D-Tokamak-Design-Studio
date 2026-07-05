@@ -64,7 +64,7 @@ def render_scan_lab(_app_module) -> None:
         st.caption("Verdict banner unavailable (non-fatal).")
 
 
-    # --- World-class Scan Lab (v188) ---
+    # --- World-class Scan Lab ---
     # NOTE: Scan Lab should remain usable even if optional features fail to import.
     # Import errors are captured and surfaced explicitly (freeze-readiness requirement).
     _scan_import_errors = []
@@ -382,7 +382,7 @@ def render_scan_lab(_app_module) -> None:
                 st.markdown("""**What this mode does**
     - Maps the frozen Point Designer truth across a chosen parameter plane
     - Reveals dominant constraints, cliffs, intent splits, and robustness categories
-    - Exports replayable scan artifacts (schema v1) and a fixed Scan Lab Atlas""")
+    - Exports replayable scan artifacts (standard replay schema) and a fixed Scan Lab Atlas""")
             with cB:
                 st.markdown("""**What this mode does not do**
     - Optimize, relax constraints, or recommend a best design
@@ -406,11 +406,11 @@ def render_scan_lab(_app_module) -> None:
                     from tools.scan_visual_identity import VISUAL_IDENTITY
                     st.caption(f"Visual semantics frozen: **{VISUAL_IDENTITY.version}**")
                 except Exception:
-                    st.caption("Visual semantics frozen (Scan Lab v1.0)")
+                    st.caption("Visual semantics frozen for this Scan Lab release.")
     
             # Restore (artifact -> full UI state)
             with st.expander("Restore Scan Artifact (JSON)", expanded=False):
-                st.caption("Upload a previously exported Scan Lab artifact. SHAMS will auto-upgrade it to schema v1 and restore the Scan Lab state.")
+                st.caption("Upload a previously exported Scan Lab artifact. SHAMS will auto-upgrade it to the standard replay schema and restore Scan Lab state.")
                 up = st.file_uploader("Upload scan artifact", type=["json"], key="scan_restore_upl")
                 if up is not None:
                     try:
@@ -696,7 +696,7 @@ def render_scan_lab(_app_module) -> None:
                     rep = _attach_common_metadata(rep)
                     st.session_state["scan_cartography_report"] = rep
 
-                    # Freeze-grade Scan Artifact (schema v1)
+                    # Freeze-grade Scan Artifact (standard replay schema)
                     settings = {
                         "x_key": str(x_key),
                         "y_key": str(y_key),
@@ -781,9 +781,9 @@ def render_scan_lab(_app_module) -> None:
             st.checkbox("After one scan, I learned something fundamental about what limits this design space.", key="scan_benchmark_learned")
             st.text_area("If yes: what was it? (optional)", value="", height=90, key="scan_benchmark_note")
 
-        # --- Design Family Governance Engine (v394.0.0) ---
+        # --- Design Family Governance Engine ---
         # Exploration-only: does not affect truth. Deterministic labeling + connected components.
-        with st.expander("Design family governance (v394.0.0)", expanded=False):
+        with st.expander("Design family governance", expanded=False):
             st.caption("Extract deterministic design families from the current cartography report (regime-signature labeling + connected components).")
             it_opts = list(intents_strip or ["Reactor"])
             it_sel = st.selectbox("Intent lens", options=it_opts, index=0, key="scan_df_intent_v394")
@@ -885,7 +885,7 @@ def render_scan_lab(_app_module) -> None:
 
         
         
-        # --- Post-run Cartography Workbench (v196.3) ---
+        # --- Post-run Cartography Workbench ---
         # Goal: eliminate scroll-fatigue by treating the map as the center of gravity.
         # This is UI-only; it does not change evaluator truth or scan semantics.
 
@@ -1089,7 +1089,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                 art = st.session_state.get("scan_cartography_artifact")
                 if isinstance(art, dict):
                     art_dl = _shams_json_dumps(art, indent=2).encode("utf-8")
-                    st.download_button("Download scan artifact (JSON, schema v1)", data=art_dl, file_name="shams_scan_artifact_v1.json", mime="application/json", use_container_width=True, key="scan_wb_dl_art")
+                    st.download_button("Download scan artifact (JSON, replay schema)", data=art_dl, file_name="shams_scan_artifact_v1.json", mime="application/json", use_container_width=True, key="scan_wb_dl_art")
 
                     # Optional: boundary segments + field-cube exports (Scan Lab v218 additions)
                     try:
@@ -1361,7 +1361,7 @@ div[data-testid="stVerticalBlockBorderWrapper"].shams_truthbar { position: stick
                 except Exception as e:
                     st.error(f"Save failed: {e}")
 
-        # Next-tier 0-D insight suite (v191)
+        # Next-tier 0-D insight suite
         with st.expander("Next‑tier insights (0‑D, no optimization)", expanded=False):
             st.caption("These tools turn scans into understanding (laws, regimes, impossibility). They never modify Point Designer truth.")
 

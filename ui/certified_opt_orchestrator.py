@@ -6,7 +6,7 @@ import streamlit as st
 
 
 def render_certified_optimization_orchestrator(repo_root: Path) -> None:
-    """UI deck: Certified Optimization Orchestrator 3.0 (v325).
+    """UI deck: Certified Optimization Orchestrator 3.0.
 
     This deck creates a hash-stable optimizer job, runs an external kit, and
     re-verifies candidates against frozen truth.

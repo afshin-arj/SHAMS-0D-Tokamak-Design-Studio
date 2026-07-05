@@ -1,4 +1,4 @@
-"""Trade Study results tables and exports (Batch 6)."""
+"""Trade Study results tables and exports."""
 from __future__ import annotations
 
 from nicegui import ui

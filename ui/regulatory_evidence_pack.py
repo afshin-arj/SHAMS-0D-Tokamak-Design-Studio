@@ -21,9 +21,9 @@ def _pick_artifact_from_session() -> Optional[Dict[str, Any]]:
 
 
 def render_regulatory_evidence_pack_panel(repo_root: Path) -> None:
-    st.subheader("🧾 Regulatory & Reviewer Evidence Packs (v334.0)")
+    st.subheader("🧾 Regulatory & Reviewer Evidence Packs")
     st.caption(
-        "Licensing-grade deterministic ZIP exports with schema v2 + pack validator + PDF summary report. "
+        "Licensing-grade deterministic ZIP exports with standard replay schema + pack validator + PDF summary report. "
         "Read-only; does not affect truth."
     )
 
@@ -63,12 +63,12 @@ def render_regulatory_evidence_pack_panel(repo_root: Path) -> None:
             }
         )
     with c2:
-        st.markdown("### Export (schema v2)")
+        st.markdown("### Export (standard replay schema)")
         if st.button("Generate reviewer pack ZIP", use_container_width=True, key="regpack_gen_btn_v334"):
             try:
                 export_regulatory_evidence_pack_zip(repo_root, art, out_zip, extra=extra, basename="reviewer_pack")
                 st.session_state["regulatory_pack_zip_path"] = str(out_zip)
-                st.success("Reviewer pack generated (v334.0).")
+                st.success("Reviewer pack generated.")
             except Exception as e:
                 st.error(f"Reviewer pack build failed: {e}")
 
@@ -99,7 +99,7 @@ def render_regulatory_evidence_pack_panel(repo_root: Path) -> None:
                             for e in res.errors:
                                 st.error(e)
 
-    with st.expander("What this pack contains (v334.0 schema v2)", expanded=False):
+    with st.expander("What this pack contains (standard pack schema)", expanded=False):
         st.markdown(
             "- `artifact.json`: full run artifact\n"
             "- `dominance.json`: authority dominance snapshot\n"
@@ -109,5 +109,5 @@ def render_regulatory_evidence_pack_panel(repo_root: Path) -> None:
             "- `tables/constraints_top.csv`: top limiting constraints (if present)\n"
             "- `report/reviewer_summary.pdf`: deterministic PDF summary (if reportlab available)\n"
             "- `contracts/*.json`: copied contracts used (when present)\n"
-            "- `PACK_MANIFEST.json`: strict schema v2 pack manifest + per-file SHA-256\n"
+            "- `PACK_MANIFEST.json`: strict standard replay schema pack manifest + per-file SHA-256\n"
         )

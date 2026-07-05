@@ -1,4 +1,4 @@
-"""Reactor Design Forge verdict dashboard (Batch 7)."""
+"""Reactor Design Forge verdict dashboard."""
 from __future__ import annotations
 
 from nicegui import ui

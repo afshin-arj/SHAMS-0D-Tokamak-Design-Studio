@@ -1,4 +1,4 @@
-"""Reactor Design Forge helpers (Batch 7)."""
+"""Reactor Design Forge helpers."""
 from __future__ import annotations
 
 import json

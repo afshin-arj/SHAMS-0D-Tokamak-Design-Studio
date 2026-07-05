@@ -237,7 +237,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
             st.caption("Verifies that main panels can exchange the canonical design state (no truth modifications).")
 
             st.divider()
-            st.subheader("Interoperability contract validator (v326)")
+            st.subheader("Interoperability contract validator")
             st.caption("Static + runtime wiring audit: declared panel contracts vs discoverable subpanels in ui/app.py.")
 
             def _run_contract_validator() -> dict:
@@ -1267,7 +1267,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
     # --- Control Room block 7 (was app.py lines 4175..4261) ---
     with tab_artifacts:
         st.header("Artifacts Explorer")
-        st.caption("Load a SHAMS run artifact and inspect new v50+ artifact sections (constraint ledger, model set, standardized tables).")
+        st.caption("Load a SHAMS run artifact and inspect extended artifact sections (constraint ledger, model set, standardized tables).")
 
         up = st.file_uploader("Upload shams_run_artifact.json", type=["json"], key="ae_upload")
         art = _load_json_from_upload(up)
@@ -1881,7 +1881,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
             ledger = art.get("constraint_ledger", {})
             entries = ledger.get("entries", []) if isinstance(ledger, dict) else []
             if not entries:
-                st.warning("This artifact has no constraint ledger. (It should be present in v39+ artifacts.)")
+                st.warning("This artifact has no constraint ledger (expected in current run-artifact format).")
             else:
                 df = pd.DataFrame(entries)
                 # Basic filters
@@ -2745,7 +2745,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
     # --- Control Room block 26 (was app.py lines 5712..5769) ---
     with tab_maintenance:
         st.header("Maintenance & Availability Authority")
-        st.caption("Deterministic maintenance scheduling closure (v368.0): outage calendar proxy and schedule-dominated availability.")
+        st.caption("Deterministic maintenance scheduling closure: outage calendar proxy and schedule-dominated availability.")
 
         out = st.session_state.get("last_point_out")
         if not isinstance(out, dict):
@@ -2753,11 +2753,11 @@ This panel also performs a lightweight hygiene scan of the working tree.
         else:
             enabled = bool(out.get("maintenance_contract_sha256")) and (out.get("availability_v368") == out.get("availability_v368"))
             if not enabled:
-                st.warning("v368 maintenance scheduling is not enabled for the current point. Enable it in Point Designer → Engineering & plant feasibility → Maintenance scheduling authority (v368.0).")
+                st.warning("Maintenance scheduling is not enabled for the current point. Enable it in Point Designer → Engineering & plant feasibility → Maintenance scheduling authority.")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Availability (v368)", _m("availability_v368", "{:.3f}"))
-            c2.metric("Outage total (v368)", _m("outage_total_frac_v368", "{:.3f}"))
-            c3.metric("Net MWh/y (v368)", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
+            c1.metric("Schedule-dominated availability", _m("availability_v368", "{:.3f}"))
+            c2.metric("Outage fraction", _m("outage_total_frac_v368", "{:.3f}"))
+            c3.metric("Net electric MWh/y", _m("net_electric_MWh_per_year_v368", "{:.3g}"))
             c4.metric("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.3g}"))
 
             with st.expander("What this authority does", expanded=False):
@@ -2788,7 +2788,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 st.write(rows)
 
             ev = out.get("maintenance_events_v368")
-            with st.expander("Maintenance event table (v368)", expanded=False):
+            with st.expander("Maintenance event table", expanded=False):
                 if isinstance(ev, list) and ev:
                     try:
                         import pandas as _pd
@@ -2796,7 +2796,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
                     except Exception:
                         st.json(ev)
                 else:
-                    st.info("No maintenance_events_v368 found (enable v368 and re-run).")
+                    st.info("No maintenance event table found — enable maintenance scheduling and re-run.")
 
             with st.expander("Contract fingerprint", expanded=False):
                 st.code(str(out.get("maintenance_contract_sha256", "")))
@@ -2821,7 +2821,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
             ]
             st.dataframe(rows, use_container_width=True, hide_index=True)
 
-            st.markdown("### v399 Multi-species impurity mix (if enabled)")
+            st.markdown("### Multi-species impurity mix (if enabled)")
             rows_v399 = [
                 {"metric":"include_impurity_v399", "value": out.get("include_impurity_v399")},
                 {"metric":"impurity_v399_mix_json", "value": out.get("impurity_v399_mix_json")},
@@ -2836,9 +2836,9 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 {"metric":"detachment_margin_v399", "value": out.get("detachment_margin_v399")},
             ]
             st.dataframe(rows_v399, use_container_width=True, hide_index=True)
-            with st.expander("v399 Per-species radiation (MW)", expanded=False):
+            with st.expander("Per-species radiation (MW)", expanded=False):
                 st.json(out.get("impurity_v399_by_species_MW", {}))
-            with st.expander("v399 Validity flags", expanded=False):
+            with st.expander("Multi-species validity flags", expanded=False):
                 st.json(out.get("impurity_v399_validity", {}))
 
             with st.expander("Validity flags", expanded=False):
@@ -2849,7 +2849,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
     # --- Control Room block 28 (was app.py lines 5813..5837) ---
     with tab_impurity:
         st.header("Impurity & Radiation")
-        st.caption("v320 authority: single-species partitions + detachment inversion. v399: multi-species mix → Zeff + partitions + achieved detachment margin (diagnostic; no truth feedback).")
+        st.caption("Exhaust authority: single-species partitions + detachment inversion. Multi-species mix adds Zeff + partitions + achieved detachment margin (diagnostic; no truth feedback).")
         out = st.session_state.get("last_point_out")
         if not isinstance(out, dict):
             st.info("Run a point in Point Designer first.")
@@ -2979,7 +2979,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
             with cols[1]:
                 mode = st.selectbox(
                     "Mode",
-                    ["Single objective (v340 compat)", "Pareto frontier (v405)",],
+                    ["Single objective (legacy compat)", "Multi-objective Pareto frontier",],
                     index=0,
                     key="cs_mode",
                 )
@@ -2989,11 +2989,11 @@ This panel also performs a lightweight hygiene scan of the working tree.
                     ["Q_DT_eqv", "P_fus_MW", "P_net_MW"],
                     index=0,
                     key="cs_single_obj",
-                    disabled=(str(mode) != "Single objective (v340 compat)"),
+                    disabled=(str(mode) != "Single objective (legacy compat)"),
                 )
 
             pareto_objectives = []
-            if str(mode) == "Pareto frontier (v405)":
+            if str(mode) == "Multi-objective Pareto frontier":
                 st.subheader("Pareto objectives")
                 # Deterministic, compact objective menu
                 obj_menu = [
@@ -3135,7 +3135,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
                                 local_shrink=float(stage2_shrink),
                             )
                         )
-                    if str(mode) == "Pareto frontier (v405)":
+                    if str(mode) == "Multi-objective Pareto frontier":
                         def _eval_fn(inp_obj):
                             return _ui_evaluate(inp_obj, origin="pareto_frontier_v405")
 
@@ -3195,7 +3195,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 # v405: frontier candidates (Pareto) with per-candidate evidence packs
                 cands = art.get("candidates")
                 if isinstance(cands, list) and len(cands) > 0:
-                    st.subheader("Frontier candidates (v405)")
+                    st.subheader("Frontier candidates")
                     rows2 = []
                     for c in cands:
                         if not isinstance(c, dict):

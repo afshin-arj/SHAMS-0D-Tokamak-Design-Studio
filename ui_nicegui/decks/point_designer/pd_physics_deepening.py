@@ -9,7 +9,7 @@ from ui_nicegui.components.kpi_row import kpi_row
 
 DEEP_VIEWS = [
     "Regime & Confinement",
-    "Global Dominance & Regime (v402)",
+    "Global Dominance & Regime",
     "Current Profile & Current Drive",
     "Bootstrap–Pressure Self-Consistency Authority",
     "Current Drive Tech Authority",
@@ -72,9 +72,9 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                     "H_regime is reported only when couple_regime_to_confinement=True."
                 ).classes("text-caption")
 
-            elif v == "Global Dominance & Regime (v402)":
+            elif v == "Global Dominance & Regime":
                 if not bool(out.get("include_authority_dominance_v402", False)):
-                    ui.label("v402 is OFF — enable Global dominance in Configure.").classes("text-caption")
+                    ui.label("Global dominance overlay is off — enable in Configure.").classes("text-caption")
                 else:
                     kpi_row([
                         ("Regime class", str(out.get("regime_class_v402", "unknown"))),
@@ -83,12 +83,12 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                         ("Gap to #2", f"{_sf(out, 'dominance_gap_to_second_v402'):+.3f}"),
                     ])
                     if bool(out.get("mirage_flag_v402", False)):
-                        ui.label("Feasibility mirage flagged (v402).").classes("text-warning")
+                        ui.label("Feasibility mirage flagged by global dominance overlay.").classes("text-warning")
                         rs = out.get("mirage_reasons_v402", [])
                         if isinstance(rs, list) and rs:
                             ui.label("Reasons: " + ", ".join(str(x) for x in rs[:10])).classes("text-caption")
                     if bool(out.get("include_structural_life_v404", False)):
-                        with ui.expansion("Structural life summary (v404)", icon="engineering").classes("w-full"):
+                        with ui.expansion("Structural life summary", icon="engineering").classes("w-full"):
                             ui.label(
                                 f"Global min margin: {_sf(out, 'struct_global_min_margin_v404'):+.3f} | "
                                 f"Dominant: {out.get('struct_dominant_component_v404', '?')} / "
@@ -97,7 +97,7 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                             tbl = out.get("struct_margin_table_v404", [])
                             if isinstance(tbl, list):
                                 _table_from_dicts(tbl, row_key=list(tbl[0].keys())[0] if tbl else "check")
-                    with ui.expansion("Dominance ranking table (v402)", icon="table_chart").classes("w-full"):
+                    with ui.expansion("Dominance ranking table", icon="table_chart").classes("w-full"):
                         rows = out.get("dominance_order_v402", [])
                         if isinstance(rows, list):
                             _table_from_dicts(rows, row_key=list(rows[0].keys())[0] if rows else "authority")
@@ -242,10 +242,10 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                 ).classes("text-caption")
                 if bool(out.get("include_neutronics_materials_library_v403", False)):
                     ui.label(
-                        f"NM library (v403): tier {out.get('nm_regime_tier_v403', 'UNKNOWN')} | "
+                        f"Nuclear materials library: tier {out.get('nm_regime_tier_v403', 'UNKNOWN')} | "
                         f"TBR proxy {_sf(out, 'tbr_proxy_v403'):.2f} | FW DPA {_sf(out, 'dpa_fw_v403'):.2f}"
                     ).classes("text-caption")
-                    with ui.expansion("v403 stack ledger", icon="layers").classes("w-full"):
+                    with ui.expansion("In-vessel materials stack ledger", icon="layers").classes("w-full"):
                         layers = out.get("nm_stack_layers_v403", [])
                         if isinstance(layers, list) and layers:
                             _table_from_dicts(layers, row_key=list(layers[0].keys())[0])

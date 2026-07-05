@@ -1,4 +1,4 @@
-"""Reactor Design Forge — Machine Finder + capsule helpers (Phase 14)."""
+"""Reactor Design Forge — Machine Finder + capsule helpers."""
 from __future__ import annotations
 
 import json

@@ -1,4 +1,4 @@
-"""Control Room — Constitution section (Batch 10)."""
+"""Control Room — Constitution section."""
 from __future__ import annotations
 
 from nicegui import ui

@@ -1,4 +1,4 @@
-"""Compare results tables and export (Batch 8)."""
+"""Compare results tables and export (legacy — use metrics/export_panel)."""
 from __future__ import annotations
 
 from nicegui import ui

@@ -18,10 +18,10 @@ def render_design_governance(session: DesignSession) -> None:
     session.knobs.setdefault("profile_peaking_p_ref_v402", 3.0)
     session.knobs.setdefault("zeff_ref_max_v402", 2.5)
 
-    with ui.expansion("Design governance (v402 dominance refs)", icon="gavel").classes("w-full q-mb-sm"):
+    with ui.expansion("Design governance (dominance references)", icon="gavel").classes("w-full q-mb-sm"):
         ui.label(
             "**Mission profile, q95/Greenwald tiering, and TRL** are set in "
-            "**Helm Console → Design contract**. This panel only adjusts v402 dominance ranking references."
+            "**Helm Console → Design contract**. This panel only adjusts global dominance ranking references."
         ).classes("text-caption q-mb-sm")
 
         ui.markdown(
@@ -37,7 +37,7 @@ def render_design_governance(session: DesignSession) -> None:
             )
 
         if bool(session.overlay.get("include_authority_dominance_v402", True)):
-            ui.label("Global dominance reference thresholds (v402)").classes("text-subtitle2")
+            ui.label("Global dominance reference thresholds").classes("text-subtitle2")
             ui.label(
                 "Rank authority margins in dominance telemetry — does not change frozen physics."
             ).classes("text-caption q-mb-sm")

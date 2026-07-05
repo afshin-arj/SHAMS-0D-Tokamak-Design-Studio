@@ -956,8 +956,8 @@ def render_pareto_lab(_app_module) -> None:
                                 for ii in range(1, len(d)-1):
                                     v1 = np.array([xn[ii]-xn[ii-1], yn[ii]-yn[ii-1]])
                                     v2 = np.array([xn[ii+1]-xn[ii], yn[ii+1]-yn[ii]])
-                                    n1 = np.linalg.norm(v1) + 1e-12
-                                    n2 = np.linalg.norm(v2) + 1e-12
+                                    n1 = np.linalg.norm + 1e-12
+                                    n2 = np.linalg.norm + 1e-12
                                     ang = np.arccos(np.clip(np.dot(v1, v2)/(n1*n2), -1.0, 1.0))
                                     kappa[ii] = float(ang)
                                 d["knee_score"] = kappa
@@ -1131,7 +1131,7 @@ def render_pareto_lab(_app_module) -> None:
 
     # --- Freeze badge (Pareto) ---
     with st.container():
-        st.caption("Pareto Mode v1.0 - Frozen. Descriptive trade-off cartography only.")
+        st.caption("Frozen descriptive trade-off cartography only — no optimization.")
         try:
             _pf = (Path(__file__).resolve().parent.parent / "docs"/ "PARETO_V1_FREEZE_DECLARATION.md").read_text(encoding="utf-8")
         except Exception:

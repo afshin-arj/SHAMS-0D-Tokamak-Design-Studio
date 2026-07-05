@@ -46,10 +46,10 @@ class DesignSession:
     pd_last_run_ts: Optional[float] = None
     last_error: Optional[str] = None
     evaluating: bool = False
-    # System Suite (Batch 2)
+    # System Suite
     suite_availability: float = 0.75
     profile_contracts_v362_last: Optional[dict[str, Any]] = None
-    # Systems Mode (Batch 3)
+    # Systems Mode
     systems_workflow_step: str = "2 · Check & Solve"
     systems_workflow_power_user: bool = False
     systems_block_solve: bool = False
@@ -135,7 +135,7 @@ class DesignSession:
     systems_diff_a: str = ""
     systems_diff_b: str = ""
     systems_atlas_robust_thr: float = 0.10
-    # Scan Lab (Batch 4)
+    # Scan Lab
     scan_cartography_report: Optional[dict[str, Any]] = None
     scan_cartography_artifact: Optional[dict[str, Any]] = None
     scan_cart_x_key: str = "Ip_MA"
@@ -167,7 +167,33 @@ class DesignSession:
     scan_design_families_v394_cert: Optional[dict[str, Any]] = None
     scan_atlas_title: str = "SHAMS — Scan Lab Atlas"
     scan_atlas_pdf_bytes: Optional[bytes] = None
-    # Pareto Lab (Batch 5)
+    scan_signature_atlas_pdf_bytes: Optional[bytes] = None
+    scan_signature_atlas_title: str = "SHAMS — Scan Lab Signature Atlas"
+    scan_workflow_step: str = "1 · Setup & Run"
+    scan_decision_state: str = "Map my limits (2D slice)"
+    scan_teaching_mode: bool = False
+    scan_expert_view: bool = False
+    scan_import_errors: list[str] = field(default_factory=list)
+    scan_local_insight: str = "Causality trace"
+    scan_next_tier_pick: str = "Explain infeasible region"
+    scan_claim_intent: str = "Reactor"
+    scan_probe_focus: Optional[dict[str, Any]] = None
+    scan_claim_type: str = "Dominance"
+    scan_claim_title: str = ""
+    scan_claim_statement: str = ""
+    scan_claim_expected: str = ""
+    scan_claim_notes: str = ""
+    scan_claim_falsify_last: Optional[dict[str, Any]] = None
+    scan_claim_pdf_bytes: Optional[bytes] = None
+    scan_claim_last: Optional[dict[str, Any]] = None
+    scan_path_follow_last: Optional[dict[str, Any]] = None
+    scan_lib_tag: str = "interesting"
+    scan_lib_note: str = ""
+    scan_view_mode: str = ""
+    scan_promote_note: str = "Probed scan cell"
+    scan_iso_constraint: str = ""
+    scan_deep_viz_intent: str = "Reactor"
+    # Pareto Lab
     pareto_deck: str = "Internal Pareto Frontier"
     pareto_last: Optional[dict[str, Any]] = None
     pareto_bounds: Optional[dict[str, Any]] = None
@@ -187,7 +213,20 @@ class DesignSession:
     pareto_seed: int = 1
     pareto_robust_margin_thr: float = 0.10
     pareto_running: bool = False
-    # Trade Study Studio (Batch 6)
+    pareto_workflow_step: str = "1 · Setup & Run"
+    pareto_decision_state: str = "Sample a new frontier"
+    pareto_teaching_mode: bool = True
+    pareto_expert_view: bool = False
+    pareto_plot_x: str = "R0_m"
+    pareto_plot_y: str = "P_e_net_MW"
+    pareto_plot_color: str = "dominant_constraint"
+    pareto_robust_only: bool = False
+    pareto_show_failures: bool = True
+    pareto_external_group: str = "Robust screening"
+    pareto_external_tool: str = "Robust Pareto Frontier (Phase+UQ)"
+    feasible_optimizer_last: Optional[dict[str, Any]] = None
+    systems_mode_queue: list[dict[str, Any]] = field(default_factory=list)
+    # Trade Study Studio
     trade_studio_deck: str = "Study Setup & Run"
     trade_last: Optional[dict[str, Any]] = None
     trade_last_lane: str = "Optimistic vs Robust"
@@ -197,8 +236,57 @@ class DesignSession:
     trade_objectives: list[str] = field(default_factory=list)
     trade_lane_mode: str = "Optimistic vs Robust"
     trade_running: bool = False
+    trade_workflow_step: str = "1 · Setup & Run"
+    trade_decision_state: str = "Run a new trade study"
+    trade_teaching_mode: bool = True
+    trade_expert_view: bool = False
+    trade_plot_x: str = "min_R0"
+    trade_plot_y: str = "max_Pnet"
+    trade_plot_color: str = "design_family"
+    trade_show_failures: bool = True
+    trade_advanced_group: str = "Frontier & certification"
+    trade_advanced_deck: str = "Multi-Objective Feasible Frontier Atlas"
+    ts_sa_verified_rows: Optional[list] = None
+    v351_lane_rows: Optional[list] = None
+    v351_empty_region: Optional[dict[str, Any]] = None
     active_study_capsule: Optional[dict[str, Any]] = None
-    # Reactor Design Forge (Batch 7)
+    # Reactor Design Forge (Batch 7 + workflow)
+    forge_workflow_step: str = "1 · Compile Intent"
+    forge_decision_state: str = "Compile intent to a candidate"
+    forge_teaching_mode: bool = True
+    forge_expert_view: bool = False
+    forge_wb_view: str = "Archive overview"
+    forge_scatter_x: str = "R0_m"
+    forge_scatter_y: str = "P_e_net_MW"
+    forge_inspect_idx: int = 0
+    forge_review_bench: list[int] = field(default_factory=list)
+    forge_conflict_atlas: Optional[dict[str, Any]] = None
+    forge_filter_robust: bool = False
+    forge_filter_min_score: float = float("-inf")
+    forge_filter_max_coe: Optional[float] = None
+    forge_instrument_group: str = "Run intelligence"
+    forge_instrument_tool: str = "Run dashboard"
+    forge_provenance_constraint: str = "q_div"
+    forge_surface_constraint: str = ""
+    forge_localcart_x: str = "R0_m"
+    forge_localcart_y: str = "Ip_MA"
+    forge_localcart_span: int = 20
+    forge_localcart_grid: int = 21
+    forge_localcart_df: Optional[Any] = None
+    forge_uq_samples: int = 200
+    forge_uq_pct: int = 5
+    forge_uq_result: Optional[dict[str, Any]] = None
+    forge_casebook: list[dict[str, Any]] = field(default_factory=list)
+    forge_casebook_results: list[dict[str, Any]] = field(default_factory=list)
+    forge_adv_surface: bool = True
+    forge_adv_skeleton: bool = True
+    forge_adv_memory: bool = False
+    forge_adv_multi_intent: bool = False
+    forge_adv_staged: bool = False
+    forge_min_margin_guard: float = 0.0
+    forge_use_cost: bool = False
+    forge_stage_state: Optional[dict[str, Any]] = None
+    forge_review_session: Optional[dict[str, Any]] = None
     forge_deck: str = "Intent Compiler"
     forge_review_mode: bool = False
     # Helm Console (sidebar parity with Streamlit)
@@ -307,14 +395,19 @@ class DesignSession:
     cr_citation_last: Optional[dict[str, Any]] = None
     cr_regression_diff: Optional[dict[str, Any]] = None
     cr_repo_regression_last: Optional[dict[str, Any]] = None
-    # Compare (Batch 8)
+    # Compare deck workflow
     cmp_slot_a: Optional[dict[str, Any]] = None
     cmp_slot_b: Optional[dict[str, Any]] = None
     cmp_slot_a_meta: dict[str, Any] = field(default_factory=dict)
     cmp_slot_b_meta: dict[str, Any] = field(default_factory=dict)
     cmp_use_slot_a: bool = True
     cmp_use_slot_b: bool = True
-    # Publication Benchmarks (Batch 9)
+    cmp_workflow_step: str = "1 · Load A & B"
+    cmp_teaching_mode: bool = True
+    cmp_expert_view: bool = False
+    cmp_decision_state: str = "Load baseline vs variant"
+    cmp_show_all_outputs: bool = False
+    # Publication Benchmarks
     pub_bench_tab: str = "Tokamak Constitutional Atlas"
     pub_atlas_bucket: str = ""
     pub_atlas_preset_key: str = ""
@@ -380,7 +473,7 @@ class DesignSession:
     cr_forensics_last: Optional[dict[str, Any]] = None
     v340_cert_search_last: Optional[dict[str, Any]] = None
     v343_interval_narrowing_evidence: Optional[dict[str, Any]] = None
-    # Control Room (Batch 10)
+    # Control Room
     cr_section: str = "Orientation"
     cr_orient_tab: str = "Launchpad"
     cr_const_tab: str = "Model Ledger"
@@ -401,6 +494,7 @@ class DesignSession:
     uq_contract_mode: str = "±% around baseline"
     uq_contract_pct: float = 5.0
     uq_contract_max_dims: int = 12
+    uq_contract_abs_bounds: dict[str, Any] = field(default_factory=dict)
     uq_contract_last: Optional[dict[str, Any]] = None
     uq_contract_running: bool = False
     pd_last_forensics: Optional[dict[str, Any]] = None

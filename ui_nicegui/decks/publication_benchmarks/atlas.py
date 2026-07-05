@@ -1,4 +1,4 @@
-"""Tokamak Constitutional Atlas panel (Batch 9)."""
+"""Tokamak Constitutional Atlas panel."""
 from __future__ import annotations
 
 from typing import Callable, Optional

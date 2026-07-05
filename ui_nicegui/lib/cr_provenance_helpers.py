@@ -1,4 +1,4 @@
-"""Control Room Provenance helpers — studies, protocol, repro, regression (Phase 15)."""
+"""Control Room Provenance helpers — studies, protocol, repro, regression."""
 from __future__ import annotations
 
 import json

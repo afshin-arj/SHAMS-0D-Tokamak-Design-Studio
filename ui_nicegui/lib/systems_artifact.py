@@ -1,4 +1,4 @@
-"""Systems Mode artifact helpers — framework-agnostic (Batch 3)."""
+"""Systems Mode artifact helpers — framework-agnostic."""
 
 from __future__ import annotations
 

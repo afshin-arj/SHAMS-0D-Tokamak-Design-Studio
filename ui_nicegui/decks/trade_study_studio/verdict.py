@@ -1,4 +1,4 @@
-"""Trade Study verdict-first dashboard (Batch 6)."""
+"""Trade Study verdict-first dashboard."""
 from __future__ import annotations
 
 from nicegui import ui

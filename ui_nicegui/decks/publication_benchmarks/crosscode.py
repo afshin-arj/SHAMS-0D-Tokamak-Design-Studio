@@ -1,4 +1,4 @@
-"""Cross-Code Constitutions panel (Phase 16)."""
+"""Cross-Code Constitutions panel."""
 from __future__ import annotations
 
 import json

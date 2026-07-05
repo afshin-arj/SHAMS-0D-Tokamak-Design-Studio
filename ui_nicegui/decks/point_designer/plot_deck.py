@@ -76,7 +76,7 @@ def render_plot_deck(session: DesignSession) -> None:
         with ui.tab_panel(t4):
             ui.label("Energy confinement and empirical H-factor comparators.").classes("text-caption")
             _show_png(plot_confinement(out), caption="Confinement plot unavailable.")
-            with ui.expansion("Transport Envelope 2.0 scalings (v396)", icon="timeline").classes("w-full"):
+            with ui.expansion("Multi-scaling confinement envelope", icon="timeline").classes("w-full"):
                 v396 = v396_scaling_rows(out)
                 if v396:
                     ui.table(
@@ -88,8 +88,8 @@ def render_plot_deck(session: DesignSession) -> None:
                         row_key="scaling",
                     ).classes("w-full")
                 else:
-                    ui.label("No v396 scaling dictionary (module disabled or invalid inputs).").classes("text-caption")
-            with ui.expansion("Profile Proxy Authority (v397)", icon="show_chart").classes("w-full"):
+                    ui.label("No confinement scaling dictionary (module disabled or invalid inputs).").classes("text-caption")
+            with ui.expansion("Kinetic profile peaking proxy", icon="show_chart").classes("w-full"):
                 v397 = v397_profile_summary(out)
                 if v397:
                     ui.label("Deterministic 1.5D proxy diagnostics (no solvers).").classes("text-caption")
@@ -104,6 +104,6 @@ def render_plot_deck(session: DesignSession) -> None:
                         else:
                             ui.json(samp)
                 else:
-                    ui.label("v397 profile proxy disabled (enable in Configure).").classes("text-caption")
+                    ui.label("Profile peaking proxy disabled (enable in Configure).").classes("text-caption")
             with ui.expansion("Notes", icon="info").classes("w-full"):
                 ui.markdown(PLOT_PHYSICAL_MEANING["confinement"])

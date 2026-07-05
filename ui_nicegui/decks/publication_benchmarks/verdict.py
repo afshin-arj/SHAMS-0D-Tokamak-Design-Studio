@@ -1,4 +1,4 @@
-"""Constitutional Atlas verdict banner (Batch 9)."""
+"""Constitutional Atlas verdict banner."""
 from __future__ import annotations
 
 from nicegui import ui

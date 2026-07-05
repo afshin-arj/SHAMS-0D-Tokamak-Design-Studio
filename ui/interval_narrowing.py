@@ -1,4 +1,4 @@
-"""UI panel: Interval Narrowing & Repair Contracts (v343.0).
+"""UI panel: Interval Narrowing & Repair Contracts.
 
 Read-only / explanatory. Does not modify frozen truth.
 

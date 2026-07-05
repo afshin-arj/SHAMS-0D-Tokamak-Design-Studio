@@ -17,7 +17,7 @@ from __future__ import annotations
 import subprocess
 
 
-# --- Branding (v175.4) ---
+# --- Branding ---
 APP_NAME = 'Tokamak 0-D Design Studio'
 APP_SUBTITLE = 'Feasibility-first, constraint-authoritative 0-D tokamak design'
 APP_AUTHOR = 'Afshin Arjhangmehr'
@@ -114,7 +114,7 @@ def _attach_common_metadata(d: dict) -> dict:
     except Exception:
         pass
 
-    # --- Governance overlays (v264.0) ---
+    # --- Governance overlays ---
     try:
         from src.governance.citations import validate_authority_overrides, summarize_citation_completeness
         issues = validate_authority_overrides(d.get("authority_overrides", {}))
@@ -414,7 +414,7 @@ except Exception:
     pass
 
 
-# ---- Systems solver adapter imports (v178.9) ----
+# ---- Systems solver adapter imports ----
 # UI directly builds SolverRequest objects for Systems Mode solves.
 # Some deployments expose `src/` modules as top-level packages; keep a robust fallback.
 try:
@@ -494,8 +494,8 @@ def _alog_exc(mode: str, action: str, exc: BaseException):
         pass
 
 
-# --- Forward-definition bootstrap (v175.6) ---
-# --- Forward-definition bootstrap (v175.6.2) ---
+# --- Forward-definition bootstrap ---
+# --- Forward-definition bootstrap ---
 def _bootstrap_forward_defs(target_names=None) -> None:
     """Predefine later top-level defs so early UI can reference them.
 
@@ -553,7 +553,7 @@ from ui.state import SessionStateModel
 
 
 # =====================
-# Phase-1 UI Stabilization: early-safe state helpers (v372.8)
+# Phase-1 UI Stabilization: early-safe state helpers
 # =====================
 # Rationale: prevent forward-reference failures and tab-scope leakage under Streamlit rerun semantics.
 # These helpers are intentionally minimal and deterministic; they do not modify physics truth.
@@ -936,7 +936,7 @@ PD_KEYS = {
     "p_tf_ohmic_margin_min_v400": "pd_p_tf_ohmic_margin_min_v400",
 
 
-    # v318.0 profile bundle knobs (stable keys for presets and promotion)
+    # profile bundle knobs (stable keys for presets and promotion)
     "profile_mode": "pd_profile_mode",
     "profile_alpha_T": "pd_profile_alpha_T",
     "profile_alpha_n": "pd_profile_alpha_n",
@@ -946,12 +946,12 @@ PD_KEYS = {
     "include_bootstrap_pressure_selfconsistency": "pd_include_bootstrap_pressure_selfconsistency",
     "f_bootstrap_consistency_abs_max": "pd_f_bootstrap_consistency_abs_max",
 
-    # v371.0 transport contract library keys
+    # transport contract library keys
     "include_transport_contracts_v371": "pd_include_transport_contracts_v371",
     "H_required_max_optimistic": "pd_H_required_max_optimistic",
     "H_required_max_robust": "pd_H_required_max_robust",
 
-    # v396.0 transport envelope 2.0 keys
+    # transport envelope 2.0 keys
     "include_transport_envelope_v396": "pd_include_transport_envelope_v396",
     "transport_spread_max_v396": "pd_transport_spread_max_v396",
     "include_tauE_user_scaling_v396": "pd_include_tauE_user_scaling_v396",
@@ -965,7 +965,7 @@ PD_KEYS = {
     "tauE_user_exp_kappa_v396": "pd_tauE_user_exp_kappa_v396",
     "tauE_user_exp_M_v396": "pd_tauE_user_exp_M_v396",
 
-    # v397.0 profile proxy authority keys
+    # profile proxy authority keys
     "include_profile_proxy_v397": "pd_include_profile_proxy_v397",
     "profile_alpha_T_v397": "pd_profile_alpha_T_v397",
     "profile_beta_T_v397": "pd_profile_beta_T_v397",
@@ -978,7 +978,7 @@ PD_KEYS = {
     "q95_proxy_min_v397": "pd_q95_proxy_min_v397",
     "q0_proxy_min_v397": "pd_q0_proxy_min_v397",
     "bootstrap_localization_max_v397": "pd_bootstrap_localization_max_v397",
-    # v372.0 neutronics–materials coupling keys
+    # neutronics–materials coupling keys
     "include_neutronics_materials_coupling_v372": "pd_include_nm_coupling_v372",
     "nm_material_class_v372": "pd_nm_material_class_v372",
     "nm_spectrum_class_v372": "pd_nm_spectrum_class_v372",
@@ -1034,7 +1034,7 @@ def _push_point_inputs_to_pd_widget_keys(base: Any) -> None:
     except Exception:
         pass
 
-    # v371.0 transport contracts
+    # transport contracts
     try:
         st.session_state[PD_KEYS["include_transport_contracts_v371"]] = bool(getattr(base, "include_transport_contracts_v371", False))
         st.session_state[PD_KEYS["H_required_max_optimistic"]] = float(getattr(base, "H_required_max_optimistic", float("nan")))
@@ -1175,14 +1175,14 @@ def _compute_run_summary_from_out(out: Dict[str, Any]) -> Dict[str, Any]:
 # One-shot synchronization: when a preset is loaded we set this flag, and on the next
 # rerun we push preset values into Point Designer widget keys.
 def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
-    """Render Magnet Technology Authority panel (v328.0).
+    """Render Magnet Technology Authority panel.
 
     UI-only: reads frozen truth outputs and displays contract-driven limits and margins.
     """
     if not isinstance(out, dict) or not out:
         return
 
-    with st.expander("Magnet Authority — Technology Regime (v328.0)", expanded=False):
+    with st.expander("Magnet Authority — Technology Regime", expanded=False):
         regime = str(out.get("magnet_regime", "UNKNOWN"))
         tech = str(out.get("magnet_technology", ""))
         contract_sha = str(out.get("magnet_contract_sha256", ""))[:12]
@@ -1842,7 +1842,7 @@ def compute_checks(out: Dict[str, float]) -> List[Dict[str, Any]]:
         eval_min("TBR", "TBR", "TBR_min",
                  "Tritium breeding ratio proxy must exceed minimum.")
 
-    # --- TBR proxy validity-domain (v321) ---
+    # --- TBR proxy validity-domain ---
     if "TBR_domain_ok"in out:
         ok = out.get("TBR_domain_ok")
         enf = out.get("neutronics_domain_enforce", 0.0)
@@ -2836,11 +2836,15 @@ except Exception:
 
 
 if _deck == "System Suite":
-    from ui.decks.system_suite import render_system_suite
-    render_system_suite(sys.modules[__name__])
-
-
-
+    st.info(
+        "System Suite is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **System Suite** for the complete workflow."
+    )
+    st.markdown(
+        "Plant closure, thermal/ops traces, lifetime budgets, envelope robustness "
+        "(phase cockpit, profile corners, UQ absolute bounds), and campaign/parity exports are on NiceGUI."
+    )
+    st.stop()
 
 if _deck == "Publication Benchmarks":
     from ui.decks.publication_benchmarks import render_publication_benchmarks
@@ -2875,28 +2879,63 @@ if _deck == "Systems Mode":
     render_systems_mode(sys.modules[__name__])
 
 if _deck == "Scan Lab":
-    from ui.decks.scan_lab import render_scan_lab
-    render_scan_lab(sys.modules[__name__])
+    st.info(
+        "Scan Lab is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Scan Lab** for the complete workflow."
+    )
+    st.markdown(
+        "Cartography, map/probe workbench, interpret suite, signature atlas, "
+        "artifact restore, and freeze QA are all on NiceGUI."
+    )
+    st.stop()
 if _deck == "Pareto Lab":
-    from ui.decks.pareto_lab import render_pareto_lab
-    render_pareto_lab(sys.modules[__name__])
+    st.info(
+        "Pareto Lab is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Pareto Lab** for the complete workflow."
+    )
+    st.markdown(
+        "Internal feasible-only frontier, explore/interpret tabs, publication packs, "
+        "Scan Lab / Systems Mode handoffs, and all external optimizer decks are on NiceGUI."
+    )
+    st.stop()
 
 
 if _deck == "Trade Study Studio":
-    from ui.decks.trade_study_studio import render_trade_study_studio
-    render_trade_study_studio(sys.modules[__name__])
+    st.info(
+        "Trade Study Studio is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Trade Study Studio** for the complete workflow."
+    )
+    st.markdown(
+        "Setup/run, explore/interpret tabs, study capsules, advanced trade-study decks, "
+        "surrogate accelerator, optimizer kits, and mirage pathfinding are all on NiceGUI."
+    )
+    st.stop()
 
 
 if _deck == "Reactor Design Forge":
-    from ui.decks.reactor_design_forge import render_reactor_design_forge
-    render_reactor_design_forge(sys.modules[__name__])
+    st.info(
+        "Reactor Design Forge is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Reactor Design Forge** for the complete workflow."
+    )
+    st.markdown(
+        "5-tab workflow: Compile · Setup & Search · Workbench · Instruments · Capsules. "
+        "Expert instruments, collaboration sessions, and run capsules are on NiceGUI."
+    )
+    st.stop()
 
 
 if _deck == "Compare":
-    from ui.decks.compare import render_compare
-    render_compare(sys.modules[__name__])
+    st.info(
+        "Compare is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Compare** for the complete workflow."
+    )
+    st.markdown(
+        "5-tab workflow: Load · Performance · Constraints · Inputs & Structure · Export. "
+        "Scenario deltas, margin regressions, and structural diffs are on NiceGUI."
+    )
+    st.stop()
 
-# (v372.8.7) Studies manager is rendered inside Control Room → Studies tab (no tab-handle leakage).
+# Studies manager is rendered inside Control Room → Studies tab (no tab-handle leakage).
 # The previous module-scope `with tab_studies:` block was removed to satisfy UI law.
 
 
@@ -2983,17 +3022,17 @@ def _numeric_delta_table(base_out: Dict[str, Any], scen_out: Dict[str, Any], lim
 
 
 # -----------------------------
-# Authority & Confidence (v256.0)
+# Authority & Confidence
 # -----------------------------
 
 
 # -----------------------------
-# Decision Consequences (v257.0)
+# Decision Consequences
 # -----------------------------
 
 
 # ----------------------------------
-# Authority Dominance Engine (v330.0)
+# Authority Dominance Engine
 # ----------------------------------
 
 
@@ -3113,7 +3152,7 @@ st.caption('© 2026 Afshin Arjhangmehr - SHAMS–FUSION-X')
 
 
 # =====================
-# v88 UI helpers (append-only)
+# UI helpers (append-only)
 # =====================
 def _v88_continuation_explorer(path):
     import pandas as pd, streamlit as st
@@ -3145,7 +3184,7 @@ def _v88_export_svg(fig, name):
 
 
 # =====================
-# v89 UI helpers (append-only)
+# UI helpers (append-only)
 # =====================
 def _v89_margin_waterfall_fig(constraints):
     import matplotlib.pyplot as plt
@@ -3220,7 +3259,7 @@ def _v89_constraint_intersections(points, topn=10):
 
 
 # =====================
-# v89.1 UI state persistence helpers (append-only)
+# UI state persistence helpers (append-only)
 # =====================
 def _v89_1_render_cached_point():
     import streamlit as st
@@ -3291,7 +3330,7 @@ def _v89_1_render_cached_point():
 
 
 # =====================
-# v89.2 UI state persistence + controls (append-only)
+# UI state persistence + controls (append-only)
 # =====================
 def _v89_2_point_cache_ui():
     import streamlit as st
@@ -3340,11 +3379,11 @@ def _v89_2_point_cache_ui():
 
 
 # =====================
-# v92 UI state-machine helpers (append-only)
+# UI state-machine helpers (append-only)
 # =====================
 # (Defined early in Phase-1 stabilization block to avoid forward-reference failures.)
 
-# v93 UI helpers (append-only)
+# UI helpers (append-only)
 # =====================
 # -----------------------------
 # JSON safety helpers (cycle-safe) - required for export/download stability
@@ -3613,7 +3652,7 @@ def _v93_stateful_sandbox_panel():
 
 
 # =====================
-# v94 Run Records + Unified Export (append-only)
+# Run Records + Unified Export (append-only)
 # =====================
 def _v94_record_run(kind: str, payload: dict):
     import time
@@ -3699,7 +3738,7 @@ def _v94_unified_export_bundle_panel():
 
 
 # =====================
-# v98 validation gate (append-only)
+# validation gate (append-only)
 # =====================
 def _v98_validation_gate_ui(title: str, ok: bool, errs):
     import streamlit as st
@@ -3715,7 +3754,7 @@ def _v98_validation_gate_ui(title: str, ok: bool, errs):
 # =====================
 
 # =====================
-# v98 Run Ledger (append-only)
+# Run Ledger (append-only)
 # =====================
 def _v98_state_init_runlists():
     import streamlit as st
@@ -3827,7 +3866,7 @@ def _v98_process_handoff_panel():
 
 
 # =====================
-# v99 Session Report Export (append-only)
+# Session Report Export (append-only)
 # =====================
 def _v99_session_report_panel():
     import streamlit as st
@@ -3867,7 +3906,7 @@ def _v99_session_report_panel():
 
 
 # =====================
-# v103 Audit Pack + Atlas + Sandbox Plus panels (append-only)
+# Audit Pack + Atlas + Sandbox Plus panels (append-only)
 # =====================
 def _v103_audit_pack_panel():
     import streamlit as st
@@ -3965,7 +4004,7 @@ def _v103_sandbox_plus_panel():
 
 
 # =====================
-# v104 Feasible Space Topology (append-only)
+# Feasible Space Topology (append-only)
 # =====================
 def _v104_topology_panel():
     import streamlit as st
@@ -4021,7 +4060,7 @@ def _v104_topology_panel():
 
 
 # =====================
-# v105 Constraint Dominance & Sensitivity (append-only)
+# Constraint Dominance & Sensitivity (append-only)
 # =====================
 def _v105_constraint_dominance_panel():
     import streamlit as st
@@ -4071,7 +4110,7 @@ def _v105_constraint_dominance_panel():
 
 
 # =====================
-# v106 Failure Mode Taxonomy (append-only)
+# Failure Mode Taxonomy (append-only)
 # =====================
 def _v106_failure_taxonomy_panel():
     import streamlit as st
@@ -4119,7 +4158,7 @@ def _v106_failure_taxonomy_panel():
 
 
 # =====================
-# v107 Feasibility Science Pack (append-only)
+# Feasibility Science Pack (append-only)
 # =====================
 def _v107_science_pack_panel():
     import streamlit as st
@@ -4206,7 +4245,7 @@ def _v107_science_pack_panel():
 
 
 # =====================
-# v108 external systems codes Downstream Export (append-only)
+# external systems codes Downstream Export (append-only)
 # =====================
 def _v108_process_downstream_panel():
     import streamlit as st
@@ -4267,7 +4306,7 @@ def _v108_process_downstream_panel():
 
 
 # =====================
-# v109 Island Inspector (append-only)
+# Island Inspector (append-only)
 # =====================
 def _v109_island_inspector_panel():
     import streamlit as st
@@ -4318,7 +4357,7 @@ def _v109_island_inspector_panel():
             _v98_record_run("islands", rep, mode="component_dominance")
             st.success(f"Built component report for {rep.get('n_components',0)} components.")
         except Exception as e:
-            st.error(f"v109 failed: {e!r}")
+            st.error(f"Component dominance report failed: {e!r}")
 
     rep = st.session_state.get("v109_components")
     if isinstance(rep, dict):
@@ -4341,14 +4380,14 @@ def _v109_island_inspector_panel():
 
 
 # =====================
-# v110 Boundary Atlas v2 (append-only)
+# Boundary Atlas v2 (append-only)
 # =====================
 def _v110_boundary_atlas_panel():
     import streamlit as st
     from tools.boundary_atlas_v2 import build_boundary_atlas_v2
     from tools.plot_boundary_atlas_v2 import main as _plot_cli  # not used directly
 
-    st.subheader("Feasibility Boundary Atlas v2")
+    st.subheader("Feasibility Boundary Atlas (extended)")
     st.caption("Extracts explicit feasible/infeasible boundaries for lever-pair slices, with failure-mode labels (best-effort).")
 
     s = _v98_state_init_runlists()
@@ -4371,7 +4410,7 @@ def _v110_boundary_atlas_panel():
     q = st.slider("Boundary proximity quantile (lower = tighter)", 0.05, 0.80, 0.25, 0.05, key="v110_q")
     maxpairs = st.slider("Max lever pairs", 1, 8, 6, 1, key="v110_maxpairs")
 
-    if st.button("Build Boundary Atlas v2", key="v110_build"):
+    if st.button("Build extended boundary atlas", key="v110_build"):
         try:
             run_map = {r.get("id"): r for r in (s.run_history or []) if r.get("id")}
             payloads = []
@@ -4384,7 +4423,7 @@ def _v110_boundary_atlas_panel():
             _v98_record_run("atlas_v2", rep, mode="boundary_atlas_v2")
             st.success(f"Built atlas slices: {len(rep.get('slices', []))}")
         except Exception as e:
-            st.error(f"v110 failed: {e!r}")
+            st.error(f"Extended boundary atlas failed: {e!r}")
 
     rep = st.session_state.get("v110_boundary_atlas")
     if isinstance(rep, dict):
@@ -4398,7 +4437,7 @@ def _v110_boundary_atlas_panel():
 
 
 # =====================
-# v111 Design Family Explorer (append-only)
+# Design Family Explorer (append-only)
 # =====================
 def _v111_design_family_panel():
     import streamlit as st
@@ -4458,7 +4497,7 @@ def _v111_design_family_panel():
             _v98_record_run("design_family", rep, mode="design_family")
             st.success("Design family report built.")
         except Exception as e:
-            st.error(f"v111 failed: {e!r}")
+            st.error(f"Design family explorer failed: {e!r}")
 
     rep = st.session_state.get("v111_family")
     if isinstance(rep, dict):
@@ -4477,7 +4516,7 @@ def _v111_design_family_panel():
 
 
 # =====================
-# v112 Literature Overlay (append-only)
+# Literature Overlay (append-only)
 # =====================
 def _v112_literature_overlay_panel():
     import streamlit as st
@@ -4533,7 +4572,7 @@ def _v112_literature_overlay_panel():
 
 
 # =====================
-# v113 Design Decision Layer (append-only)
+# Design Decision Layer (append-only)
 # =====================
 def _v113_design_decision_panel():
     import streamlit as st
@@ -4580,7 +4619,7 @@ def _v113_design_decision_panel():
             _v98_record_run("design_decision_pack", {"candidates": candidates, "manifest": pack.get("manifest")}, mode="design_decision_pack")
             st.success(f"Built {len(candidates)} candidates.")
         except Exception as e:
-            st.error(f"v113 failed: {e!r}")
+            st.error(f"Design decision layer failed: {e!r}")
 
     candidates = st.session_state.get("v113_candidates")
     pack = st.session_state.get("v113_pack")
@@ -4610,7 +4649,7 @@ def _v113_design_decision_panel():
 
 
 # =====================
-# v114 Preference-Aware Decision Layer (append-only)
+# Preference-Aware Decision Layer (append-only)
 # =====================
 def _v114_preference_panel():
     import streamlit as st
@@ -4623,7 +4662,7 @@ def _v114_preference_panel():
     # candidates from v113
     candidates = st.session_state.get("v113_candidates")
     if not (isinstance(candidates, list) and candidates):
-        st.info("Build v113 candidates first (Design Decision Layer).")
+        st.info("Build design candidates first (Design Decision Layer).")
         return
 
     if "v114_prefs"not in st.session_state:
@@ -4656,9 +4695,9 @@ def _v114_preference_panel():
             pareto = pareto_sets_from_annotations(ann, metrics=metrics, max_fronts=3)
             st.session_state["v114_ann"] = ann
             st.session_state["v114_pareto"] = pareto
-            st.success("v114 annotations + Pareto computed.")
+            st.success("Annotations and Pareto sets computed.")
         except Exception as e:
-            st.error(f"v114 failed: {e!r}")
+            st.error(f"Preference-aware decision layer failed: {e!r}")
 
     ann = st.session_state.get("v114_ann")
     pareto = st.session_state.get("v114_pareto")
@@ -4710,7 +4749,7 @@ def _v114_preference_panel():
             "disclaimer": "Annotations only. No optimization. No auto-selected best design.",
         }
         pack = build_design_decision_pack(candidates=candidates, version="v114", decision_justification=justification)
-        st.download_button("Download v114 design_decision_pack.zip (with justification)",
+        st.download_button("Download design decision pack (with justification)",
                            data=pack["zip_bytes"],
                            file_name="design_decision_pack_v114.zip",
                            mime="application/zip",
@@ -4719,7 +4758,7 @@ def _v114_preference_panel():
 
 
 # =====================
-# v115 External Optimizer Sandbox (append-only)
+# External Optimizer Sandbox (append-only)
 # =====================
 def _v115_optimizer_sandbox_panel():
     import streamlit as st
@@ -4815,7 +4854,7 @@ def _v115_optimizer_sandbox_panel():
 
 
 # =====================
-# v116 Design Handoff Pack (append-only)
+# Design Handoff Pack (append-only)
 # =====================
 def _v116_handoff_pack_panel():
     import streamlit as st
@@ -4866,7 +4905,7 @@ def _v116_handoff_pack_panel():
 
 
 # =====================
-# v117 Tolerance Envelope (append-only)
+# Tolerance Envelope (append-only)
 # =====================
 def _v117_tolerance_envelope_panel():
     import streamlit as st
@@ -4950,7 +4989,7 @@ def _v117_tolerance_envelope_panel():
 
 
 # =====================
-# v118 Optimizer Downstream Workflow (append-only)
+# Optimizer Downstream Workflow (append-only)
 # =====================
 def _v118_optimizer_downstream_panel():
     import streamlit as st
@@ -4986,7 +5025,7 @@ def _v118_optimizer_downstream_panel():
 
     up = st.file_uploader("Upload optimizer_batch.json", type=["json"], key="v118_up_batch")
     if up is None:
-        st.info("Upload a batch proposal JSON to run v118.")
+        st.info("Upload a batch proposal JSON to run the downstream report.")
         return
 
     try:
@@ -5010,7 +5049,7 @@ def _v118_optimizer_downstream_panel():
     if not isinstance(spec, dict):
         spec = template_tolerance_spec()
 
-    if st.button("Run v118 downstream report", key="v118_run"):
+    if st.button("Run downstream report", key="v118_run"):
         try:
             out = evaluate_optimizer_batch(batch_payload=batch, tolerance_spec=spec, max_envelope_samples=int(max_env), max_candidates=int(max_cand), preferences=prefs)
             rep = out["report"]
@@ -5020,9 +5059,9 @@ def _v118_optimizer_downstream_panel():
             bundle = build_downstream_report_zip(report_obj=rep, decision_pack_zip_bytes=pack_bytes)
             st.session_state["v118_bundle"] = bundle
             _v98_record_run("optimizer_downstream", {"summary": rep.get("batch_meta"), "decision_pack_manifest": rep.get("decision_pack_manifest")}, mode="optimizer_downstream_v118")
-            st.success("v118 downstream report built.")
+            st.success("Downstream report built.")
         except Exception as e:
-            st.error(f"v118 failed: {e!r}")
+            st.error(f"Optimizer downstream workflow failed: {e!r}")
 
     rep = st.session_state.get("v118_report")
     bundle = st.session_state.get("v118_bundle")
@@ -5058,7 +5097,7 @@ def _v118_optimizer_downstream_panel():
 
 
 # =====================
-# v119 Authority Pack (append-only)
+# Authority Pack (append-only)
 # =====================
 def _v119_authority_pack_panel():
     import streamlit as st
@@ -5121,7 +5160,7 @@ def _v119_authority_pack_panel():
 
 
 # =====================
-# v120 Constitutional panels (append-only)
+# Constitutional panels (append-only)
 # =====================
 def _v120_constitution_panel():
     import streamlit as st
@@ -5161,18 +5200,18 @@ def _v120_constitution_panel():
 
 def _v120_mission_placeholder_panel():
     import streamlit as st
-    st.subheader("Mission Context (v120 placeholder)")
+    st.subheader("Mission Context")
     st.info("Mission contexts are schema-first and will be added as additive layer panels without changing physics.")
 
 def _v120_explainability_placeholder_panel():
     import streamlit as st
-    st.subheader("Explainability (v120 placeholder)")
+    st.subheader("Explainability")
     st.info("Explainability narratives will be added as additive post-processing panels consuming run artifacts.")
 
 
 
 # =====================
-# v121 Mission Context Layer (L3) - additive UI panel
+# Mission Context Layer (L3) - additive UI panel
 # =====================
 def _v121_mission_context_panel():
     import streamlit as st
@@ -5234,7 +5273,7 @@ def _v121_mission_context_panel():
 
 
 # =====================
-# v122 Explainability Layer (L4) - additive UI panel
+# Explainability Layer (L4) - additive UI panel
 # =====================
 def _v122_explainability_panel():
     import streamlit as st
@@ -5299,14 +5338,14 @@ def _v122_explainability_panel():
 
 
 # =====================
-# v123 Evidence Graph + v123B Study Kit - additive UI panel
+# Evidence Graph + v123B Study Kit - additive UI panel
 # =====================
 def _v123_evidence_and_studykit_panel():
     import streamlit as st
     from tools.evidence_graph import build_evidence_graph, build_traceability_table, traceability_csv
     from tools.study_kit import build_study_kit_zip
 
-    st.subheader("Evidence Graph & Design Study Kit (v123 / v123B)")
+    st.subheader("Evidence Graph & Design Study Kit")
     st.caption("Build provenance graph + traceability table, and export a full publishable study kit zip (manifested with SHA256).")
 
     s = _v98_state_init_runlists()
@@ -5400,7 +5439,7 @@ def _v123_evidence_and_studykit_panel():
         st.write("Traceability rows:", len(tab.get("rows",[])))
 
     st.divider()
-    st.write("Design Study Kit export (v123B): bundles run artifact + optional context + evidence graph + manifest.")
+    st.write("Design Study Kit export: bundles run artifact + optional context + evidence graph + manifest.")
     if st.button("Build study kit zip", key="v123_build_kit"):
         try:
             if not (isinstance(graph, dict) and isinstance(tab, dict)):
@@ -5448,7 +5487,7 @@ def _v123_evidence_and_studykit_panel():
 
 
 # =====================
-# v124 Feasibility Boundary Atlas - additive UI panel
+# Feasibility Boundary Atlas - additive UI panel
 # =====================
 def _v124_feasibility_atlas_panel():
     import streamlit as st
@@ -5559,7 +5598,7 @@ def _v124_feasibility_atlas_panel():
 
 
 # =====================
-# v125 One-Click Paper Pack - additive UI panel
+# One-Click Paper Pack - additive UI panel
 # =====================
 def _v125_paper_pack_panel():
     import streamlit as st
@@ -5594,10 +5633,10 @@ def _v125_paper_pack_panel():
         do_mission = st.checkbox("Mission overlay", value=True, key="v125_do_mission")
         do_expl = st.checkbox("Explainability", value=True, key="v125_do_expl")
     with c2:
-        do_ev = st.checkbox("Evidence+Traceability (v123)", value=True, key="v125_do_ev")
-        do_atlas = st.checkbox("Feasibility Atlas (v124)", value=False, key="v125_do_atlas")
+        do_ev = st.checkbox("Evidence+Traceability", value=True, key="v125_do_ev")
+        do_atlas = st.checkbox("Feasibility Atlas", value=False, key="v125_do_atlas")
     with c3:
-        do_kit = st.checkbox("Study Kit (v123B)", value=True, key="v125_do_kit")
+        do_kit = st.checkbox("Study Kit", value=True, key="v125_do_kit")
 
     mission_name = None
     mission_rep = None
@@ -5742,7 +5781,7 @@ def _v125_paper_pack_panel():
 
 
 # =====================
-# v126 UI Smoke & Diagnostics - additive UI panel
+# UI Smoke & Diagnostics - additive UI panel
 # =====================
 def _v126_ui_smoke_panel():
     import streamlit as st
@@ -5783,7 +5822,7 @@ def _v126_ui_smoke_panel():
 
 
 # =====================
-# v127 Study Matrix - Batch Paper Packs (single UI)
+# Study Matrix - Batch Paper Packs (single UI)
 # =====================
 def _v127_study_matrix_panel():
     import streamlit as st
@@ -5826,9 +5865,9 @@ def _v127_study_matrix_panel():
         n = st.slider("N cases", min_value=3, max_value=15, value=5, step=1, key="v127_n")
 
     missions = st.multiselect("Missions (optional)", options=["pilot","demo","powerplant"], default=["pilot"], key="v127_missions")
-    include_expl = st.checkbox("Include explainability (v122)", value=True, key="v127_expl")
-    include_ev = st.checkbox("Include evidence/traceability (v123)", value=True, key="v127_ev")
-    include_kit = st.checkbox("Include study kit (v123B)", value=True, key="v127_kit")
+    include_expl = st.checkbox("Include explainability", value=True, key="v127_expl")
+    include_ev = st.checkbox("Include evidence/traceability", value=True, key="v127_ev")
+    include_kit = st.checkbox("Include study kit", value=True, key="v127_kit")
 
     if st.button("Build Study Matrix Zip", key="v127_run"):
         try:
@@ -5870,7 +5909,7 @@ def _v127_study_matrix_panel():
 
 
 # =====================
-# v128 Study Explorer + Comparator (single UI)
+# Study Explorer + Comparator (single UI)
 # =====================
 def _v128_study_explorer_panel():
     import streamlit as st
@@ -5881,7 +5920,7 @@ def _v128_study_explorer_panel():
 
     up = st.file_uploader("Upload study_matrix zip", type=["zip"], key="v128_upl")
     if not up:
-        st.info("Upload a v127 study_matrix zip (study_matrix_v127.zip).")
+        st.info("Upload a study matrix zip.")
         return
 
     try:
@@ -5963,7 +6002,7 @@ def _v128_study_explorer_panel():
 
 
 # =====================
-# v129 Pareto from Study (single UI)
+# Pareto from Study (single UI)
 # =====================
 def _v129_pareto_panel():
     import streamlit as st
@@ -5974,7 +6013,7 @@ def _v129_pareto_panel():
 
     up = st.file_uploader("Upload study_matrix zip", type=["zip"], key="v129_upl")
     if not up:
-        st.info("Upload a v127 study_matrix zip (study_matrix_v127.zip).")
+        st.info("Upload a study matrix zip.")
         return
 
     # Save upload to temp file for existing loaders
@@ -6039,7 +6078,7 @@ def _v129_pareto_panel():
 
 
 # =====================
-# v130 Persistent Run Vault (single UI)
+# Persistent Run Vault (single UI)
 # =====================
 def _v130_run_vault_panel():
     import streamlit as st
@@ -6075,7 +6114,7 @@ def _v130_run_vault_panel():
 
 
 # =====================
-# v131 Vault Restore + Session Replay (single UI)
+# Vault Restore + Session Replay (single UI)
 # =====================
 def _v131_vault_restore_panel():
     import streamlit as st
@@ -6148,14 +6187,14 @@ def _v131_vault_restore_panel():
 
 
 # =====================
-# v132 Study Matrix Builder v2 (multi-lever sweep) (single UI)
+# Study Matrix Builder v2 (multi-lever sweep) (single UI)
 # =====================
 def _v132_study_matrix_v2_panel():
     import streamlit as st
     from tools.study_matrix_v2 import build_cases_multi_sweep, build_study_matrix_bundle_v2
     from tools.feasibility_atlas import available_numeric_levers
 
-    st.subheader("Study Matrix Builder v2")
+    st.subheader("Study Matrix Builder")
     st.caption("Multi-lever sweeps (2D/3D) with derived columns. Produces a study zip compatible with Study Explorer and Pareto.")
 
     s = _v98_state_init_runlists()
@@ -6200,8 +6239,8 @@ def _v132_study_matrix_v2_panel():
     derived = st.multiselect("Derived columns", options=["Pnet_per_R0","Q_per_Bt","margin_penalty"], default=["Pnet_per_R0","Q_per_Bt","margin_penalty"], key="v132_derived")
 
     include_expl = st.checkbox("Include explainability", value=True, key="v132_expl")
-    include_ev = st.checkbox("Include evidence/traceability (v123)", value=True, key="v132_ev")
-    include_kit = st.checkbox("Include study kit (v123B)", value=True, key="v132_kit")
+    include_ev = st.checkbox("Include evidence/traceability", value=True, key="v132_ev")
+    include_kit = st.checkbox("Include study kit", value=True, key="v132_kit")
 
     est = 1
     for sw in sweeps:
@@ -6209,7 +6248,7 @@ def _v132_study_matrix_v2_panel():
     est *= max(1, len(missions) if missions else 1)
     st.warning(f"Estimated cases: {est}. Keep it small for local runs.")
 
-    if st.button("Build Study Matrix v132 Zip", key="v132_run"):
+    if st.button("Build Study Matrix Zip", key="v132_run"):
         try:
             cases = build_cases_multi_sweep(baseline_run_artifact=base, sweeps=sweeps, missions=(missions or None))
             bundle = build_study_matrix_bundle_v2(
@@ -6246,7 +6285,7 @@ def _v132_study_matrix_v2_panel():
 
 
 # =====================
-# v133 Feasibility Completion (Partial Design Inference) (single UI)
+# Feasibility Completion (Partial Design Inference) (single UI)
 # =====================
 def _v133_fc_panel():
     import streamlit as st
@@ -6398,7 +6437,7 @@ def _v138_fc_superpanel():
     from tools.feasibility_completion import FCConfig, run_feasibility_completion, build_fc_bundle_zip
     from tools.fc_advanced import build_fc_atlas_bundle, repair_to_feasibility, RepairConfig, compress_feasible_set, completion_to_run_artifact
 
-    st.subheader("Feasibility Completion Advanced (v134–v138)")
+    st.subheader("Feasibility Completion Advanced")
     st.caption("Atlas + guided setup + bounded repair + compression + handoff to study tools. All downstream/orchestration only.")
 
     # baseline for defaults
@@ -6422,7 +6461,7 @@ def _v138_fc_superpanel():
     rep = st.session_state.get("v133_rep")
     bun = st.session_state.get("v133_bun")
 
-    tabs = st.tabs(["Guided Setup", "Run FC", "Atlas", "Repair (v136)", "Compress (v137)", "Handoff (v138)"])
+    tabs = st.tabs(["Guided Setup", "Run FC", "Atlas", "Repair", "Compress", "Handoff"])
 
     # ---------------- v135 ----------------
     with tabs[0]:
@@ -6619,11 +6658,11 @@ def _v138_fc_superpanel():
                         st.success(f"Created new run artifact in ledger: {rid2} (pinned)")
                     except Exception as e:
                         st.error(f"Handoff failed: {e!r}")
-                st.caption("After creating the pinned run, go to Study Matrix Builder v2 and select the pinned baseline.")
+                st.caption("After creating the pinned run, go to Study Matrix Builder and select the pinned baseline.")
 
 
 # =====================
-# v139 Feasibility Certificate
+# Feasibility Certificate
 # =====================
 def _v139_feasibility_certificate_panel():
     import streamlit as st
@@ -6682,7 +6721,7 @@ def _v139_feasibility_certificate_panel():
 
 
 # =====================
-# v140 Sensitivity Maps (certificate -> fragility envelopes)
+# Sensitivity Maps (certificate -> fragility envelopes)
 # =====================
 def _v140_sensitivity_panel():
     import streamlit as st
@@ -6761,7 +6800,7 @@ def _v140_sensitivity_panel():
 
 
 # =====================
-# v141 Robustness Certificate
+# Robustness Certificate
 # =====================
 def _v141_robustness_panel():
     import streamlit as st
@@ -6773,7 +6812,7 @@ def _v141_robustness_panel():
     from tools import run_vault
 
     st.subheader("Robustness Certificate")
-    st.caption("Derives a robustness certificate from v139 Feasibility Certificate + v140 Sensitivity Report. No optimizers/gradients.")
+    st.caption("Derives a robustness certificate from the Feasibility Certificate and Sensitivity Report. No optimizers/gradients.")
 
     s = _v98_state_init_runlists()
     ids = [r.get("id") for r in (s.run_history or []) if r.get("id")]
@@ -6791,7 +6830,7 @@ def _v141_robustness_panel():
         return
     base_inputs = base.get("inputs", {}) if isinstance(base.get("inputs"), dict) else {}
 
-    # v140 settings (re-run sensitivity here for coherence)
+    # settings (re-run sensitivity here for coherence)
     levers = list(available_numeric_levers(base_inputs))
     default_vars = [v for v in ["Ip_MA","kappa","q95","a_m","beta_N","f_GW"] if v in levers]
     vars_sel = st.multiselect("Variables for robustness probing", options=levers, default=(default_vars or levers[:4]), key="v141_vars")
@@ -6804,10 +6843,10 @@ def _v141_robustness_panel():
 
     if st.button("Generate Robustness Certificate", key="v141_run"):
         try:
-            # v139 cert from current artifact (source of truth)
+            # cert from current artifact (source of truth)
             fc = generate_feasibility_certificate(base)
 
-            # v140 report (computed here for coherence; also available via v140 panel)
+            # report (computed here for coherence; also available via v140 panel)
             cfg = SensitivityConfig(
                 baseline_inputs=dict(base_inputs),
                 fixed_overrides={},
@@ -6844,11 +6883,11 @@ def _v141_robustness_panel():
         st.download_button("Download robustness_certificate_v141.json",
                            data=_json.dumps(rc, indent=2, sort_keys=True, default=str),
                            file_name="robustness_certificate_v141.json", mime="application/json", use_container_width=True, key="v141_dl_rc")
-        with st.expander("See underlying v139 feasibility certificate"):
+        with st.expander("See underlying feasibility certificate"):
             st.download_button("Download feasibility_certificate_v139.json",
                                data=_json.dumps(fc or {}, indent=2, sort_keys=True, default=str),
                                file_name="feasibility_certificate_v139.json", mime="application/json", use_container_width=True, key="v141_dl_fc")
-        with st.expander("See underlying v140 sensitivity report"):
+        with st.expander("See underlying sensitivity report"):
             st.download_button("Download sensitivity_report_v140.json",
                                data=_json.dumps(sr or {}, indent=2, sort_keys=True, default=str),
                                file_name="sensitivity_report_v140.json", mime="application/json", use_container_width=True, key="v141_dl_sr")
@@ -6877,7 +6916,7 @@ def _v144_deepdive_panel():
     )
     from tools import run_vault
 
-    st.subheader("Feasibility Deep Dive (v142–v144)")
+    st.subheader("Feasibility Deep Dive")
     st.caption("Topology maps + constraint interaction structure + interval feasibility certificates. Downstream analysis only.")
 
     s = _v98_state_init_runlists()
@@ -6944,7 +6983,7 @@ def _v144_deepdive_panel():
         st.write("Compute constraint co-failure and dominance statistics from the last deep-dive dataset.")
         ds = st.session_state.get("v142_ds")
         if not isinstance(ds, dict):
-            st.info("Run topology sampling first (v142 tab) to generate a dataset.")
+            st.info("Run topology sampling first (Topology Maps tab) to generate a dataset.")
         else:
             if st.button("Compute interactions", key="v143_run"):
                 try:
@@ -6979,7 +7018,7 @@ def _v144_deepdive_panel():
             bounds[v] = (float(lo), float(hi))
         n_random = st.slider("Random interior probes", 0, 500, 60, 10, key="v144_nr")
         seed = st.number_input("Seed", value=0, step=1, key="v144_seed")
-        if st.button("Generate interval certificate (v144)", key="v144_run"):
+        if st.button("Generate interval certificate", key="v144_run"):
             try:
                 cert = interval_certificate(IntervalConfig(baseline_inputs=dict(base_inputs), bounds=dict(bounds), n_random=int(n_random), seed=int(seed)))
                 bun = bundle_interval_certificate(cert)
@@ -7005,7 +7044,7 @@ def _v144_deepdive_panel():
 
 
 # =====================
-# v145 Topology Certificate
+# Topology Certificate
 # =====================
 def _v145_topology_certificate_panel():
     import streamlit as st
@@ -7033,7 +7072,7 @@ def _v145_topology_certificate_panel():
     topo = st.session_state.get("v142_topo")
     ds = st.session_state.get("v142_ds")
     if not isinstance(topo, dict):
-        st.info("Run v142 Topology Maps first (Feasibility Deep Dive panel) to generate feasible topology.")
+        st.info("Run Topology Maps first (Feasibility Deep Dive panel) to generate feasible topology.")
         return
 
     policy_json = st.text_area("Policy JSON (optional)", value="{}", height=120, key="v145_policy")
@@ -7077,8 +7116,8 @@ def _v147_feasibility_completion_panel():
     from tools import run_vault
     import hashlib
 
-    st.subheader("Feasibility Completion (v146–v147)")
-    st.caption("v146: topology bridge witness between two points. v147: auto-shrink to a certified safe interval box (uses v144).")
+    st.subheader("Feasibility Completion")
+    st.caption("Bridge witness between two points; auto-shrink to a certified safe interval box (uses interval certificates).")
 
     s = _v98_state_init_runlists()
     runs = [r for r in (s.run_history or []) if r.get("id")]
@@ -7135,7 +7174,7 @@ def _v147_feasibility_completion_panel():
                                        file_name="bridge_certificate_v146.json", mime="application/json", use_container_width=True, key="v146_dl_cert")
                     st.download_button("Download bridge_report_v146.json", data=_json.dumps(rep or {}, indent=2, sort_keys=True, default=str),
                                        file_name="bridge_report_v146.json", mime="application/json", use_container_width=True, key="v146_dl_rep")
-                    if st.button("Save v146 to Vault", key="v146_save_vault"):
+                    if st.button("Save bridge certificate to Vault", key="v146_save_vault"):
                         root = Path(__file__).resolve().parents[1]
                         run_vault.write_entry(root=root, kind="bridge_certificate", payload={"certificate": cert, "report": rep}, mode="v146",
                                               files={
@@ -7189,7 +7228,7 @@ def _v147_feasibility_completion_panel():
                                        data=_json.dumps(cert, indent=2, sort_keys=True, default=str),
                                        file_name="interval_certificate_v144.json", mime="application/json",
                                        use_container_width=True, key="v147_dl_cert")
-                if st.button("Save v147 to Vault", key="v147_save_vault"):
+                if st.button("Save safe-domain shrink to Vault", key="v147_save_vault"):
                     root = Path(__file__).resolve().parents[1]
                     files={"safe_domain_shrink_report_v147.json": _json.dumps(rep, indent=2, sort_keys=True, default=str).encode("utf-8")}
                     if isinstance(cert, dict):
@@ -7207,7 +7246,7 @@ def _v150_publishable_study_kit_panel():
     from tools.design_study_kit import PaperPackConfig, build_paper_pack
     from tools import run_vault
 
-    st.subheader("Publishable Study Kit (v148–v150)")
+    st.subheader("Publishable Study Kit")
     st.caption("One-click paper pack (zip) with study registry + integrity manifest. Downstream-only.")
 
     s = _v98_state_init_runlists()
@@ -7259,7 +7298,7 @@ def _v150_publishable_study_kit_panel():
 
             methods=_json.loads(methods_json) if methods_json.strip() else {}
             policy=_json.loads(policy_json) if policy_json.strip() else {}
-            # v154 captions override
+            # captions override
             caps = st.session_state.get("v154_captions")
             if isinstance(caps, dict) and caps:
                 policy = dict(policy)
@@ -7307,7 +7346,7 @@ def _v150_publishable_study_kit_panel():
 
 
 # =====================
-# v152 Integrity Lock helpers
+# Integrity Lock helpers
 # =====================
 def _v152_artifact_sha(payload):
     import json, hashlib
@@ -7450,7 +7489,7 @@ def _v154_caption_editor_panel():
     names = sorted(set(names))
 
     if not names:
-        st.info("No figures/tables detected yet. Build a Paper Pack with v151 session-bundle harvesting enabled.")
+        st.info("No figures/tables detected yet. Build a Paper Pack with session-bundle harvesting enabled.")
     else:
         pick = st.selectbox("Select figure/table", options=names, key="v154_pick")
         cur = caps.get(pick, f"Figure/Table: {pick}.")
@@ -7469,7 +7508,7 @@ def _v155_multi_study_pack_panel():
     st.subheader("Multi-Study Comparison Pack")
     st.caption("Upload multiple paper packs and export a comparison bundle with a multi-pack integrity manifest.")
 
-    files = st.file_uploader("Upload paper_pack_v150.zip files", type=["zip"], accept_multiple_files=True, key="v155_upload")
+    files = st.file_uploader("Upload paper pack zip files", type=["zip"], accept_multiple_files=True, key="v155_upload")
     if not files:
         st.info("Upload 2+ paper packs to compare.")
         return
@@ -7486,7 +7525,7 @@ def _v155_multi_study_pack_panel():
 
 
 # =====================
-# v156 / v160 Design Space Authority (Atlas + Certificates)
+# / v160 Design Space Authority (Atlas + Certificates)
 # =====================
 def _v156_feasibility_atlas_panel():
     import streamlit as st
@@ -7569,7 +7608,7 @@ def _v160_authority_certificate_panel():
     st.caption("Issue an authority certificate from a feasibility field (dense sampling basis).")
 
     field = st.session_state.get("v156_field")
-    up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v160_upload")
+    up = st.file_uploader("Optional: upload feasibility field JSON", type=["json"], key="v160_upload")
     if up is not None:
         try:
             field = _json.loads(up.getvalue().decode("utf-8"))
@@ -7599,17 +7638,17 @@ def _v160_authority_certificate_panel():
 
 
 # =====================
-# v157 Feasibility Boundary Extractor
+# Feasibility Boundary Extractor
 # =====================
 def _v157_feasibility_boundary_panel():
     import streamlit as st
     from tools.feasibility_boundary import build_feasibility_boundary
 
     st.subheader("Feasibility Boundary")
-    st.caption("Extract a feasibility boundary curve from a v156 feasibility field (grid interpolation).")
+    st.caption("Extract a feasibility boundary curve from a feasibility field (grid interpolation).")
 
     field = st.session_state.get("v156_field")
-    up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v157_upload")
+    up = st.file_uploader("Optional: upload feasibility field JSON", type=["json"], key="v157_upload")
     if up is not None:
         try:
             field = _json.loads(up.getvalue().decode("utf-8"))
@@ -7635,7 +7674,7 @@ def _v157_feasibility_boundary_panel():
 
 
 # =====================
-# v158 Constraint Dominance Topology
+# Constraint Dominance Topology
 # =====================
 def _v158_constraint_dominance_panel():
     import streamlit as st
@@ -7645,7 +7684,7 @@ def _v158_constraint_dominance_panel():
     st.caption("Explain why regions fail: dominant violated constraint maps + connected components (grid topology).")
 
     field = st.session_state.get("v156_field")
-    up = st.file_uploader("Optional: upload feasibility_field_v156.json", type=["json"], key="v158_upload")
+    up = st.file_uploader("Optional: upload feasibility field JSON", type=["json"], key="v158_upload")
     if up is not None:
         try:
             field = _json.loads(up.getvalue().decode("utf-8"))
@@ -7672,7 +7711,7 @@ def _v158_constraint_dominance_panel():
 
 
 # =====================
-# v159 Feasibility Completion Evidence
+# Feasibility Completion Evidence
 # =====================
 def _v159_feasibility_completion_panel():
     import streamlit as st
@@ -7750,7 +7789,7 @@ def _v159_feasibility_completion_panel():
 
 
 # =====================
-# v161 Completion Frontier + Minimal Change Distance
+# Completion Frontier + Minimal Change Distance
 # =====================
 def _v161_completion_frontier_panel():
     import streamlit as st
@@ -7828,7 +7867,7 @@ def _v161_completion_frontier_panel():
 
 
 # =====================
-# v162 Directed Local Search (safe)
+# Directed Local Search (safe)
 # =====================
 def _v162_directed_local_search_panel():
     import streamlit as st
@@ -7909,7 +7948,7 @@ def _v162_directed_local_search_panel():
 
 
 # =====================
-# v163 Completion Pack (Actionable Recipe)
+# Completion Pack (Actionable Recipe)
 # =====================
 def _v163_completion_pack_panel():
     import streamlit as st
@@ -7925,11 +7964,11 @@ def _v163_completion_pack_panel():
     st.markdown("### Inputs")
     colA,colB,colC = st.columns(3)
     with colA:
-        up159 = st.file_uploader("Optional: upload v159 evidence JSON", type=["json"], key="v163_up159")
+        up159 = st.file_uploader("Optional: upload completion evidence JSON", type=["json"], key="v163_up159")
     with colB:
-        up161 = st.file_uploader("Optional: upload v161 frontier JSON", type=["json"], key="v163_up161")
+        up161 = st.file_uploader("Optional: upload completion frontier JSON", type=["json"], key="v163_up161")
     with colC:
-        up162 = st.file_uploader("Optional: upload v162 local search JSON", type=["json"], key="v163_up162")
+        up162 = st.file_uploader("Optional: upload directed local search JSON", type=["json"], key="v163_up162")
 
     def _load(up):
         if up is None:
@@ -7967,7 +8006,7 @@ def _v163_completion_pack_panel():
 
 
 # =====================
-# v164 Sensitivity + Bottleneck Attribution
+# Sensitivity + Bottleneck Attribution
 # =====================
 def _v164_sensitivity_panel():
     import streamlit as st
@@ -7991,7 +8030,7 @@ def _v164_sensitivity_panel():
                 witness = payload.get("inputs") or payload.get("_inputs")
 
     if not isinstance(witness, dict) or not witness:
-        st.info("No witness found yet. Run v159/v161/v162 or build v163 completion pack first.")
+        st.info("No witness found yet. Run completion evidence, frontier, or directed search—or build a completion pack first.")
         return
 
     st.markdown("### Witness source")
@@ -8048,7 +8087,7 @@ def _v164_sensitivity_panel():
 
 
 # =====================
-# v165 Study Protocol Generator
+# Study Protocol Generator
 # =====================
 def _v165_study_protocol_panel():
     import streamlit as st
@@ -8120,7 +8159,7 @@ def _v165_study_protocol_panel():
 
 
 # =====================
-# v166 Reproducibility Lock + Replay Checker
+# Reproducibility Lock + Replay Checker
 # =====================
 def _v166_repro_lock_panel():
     import streamlit as st
@@ -8207,7 +8246,7 @@ def _v166_repro_lock_panel():
 
 
 # =====================
-# v167 Design Study Authority Pack
+# Design Study Authority Pack
 # =====================
 def _v167_authority_pack_panel():
     import streamlit as st
@@ -8240,14 +8279,14 @@ def _v167_authority_pack_panel():
     st.markdown("### Optional: upload any missing JSONs")
     col1,col2,col3 = st.columns(3)
     with col1:
-        up_prot = st.file_uploader("upload study_protocol_v165.json", type=["json"], key="v167_up_prot")
-        up_lock = st.file_uploader("upload repro_lock_v166.json", type=["json"], key="v167_up_lock")
+        up_prot = st.file_uploader("Upload study protocol JSON", type=["json"], key="v167_up_prot")
+        up_lock = st.file_uploader("Upload reproducibility lock JSON", type=["json"], key="v167_up_lock")
     with col2:
-        up_rep = st.file_uploader("upload replay_report_v166.json", type=["json"], key="v167_up_rep")
-        up_comp = st.file_uploader("upload completion_pack_v163.json", type=["json"], key="v167_up_comp")
+        up_rep = st.file_uploader("Upload replay report JSON", type=["json"], key="v167_up_rep")
+        up_comp = st.file_uploader("Upload completion pack JSON", type=["json"], key="v167_up_comp")
     with col3:
-        up_sens = st.file_uploader("upload sensitivity_v164.json", type=["json"], key="v167_up_sens")
-        up_cert = st.file_uploader("upload certificate_v160.json", type=["json"], key="v167_up_cert")
+        up_sens = st.file_uploader("Upload sensitivity report JSON", type=["json"], key="v167_up_sens")
+        up_cert = st.file_uploader("Upload authority certificate JSON", type=["json"], key="v167_up_cert")
 
     def _load(up):
         if up is None:
@@ -8276,7 +8315,7 @@ def _v167_authority_pack_panel():
             policy={"generator":"ui"},
         )
         st.session_state["v167_manifest"] = res["manifest"]
-        st.success(f"Built authority_pack_v167.zip (sha256={res['pack']['integrity']['zip_sha256']})")
+        st.success(f"Built authority pack zip (sha256={res['pack']['integrity']['zip_sha256']})")
         st.json(res["manifest"])
         st.download_button("Download authority_pack_v167.zip",
                            data=res["zip_bytes"],
@@ -8287,7 +8326,7 @@ def _v167_authority_pack_panel():
 
 
 # =====================
-# v168 Citation-Grade Study Reference
+# Citation-Grade Study Reference
 # =====================
 def _v168_citation_panel():
     import streamlit as st
@@ -8303,11 +8342,11 @@ def _v168_citation_panel():
     st.markdown("### Inputs (auto-pick from session state or upload)")
     col1,col2,col3 = st.columns(3)
     with col1:
-        up_prot = st.file_uploader("upload study_protocol_v165.json", type=["json"], key="v168_up_prot")
+        up_prot = st.file_uploader("Upload study protocol JSON", type=["json"], key="v168_up_prot")
     with col2:
-        up_lock = st.file_uploader("upload repro_lock_v166.json", type=["json"], key="v168_up_lock")
+        up_lock = st.file_uploader("Upload reproducibility lock JSON", type=["json"], key="v168_up_lock")
     with col3:
-        up_man = st.file_uploader("upload authority_pack_manifest_v167.json", type=["json"], key="v168_up_man")
+        up_man = st.file_uploader("Upload authority pack manifest JSON", type=["json"], key="v168_up_man")
 
     def _load(up):
         if up is None:
@@ -8329,7 +8368,7 @@ def _v168_citation_panel():
 
     if st.button("Generate Citation Bundle", use_container_width=True, key="v168_run"):
         if not (isinstance(prot, dict) and prot.get("kind")=="shams_study_protocol"):
-            st.error("Need a valid study_protocol_v165.json (generate in v165).")
+            st.error("Need a valid study protocol JSON (generate in Study Protocol Generator).")
             return
         meta={
             "title": title or None,
@@ -8375,7 +8414,7 @@ def _v168_citation_panel():
 
 
 # =====================
-# v169 Feasibility Boundary Atlas (figure pack)
+# Feasibility Boundary Atlas (figure pack)
 # =====================
 def _v169_atlas_panel():
     import streamlit as st
@@ -8386,7 +8425,7 @@ def _v169_atlas_panel():
 
     sens = st.session_state.get("v164_sensitivity")
     st.markdown("### Input")
-    up_sens = st.file_uploader("Upload sensitivity_v164.json (optional)", type=["json"], key="v169_up_sens")
+    up_sens = st.file_uploader("Upload sensitivity report JSON (optional)", type=["json"], key="v169_up_sens")
 
     if up_sens is not None:
         try:
@@ -8395,13 +8434,13 @@ def _v169_atlas_panel():
             st.warning("Could not parse uploaded JSON.")
 
     if not isinstance(sens, dict):
-        st.info("Run v164 Sensitivity first (or upload sensitivity_v164.json) to build the initial atlas.")
+        st.info("Run Sensitivity analysis first (or upload a sensitivity report JSON) to build the initial atlas.")
         return
 
     if st.button("Build Atlas Pack ZIP", use_container_width=True, key="v169_build"):
         res = build_atlas_pack(sensitivity_v164=sens, policy={"generator":"ui"})
         st.session_state["v169_manifest"] = res["manifest"]
-        st.success(f"Built atlas_pack_v169.zip (sha256={res['pack']['integrity']['zip_sha256']})")
+        st.success(f"Built atlas pack zip (sha256={res['pack']['integrity']['zip_sha256']})")
         st.json(res["manifest"])
         st.download_button("Download atlas_pack_v169.zip",
                            data=res["zip_bytes"],
@@ -8412,7 +8451,7 @@ def _v169_atlas_panel():
 
 
 # =====================
-# v170 SHAMS → external systems codes Downstream Export
+# SHAMS → external systems codes Downstream Export
 # =====================
 def _v170_process_export_panel():
     import streamlit as st
@@ -8438,8 +8477,8 @@ def _v170_process_export_panel():
     cite = st.session_state.get("v168_citation")
 
     st.markdown("### Optional attachments")
-    st.write("- completion_pack_v163.json:", "yes"if isinstance(comp, dict) else "no")
-    st.write("- citation_bundle_v168.json:", "yes"if isinstance(cite, dict) else "no")
+    st.write("- Completion pack:", "yes" if isinstance(comp, dict) else "no")
+    st.write("- Citation bundle:", "yes" if isinstance(cite, dict) else "no")
 
     if st.button("Build external systems codes Export Pack ZIP", use_container_width=True, key="v170_build"):
         res = build_process_export_pack(
@@ -8449,7 +8488,7 @@ def _v170_process_export_panel():
             policy={"generator":"ui"},
         )
         st.session_state["v170_manifest"] = res["manifest"]
-        st.success(f"Built process_export_pack_v170.zip (sha256={res['pack']['integrity']['zip_sha256']})")
+        st.success(f"Built process export pack zip (sha256={res['pack']['integrity']['zip_sha256']})")
         st.json(res["manifest"])
         st.download_button("Download process_export_pack_v170.zip",
                            data=res["zip_bytes"],
@@ -8460,7 +8499,7 @@ def _v170_process_export_panel():
 
 
 # =====================
-# v172 Demo seed + hydration
+# Demo seed + hydration
 # =====================
 def _v172_demo_loader():
     import streamlit as st

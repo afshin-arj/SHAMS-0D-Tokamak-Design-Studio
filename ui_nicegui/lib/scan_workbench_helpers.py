@@ -1,4 +1,4 @@
-"""Scan Lab workbench helpers — dominance maps, probe, causality, families, atlas (Phase 13)."""
+"""Scan Lab workbench helpers — dominance maps, probe, causality, families, atlas."""
 from __future__ import annotations
 
 import io

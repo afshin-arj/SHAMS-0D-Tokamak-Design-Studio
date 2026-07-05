@@ -61,7 +61,7 @@ def render_ledgers(session: DesignSession) -> None:
     v402 = out.get("dominance_order_v402")
     if isinstance(v402, list) and v402 and bool(out.get("include_authority_dominance_v402")):
         ui.separator()
-        ui.label("Dominance ranking (v402)").classes("text-subtitle2")
+        ui.label("Dominance ranking").classes("text-subtitle2")
         if v402 and isinstance(v402[0], dict):
             cols = [{"name": c, "label": c, "field": c, "align": "left"} for c in v402[0].keys()]
             ui.table(columns=cols, rows=v402[:20], row_key=cols[0]["field"]).classes("w-full")

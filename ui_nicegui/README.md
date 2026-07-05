@@ -1,6 +1,6 @@
 # SHAMS NiceGUI UI
 
-Desktop/browser UI parallel to the Streamlit app (`ui/app.py`). Primary UI after migration Phase 18.
+Desktop/browser UI parallel to the Streamlit app (`ui/app.py`). Primary UI after NiceGUI migration.
 
 ## Run
 
@@ -47,22 +47,24 @@ Open http://127.0.0.1:8080 (auto-fallback to 8081+ if busy).
 | `decks/` | One `render_<deck>()` per deck |
 | `components/` | Verdict banner, KPI row, empty state, proposal banner |
 
-## Migration status (Phase 18)
+## Migration status
 
 | Deck | Status |
 |------|--------|
-| Point Designer | **Full parity batch (Phase 19):** Configure overlays + templates, 7 telemetry views, constraints atlas/diff/notebook |
-| System Suite | **Complete** — 5-tab workflow, plant/thermal/lifetime overlays, envelope robustness, scenarios & exports |
+| Point Designer | **Full parity:** Configure overlays + templates, 7 telemetry views, constraints atlas/diff/notebook |
+| System Suite | **Complete** — 5-tab workflow, phase cockpit, UQ absolute bounds, campaign preview, parity suite ID, mode contracts |
 | Systems Mode | **Complete** — 5-tab workflow, post-solve plant authority, feasibility map heatmap, power-balance diagram, recovery advanced controls, reproduce/diff, guided mode |
-| Scan Lab | Cartography + workbench |
-| Pareto Lab | Internal + 11 external optimizer decks |
-| Trade Study Studio | Setup + 8 advanced decks |
-| Reactor Design Forge | Intent + Machine Finder + Capsules |
-| Compare | Core compare parity |
+| Scan Lab | **Complete** — 4-tab workflow, deep landscape maps, intent-split atlas, full interpret suite, mode contract |
+| Pareto Lab | **Complete** — 5-tab workflow, explore/interpret/audit, publication pack, Scan Lab & Systems Mode handoffs, 11 external decks |
+| Trade Study Studio | **Complete** — 5-tab workflow, frontier atlas, robust certification, surrogate, optimizer kits |
+| Reactor Design Forge | **Complete** — 5-tab workflow, 67 expert instruments, staged run, collaboration sessions |
+| Compare | **Complete** — 5-tab workflow (Load · Performance · Constraints · Inputs & Structure · Export) |
 | Publication Benchmarks | All 5 tabs |
 | Control Room | Orientation, Constitution, Diagnostics, Provenance, **Artifacts**, **Chronicle** |
 
-Streamlit (`run_ui.cmd`) remains available for any expert panels not yet ported.
+Streamlit (`run_ui.cmd`) redirects **Scan Lab**, **System Suite**, **Pareto Lab**, **Trade Study Studio**, **Reactor Design Forge**, and **Compare** to NiceGUI. The only deliberate Streamlit-only path is the archived legacy nested grid scan (Ti/H98/a/Q/g_conf) — noted in Scan Lab orientation.
+
+User-facing labels use plain language (no internal `v###` / Batch / Phase tags). Legacy session values are normalized via `ui_nicegui/lib/display_labels.py`. Re-run `python tools/clean_user_version_tags.py --write` after adding new version-tagged UI strings.
 
 Orchestrator: `/shams-nicegui-migration`
 

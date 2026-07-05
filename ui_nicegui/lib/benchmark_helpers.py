@@ -1,4 +1,4 @@
-"""Publication Benchmarks / Constitutional Atlas helpers (Batch 9)."""
+"""Publication Benchmarks / Constitutional Atlas helpers."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,7 @@ PUB_BENCH_TABS = [
     "Cross-Code Constitutions",
     "Publication Benchmarks",
     "Contract Studio",
-    "Regulatory Evidence Pack Builder (v387)",
+    "Regulatory Evidence Pack Builder",
 ]
 
 

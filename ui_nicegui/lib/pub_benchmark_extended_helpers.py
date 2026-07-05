@@ -204,7 +204,7 @@ def build_evidence_pack_v387(
         "shams_version": shams_version,
     }
     narrative = (
-        "# SHAMS Evidence Pack (v387)\n\n"
+        "# SHAMS Evidence Pack\n\n"
         "Deterministic export from cached session artifacts. No physics recomputation.\n\n"
         f"Sources included: {', '.join(index['included_sources']) or '(none)'}\n"
     )

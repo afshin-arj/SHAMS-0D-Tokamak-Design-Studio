@@ -11,13 +11,14 @@ from ui_nicegui.decks.publication_benchmarks import (
     evidence_v387,
 )
 from ui_nicegui.lib.benchmark_helpers import PUB_BENCH_TABS
+from ui_nicegui.lib.display_labels import TAB_EVIDENCE_PACK, normalize_user_label
 from ui_nicegui.session import DesignSession
 
 ATLAS_TAB = "Tokamak Constitutional Atlas"
 CROSSCODE_TAB = "Cross-Code Constitutions"
 BENCHMARK_TAB = "Publication Benchmarks"
 CONTRACT_TAB = "Contract Studio"
-EVIDENCE_TAB = "Regulatory Evidence Pack Builder (v387)"
+EVIDENCE_TAB = TAB_EVIDENCE_PACK
 
 
 def render_publication_benchmarks(session: DesignSession) -> None:
@@ -28,7 +29,9 @@ def render_publication_benchmarks(session: DesignSession) -> None:
     ).classes("text-caption text-grey q-mb-sm")
 
     if session.pub_bench_tab not in PUB_BENCH_TABS:
-        session.pub_bench_tab = ATLAS_TAB
+        session.pub_bench_tab = normalize_user_label(session.pub_bench_tab) or ATLAS_TAB
+        if session.pub_bench_tab not in PUB_BENCH_TABS:
+            session.pub_bench_tab = ATLAS_TAB
 
     ui.select(
         PUB_BENCH_TABS,

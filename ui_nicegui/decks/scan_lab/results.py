@@ -1,4 +1,4 @@
-"""Scan Lab post-run results panel (Batch 4)."""
+"""Scan Lab post-run results panel."""
 from __future__ import annotations
 
 from nicegui import ui

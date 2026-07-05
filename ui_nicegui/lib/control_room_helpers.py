@@ -1,4 +1,4 @@
-"""Control Room helpers — governance, docs, diagnostics (Batch 10)."""
+"""Control Room helpers — governance, docs, diagnostics."""
 from __future__ import annotations
 
 import json
@@ -43,7 +43,7 @@ LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
     (
         "Understand feasibility limits (cartography)",
         "Recommended: Scan Lab → build Scan Atlas → inspect first-failure topology.",
-        "- Start with **Scan Lab — Cartography Deck**\n- Choose a compact 2D scan\n- Export the Scan Atlas capsule for review-room replay.",
+        "- Start with **Scan Lab → Setup & Run**\n- Choose a compact 2D scan\n- Export the Scan Atlas capsule for review-room replay.",
     ),
     (
         "Explore reactor concepts (Forge)",

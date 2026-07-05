@@ -93,7 +93,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
         ui.label(fuel_cycle_caps_caption(out)).classes("text-caption q-mt-sm")
         led391 = out.get("availability_ledger_v391")
         if isinstance(led391, list) and led391 and isinstance(led391[0], dict):
-            with ui.expansion("Availability reliability ledger (v391)", icon="list").classes("w-full"):
+            with ui.expansion("Availability reliability ledger", icon="list").classes("w-full"):
                 cols = [{"name": c, "label": c, "field": c, "align": "left"} for c in led391[0].keys()]
                 ui.table(columns=cols, rows=led391[:40], row_key=cols[0]["field"]).classes("w-full")
 
@@ -113,7 +113,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
     v400 = magnet_v400_summary(out)
     if v400:
         with ui.expansion("Magnet technology margin ledger", icon="electrical_services").classes("w-full"):
-            ui.label("v400 · B–J–stress margin stack for TF technology class.").classes("text-caption q-mb-sm")
+            ui.label("B–J–stress margin stack for TF technology class.").classes("text-caption q-mb-sm")
             kpi_row([
                 ("Combined margin", fmt_num(v400["combined_margin"])),
                 ("Tier", str(v400["tier"])),

@@ -1,4 +1,4 @@
-"""Compare verdict-first summary (Batch 8)."""
+"""Compare verdict-first summary."""
 from __future__ import annotations
 
 from nicegui import ui

@@ -1,4 +1,4 @@
-"""Pareto Lab results — frontier plot and exports (Batch 5)."""
+"""Pareto Lab results — frontier plot and exports."""
 from __future__ import annotations
 
 import csv

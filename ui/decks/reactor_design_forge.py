@@ -100,7 +100,7 @@ def render_reactor_design_forge(_app_module) -> None:
     from tools.sandbox.design_packet import build_design_packet_files
     from tools.sandbox.review_room import build_review_trinity, build_attack_simulation
 
-    # v203 Reactor Design Forge: PROCESS-independence instruments
+    # Reactor Design Forge: PROCESS-independence instruments
     from tools.sandbox.closure_console import closure_console
     from tools.sandbox.margin_budget import margin_budget
     from tools.sandbox.reality_gates import reality_gates
@@ -108,7 +108,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
 
     from src.economics.cost import cost_proxies
-    # Tier 5–6 instruments
+    # Trajectory & counterfactual instruments
     from tools.sandbox.tier56 import (
         ConstraintCred,
         apply_credibility_overlay,
@@ -135,7 +135,7 @@ def render_reactor_design_forge(_app_module) -> None:
         run_regression_suite,
     )
 
-    # Tier 8–9: design-space jurisprudence, intent-conditional laws, genealogy, counter-optimization
+    # Jurisprudence & genealogy: design-space jurisprudence, intent-conditional laws, genealogy, counter-optimization
     from tools.sandbox.tier89 import (
         feasibility_confidence_from_trace,
         candidate_verdict,
@@ -148,7 +148,7 @@ def render_reactor_design_forge(_app_module) -> None:
     
 
     # -------------------------
-    # Intent Compiler (v285.0)
+    # Intent Compiler
     # -------------------------
     if _forge_deck == "Intent Compiler":
         st.markdown("### Intent Compiler")
@@ -428,8 +428,8 @@ def render_reactor_design_forge(_app_module) -> None:
     min_margin = st.number_input("Require min signed margin ≥ (optional)", value=0.0, step=0.01, key="opt_min_margin")
     require_feasible_only = st.checkbox("Archive: keep feasible only (recommended)", value=True, key="opt_feas_only")
 
-    # Advanced capabilities (Tier 1–4)
-    st.markdown("### Advanced instruments (Tier 1–4)")
+    # Advanced capabilities (Core tiers 1–4)
+    st.markdown("### Core advanced instruments")
     c1, c2, c3 = st.columns(3)
     enable_surface = c1.checkbox("Constraint-surface surfing", value=True, key="opt_adv_surface")
     enable_skeleton = c2.checkbox("Feasibility skeleton", value=True, key="opt_adv_skeleton")
@@ -760,7 +760,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 key="opt_dl_conflict_atlas",
             )
 
-        # vNext: Run capsule (v2) + resistance report (descriptive, exportable)
+        # vNext: Run capsule + resistance report (descriptive, exportable)
         with st.expander("Run capsule + resistance report (export)", expanded=False):
             lens_contract = st.session_state.get("opt_lens_contract") or {}
             rr = run.get("resistance_report")
@@ -770,7 +770,7 @@ def render_reactor_design_forge(_app_module) -> None:
             else:
                 st.info("Resistance report not available for this run.")
 
-            if st.button("Build capsule zip (v2)", use_container_width=True, key="opt_build_capsule_zip"):
+            if st.button("Build run capsule zip", use_container_width=True, key="opt_build_capsule_zip"):
                 try:
                     import time, os, json
                     run_id = f"run_{int(time.time())}"
@@ -1032,9 +1032,9 @@ def render_reactor_design_forge(_app_module) -> None:
                     st.info("Bench is empty. Pin 2–5 candidates during review.")
 
             # ------------------------------
-            # Tier 5–6 controls (integrated)
+            # Trajectory & counterfactual controls (integrated)
             # ------------------------------
-            with st.expander("Tier 5–6 instruments (optional)", expanded=False):
+            with st.expander("Trajectory & counterfactual instruments (optional)", expanded=False):
                 st.caption(
                     "These are advanced instruments that PROCESS cannot provide. "
                     "They never modify frozen truth; they add explanatory lenses and workflows."
@@ -1347,7 +1347,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             # --- v204–v205: Design intelligence + confidence instruments ---
             if view == "Timeline Strip":
-                st.caption("v204: Timeline strip of the current run (phases + evaluations).")
+                st.caption("Timeline strip of the current run (phases + evaluations).")
                 tr = run.get("trace") or []
                 if not tr:
                     st.info("No trace available.")
@@ -1370,7 +1370,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Lineage Graph":
-                st.caption("v204: Design lineage graph based on recorded parents (audit-clean).")
+                st.caption("Design lineage graph based on recorded parents (audit-clean).")
                 if not (run.get("archive") or []):
                     st.info("No archive available.")
                     st.stop()
@@ -1407,7 +1407,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Constraint Spend Map":
-                st.caption("v204: Spend map - where feasibility margin is being spent.")
+                st.caption("Spend map — where feasibility margin is being spent.")
                 if not filt:
                     st.info("No candidates available.")
                     st.stop()
@@ -1431,7 +1431,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Robustness Envelope":
-                st.caption("v205: Robustness envelope (first-order margin perturbation sweep).")
+                st.caption("Robustness envelope (first-order margin perturbation sweep).")
                 if not filt:
                     st.info("No candidates available.")
                     st.stop()
@@ -1450,7 +1450,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Design Narrative":
-                st.caption("v205: Design narrative pack (review-grade, no recommendations).")
+                st.caption("Design narrative pack (review-grade, no recommendations).")
                 if not filt:
                     st.info("No candidates available.")
                     st.stop()
@@ -1463,7 +1463,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Design Card":
-                st.caption("v205: One-page design card (printable, reviewer-friendly).")
+                st.caption("One-page design card (printable, reviewer-friendly).")
                 if not filt:
                     st.info("No candidates available.")
                     st.stop()
@@ -1475,7 +1475,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Design Packet":
-                st.caption("v207: Design Packet - narrative + card + key tables (PDF best-effort).")
+                st.caption("Design packet — narrative + card + key tables (PDF best-effort).")
                 if not filt:
                     st.info("No candidates available.")
                     st.stop()
@@ -1498,7 +1498,7 @@ def render_reactor_design_forge(_app_module) -> None:
                 st.stop()
 
             if view == "Confidence Sweep":
-                st.caption("v207: Confidence Sweep - explicit declared perturbations (no hidden penalties, no recommendations).")
+                st.caption("Confidence sweep — explicit declared perturbations (no hidden penalties, no recommendations).")
                 if not filt:
                     st.info("No candidates available.")
                     st.stop()
@@ -2802,13 +2802,13 @@ def render_reactor_design_forge(_app_module) -> None:
                         st.json(st.session_state.get("opt_uq_res"))
             elif view == "Intent trajectories (Research→Reactor)":
                 st.caption(
-                    "Tier-5: a simple *intent trajectory* instrument. "
+                    "Trajectory instrument: a simple *intent trajectory* instrument. "
                     "It tries to build a Research→Reactor 'highway' using the current archive and the currently selected variables. "
                     "This does not optimize; it organizes what you already found."
                 )
                 traj = st.session_state.get("opt_traj")
                 if not traj:
-                    st.info("Click **Build trajectory** in the left Tier 5–6 expander to compute a path.")
+                    st.info("Click **Build trajectory** in the left Trajectory & counterfactual expander to compute a path.")
                 else:
                     if not traj.get("ok", False):
                         st.warning(f"Trajectory unavailable: {traj.get('reason')}")
@@ -2846,7 +2846,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Inverse design / Why not?":
                 st.caption(
-                    "Tier-5: inverse design (closest feasible to a target) + 'why not' explanation. "
+                    "Trajectory instrument: inverse design (closest feasible to a target) + 'why not' explanation. "
                     "This never relaxes constraints; it searches only within your declared bounds."
                 )
                 targets = st.session_state.get("opt_inv_targets") or {}
@@ -2906,7 +2906,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Discovered relations (laws)":
                 st.caption(
-                    "Tier-6: mine simple, explainable relations from the feasible archive. "
+                    "Counterfactual instrument: mine simple, explainable relations from the feasible archive. "
                     "This is not a physics claim; it's a data-derived hint to guide exploration."
                 )
                 import pandas as _pd
@@ -2943,12 +2943,12 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Counterfactual lens":
                 st.caption(
-                    "Tier-6: counterfactual lens. You can disable one or more constraints in the **feasibility gate** only. "
+                    "Counterfactual instrument: counterfactual lens. You can disable one or more constraints in the **feasibility gate** only. "
                     "Raw constraints stay unchanged; this is a hypothetical planning tool."
                 )
                 disabled = st.session_state.get("opt_cf_disable") or []
                 if not disabled:
-                    st.info("Select constraints to disable in the left Tier 5–6 expander.")
+                    st.info("Select constraints to disable in the left Trajectory & counterfactual expander.")
                 else:
                     st.warning(f"Counterfactual disabled constraints: {disabled}")
                     cf_feas = 0
@@ -2977,7 +2977,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Collaboration (review sessions)":
                 st.caption(
-                    "Tier-7: multi-user deliberation without external services. "
+                    "Collaboration & standards: multi-user deliberation without external services. "
                     "Create a review session to attach comments/votes/tags to candidates, then export a session bundle."
                 )
                 _repo_root = Path(__file__).resolve().parent.parent
@@ -3149,7 +3149,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Standards & DOI export":
                 st.caption(
-                    "Tier-7 standards: export DOI-ready packs + SHAMS-certified feasibility badges (descriptive, non-ranking)."
+                    "Collaboration & export standards: export DOI-ready packs + SHAMS-certified feasibility badges (descriptive, non-ranking)."
                 )
                 _repo_root = Path(__file__).resolve().parent.parent
                 _eval_fp = repo_fingerprint(_repo_root)
@@ -3216,7 +3216,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Design-space verdicts (Allowed/Forbidden)":
                 st.caption(
-                    "Tier-8: Design-space jurisprudence. This is not a recommendation engine - it classifies what is supported by evidence in the explored region. "
+                    "Design-space jurisprudence: Design-space jurisprudence. This is not a recommendation engine - it classifies what is supported by evidence in the explored region. "
                     "Forbidden here means *locally forbidden within the explored neighborhood*, not a universal impossibility theorem."
                 )
                 ci = feasibility_confidence_from_trace(run.get("trace") or [], window=500)
@@ -3239,7 +3239,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Epistemic confidence bounds":
                 st.caption(
-                    "Tier-8: Epistemic confidence bounds on feasibility rates (Wilson interval). This quantifies how strongly the *recent search evidence* supports feasibility/infeasibility."
+                    "Design-space jurisprudence: Epistemic confidence bounds on feasibility rates (Wilson interval). This quantifies how strongly the *recent search evidence* supports feasibility/infeasibility."
                 )
                 w = st.slider("Window (last N evaluations)", 50, 2000, 500, 50, key="opt_ci_window")
                 ci = feasibility_confidence_from_trace(run.get("trace") or [], window=int(w))
@@ -3252,7 +3252,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Intent-conditional design laws":
                 st.caption(
-                    "Tier-8: Intent-conditional design laws. We take top feasible candidates under the current intent and re-evaluate them under the other intent, then compare correlations."
+                    "Design-space jurisprudence: Intent-conditional design laws. We take top feasible candidates under the current intent and re-evaluate them under the other intent, then compare correlations."
                 )
                 if not filt:
                     st.info("No candidates available.")
@@ -3273,7 +3273,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Machine genealogy":
                 st.caption(
-                    "Tier-9: Machine genealogy. When engines do not record parents explicitly, SHAMS reconstructs a conservative ancestry graph: each candidate's parent is its nearest better neighbor in variable space."
+                    "Genealogy & counter-optimization: Machine genealogy. When engines do not record parents explicitly, SHAMS reconstructs a conservative ancestry graph: each candidate's parent is its nearest better neighbor in variable space."
                 )
                 if not filt:
                     st.info("No candidates available.")
@@ -3306,7 +3306,7 @@ def render_reactor_design_forge(_app_module) -> None:
 
             elif view == "Counter-optimization (no interior optimum)":
                 st.caption(
-                    "Tier-9: Counter-optimization. This does not claim mathematical proofs; it reports evidence that improvement is boundary-limited (no interior optimum) under the current search space."
+                    "Genealogy & counter-optimization: Counter-optimization. This does not claim mathematical proofs; it reports evidence that improvement is boundary-limited (no interior optimum) under the current search space."
                 )
                 key_obj = st.text_input("Objective key (default: _score)", value="_score", key="opt_counter_key")
                 rep = counter_optimization_report(run.get("archive") or [], key_obj=str(key_obj))
