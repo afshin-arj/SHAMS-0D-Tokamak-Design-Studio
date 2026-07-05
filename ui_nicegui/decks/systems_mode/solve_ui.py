@@ -1,0 +1,166 @@
+"""Step ② — Newton target solve."""
+
+from __future__ import annotations
+
+from typing import Callable, Optional
+
+from nicegui import run, ui
+
+from ui_nicegui.lib.session_store import set_point_evaluation
+from ui_nicegui.lib.systems_solve_helpers import run_systems_solve
+from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem
+from ui_nicegui.lib.systems_workflow_helpers import append_run_card, systems_run_payload
+from ui_nicegui.session import DesignSession
+
+
+def _render_solver_numerics(session: DesignSession) -> None:
+    with ui.row().classes("gap-4 flex-wrap"):
+        ui.number(
+            "Max iterations",
+            value=session.systems_max_iter,
+            min=5,
+            max=200,
+            step=1,
+            on_change=lambda e: setattr(session, "systems_max_iter", int(e.value or 35)),
+        ).classes("w-32")
+        ui.number(
+            "Tolerance",
+            value=session.systems_tol,
+            min=1e-6,
+            max=1e-1,
+            step=1e-4,
+            format="%.1e",
+            on_change=lambda e: setattr(session, "systems_tol", float(e.value or 1e-3)),
+        ).classes("w-32")
+        ui.number(
+            "Damping",
+            value=session.systems_damping,
+            min=0.05,
+            max=1.0,
+            step=0.05,
+            on_change=lambda e: setattr(session, "systems_damping", float(e.value or 0.6)),
+        ).classes("w-32")
+    ui.checkbox(
+        "Block-ordered solve",
+        value=session.systems_block_solve,
+        on_change=lambda e: setattr(session, "systems_block_solve", bool(e.value)),
+    )
+    ui.checkbox(
+        "Continuation ramp",
+        value=session.systems_do_continuation,
+        on_change=lambda e: setattr(session, "systems_do_continuation", bool(e.value)),
+    )
+    ui.number(
+        "Continuation steps",
+        value=session.systems_cont_steps,
+        min=2,
+        max=30,
+        on_change=lambda e: setattr(session, "systems_cont_steps", int(e.value or 10)),
+    ).classes("w-32")
+    ui.checkbox(
+        "Feasibility scout",
+        value=session.systems_feasibility_scout_enabled,
+        on_change=lambda e: setattr(session, "systems_feasibility_scout_enabled", bool(e.value)),
+    )
+    ui.checkbox(
+        "Require passing precheck (reactor)",
+        value=session.systems_do_precheck,
+        on_change=lambda e: setattr(session, "systems_do_precheck", bool(e.value)),
+    )
+
+
+def render_solve_panel(
+    session: DesignSession,
+    *,
+    on_complete: Optional[Callable[[], None]] = None,
+) -> None:
+    ui.label("Step ② — Target solve (Newton)").classes("text-subtitle1")
+    ui.label("Adjust declared variables to hit targets. Uses frozen Evaluator.").classes("text-caption q-mb-sm")
+
+    _, targets, variables = resolve_systems_problem(session)
+    disabled = len(targets) == 0 or len(variables) == 0
+    if disabled:
+        ui.label("Complete tab **1 · Targets** first.").classes("text-orange")
+
+    pre = session.last_precheck_report
+    if pre is not None:
+        ok = bool(getattr(pre, "ok", pre.get("ok") if isinstance(pre, dict) else False))
+        ui.label(f"Precheck: {'✓ pass' if ok else '✗ fail'}").classes("text-caption q-mb-sm")
+
+    if session.systems_expert_view:
+        with ui.expansion("Solver numerics", icon="settings").classes("w-full q-mb-sm"):
+            _render_solver_numerics(session)
+
+    async def _run_solve() -> None:
+        base, targets_now, variables_now = resolve_systems_problem(session)
+        if not targets_now or not variables_now:
+            ui.notify("Configure targets first", type="warning")
+            return
+        ui.notify("Running target solve…", type="info")
+        try:
+            trust = float(session.systems_trust_delta) if session.systems_use_trust_delta else None
+            result = await run.io_bound(
+                run_systems_solve,
+                base,
+                targets_now,
+                variables_now,
+                max_iter=session.systems_max_iter,
+                tol=session.systems_tol,
+                damping=session.systems_damping,
+                block_solve=session.systems_block_solve,
+                design_intent=session.design_intent,
+                trust_delta=trust,
+                do_continuation=session.systems_do_continuation,
+                cont_steps=session.systems_cont_steps,
+                scout_enabled=session.systems_feasibility_scout_enabled,
+                scout_n_samples=session.systems_scout_n_samples,
+                scout_n_refine=session.systems_scout_n_refine,
+                scout_seed=session.systems_precheck_seed,
+                input_overrides=dict(session.systems_inputs_overrides or {}),
+                precheck_report=session.last_precheck_report,
+                require_precheck=session.systems_do_precheck,
+            )
+            if result.get("blocked"):
+                ui.notify(str(result.get("message", "Solve blocked")), type="warning")
+                return
+            session.systems_last_solve_result = result
+            session.systems_last_solve_artifact = result.get("artifact")
+            inp = result.get("inp")
+            out = result.get("out")
+            if inp is not None and isinstance(out, dict):
+                inputs_dict = inp.to_dict() if hasattr(inp, "to_dict") else dict(session.inputs)
+                set_point_evaluation(session, outputs=out, inputs=inputs_dict)
+            append_run_card(
+                session,
+                kind="SystemsSolve",
+                settings={"targets": dict(targets_now), "variables": list(variables_now.keys())},
+                outcome={"ok": bool(result.get("ok")), "iters": result.get("iters")},
+                payload=systems_run_payload(session, result.get("artifact")),
+            )
+            append_journal(session, "SystemsSolve", {"ok": bool(result.get("ok"))})
+            ui.notify(
+                f"{'Converged' if result.get('ok') else 'Finished without convergence'} "
+                f"({result.get('iters')} iter)",
+                type="positive" if result.get("ok") else "warning",
+            )
+            _solve_result.refresh()
+            if on_complete:
+                on_complete()
+        except Exception as exc:
+            ui.notify(f"Target solve failed: {exc}", type="negative")
+
+    btn = ui.button("Run target solve", icon="bolt", on_click=_run_solve).props("color=primary q-mt-sm")
+    if disabled:
+        btn.props("disable")
+    _solve_result(session)
+
+
+@ui.refreshable
+def _solve_result(session: DesignSession) -> None:
+    result = session.systems_last_solve_result
+    if not isinstance(result, dict):
+        return
+    ui.label(
+        f"Last solve: converged={bool(result.get('ok'))} | iters={result.get('iters', '-')} | "
+        f"{float(result.get('wall_s', 0)):.2f}s"
+    ).classes("text-body2 q-mt-sm")

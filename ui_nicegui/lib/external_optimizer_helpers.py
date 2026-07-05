@@ -1,0 +1,462 @@
+"""External optimizer / advanced trade study helpers — Phase 17."""
+from __future__ import annotations
+
+import io
+import json
+import subprocess
+import sys
+import zipfile
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from ui_nicegui.bootstrap import repo_root
+from ui_nicegui.evaluate import ui_evaluate
+
+
+def repo() -> Path:
+    return Path(repo_root())
+
+
+def load_phase_defaults() -> str:
+    try:
+        txt = (repo() / "ui" / "phase_envelopes.py").read_text(encoding="utf-8")
+        import re
+
+        m = re.search(r"^_DEFAULT_PHASES_JSON\s*=\s*(?P<q>'''|\"\"\"|'|\")(?P<body>.*?)(?P=q)", txt, re.M | re.S)
+        if m:
+            return m.group("body")
+    except Exception:
+        pass
+    return json.dumps(
+        [
+            {"name": "Ramp", "input_overrides": {"Paux_MW": 0.0}, "notes": "cold start"},
+            {"name": "Flat-top", "input_overrides": {}, "notes": "baseline"},
+        ],
+        indent=2,
+    )
+
+
+def load_uq_defaults() -> str:
+    try:
+        txt = (repo() / "ui" / "uncertainty_contracts.py").read_text(encoding="utf-8")
+        import re
+
+        m = re.search(r"^_DEFAULT_UQ_JSON\s*=\s*(?P<q>'''|\"\"\"|'|\")(?P<body>.*?)(?P=q)", txt, re.M | re.S)
+        if m:
+            return m.group("body")
+    except Exception:
+        pass
+    return json.dumps(
+        {
+            "name": "Default (fallback)",
+            "intervals": {"fG": {"lo": 0.75, "hi": 0.85}, "Paux_MW": {"lo": 0.0, "hi": 30.0}},
+            "policy_overrides": {},
+        },
+        indent=2,
+    )
+
+
+def parse_phases(phases_json: str):
+    from src.phase_envelopes import PhaseSpec
+
+    raw = json.loads(phases_json)
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("Phases JSON must be a non-empty list")
+    phases = []
+    for item in raw:
+        if not isinstance(item, dict) or "name" not in item:
+            raise ValueError("Each phase must be an object with at least a 'name'")
+        phases.append(
+            PhaseSpec(
+                name=str(item["name"]),
+                input_overrides=dict(item.get("input_overrides") or {}),
+                policy_overrides=dict(item.get("policy_overrides") or {})
+                if item.get("policy_overrides") is not None
+                else None,
+                notes=str(item.get("notes", "")),
+            )
+        )
+    return phases
+
+
+def parse_uq(uq_json: str):
+    from src.uq_contracts import UncertaintyContractSpec, Interval
+
+    raw = json.loads(uq_json)
+    if not isinstance(raw, dict):
+        raise ValueError("UQ JSON must be an object")
+    intervals_raw = raw.get("intervals")
+    if not isinstance(intervals_raw, dict) or not intervals_raw:
+        raise ValueError("UQ JSON must include non-empty 'intervals' dict")
+    intervals = {}
+    for k, v in intervals_raw.items():
+        if not isinstance(v, dict) or "lo" not in v or "hi" not in v:
+            raise ValueError(f"Interval for '{k}' must be an object with lo/hi")
+        intervals[str(k)] = Interval(lo=float(v["lo"]), hi=float(v["hi"]))
+    pol = raw.get("policy_overrides")
+    return UncertaintyContractSpec(
+        name=str(raw.get("name", "UQ")),
+        intervals=intervals,
+        policy_overrides=dict(pol or {}) if pol is not None else None,
+    )
+
+
+def _classify_robust(nominal_feasible: bool, env_verdict: str, uq_verdict: str) -> str:
+    if not nominal_feasible:
+        return "FAIL"
+    if str(env_verdict) == "PASS" and str(uq_verdict) == "ROBUST_PASS":
+        return "ROBUST"
+    if str(env_verdict) == "PASS" and str(uq_verdict) == "FRAGILE":
+        return "FRAGILE"
+    return "MIRAGE"
+
+
+def candidate_sources(session) -> List[Tuple[str, dict]]:
+    out: List[Tuple[str, dict]] = []
+    pl = getattr(session, "pareto_last", None)
+    if isinstance(pl, dict) and isinstance(pl.get("pareto"), list) and pl.get("pareto"):
+        out.append(("Pareto Lab — last internal Pareto run", pl))
+    cap = getattr(session, "active_study_capsule", None)
+    if isinstance(cap, dict) and isinstance(cap.get("pareto"), list) and cap.get("pareto"):
+        normalized = {
+            "pareto": list(cap.get("pareto") or []),
+            "bounds": (cap.get("knob_set") or {}).get("bounds"),
+            "objectives": {
+                k: {"sense": (cap.get("objective_senses") or {}).get(k, "min")}
+                for k in (cap.get("objectives") or [])
+            },
+        }
+        out.append(("Trade Study Studio — active study capsule", normalized))
+    return out
+
+
+def run_robust_pareto_frontier(
+    session,
+    *,
+    bundle: dict,
+    phases_json: str,
+    uq_json: str,
+    n_take: int,
+    label_prefix: str = "robust",
+) -> dict:
+    from src.phase_envelopes import run_phase_envelope_for_point
+    from src.uq_contracts import run_uncertainty_contract_for_point
+
+    phases = parse_phases(phases_json)
+    uq_spec = parse_uq(uq_json)
+    base = session.build_point_inputs()
+    base_d = asdict(base) if hasattr(base, "__dataclass_fields__") else dict(base)
+    pareto_pts = list(bundle.get("pareto") or [])[: int(n_take)]
+    bounds = bundle.get("bounds") or {}
+    bound_keys = list(bounds.keys()) if isinstance(bounds, dict) else []
+    rows: List[dict] = []
+
+    for i, row in enumerate(pareto_pts):
+        d = dict(base_d)
+        if isinstance(row, dict):
+            for k in bound_keys:
+                if k in row:
+                    try:
+                        d[k] = float(row[k])
+                    except (TypeError, ValueError):
+                        pass
+        try:
+            from src.models.inputs import PointInputs
+
+            inp = PointInputs(**d)
+        except Exception:
+            inp = base
+
+        out0 = ui_evaluate(inp, origin="NiceGUI:RobustPareto")
+        nominal_feasible = bool(row.get("is_feasible", True)) if isinstance(row, dict) else True
+
+        env = run_phase_envelope_for_point(inp, phases, label_prefix=f"{label_prefix}:p{i:04d}")
+        env_s = (env.get("envelope_summary") or {}) if isinstance(env, dict) else {}
+        env_verdict = str(env_s.get("envelope_verdict", "UNKNOWN"))
+
+        uq = run_uncertainty_contract_for_point(inp, uq_spec, label_prefix=f"{label_prefix}:u{i:04d}")
+        uq_sum = (uq.get("summary") or {}) if isinstance(uq, dict) else {}
+        uq_verdict = str(uq_sum.get("verdict", "UNKNOWN"))
+
+        tier = _classify_robust(nominal_feasible, env_verdict, uq_verdict)
+        rows.append(
+            {
+                "i": i,
+                "tier": tier,
+                "env_verdict": env_verdict,
+                "uq_verdict": uq_verdict,
+                "nominal_feasible": nominal_feasible,
+                "dominant_constraint": row.get("dominant_constraint") if isinstance(row, dict) else None,
+            }
+        )
+
+    counts: Dict[str, int] = {}
+    for r in rows:
+        counts[str(r.get("tier", "?"))] = counts.get(str(r.get("tier", "?")), 0) + 1
+    return {"rows": rows, "counts": counts, "n": len(rows)}
+
+
+def load_records_from_upload(name: str, data: bytes) -> List[dict]:
+    name_l = str(name or "").lower()
+    if name_l.endswith(".jsonl"):
+        out = []
+        for ln in data.splitlines():
+            if not ln.strip():
+                continue
+            try:
+                obj = json.loads(ln.decode("utf-8"))
+                if isinstance(obj, dict):
+                    out.append(obj)
+            except Exception:
+                continue
+        return out
+    if name_l.endswith(".json"):
+        obj = json.loads(data.decode("utf-8"))
+        if isinstance(obj, list):
+            return [x for x in obj if isinstance(x, dict)]
+        if isinstance(obj, dict) and isinstance(obj.get("records"), list):
+            return [x for x in obj["records"] if isinstance(x, dict)]
+    if name_l.endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(data), "r") as zf:
+            for cand in ("results.jsonl", "results.json", "candidates_eval.jsonl"):
+                if cand in zf.namelist():
+                    return load_records_from_upload(cand, zf.read(cand))
+    return []
+
+
+def build_regime_atlas(records: List[dict], cfg: dict) -> dict:
+    from analysis.regime_conditioned_atlas_v365 import AtlasConfig, MetricSpec, build_regime_conditioned_atlas
+
+    metrics = tuple(MetricSpec(m["key"], m["dir"]) for m in cfg.get("metrics") or [])
+    atlas_cfg = AtlasConfig(
+        conditioning_axes=tuple(cfg.get("axes") or ("dominance_label",)),
+        min_bucket_size=int(cfg.get("min_bucket_size", 8)),
+        feasibility_gate=str(cfg.get("feasibility_gate", "robust_only")),
+        metrics=metrics,
+    )
+    return build_regime_conditioned_atlas(records, atlas_cfg)
+
+
+def atlas_evidence_zip(atlas: dict) -> bytes:
+    import hashlib
+    import time
+
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    base = f"atlas_v365_{ts}"
+    files: Dict[str, bytes] = {}
+    files[f"{base}/atlas.json"] = json.dumps(atlas, indent=2, sort_keys=True).encode("utf-8")
+    bio = io.BytesIO()
+    with zipfile.ZipFile(bio, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for path, content in sorted(files.items()):
+            zf.writestr(path, content)
+            zf.writestr(f"{base}/MANIFEST_SHA256.txt", f"{hashlib.sha256(content).hexdigest()}  {path}\n")
+    return bio.getvalue()
+
+
+def build_design_families(session, *, source: str = "pareto") -> dict:
+    from src.narratives.design_families import FamilyConfig, build_design_families as _build
+
+    pl = getattr(session, "pareto_last", None)
+    if not isinstance(pl, dict):
+        raise RuntimeError("Run Internal Pareto Frontier first")
+    recs = pl.get("pareto") if source == "pareto" else pl.get("feasible")
+    if not isinstance(recs, list) or not recs:
+        raise RuntimeError("No records for selected source")
+    fams = _build(recs, cfg=FamilyConfig())
+    return {"families": fams, "n_records": len(recs), "source": source}
+
+
+def list_concept_family_yamls() -> List[Path]:
+    ex = repo() / "examples" / "concept_families"
+    if not ex.is_dir():
+        return []
+    return sorted(ex.glob("*.y*ml"))
+
+
+def run_extopt_workbench(*, family_yaml: Path, seed: int, n_proposals: int, robust: bool, evaluator_label: str) -> str:
+    from clients.reference_optimizer import run_reference_optimizer
+
+    out_dir = repo() / "ui_runs" / "extopt_workbench"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    bundle = run_reference_optimizer(
+        family_yaml=Path(family_yaml),
+        out_dir=out_dir,
+        seed=int(seed),
+        n_proposals=int(n_proposals),
+        evaluator_label=str(evaluator_label),
+        robust=bool(robust),
+    )
+    return str(bundle)
+
+
+def run_orchestrator_v385(*, yaml_bytes: bytes, yaml_name: str, evaluator_label: str, intent: str, include_ep: bool) -> dict:
+    from src.extopt.orchestrator_v385 import OrchestratorRunSpec, run_orchestrator_v385_from_concept_family
+
+    tdir = repo() / "ui_runs" / "uploads"
+    tdir.mkdir(parents=True, exist_ok=True)
+    p = tdir / yaml_name
+    p.write_bytes(yaml_bytes)
+    out_dir = repo() / "ui_runs" / "extopt_orchestrator_v385"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rs = OrchestratorRunSpec(
+        evaluator_label=str(evaluator_label),
+        intent=str(intent),
+        include_evidence_packs=bool(include_ep),
+        cache_enabled=True,
+    )
+    res = run_orchestrator_v385_from_concept_family(
+        concept_family_yaml=p,
+        repo_root=repo(),
+        out_dir=out_dir,
+        runspec=rs,
+    )
+    return {
+        "n_total": res.n_total,
+        "n_feasible": res.n_feasible,
+        "pass_rate": res.pass_rate,
+        "run_dir": str(res.run_dir),
+        "bundle_zip": str(res.bundle_zip),
+    }
+
+
+def interpret_optimizer_trace(trace: dict, repo_root_path: Optional[Path] = None) -> dict:
+    from src.extopt.interpretation import interpret_optimizer_trace
+
+    return interpret_optimizer_trace(trace, repo_root=repo_root_path or repo())
+
+
+def list_optimizer_run_dirs() -> List[Path]:
+    root = repo() / "runs" / "optimizer"
+    if not root.is_dir():
+        return []
+    dirs = [p for p in root.iterdir() if p.is_dir()]
+    return sorted(dirs, key=lambda p: p.name, reverse=True)
+
+
+def read_run_json(run_dir: Path, name: str) -> Optional[dict]:
+    p = run_dir / name
+    if not p.is_file():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def run_optimizer_job(*, kit: str, seed: int, n: int, objectives: List[str], senses: dict, bounds: dict, base) -> dict:
+    from src.extopt.orchestrator import OptimizerJob, run_optimizer_job
+
+    job = OptimizerJob(
+        kit=str(kit),
+        seed=int(seed),
+        n=int(n),
+        objectives=list(objectives),
+        objective_senses=dict(senses),
+        bounds=dict(bounds),
+        base_inputs=asdict(base) if hasattr(base, "__dataclass_fields__") else dict(base),
+    )
+    return run_optimizer_job(job, repo_root=repo())
+
+
+def evaluate_concept_family_yaml(path: Path, *, label: str = "NiceGUI:Cockpit") -> dict:
+    from extopt import BatchEvalConfig, evaluate_concept_family
+    from extopt.family import load_concept_family
+
+    fam = load_concept_family(path)
+    cfg = BatchEvalConfig(evaluator_label="hot_ion_point")
+    return evaluate_concept_family(fam, cfg=cfg, origin=label)
+
+
+def launch_optimizer_kit(*, kit: str, seed: int, n: int, objectives: List[str], senses: dict, bounds: dict, base) -> dict:
+    pending = repo() / "runs" / "pending"
+    pending.mkdir(parents=True, exist_ok=True)
+    cfg_path = pending / f"optimizer_kit_{seed}_{n}.json"
+    cfg = {
+        "schema": "optimizer_kit.v1",
+        "kit": str(kit),
+        "seed": int(seed),
+        "n": int(n),
+        "objectives": list(objectives),
+        "objective_senses": dict(senses),
+        "bounds": {k: [float(v[0]), float(v[1])] for k, v in bounds.items()},
+        "base_inputs": asdict(base) if hasattr(base, "__dataclass_fields__") else dict(base),
+    }
+    cfg_path.write_text(json.dumps(cfg, indent=2, sort_keys=True), encoding="utf-8")
+    script = repo() / "clients" / "optimizer_kits" / "run_kit.py"
+    proc = subprocess.run(
+        [sys.executable, str(script), "--repo-root", str(repo()), "--config", str(cfg_path)],
+        capture_output=True,
+        text=True,
+        cwd=str(repo()),
+    )
+    return {
+        "returncode": int(proc.returncode),
+        "config_path": str(cfg_path),
+        "stdout": (proc.stdout or "")[:8000],
+        "stderr": (proc.stderr or "")[:8000],
+    }
+
+
+def run_two_lane_uq(base) -> dict:
+    from src.uq_contracts.runner import run_uncertainty_contract_for_point
+    from src.uq_contracts.spec import optimistic_uncertainty_contract, robust_uncertainty_contract
+
+    uqO = run_uncertainty_contract_for_point(base, optimistic_uncertainty_contract(base), label_prefix="laneO")
+    uqR = run_uncertainty_contract_for_point(base, robust_uncertainty_contract(base), label_prefix="laneR")
+    sO = dict((uqO.get("summary") or {}))
+    sR = dict((uqR.get("summary") or {}))
+    vO, vR = str(sO.get("verdict", "")), str(sR.get("verdict", ""))
+    cls = "ROBUST" if vR == "ROBUST_PASS" else ("MIRAGE" if vO == "ROBUST_PASS" else "FAIL")
+    return {"O": uqO, "R": uqR, "class": cls, "verdict_O": vO, "verdict_R": vR}
+
+
+def run_mirage_path_scan(base, knob: str, lo: float, hi: float, n: int) -> dict:
+    from src.evaluator.core import Evaluator
+    from src.trade_studies.pathfinding import one_knob_path_scan
+
+    ev = Evaluator(label="NiceGUI:MiragePath", cache_enabled=True)
+    return one_knob_path_scan(ev, base, knob, lo=lo, hi=hi, n=int(n))
+
+
+def default_pathfinding_levers(base) -> List[Tuple[str, float, float]]:
+    from src.trade_studies.pathfinding import default_pathfinding_levers
+
+    return list(default_pathfinding_levers(base))
+
+
+def build_v351_atlas(session, *, objectives: List[str], senses: dict) -> dict:
+    from src.atlas.frontier_atlas_v351 import bin_counts, pareto_front
+
+    rep = getattr(session, "trade_last", None) or {}
+    cap = getattr(session, "active_study_capsule", None)
+    records = (cap or rep).get("records") or rep.get("records") or []
+    feas = [r for r in records if isinstance(r, dict) and bool(r.get("is_feasible"))]
+    if not feas and records:
+        feas = [r for r in records if isinstance(r, dict)]
+    pareto_rows = pareto_front(feas, objectives=list(objectives), senses=senses)
+    return {
+        "schema": "shams.frontier_atlas.v351",
+        "objectives": list(objectives),
+        "n_total": len(records),
+        "n_feasible": len(feas),
+        "n_pareto": len(pareto_rows),
+        "pareto": pareto_rows,
+    }
+
+
+def build_v324_regime_maps(records: List[dict], *, features: List[str], min_cluster: int, max_bins: int) -> dict:
+    from tools.regime_maps import build_regime_maps_report
+
+    return build_regime_maps_report(
+        records=records,
+        features=list(features),
+        min_cluster_size=int(min_cluster),
+        max_bins=int(max_bins),
+    )
+
+
+def family_summary_rows(records: List[dict]) -> dict:
+    from src.trade_studies.families import family_summary
+
+    return family_summary(records)

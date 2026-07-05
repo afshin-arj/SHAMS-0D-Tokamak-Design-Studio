@@ -22,15 +22,15 @@ Both are pure presentation; no physics, state, or routing logic.
 
 
 ## Run (Windows)
-Double-click:
-- `run_ui.cmd`
 
-Then open:
-- http://127.0.0.1:8501
+**NiceGUI (recommended):** double-click `run_ui_nicegui.cmd` → http://127.0.0.1:8080
+
+**Streamlit (legacy):** double-click `run_ui.cmd` → http://127.0.0.1:8501
 
 ## Structure
 - `src/` : physics & models (your Phase-1 refactor + clean design additions)
-- `ui/app.py` : Streamlit UI entrypoint + deck router
+- `ui/app.py` : Streamlit UI entrypoint + deck router (legacy; parallel to NiceGUI)
+- `ui_nicegui/` : NiceGUI UI (`run_ui_nicegui.cmd` / `launch.py`)
 - `ui/decks/` : extracted deck modules (Point Designer, System Suite, ...) — each rendered via a router call in `app.py`
 - `ui/components/` : shared presentation components (`kpi_row`, `empty_state`)
 - `api.py` : optional FastAPI wrapper (for future Next.js/React UI)

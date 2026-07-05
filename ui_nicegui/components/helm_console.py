@@ -1,0 +1,556 @@
+"""Helm Console — Streamlit sidebar parity, expert-friendly layout, dark-drawer theme."""
+from __future__ import annotations
+
+import json
+import os
+import time
+from pathlib import Path
+from typing import Callable
+
+from nicegui import run, ui
+
+from ui_nicegui.bootstrap import repo_root
+from ui_nicegui.components.dsg_sidebar import render_dsg_sidebar
+from ui_nicegui.components.helm_theme import helm_dark_props
+from ui_nicegui.lib.control_room_helpers import read_version
+from ui_nicegui.lib.helm_helpers import (
+    apply_legacy_reference_machine_to_session,
+    apply_reference_preset_to_session,
+    health_snapshot_rows,
+    log_ui_event,
+    on_design_intent_changed,
+    on_policy_contract_changed,
+    on_tech_tier_changed,
+    run_verification_capture,
+    verification_needs_run,
+    verification_report_paths,
+)
+from ui_nicegui.lib.helm_labels import (
+    DESIGN_INTENT_OPTIONS,
+    HELM_NAV_GROUPS,
+    helm_section_label,
+)
+from ui_nicegui.lib.pd_intent_policy import constraint_policy_snapshot, policy_caption
+from ui_nicegui.lib.run_lock import status as runlock_status
+from ui_nicegui.session import DesignSession
+
+_TRL_TIERS = ["TRL3", "TRL5", "TRL7", "TRL9"]
+_POLICY_ENFORCEMENT = ["hard", "diagnostic"]
+_RUN_START: dict[str, float] = {}
+
+
+def _activity_logger(session: DesignSession):
+    from tools.activity_log import ActivityLogger
+
+    lg = getattr(session, "_activity_logger", None)
+    if lg is None:
+        lg = ActivityLogger(repo_root=Path(repo_root()), tz_name="Asia/Tehran")
+        session._activity_logger = lg
+    return lg
+
+
+def _read_log_tail(session: DesignSession) -> str:
+    try:
+        lg = _activity_logger(session)
+        n = int(session.activity_log_tail)
+        if lg.path.exists():
+            text = lg.path.read_text(encoding="utf-8", errors="replace")
+            lines = text.splitlines()
+            if n > 0 and lines:
+                return "\n".join(lines[-n:])
+            return text
+        return lg.get_text(last_n=n)
+    except Exception:
+        return ""
+
+
+def render_helm_console(
+    session: DesignSession,
+    *,
+    on_deck_change: Callable[[str], None],
+) -> None:
+    _helm_body(session, on_deck_change=on_deck_change)
+
+
+@ui.refreshable
+def _helm_body(session: DesignSession, *, on_deck_change: Callable[[str], None]) -> None:
+    ui.label(helm_section_label("Helm Console - Expert Navigation")).classes(
+        "text-h6 text-weight-bold q-mb-xs"
+    )
+    ui.label("Session compass — posture, contract, reference machines, audit trail.").classes(
+        "text-caption q-mb-sm"
+    )
+
+    _render_run_lock_banner(session)
+    _render_posture(session)
+    render_dsg_sidebar(session)
+
+    ui.separator().classes("q-my-sm")
+
+    ui.switch(
+        helm_section_label("Explain mode (show equations & reasons)"),
+        value=session.explain_mode,
+        on_change=lambda e: setattr(session, "explain_mode", bool(e.value)),
+    ).props(helm_dark_props())
+    ui.label("Show binding reasons in Constraints and forensics.").classes("text-caption q-mb-sm")
+
+    with ui.expansion(helm_section_label("Advanced controls"), icon="tune").classes("w-full"):
+        ui.switch(
+            "Expert solver controls",
+            value=session.expert_mode,
+            on_change=lambda e: setattr(session, "expert_mode", bool(e.value)),
+        ).props(helm_dark_props("disable" if session.forge_review_mode else ""))
+        ui.label(
+            "Expose solver tolerances and optimizer internals in exploration decks."
+        ).classes("text-caption")
+        if session.forge_review_mode:
+            ui.label("Disabled in Review Mode (Reactor Design Forge).").classes("text-caption text-orange")
+
+    with ui.expansion(helm_section_label("Design Contract"), icon="gavel").classes("w-full"):
+        _render_mission_policy(session)
+
+    with ui.expansion(helm_section_label("Integrity Gate - Requirements & Health"), icon="verified_user").classes(
+        "w-full"
+    ):
+        _render_integrity_gate(session)
+
+    with ui.expansion("Model authority & closures", icon="layers").classes("w-full"):
+        _render_fidelity(session)
+
+    with ui.expansion("Reference calibration", icon="straighten").classes("w-full"):
+        _render_calibration(session)
+
+    with ui.expansion(helm_section_label("Benchmark Vault"), icon="inventory_2").classes("w-full"):
+        _render_benchmark_vault(session)
+
+    with ui.expansion(helm_section_label("Black-Box Chronicle"), icon="history").classes("w-full"):
+        _render_chronicle(session)
+
+    ui.separator().classes("q-my-sm")
+    _render_navigation(session, on_deck_change=on_deck_change)
+
+    ui.separator().classes("q-my-md")
+    ui.label(f"SHAMS v{read_version()}").classes("text-caption")
+
+
+def _render_run_lock_banner(session: DesignSession) -> None:
+    locked, task, is_owner = runlock_status("PointDesigner")
+    if not (session.evaluating or locked):
+        return
+    if locked and task and task not in _RUN_START:
+        _RUN_START[task] = time.time()
+    age = 0
+    if task and task in _RUN_START:
+        age = int(time.time() - _RUN_START[task])
+    badge = "Running sequence" if is_owner else "Shot in progress"
+    ui.html(
+        f'<div class="helm-info-banner"><strong>{badge}</strong>: {task or "evaluation"} · t+{age}s</div>'
+    ).classes("w-full q-mb-sm")
+
+
+def _render_posture(session: DesignSession) -> None:
+    ui.label(helm_section_label("Captain's Ledger")).classes("text-caption text-weight-bold")
+    posture = "Review Mode (locked)" if session.forge_review_mode else "Explore Mode"
+    ui.badge(posture, color="orange" if session.forge_review_mode else "green").props("outline").classes(
+        "q-mb-xs"
+    )
+
+    locked, task, is_owner = runlock_status("PointDesigner")
+    if session.evaluating or locked:
+        label = task or "Evaluating…"
+        if not is_owner and locked:
+            label = f"Busy: {label}"
+        ui.label(f"Run status: {label}").classes("text-caption text-orange")
+    else:
+        ui.label("Run status: Ready — frozen evaluator armed.").classes("text-caption")
+
+    ui.markdown(
+        "- **Authority:** Frozen evaluator\n"
+        "- **Workspace:** Non-authoritative (proposals only)"
+    ).classes("text-caption")
+
+
+def _render_navigation(session: DesignSession, *, on_deck_change: Callable[[str], None]) -> None:
+    ui.label(helm_section_label("Navigation")).classes("text-subtitle2 q-mb-xs")
+
+    def _go(deck: str) -> None:
+        on_deck_change(deck)
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_helm()
+        refresh_status()
+
+    for group_title, caption, decks in HELM_NAV_GROUPS:
+        ui.label(group_title).classes("text-caption text-weight-bold q-mt-xs")
+        ui.label(caption).classes("text-caption q-mb-xs")
+        for deck in decks:
+            active = deck == session.active_deck
+            btn = ui.button(deck, on_click=lambda d=deck: _go(d)).props("flat align=left dense").classes(
+                "w-full"
+            )
+            if active:
+                btn.classes(add="bg-slate-700 text-white")
+
+
+def _render_mission_policy(session: DesignSession) -> None:
+    inp = session.inputs
+    inp.setdefault("q95_enforcement", "hard")
+    inp.setdefault("greenwald_enforcement", "hard")
+    inp.setdefault("tech_tier", "TRL7")
+
+    intent_val = session.design_intent if session.design_intent in DESIGN_INTENT_OPTIONS else DESIGN_INTENT_OPTIONS[0]
+
+    def _set_intent(e) -> None:
+        prev = str(session.design_intent)
+        new = str(e.value)
+        if prev != new:
+            on_design_intent_changed(session, prev, new)
+            _helm_body.refresh()
+
+    ui.select(
+        DESIGN_INTENT_OPTIONS,
+        label="Mission profile (design intent)",
+        value=intent_val,
+        on_change=_set_intent,
+    ).props(helm_dark_props()).classes("w-full")
+    ui.label(
+        "Reactor missions enforce plant limits (TBR, stress, exhaust). "
+        "Research missions keep q95 blocking; engineering limits become diagnostic."
+    ).classes("text-caption q-mb-sm")
+
+    pol = constraint_policy_snapshot(session.design_intent)
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-weight-bold")
+    ui.markdown(
+        f"- **Blocking:** {', '.join(pol.get('hard_blocking') or []) or '(none)'}\n"
+        f"- **Diagnostic:** {', '.join(pol.get('diagnostic_only') or []) or '(none)'}"
+    ).classes("text-caption q-mb-sm")
+
+    ui.label("Per-limit enforcement (does not change physics outputs)").classes("text-caption text-weight-bold")
+    q_prev = str(inp.get("q95_enforcement", "hard"))
+    fg_prev = str(inp.get("greenwald_enforcement", "hard"))
+
+    with ui.grid(columns=2).classes("w-full gap-2"):
+        ui.select(
+            _POLICY_ENFORCEMENT,
+            label="q95 limit",
+            value=q_prev if q_prev in _POLICY_ENFORCEMENT else "hard",
+            on_change=lambda e: (inp.__setitem__("q95_enforcement", str(e.value)), on_policy_contract_changed(session)),
+        ).props(helm_dark_props())
+        ui.select(
+            _POLICY_ENFORCEMENT,
+            label="Greenwald fG",
+            value=fg_prev if fg_prev in _POLICY_ENFORCEMENT else "hard",
+            on_change=lambda e: (
+                inp.__setitem__("greenwald_enforcement", str(e.value)),
+                on_policy_contract_changed(session),
+            ),
+        ).props(helm_dark_props())
+
+    tier = str(inp.get("tech_tier", "TRL7")).upper().strip()
+    if tier not in _TRL_TIERS:
+        tier = "TRL7"
+
+    ui.select(
+        _TRL_TIERS,
+        label="Technology readiness (TRL)",
+        value=tier,
+        on_change=lambda e: (inp.__setitem__("tech_tier", str(e.value)), on_tech_tier_changed(session)),
+    ).props(helm_dark_props()).classes("w-full q-mt-sm")
+
+    ui.markdown(
+        "**Contract:** enforcement tiering is recorded in artifacts; physics truth is unchanged."
+    ).classes("text-caption q-mt-sm")
+
+    try:
+        from contracts.tech_tiers import suggested_defaults  # type: ignore
+
+        sug = dict(suggested_defaults(str(inp.get("tech_tier", "TRL7"))))
+    except Exception:
+        sug = {}
+    if sug:
+        with ui.expansion("Suggested TRL caps (optional)", icon="info").classes("w-full"):
+            ui.code(json.dumps(sug, indent=2, default=str), language="json")
+            ui.label("Suggestions only — apply explicitly in Point Designer if desired.").classes("text-caption")
+
+
+def _render_fidelity(session: DesignSession) -> None:
+    ui.label("Declared model fidelity — recorded in artifacts; does not alter L0 physics.").classes(
+        "text-caption q-mb-sm"
+    )
+    fid = dict(session.fidelity_config or {})
+
+    def _set(key: str, val: str) -> None:
+        session.fidelity_config[key] = val
+
+    with ui.grid(columns=2).classes("w-full gap-2"):
+        ui.select(["0D", "1/2D"], label="Plasma", value=fid.get("plasma", "0D"),
+                  on_change=lambda e: _set("plasma", str(e.value))).props(helm_dark_props())
+        ui.select(["limits", "stress"], label="Magnets", value=fid.get("magnets", "limits"),
+                  on_change=lambda e: _set("magnets", str(e.value))).props(helm_dark_props())
+        ui.select(["proxy", "enriched"], label="Exhaust", value=fid.get("exhaust", "proxy"),
+                  on_change=lambda e: _set("exhaust", str(e.value))).props(helm_dark_props())
+        ui.select(["proxy", "enriched"], label="Neutronics", value=fid.get("neutronics", "proxy"),
+                  on_change=lambda e: _set("neutronics", str(e.value))).props(helm_dark_props())
+        ui.select(["off", "analytic"], label="Profiles", value=fid.get("profiles", "off"),
+                  on_change=lambda e: _set("profiles", str(e.value))).props(helm_dark_props())
+        ui.select(["proxy", "enriched"], label="Economics", value=fid.get("economics", "proxy"),
+                  on_change=lambda e: _set("economics", str(e.value))).props(helm_dark_props())
+
+
+def _render_calibration(session: DesignSession) -> None:
+    ui.label(
+        "Transparent multipliers (default 1.0) for reference calibration — not hidden tuning."
+    ).classes("text-caption q-mb-sm")
+    with ui.row().classes("w-full gap-2"):
+        ui.button(
+            "Reset to 1.0",
+            on_click=lambda: (
+                setattr(session, "calib_confinement", 1.0),
+                setattr(session, "calib_divertor", 1.0),
+                setattr(session, "calib_bootstrap", 1.0),
+                _helm_body.refresh(),
+            ),
+        ).props("outline dense")
+        ui.label("τE · divertor · bootstrap").classes("text-caption")
+
+    for attr, title in (
+        ("calib_confinement", "Confinement (τE / H-like)"),
+        ("calib_divertor", "Divertor / exhaust proxy"),
+        ("calib_bootstrap", "Bootstrap current I_bs"),
+    ):
+        ui.slider(
+            min=0.5, max=1.5, step=0.01,
+            value=float(getattr(session, attr)),
+            on_change=lambda e, a=attr: setattr(session, a, float(e.value)),
+        ).props('label color="primary"').classes("w-full")
+        ui.label(title).classes("text-caption q-mb-sm")
+
+
+def _render_benchmark_vault(session: DesignSession) -> None:
+    try:
+        from models.reference_machines import REFERENCE_MACHINES, reference_catalog
+    except ImportError:
+        from src.models.reference_machines import REFERENCE_MACHINES, reference_catalog  # type: ignore
+
+    try:
+        ref_catalog = reference_catalog()
+        ref_keys = sorted(ref_catalog.keys())
+    except Exception:
+        ref_catalog = {}
+        ref_keys = []
+
+    legacy_names = list(REFERENCE_MACHINES.keys())
+    choices = ref_keys if ref_keys else legacy_names
+
+    with ui.tabs().classes("w-full") as tabs:
+        t_presets = ui.tab("Reference presets")
+        t_packs = ui.tab("Benchmark packs")
+
+    with ui.tab_panels(tabs, value=t_presets).classes("w-full"):
+        with ui.tab_panel(t_presets):
+            ui.label(
+                "Load frozen reference machines into workspace inputs. Does not modify physics — sets inputs only."
+            ).classes("text-caption q-mb-sm")
+            if not choices:
+                ui.label("No reference presets found.").classes("text-caption")
+            else:
+                sel = ui.select(choices, label="Preset", value=choices[0]).props(helm_dark_props()).classes(
+                    "w-full"
+                )
+                if sel.value and str(sel.value) in ref_catalog:
+                    ent = ref_catalog[str(sel.value)]
+                    suite = str(ent.get("suite", "n/a"))
+                    cls = str(ent.get("class", "n/a"))
+                    with ui.expansion(f"Metadata · suite {suite} · class {cls}", icon="info").classes("w-full"):
+                        ui.code(json.dumps(ent, indent=2, default=str), language="json")
+                elif sel.value and str(sel.value) in REFERENCE_MACHINES:
+                    ui.label("Legacy preset (inline table).").classes("text-caption text-weight-bold")
+
+                async def _load() -> None:
+                    key = str(sel.value or "")
+                    if not key:
+                        ui.notify("Select a preset first.", type="warning")
+                        return
+                    try:
+                        if key in ref_catalog:
+                            apply_reference_preset_to_session(session, key)
+                        else:
+                            apply_legacy_reference_machine_to_session(session, key)
+                        log_ui_event(session, "UI", "ReferencePresetLoaded", {"preset": key})
+                        ui.notify(f"Loaded preset: {key}", type="positive")
+                        _helm_body.refresh()
+                    except Exception as exc:
+                        ui.notify(f"Preset load failed: {exc}", type="negative")
+
+                ui.button("Load preset", on_click=_load).classes("w-full q-mt-sm")
+
+        with ui.tab_panel(t_packs):
+            ui.label(
+                "Benchmark packs are deterministic evidence generators. "
+                "Use Publication Benchmarks deck for full CSV+JSON+hashes."
+            ).classes("text-caption q-mb-sm")
+            ui.label("Quick actions").classes("text-caption text-weight-bold")
+            outdir = session.pub_bench_last_outdir
+            if outdir:
+                ui.code(str(outdir), language="text").classes("w-full")
+            else:
+                ui.label("No benchmark pack recorded this session yet.").classes("text-caption")
+
+            with ui.row().classes("w-full gap-2 q-mt-sm"):
+                def _go_pub() -> None:
+                    from ui_nicegui.lib.navigation import switch_deck, refresh_helm
+
+                    switch_deck("Publication Benchmarks")
+                    refresh_helm()
+
+                ui.button("Open Publication Benchmarks", on_click=_go_pub).props("outline dense").classes("flex-1")
+                ui.label(
+                    "Tip: Generate Pack in that deck for reviewer-safe artifacts."
+                ).classes("text-caption flex-1")
+
+
+def _render_integrity_gate(session: DesignSession) -> None:
+    rep_path, _, _, _ = verification_report_paths()
+    report_exists = os.path.exists(rep_path)
+    needs = verification_needs_run()
+    if report_exists and not needs:
+        status_line = "Evidence report: up-to-date"
+    elif report_exists:
+        status_line = "Evidence report: needs update"
+    else:
+        status_line = "Evidence report: missing"
+
+    ui.label("Explicit compliance check only — nothing runs automatically.").classes("text-caption")
+    ui.label(status_line).classes("text-body2 q-mb-sm")
+
+    with ui.expansion("Instant health snapshot", icon="monitor_heart").classes("w-full"):
+        for row in health_snapshot_rows():
+            ui.label(f"{row['Check']}: {row['Status']}").classes("text-caption")
+
+    async def _run_gatecheck() -> None:
+        if session.helm_verify_running:
+            return
+        session.helm_verify_running = True
+        _helm_body.refresh()
+        try:
+            ok, out, err, dt = await run.io_bound(run_verification_capture)
+            session.helm_verify_ok = ok
+            session.helm_verify_out = out
+            session.helm_verify_err = err
+            session.helm_verify_dt = dt
+            log_ui_event(session, "UI", "GatecheckRun", {"ok": ok, "seconds": dt})
+            ui.notify(f"Gatecheck {'PASS' if ok else 'FAIL'} ({dt:.1f}s)", type="positive" if ok else "negative")
+        finally:
+            session.helm_verify_running = False
+            _helm_body.refresh()
+
+    with ui.row().classes("w-full gap-2"):
+        gate_btn = ui.button("Run gatecheck", on_click=_run_gatecheck).classes("flex-1")
+        if session.helm_verify_running:
+            gate_btn.props("loading disable")
+        ui.switch(
+            "Show logs",
+            value=session.verify_show_logs,
+            on_change=lambda e: setattr(session, "verify_show_logs", bool(e.value)),
+        ).props(helm_dark_props())
+
+    if report_exists:
+        try:
+            rep_bytes = Path(rep_path).read_bytes()
+            ui.button(
+                "Download evidence report (JSON)",
+                on_click=lambda b=rep_bytes: ui.download(b, "shams_verification_report.json"),
+            ).classes("w-full q-mt-sm")
+        except Exception:
+            ui.label("Evidence report download unavailable.").classes("text-caption")
+
+    if session.helm_verify_dt is not None:
+        ok = bool(session.helm_verify_ok)
+        ui.label(
+            f"Last gatecheck: {'PASS' if ok else 'FAIL'} ({session.helm_verify_dt:.2f}s)"
+        ).classes("text-caption " + ("text-green" if ok else "text-red"))
+
+    if session.verify_show_logs:
+        ui.textarea(label="stdout", value=session.helm_verify_out or "").props(
+            "readonly outlined dense rows=4"
+        ).classes("w-full")
+        ui.textarea(label="stderr", value=session.helm_verify_err or "").props(
+            "readonly outlined dense rows=4"
+        ).classes("w-full")
+
+
+def _render_chronicle(session: DesignSession) -> None:
+    ui.switch(
+        "Auto-log (recommended)",
+        value=session.activity_log_auto,
+        on_change=lambda e: setattr(session, "activity_log_auto", bool(e.value)),
+    ).props(helm_dark_props())
+    ui.number(
+        "Show last N lines",
+        value=session.activity_log_tail,
+        min=50,
+        max=2000,
+        step=50,
+        on_change=lambda e: (
+            setattr(session, "activity_log_tail", int(e.value or 200)),
+            _render_chronicle_tail.refresh(),
+        ),
+    ).props(helm_dark_props()).classes("w-full")
+    _render_chronicle_tail(session)
+
+    tail = _read_log_tail(session)
+    log_bytes = ((tail + "\n") if tail else "").encode("utf-8")
+    ui.button(
+        "Download log",
+        on_click=lambda b=log_bytes: ui.download(b, "activity.log"),
+    ).classes("w-full q-mt-sm")
+
+    def _clear() -> None:
+        try:
+            log_ui_event(session, "UI", "ClearLog", {})
+            _activity_logger(session).clear()
+        except Exception:
+            pass
+        _render_chronicle_tail.refresh()
+        ui.notify("Activity log cleared.", type="info")
+
+    ui.button("Clear log", on_click=_clear).props("outline").classes("w-full q-mt-xs")
+
+    ui.separator().classes("q-my-sm")
+    ui.label("Session shutdown").classes("text-caption text-weight-bold")
+    ui.checkbox(
+        "Confirm exit",
+        value=session.shams_exit_confirm,
+        on_change=lambda e: (
+            setattr(session, "shams_exit_confirm", bool(e.value)),
+            _helm_body.refresh(),
+        ),
+    )
+
+    def _exit() -> None:
+        if not session.shams_exit_confirm:
+            ui.notify("Check Confirm exit first.", type="warning")
+            return
+        log_ui_event(session, "UI", "ExitRequested", {})
+        os._exit(0)
+
+    ui.button(
+        "Exit SHAMS",
+        on_click=_exit,
+    ).props("color=negative" + ("" if session.shams_exit_confirm else " disable")).classes("w-full q-mt-xs")
+
+
+@ui.refreshable
+def _render_chronicle_tail(session: DesignSession) -> None:
+    tail = _read_log_tail(session)
+    ui.textarea(value=tail or "(empty)").props("readonly outlined dense rows=6").classes("w-full").style(
+        "font-family: monospace; font-size: 11px;"
+    )
+
+
+def helm_status_caption(session: DesignSession) -> str:
+    locked, task, is_owner = runlock_status("PointDesigner")
+    if session.evaluating or (locked and task):
+        who = "" if is_owner else " (another task)"
+        return f"Running: {task or 'evaluation'}{who} · solver actions locked"
+    return "Ready · Helm Console armed · Awaiting next sequence."

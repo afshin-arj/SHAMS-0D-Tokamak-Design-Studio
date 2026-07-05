@@ -1,0 +1,14 @@
+"""empty_state — consistent no-data / unavailable placeholder."""
+from __future__ import annotations
+
+from nicegui import ui
+
+
+def empty_state(message: str, *, kind: str = "info") -> None:
+    color = {
+        "info": "bg-blue-grey-1",
+        "warn": "bg-orange-1",
+        "error": "bg-red-1",
+    }.get(kind, "bg-blue-grey-1")
+    with ui.card().classes(f"w-full p-4 {color}"):
+        ui.label(message).classes("text-body2")

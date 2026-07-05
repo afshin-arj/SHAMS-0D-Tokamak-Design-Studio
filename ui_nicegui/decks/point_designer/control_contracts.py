@@ -1,0 +1,215 @@
+"""Control Contracts telemetry view (read-only Streamlit parity)."""
+from __future__ import annotations
+
+from nicegui import ui
+
+from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.lib.pd_parity_helpers import (
+    control_cs_row,
+    control_pf_caps_row,
+    control_signed_margins,
+    control_vs_caps_row,
+    fmt_num,
+    magnet_v400_summary,
+    v398_control_ledger,
+)
+from ui_nicegui.session import DesignSession
+
+
+def _dict_table_row(d: dict) -> None:
+    if not d:
+        ui.label("No data.").classes("text-caption")
+        return
+    ui.table(
+        columns=[{"name": k, "label": k, "field": k, "align": "left"} for k in d.keys()],
+        rows=[{k: fmt_num(v) if v is not None else "—" for k, v in d.items()}],
+        row_key=list(d.keys())[0],
+    ).classes("w-full")
+
+
+def render_control_contracts(session: DesignSession) -> None:
+    out = session.pd_last_outputs or session.last_eval
+    if not isinstance(out, dict):
+        return
+
+    ui.label("Control Contracts").classes("text-subtitle1")
+    ui.label(
+        "Envelope-based control feasibility. Computes requirements only; does not modify physics."
+    ).classes("text-caption q-mb-sm")
+
+    art = session.pd_last_artifact or {}
+    inputs_dict = art.get("inputs") if isinstance(art, dict) else session.inputs
+    enabled = bool((inputs_dict or {}).get("include_control_contracts", False))
+
+    if not enabled:
+        ui.label(
+            "Control contracts are OFF. Enable **Control system contracts** in Configure."
+        ).classes("text-orange")
+        return
+
+    auth = out.get("control_contracts_authority")
+    budg = out.get("control_budget_ledger")
+    with ui.row().classes("w-full gap-4"):
+        with ui.column().classes("flex-1"):
+            ui.label("Authority tags").classes("text-subtitle2")
+            if isinstance(auth, dict) and auth:
+                ui.json(auth)
+            else:
+                ui.label("Authority tags not available.").classes("text-caption")
+        with ui.column().classes("flex-2"):
+            ui.label("Control budget ledger").classes("text-subtitle2")
+            if isinstance(budg, dict) and budg:
+                brows = [{"key": str(k), "value": fmt_num(v)} for k, v in budg.items()]
+                ui.table(
+                    columns=[
+                        {"name": "key", "label": "Key", "field": "key", "align": "left"},
+                        {"name": "value", "label": "Value", "field": "value", "align": "left"},
+                    ],
+                    rows=brows,
+                    row_key="key",
+                ).classes("w-full")
+            else:
+                ui.label("No budget ledger available.").classes("text-caption")
+
+    with ui.tabs().classes("w-full q-mt-sm") as tabs:
+        t_vs = ui.tab("VS Control")
+        t_pf = ui.tab("PF Envelope")
+        t_sol = ui.tab("SOL Control")
+        t_rwm = ui.tab("RWM (MHD)")
+
+    with ui.tab_panels(tabs, value=t_vs).classes("w-full"):
+        with ui.tab_panel(t_vs):
+            kpi_row([
+                ("τ_VS (s)", fmt_num(out.get("tau_VS_s"))),
+                ("γ_VS (1/s)", fmt_num(out.get("gamma_VS_s_inv"))),
+                ("BW req (Hz)", fmt_num(out.get("vs_bandwidth_req_Hz"))),
+            ])
+            ui.label("Proxy mapping: vs_margin → τ_VS via vs_tau_nominal_s; BW ≈ vs_bw_factor·γ/(2π).").classes(
+                "text-caption"
+            )
+            ui.label("Caps (optional)").classes("text-subtitle2")
+            _dict_table_row(control_vs_caps_row(out))
+            margins = control_signed_margins(out, "vs")
+            if margins:
+                ui.label("Signed margins (cap − required)").classes("text-subtitle2 q-mt-sm")
+                _dict_table_row(margins)
+
+        with ui.tab_panel(t_pf):
+            kpi_row([
+                ("I_peak (MA)", fmt_num(out.get("pf_I_peak_MA"))),
+                ("dI/dt (MA/s)", fmt_num(out.get("pf_dIdt_peak_MA_s"))),
+                ("V_peak (V)", fmt_num(out.get("pf_V_peak_V"))),
+                ("P_peak (MW)", fmt_num(out.get("pf_P_peak_MW"))),
+            ])
+            ui.label(f"Pulse energy proxy (MJ): {fmt_num(out.get('pf_E_pulse_MJ'))}").classes("text-body2")
+            ui.label("CS / Volt-seconds (pulsed) bookkeeping").classes("text-subtitle2 q-mt-sm")
+            _dict_table_row(control_cs_row(out))
+            ui.label(
+                "Canonical ramp–flat–ramp waveform; V ≈ L_eff·dI/dt + R_eff·I."
+            ).classes("text-caption")
+
+            v398 = v398_control_ledger(out)
+            with ui.expansion("v398 Control Ledger (VS budget + headroom + RWM overlay)", icon="account_balance").classes(
+                "w-full"
+            ):
+                if v398:
+                    kpi_row([
+                        ("VS budget margin", fmt_num(v398.get("vs_budget_margin"))),
+                        ("VDE headroom", fmt_num(v398.get("vde_headroom"))),
+                        ("RWM proximity idx", fmt_num(v398.get("rwm_index"))),
+                    ])
+                    ui.label("Tiers").classes("text-subtitle2")
+                    ui.json({
+                        "vde_headroom_tier": v398.get("vde_headroom_tier"),
+                        "rwm_proximity_tier": v398.get("rwm_proximity_tier"),
+                    })
+                    ui.label("Ledger table").classes("text-subtitle2 q-mt-sm")
+                    _dict_table_row({
+                        k: v398[k]
+                        for k in (
+                            "psi_req_Vs", "psi_av_Vs", "vs_budget_margin",
+                            "vde_power_headroom", "vde_bw_headroom", "rwm_index",
+                        )
+                        if k in v398
+                    })
+                    ui.label("v398 is governance-only: no PF circuit solve; no transport/equilibrium iteration.").classes(
+                        "text-caption"
+                    )
+                else:
+                    ui.label("v398 control ledger disabled (enable in Configure).").classes("text-caption")
+
+            ui.label("Caps (optional)").classes("text-subtitle2 q-mt-sm")
+            _dict_table_row(control_pf_caps_row(out))
+            margins = control_signed_margins(out, "pf")
+            if margins:
+                ui.label("Signed margins (cap − required)").classes("text-subtitle2")
+                _dict_table_row(margins)
+            wf = out.get("pf_waveform_decimated")
+            if isinstance(wf, list) and wf and isinstance(wf[0], dict):
+                ui.label("Decimated waveform (t, I)").classes("text-subtitle2 q-mt-sm")
+                cols = [{"name": c, "label": c, "field": c} for c in wf[0].keys()]
+                ui.table(columns=cols, rows=wf[:80], row_key=cols[0]["field"]).classes("w-full")
+
+        with ui.tab_panel(t_sol):
+            kpi_row([
+                ("q_target", fmt_num(out.get("q_div_target_MW_m2"))),
+                ("f_SOL+div required", fmt_num(out.get("detachment_f_sol_div_required"))),
+                ("Prad_SOL+div req (MW)", fmt_num(out.get("detachment_prad_sol_div_required_MW"))),
+                ("f_z required", fmt_num(out.get("detachment_f_z_required"))),
+            ])
+            ui.label(
+                "Detachment authority is algebraic: q_div_target → required SOL+div radiation → implied impurity fraction."
+            ).classes("text-caption")
+            margins = control_signed_margins(out, "sol")
+            if margins:
+                ui.label("Signed margin (cap − required)").classes("text-subtitle2 q-mt-sm")
+                _dict_table_row(margins)
+
+        with ui.tab_panel(t_rwm):
+            rwm_on = bool((inputs_dict or {}).get("include_rwm_screening", False))
+            if not rwm_on:
+                ui.label(
+                    "RWM screening is OFF. Enable include_rwm_screening to compute RWM control requirements."
+                ).classes("text-caption")
+            else:
+                kpi_row([
+                    ("Regime", str(out.get("rwm_regime", ""))),
+                    ("βN_NW", fmt_num(out.get("rwm_betaN_no_wall"))),
+                    ("βN_IW", fmt_num(out.get("rwm_betaN_ideal_wall"))),
+                    ("χ", fmt_num(out.get("rwm_chi"))),
+                ])
+                kpi_row([
+                    ("τ_w (s)", fmt_num(out.get("rwm_tau_w_s"))),
+                    ("BW req (Hz)", fmt_num(out.get("rwm_bandwidth_req_Hz"))),
+                    ("P req (MW)", fmt_num(out.get("rwm_control_power_req_MW"))),
+                ])
+                ui.label("Caps (optional; default to VS caps if not provided)").classes("text-subtitle2")
+                _dict_table_row({
+                    "bw_req_Hz": out.get("rwm_bandwidth_req_Hz"),
+                    "bw_max_Hz": out.get("rwm_bandwidth_max_Hz"),
+                    "P_req_MW": out.get("rwm_control_power_req_MW"),
+                    "P_max_MW": out.get("rwm_control_power_max_MW"),
+                    "ok": out.get("rwm_control_ok"),
+                })
+                margins = control_signed_margins(out, "rwm")
+                if margins:
+                    ui.label("Signed margins (cap − required)").classes("text-subtitle2")
+                    _dict_table_row(margins)
+
+    v400 = magnet_v400_summary(out)
+    with ui.expansion("v400 Magnet Technology Authority (B–T–J–stress–quench ledger)", icon="bolt").classes(
+        "w-full q-mt-md"
+    ):
+        if v400:
+            kpi_row([
+                ("Combined margin", fmt_num(v400["combined_margin"])),
+                ("Tier", str(v400["tier"])),
+                ("Dominant", str(v400["dominant"])),
+                ("Dominant margin", fmt_num(v400["dominant_margin"])),
+            ])
+            ui.label("Per-aspect margins").classes("text-subtitle2")
+            ui.json(v400["per_aspect_margins"])
+            ui.label("Per-aspect tiers").classes("text-subtitle2 q-mt-sm")
+            ui.json(v400["per_aspect_tiers"])
+        else:
+            ui.label("v400 magnet ledger is disabled or unavailable for this run.").classes("text-caption")

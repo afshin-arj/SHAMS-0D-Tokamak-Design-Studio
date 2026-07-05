@@ -1,0 +1,283 @@
+"""Mission Snapshot telemetry view — verdict-first KPIs + expert strips."""
+from __future__ import annotations
+
+from nicegui import ui
+
+from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.decks.point_designer.hero import render_hero
+from ui_nicegui.decks.point_designer.pd_physics_deepening import DEEP_VIEWS, render_physics_deepening
+from ui_nicegui.lib.pd_parity_helpers import (
+    assumptions_snapshot,
+    authority_contract_rows,
+    build_coils_metrics,
+    constraint_provenance,
+    constraint_radar_rows,
+    constraint_suggestion,
+    dominant_limiter_summary,
+    fmt_num,
+    fuel_cycle_caps_caption,
+    fuel_cycle_metric_groups,
+    headline_kpi_pairs,
+    infeasibility_trace,
+    magnet_card_metrics,
+    magnet_v400_summary,
+    point_summary_rows,
+    raw_telemetry_rows,
+    regime_compass_rows,
+)
+from ui_nicegui.session import DesignSession
+
+
+def render_mission_snapshot(session: DesignSession) -> None:
+    out = session.pd_last_outputs or session.last_eval
+    if not isinstance(out, dict):
+        return
+
+    render_hero(session)
+    kpis = headline_kpi_pairs(out)
+    for i in range(0, len(kpis), 4):
+        kpi_row([(lab, val) for lab, val in kpis[i : i + 4]])
+
+    trace = infeasibility_trace(out)
+    if trace:
+        with ui.expansion("Why infeasible? (constraint trace)", icon="warning").classes("w-full"):
+            for row in trace:
+                ui.markdown(
+                    f"**{row['constraint']}** — `{row['output_key']}` = {row['value']:.4g} "
+                    f"({row['sense']} {row['limit']:.4g})"
+                )
+
+    art = session.pd_last_artifact or {}
+    include_rad = bool(session.overlay.get("include_radiation", False))
+    use_lq = bool(session.inputs.get("use_lambda_q", False))
+
+    with ui.expansion("Inboard build & coil stress", icon="architecture").classes("w-full"):
+        coils = build_coils_metrics(out)
+        for i in range(0, len(coils), 4):
+            kpi_row(coils[i : i + 4])
+        enforce = float(out.get("enforce_radial_build", 0.0) or 0.0)
+        if enforce >= 0.5:
+            ui.label(
+                "Radial-build closure enforcement is ON (inboard_margin_m ≥ 0 is a hard constraint)."
+            ).classes("text-info text-caption")
+        else:
+            ui.label(
+                "Radial-build closure enforcement is OFF by default; enable in Configure if desired."
+            ).classes("text-caption")
+
+    with ui.expansion("Subsystem contract validity", icon="verified").classes("w-full"):
+        rows, n_proxy = authority_contract_rows(out)
+        if rows:
+            ui.table(
+                columns=[
+                    {"name": "subsystem", "label": "Subsystem", "field": "subsystem", "align": "left"},
+                    {"name": "tier", "label": "Tier", "field": "tier"},
+                    {"name": "validity", "label": "Validity", "field": "validity", "align": "left"},
+                ],
+                rows=rows,
+                row_key="subsystem",
+            ).classes("w-full")
+            if n_proxy > 0:
+                ui.label(f"{n_proxy} subsystems tagged as PROXY for this run.").classes("text-orange text-caption")
+            else:
+                ui.label(
+                    "No subsystems flagged as pure PROXY (some may still be semi-authoritative)."
+                ).classes("text-positive text-caption")
+        else:
+            ui.label("Authority contracts unavailable.").classes("text-caption")
+        ui.label("Contracts are declarative metadata; they do not change physics.").classes("text-caption")
+
+    with ui.expansion("Fuel Cycle · Lifetime · Availability", icon="battery_charging_full").classes("w-full"):
+        for group in fuel_cycle_metric_groups(out):
+            kpi_row(group)
+        ui.label(fuel_cycle_caps_caption(out)).classes("text-caption q-mt-sm")
+        led391 = out.get("availability_ledger_v391")
+        if isinstance(led391, list) and led391 and isinstance(led391[0], dict):
+            with ui.expansion("Availability reliability ledger (v391)", icon="list").classes("w-full"):
+                cols = [{"name": c, "label": c, "field": c, "align": "left"} for c in led391[0].keys()]
+                ui.table(columns=cols, rows=led391[:40], row_key=cols[0]["field"]).classes("w-full")
+
+    with ui.expansion("Model Scope & Assumptions", icon="description").classes("w-full"):
+        ui.markdown(
+            "**Badges:** **Authoritative** = used in feasibility/constraints · "
+            "**Proxy** = approximate model · **Diagnostic** = non-blocking checks"
+        ).classes("text-caption")
+        ui.label("Assumptions snapshot (UI-level):").classes("text-subtitle2")
+        ui.json(assumptions_snapshot(session))
+        mc = out.get("model_cards")
+        if isinstance(mc, dict) and mc:
+            ui.label("Model cards (provenance):").classes("text-subtitle2 q-mt-sm")
+            ui.json(mc)
+
+    _magnet_card(out)
+    v400 = magnet_v400_summary(out)
+    if v400:
+        with ui.expansion("Magnet technology margin ledger", icon="electrical_services").classes("w-full"):
+            ui.label("v400 · B–J–stress margin stack for TF technology class.").classes("text-caption q-mb-sm")
+            kpi_row([
+                ("Combined margin", fmt_num(v400["combined_margin"])),
+                ("Tier", str(v400["tier"])),
+                ("Dominant", str(v400["dominant"])),
+                ("Dominant margin", fmt_num(v400["dominant_margin"])),
+            ])
+            ui.label("Per-aspect margins").classes("text-subtitle2")
+            ui.json(v400["per_aspect_margins"])
+            ui.label("Per-aspect tiers").classes("text-subtitle2 q-mt-sm")
+            ui.json(v400["per_aspect_tiers"])
+
+    with ui.expansion("Regime compass (sanity checks)", icon="explore").classes("w-full"):
+        ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(
+            "text-caption"
+        )
+        show_unc = ui.checkbox("Show proxy uncertainty bands (diagnostic)", value=False)
+        unc_proxy = ui.slider(min=0.0, max=0.5, value=0.15, step=0.01).bind_visibility_from(show_unc, "value")
+        unc_neut = ui.slider(min=0.0, max=0.5, value=0.20, step=0.01).bind_visibility_from(show_unc, "value")
+
+        @ui.refreshable
+        def _compass() -> None:
+            rows = regime_compass_rows(
+                out,
+                include_radiation=include_rad,
+                use_lambda_q=use_lq,
+                show_unc=bool(show_unc.value),
+                unc_proxy_frac=float(unc_proxy.value or 0.15),
+                unc_neut_frac=float(unc_neut.value or 0.20),
+            )
+            ui.table(
+                columns=[
+                    {"name": "metric", "label": "Metric", "field": "metric", "align": "left"},
+                    {"name": "value", "label": "Value", "field": "value"},
+                    {"name": "units", "label": "Units", "field": "units"},
+                    {"name": "type", "label": "Type", "field": "type"},
+                    {"name": "typical", "label": "Typical", "field": "typical"},
+                    {"name": "flag", "label": "Flag", "field": "flag"},
+                    {"name": "unc", "label": "Unc", "field": "unc"},
+                ],
+                rows=rows,
+                row_key="metric",
+            ).classes("w-full")
+
+        show_unc.on("update:model-value", lambda: _compass.refresh())
+        unc_proxy.on("update:model-value", lambda: _compass.refresh())
+        unc_neut.on("update:model-value", lambda: _compass.refresh())
+        _compass()
+
+    with ui.expansion("Constraint radar (pass/fail & margins)", icon="radar").classes("w-full"):
+        rows_c = constraint_radar_rows(out, art if isinstance(art, dict) else None)
+        if not rows_c:
+            ui.label("No constraints evaluated (missing keys).").classes("text-caption")
+        else:
+            ui.table(
+                columns=[
+                    {"name": "constraint", "label": "Constraint", "field": "constraint", "align": "left"},
+                    {"name": "passed", "label": "Passed", "field": "passed"},
+                    {"name": "severity", "label": "Severity", "field": "severity"},
+                    {"name": "margin_frac", "label": "Margin", "field": "margin_frac"},
+                    {"name": "value", "label": "Value", "field": "value"},
+                    {"name": "limit", "label": "Limit", "field": "limit"},
+                    {"name": "sense", "label": "Sense", "field": "sense"},
+                ],
+                rows=rows_c,
+                row_key="constraint",
+            ).classes("w-full")
+            dom_msg = dominant_limiter_summary(rows_c)
+            if dom_msg:
+                ui.markdown(dom_msg).classes("text-info")
+            failed = [r for r in rows_c if not r["passed"] and str(r.get("severity", "hard")) == "hard"]
+            soft_failed = [r for r in rows_c if not r["passed"] and str(r.get("severity")) == "soft"]
+            if failed:
+                ui.label(f"{len(failed)} hard constraint(s) failed.").classes("text-negative")
+            if soft_failed:
+                ui.label(f"{len(soft_failed)} soft constraint(s) failed (screening only).").classes("text-orange")
+            names = [r["constraint"] for r in rows_c]
+            if names:
+                pick = ui.select(names, label="Constraint details", value=names[0])
+                with ui.expansion("Definition + drivers", icon="info").classes("w-full"):
+                    @ui.refreshable
+                    def _prov() -> None:
+                        rec = next((r for r in rows_c if r["constraint"] == pick.value), {})
+                        ui.json({
+                            "sense": rec.get("sense"),
+                            "value": rec.get("value"),
+                            "limit": rec.get("limit"),
+                            "passed": rec.get("passed"),
+                            "margin_frac": rec.get("margin_frac"),
+                            "note": rec.get("note"),
+                        })
+                        prov = constraint_provenance(str(pick.value or ""))
+                        if prov:
+                            ui.json(prov)
+                        else:
+                            ui.label("No additional provenance notes registered.").classes("text-caption")
+
+                    pick.on("update:model-value", lambda: _prov.refresh())
+                    _prov()
+            if failed or soft_failed:
+                ui.label("Actionable suggestions (rule-of-thumb):").classes("text-subtitle2 q-mt-sm")
+                for r in failed + soft_failed:
+                    ui.label(f"• **{r['constraint']}**: {constraint_suggestion(r['constraint'])}").classes(
+                        "text-body2"
+                    )
+
+    with ui.expansion(
+        f"Physics deepening ({len(DEEP_VIEWS)} decks)",
+        icon="science",
+    ).classes("w-full"):
+        try:
+            base = session.build_point_inputs()
+        except Exception:
+            base = None
+        render_physics_deepening(out, base=base)
+
+    with ui.expansion("Point summary (compact)", icon="table_chart").classes("w-full"):
+        ps = point_summary_rows(out)
+        if ps:
+            ui.table(
+                columns=[
+                    {"name": "quantity", "label": "Quantity", "field": "quantity", "align": "left"},
+                    {"name": "value", "label": "Value", "field": "value"},
+                ],
+                rows=ps,
+                row_key="quantity",
+            ).classes("w-full")
+        else:
+            ui.label("No summary metrics available.").classes("text-caption")
+
+    with ui.expansion("Raw telemetry (diagnostic keys)", icon="data_object").classes("w-full"):
+        rt = raw_telemetry_rows(out)
+        ui.table(
+            columns=[
+                {"name": "key", "label": "Output key", "field": "key", "align": "left"},
+                {"name": "value", "label": "Value", "field": "value", "align": "left"},
+            ],
+            rows=rt,
+            row_key="key",
+        ).classes("w-full")
+
+
+def _magnet_card(out: dict) -> None:
+    mc = magnet_card_metrics(out)
+    ui.label("Magnet Card").classes("text-subtitle1 q-mt-sm")
+    kpi_row([
+        ("TF technology", mc["tech"]),
+        (
+            "TF superconducting",
+            "YES" if mc["tf_sc"] == 1.0 else ("NO" if mc["tf_sc"] == 0.0 else "n/a"),
+        ),
+        (
+            "SC margin" if mc["tf_sc"] == 1.0 else "TF ohmic [MW]",
+            fmt_num(mc["sc_margin"] if mc["tf_sc"] == 1.0 else mc["p_tf_ohm"]),
+        ),
+        ("Tcoil [K]", fmt_num(mc["tcoil_K"])),
+    ])
+    if mc["tf_note"]:
+        ui.label(f"TF_SC policy: {mc['tf_note']}").classes("text-caption")
+    kpi_row([
+        (
+            "SC margin" if mc["tf_sc"] == 1.0 else "TF ohmic [MW]",
+            fmt_num(mc["sc_margin"] if mc["tf_sc"] == 1.0 else mc["p_tf_ohm"]),
+        ),
+        ("Lifetime [yr]", fmt_num(mc["hts_lifetime_yr"])),
+        ("Vdump [kV]", fmt_num(mc["V_dump_kV"])),
+        ("P_net_e [MW]", fmt_num(mc["P_net_e_MW"])),
+    ])
