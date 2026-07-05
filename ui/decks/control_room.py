@@ -1247,7 +1247,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
             "Compliance & verification": os.path.join(ROOT, "docs", "COMPLIANCE.md"),
             "Regression & golden benchmarks": os.path.join(ROOT, "docs", "REGRESSION.md"),
             "Release notes generation": os.path.join(ROOT, "docs", "RELEASE_NOTES.md"),
-            "UI quickstart": os.path.join(ROOT, "README_UI.md"),
+            "UI quickstart": os.path.join(ROOT, "ui_nicegui", "README.md"),
         }
 
         doc_sel = st.selectbox("Select a document", list(doc_options.keys()), index=0, key="doc_select")

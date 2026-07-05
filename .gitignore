@@ -27,10 +27,21 @@ Thumbs.db
 runs/
 outputs/
 artifacts/
+ui_runs/
 hygiene_clean_report.json
 repo_mutation_guard.json
 optimizer_dossier.json
 regime_maps_report.json
+
+# Tool caches / agent scratch (never commit)
+graphify-out/
+.cursor/
+.shams_probe/
+out_product_qa_self_test/
+
+# Local benchmark / verification snapshots (regenerate locally)
+benchmarks/last_diff_report.json
+benchmarks/last_physics_report.json
 
 # Build artifacts
 build/
