@@ -91,24 +91,186 @@ run_ui_nicegui.cmd    # or ./run_ui_nicegui.sh
 
 ---
 
-## Architecture (frozen truth)
+## Architecture
 
+SHAMS is organized as a **layered authority stack**: one frozen physics core (L0), read-only overlays and exports above it (L1–L4), and a **NiceGUI studio** that routes every evaluation through a single choke point. External optimizers and batch tools **propose inputs only** — SHAMS re-evaluates and records evidence.
+
+### System overview
+
+```mermaid
+flowchart TB
+  subgraph UI["NiceGUI Studio · ui_nicegui/"]
+    HC[Helm Console<br/>intent · TRL · reference machines · gatecheck]
+    PD[Point Designer]
+    SL[Scan Lab]
+    SM[Systems Mode]
+    CP[Compare]
+    PL[Pareto Lab]
+    TS[Trade Study Studio]
+    RF[Reactor Design Forge]
+    PB[Publication Benchmarks]
+    SS[System Suite]
+    CR[Control Room]
+    HC --> PD & SL & SM & CP & PL & TS & RF & PB & SS & CR
+  end
+
+  subgraph L0["L0 — Frozen truth (never mutated by UI)"]
+    SCH[PointInputs schema]
+    EV[Evaluator.evaluate]
+    HI[hot_ion_point]
+    CON[constraints hard / diagnostic / ignored]
+    SCH --> EV --> HI --> CON
+  end
+
+  subgraph OUT["Immutable outputs"]
+    ART[shams_run_artifact.json]
+    LED[constraint_ledger]
+    OVL[authority overlays post-truth]
+    ART --- LED & OVL
+  end
+
+  subgraph EXT["External · firewalled"]
+    OPT[NSGA-II · CMA-ES · BO · custom]
+    OPT -. propose inputs only .-> EV
+  end
+
+  PD & SL & SM & CP & PL & TS & RF & SS -->|ui_evaluate| EV
+  EV --> ART
+  ART --> CP & PL & TS & CR & PB
+  CR & PB -->|protocol · repro lock · packs| EXP[Reviewer / regulatory exports]
 ```
-Inputs (PointInputs schema)
-        │
-        ▼
-Evaluator.evaluate()  ──►  hot_ion_point()   [L0 — frozen]
-        │
-        ├── constraints (hard / diagnostic / ignored)
-        ├── authority overlays (post-truth, explicit)
-        └── shams_run_artifact.json (provenance)
+
+### Layer model
+
+Higher layers **read** L0 artifacts and **write new** derived artifacts — they never rewrite physics results.
+
+```mermaid
+flowchart BT
+  L4["L4 · Explainability<br/>narratives · forensics · mechanism labels"]
+  L3["L3 · Mission context<br/>scenarios · design intent · TRL contracts"]
+  L2["L2 · Engineering interfaces<br/>handoff packs · export adapters · cross-code parity"]
+  L1["L1 · Authority & reference<br/>citation · governance · reproducibility lock"]
+  L0["L0 · Frozen physics + constraints<br/>evaluator · hot_ion · NO-SOLUTION valid"]
+
+  L4 --> L3 --> L2 --> L1 --> L0
 ```
 
-- **L0 truth:** `src/evaluator/core.py` → `src/physics/hot_ion.py`  
-- **Governance:** physics changes versioned per `GOVERNANCE.md`  
-- **Tests:** `pytest` · **Verification:** `python verification/run_verification.py`
+| Layer | Code anchor | What it does |
+|-------|-------------|--------------|
+| **L0** | `src/evaluator/core.py` → `src/physics/hot_ion.py` | Single-pass deterministic evaluation; constraint ledger; run artifacts |
+| **L1** | `analysis/` authority overlays, `GOVERNANCE.md` | Confidence tiers, dominance, epoch feasibility, constitutional docs |
+| **L2** | `src/campaign/`, `tools/` export builders | Benchmark packs, reviewer ZIPs, licensing bundles, case decks |
+| **L3** | Helm Console design contract, mission profiles | Reactor / research / pilot / HFS intent; enforcement tiering |
+| **L4** | Chronicle instruments, Compare diffs, Scan interpret | Sensitivity, feasibility maps, scenario delta, local forensics |
 
-Key paths: `src/evaluator/` · `src/physics/hot_ion.py` · `src/constraints/` · `ui_nicegui/` · `tests/`
+### Expert workflow — all ten decks
+
+Decks follow the **numbered sidebar workflow** (Helm Console → Navigation). Each deck is verdict-first; none iterates inside L0 truth.
+
+```mermaid
+flowchart LR
+  subgraph P1["1 · Anchor"]
+    PD2[Point Designer<br/>configure · evaluate · constraints atlas]
+  end
+  subgraph P2["2 · Map & close"]
+    SL2[Scan Lab<br/>2D cartography · interpret · signature atlas]
+    SM2[Systems Mode<br/>plant closure · feasibility map · recovery]
+  end
+  subgraph P3["3 · Compare & trade"]
+    CP2[Compare<br/>A/B artifacts · structural diff · export]
+    PL2[Pareto Lab<br/>feasible frontier · robust lanes · packs]
+    TS2[Trade Study Studio<br/>frontier atlas · certification · surrogate]
+  end
+  subgraph P4["4 · Concepts"]
+    RF2[Reactor Design Forge<br/>intent compiler · casebook · dossiers]
+  end
+  subgraph P5["5 · Evidence & audit"]
+    PB2[Publication Benchmarks<br/>constitutional atlas · cross-code · licensing]
+    SS2[System Suite<br/>phase cockpit · campaigns · UQ bounds]
+    CR2[Control Room<br/>provenance · run audit · chronicle · export]
+  end
+
+  P1 --> P2 --> P3 --> P4 --> P5
+  PD2 -. artifacts .-> SL2 & SM2 & CP2 & PL2
+  CP2 & PL2 & TS2 -. artifacts .-> CR2 & PB2
+```
+
+### Deck feature map
+
+| Deck | Primary tabs / sections | Key capabilities |
+|------|-------------------------|------------------|
+| **Point Designer** | Configure · Telemetry · Constraints · Mission | Single-point evaluate; NO-SOLUTION atlas; constraint diff dossier; overlay dashboard |
+| **Scan Lab** | Setup · Cartography · Interpret · Artifact restore | 2D feasible-region maps; first-failure topology; scan atlas capsules |
+| **Systems Mode** | Workflow tabs + plant authority | Integrated systems solve; power-balance diagram; feasibility heatmap; reproduce/diff |
+| **Compare** | Load · Performance · Constraints · Inputs & Structure · Export | Metric/input/structural diffs; scenario delta; comparison bundles |
+| **Pareto Lab** | Explore · Interpret · Audit · Publication · External | Nondominated feasible frontier; mirage filtering; optimistic vs robust lanes |
+| **Trade Study Studio** | Setup · Frontier · Robust · Surrogate · Optimizer kits | Certified trade studies; interval narrowing; external optimizer handoff |
+| **Reactor Design Forge** | Intent · Explore · Casebook · Archive · Dossier | 67 expert instruments; staged runs; collaboration sessions |
+| **Publication Benchmarks** | Atlas · Pack · Cross-Code · Governance · Evidence | Constitutional preset atlas; reviewer/regulatory/licensing ZIPs |
+| **System Suite** | Workflow + phase cockpit | Batch campaigns; mode contracts; parity suite; absolute UQ bounds |
+| **Control Room** | Orient · Constitution · Provenance · Artifacts · Diagnostics · Chronicle | Run audit overlays; case deck runner; scenario delta; constraint cockpit; repro lock |
+
+**Helm Console** (always visible in the left drawer): session posture, design contract (intent + TRL + q95/Greenwald enforcement), reference machine presets, fidelity declarations, calibration multipliers, integrity gatecheck, activity chronicle, and deck navigation.
+
+### Evaluation choke point
+
+Every UI path that needs physics calls **`ui_evaluate()`** → **`Evaluator.evaluate()`** → **`hot_ion_point()`**. No deck bypasses this chain.
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Deck as Any deck UI
+  participant UI as ui_evaluate()
+  participant EV as Evaluator.evaluate()
+  participant HI as hot_ion_point()
+  participant CON as evaluate_constraints
+  participant ART as shams_run_artifact.json
+
+  User->>Deck: configure / scan / compare / …
+  Deck->>UI: PointInputs (+ origin tag)
+  UI->>EV: evaluate(inputs)
+  EV->>HI: frozen physics (L0)
+  HI->>CON: hard / diagnostic / ignored
+  CON->>ART: ledger + overlays + inputs hash
+  ART-->>Deck: verdict · margins · provenance
+  Note over EV,HI: Same inputs → same outputs<br/>NO-SOLUTION is a valid outcome
+```
+
+### Artifact & governance flow
+
+Artifacts are **immutable** once written. Downstream decks consume them read-only; exports append new hashed bundles.
+
+```mermaid
+flowchart LR
+  EVAL[Point / scan / systems evaluate]
+  ART[(shams_run_artifact.json)]
+  PROTO[study_protocol]
+  REPRO[repro_lock]
+  PACK[publication / reviewer pack]
+  DIFF[Compare · scenario delta]
+  AUDIT[Control Room run audit]
+
+  EVAL --> ART
+  ART --> PROTO & REPRO & DIFF & AUDIT
+  ART --> PACK
+  PROTO & REPRO --> ZIP[hashed export ZIP]
+  PACK --> ZIP
+```
+
+### Repository map
+
+| Area | Path |
+|------|------|
+| Frozen evaluator | `src/evaluator/` · `src/physics/hot_ion.py` |
+| Constraints | `src/constraints/` · `authority_caps.json` |
+| Authority overlays | `analysis/` |
+| NiceGUI studio | `ui_nicegui/` (`app.py`, `decks/`, `session.py`) |
+| Legacy UI (redirects) | `ui/app.py` |
+| Tests & golden baselines | `tests/` · `tests/golden/` |
+| Verification gate | `verification/run_verification.py` |
+| Governance | `GOVERNANCE.md` · `VERSION` |
+
+**Validation:** `pytest` · `python verification/run_verification.py`
 
 ---
 
