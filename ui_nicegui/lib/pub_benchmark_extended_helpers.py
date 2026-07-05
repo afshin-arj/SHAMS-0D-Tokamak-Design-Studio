@@ -1,4 +1,4 @@
-"""Publication Benchmarks extended helpers — Phase 16."""
+"""Publication Benchmarks extended helpers."""
 from __future__ import annotations
 
 import hashlib
@@ -153,11 +153,120 @@ def session_cache_sources(session) -> Dict[str, Any]:
     return {
         "pd_last_outputs": getattr(session, "pd_last_artifact", None) or getattr(session, "last_eval", None),
         "systems_last_solution": getattr(session, "systems_last_solve_artifact", None),
-        "scan_last_artifact": getattr(session, "scan_last_artifact", None),
+        "scan_last_artifact": getattr(session, "scan_last_artifact", None) or getattr(session, "scan_cartography_artifact", None),
         "pareto_last_front": getattr(session, "pareto_last_front", None),
         "extopt_last_run": getattr(session, "extopt_last_run", None),
         "surrogate_v386_last_screening_run": getattr(session, "surrogate_v386_last_screening_run", None),
     }
+
+
+def pick_session_run_artifact(session) -> Optional[dict]:
+    """Best-effort current run artifact for reviewer/licensing packs."""
+    for key in (
+        "pd_last_artifact",
+        "systems_last_solve_artifact",
+        "last_eval",
+    ):
+        art = getattr(session, key, None)
+        if isinstance(art, dict) and art:
+            return art
+    triple = session_cache_sources(session)
+    for key in ("pd_last_outputs", "systems_last_solution"):
+        art = triple.get(key)
+        if isinstance(art, dict) and art:
+            return art
+    return None
+
+
+def artifact_snapshot(art: dict) -> dict:
+    return {
+        "shams_version": art.get("shams_version"),
+        "intent": art.get("intent"),
+        "verdict": art.get("verdict"),
+        "dominant_mechanism": art.get("dominant_mechanism") or art.get("dominant_authority"),
+        "magnet_regime": art.get("magnet_regime"),
+        "exhaust_regime": art.get("exhaust_regime"),
+    }
+
+
+def build_regulatory_reviewer_pack(session, *, repo: Optional[Path] = None) -> bytes:
+    from tools.regulatory_pack import export_regulatory_evidence_pack_zip
+
+    root = Path(repo or repo_root())
+    art = pick_session_run_artifact(session)
+    if not isinstance(art, dict) or not art:
+        raise ValueError("No session run artifact — evaluate in Point Designer or Systems Mode first.")
+    extra: Dict[str, Any] = {}
+    fam = getattr(session, "design_families_last", None)
+    if isinstance(fam, dict) and fam:
+        extra["design_family"] = fam
+    out_dir = root / "ui_runs" / "regulatory_evidence_pack"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_zip = out_dir / "reviewer_pack_v334.zip"
+    export_regulatory_evidence_pack_zip(root, art, out_zip, extra=extra, basename="reviewer_pack")
+    return out_zip.read_bytes()
+
+
+def validate_regulatory_pack_bytes(data: bytes) -> dict:
+    import tempfile
+
+    from tools.regulatory_pack import validate_regulatory_pack_zip
+
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+        tmp.write(data)
+        path = Path(tmp.name)
+    try:
+        res = validate_regulatory_pack_zip(path)
+        return {
+            "ok": bool(res.ok),
+            "warnings": list(res.warnings or []),
+            "errors": list(res.errors or []),
+        }
+    finally:
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def build_licensing_tier2_pack(session, *, repo: Optional[Path] = None) -> bytes:
+    from tools.licensing_pack_v355 import export_licensing_evidence_tier2_zip
+
+    root = Path(repo or repo_root())
+    art = pick_session_run_artifact(session)
+    if not isinstance(art, dict) or not art:
+        raise ValueError("No session run artifact — evaluate in Point Designer or Systems Mode first.")
+    extra: Dict[str, Any] = {}
+    cert = getattr(session, "robust_pareto_last", None) or getattr(session, "v352_last_certification", None)
+    if isinstance(cert, dict) and cert:
+        extra["certification"] = cert
+    out_dir = root / "ui_runs" / "licensing_evidence_tier2"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_zip = out_dir / "licensing_pack_tier2_v355.zip"
+    export_licensing_evidence_tier2_zip(root, art, out_zip, extra=extra, basename="licensing_pack_tier2")
+    return out_zip.read_bytes()
+
+
+def validate_licensing_pack_bytes(data: bytes) -> dict:
+    import tempfile
+
+    from tools.licensing_pack_v355 import validate_licensing_pack_tier2_zip
+
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+        tmp.write(data)
+        path = Path(tmp.name)
+    try:
+        res = validate_licensing_pack_tier2_zip(path)
+        return {
+            "ok": bool(res.ok),
+            "warnings": list(res.warnings or []),
+            "errors": list(res.errors or []),
+        }
+    finally:
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def _sha256_bytes(data: bytes) -> str:

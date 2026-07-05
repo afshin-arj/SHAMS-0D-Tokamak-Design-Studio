@@ -22,9 +22,30 @@ def render_atlas_verdict(summary: dict | None) -> None:
         ("Dominant mechanism", summary.get("dominant_mechanism", "-")),
         ("Dominant constraint", summary.get("dominant_constraint", "-")),
         ("Worst hard margin", wm_s),
-        ("Stamp", summary.get("stamp", "-")),
     ])
+    conf = summary.get("design_confidence", "UNKNOWN")
+    posture = summary.get("decision_posture", "UNKNOWN")
     ui.label(
         f"{summary.get('preset_label')} · intent={summary.get('selected_intent')} "
-        f"(native: {summary.get('native_intent')})"
-    ).classes("text-caption text-grey q-mb-sm")
+        f"(native: {summary.get('native_intent')}) · stamp {summary.get('stamp', '-')}…"
+    ).classes("text-caption text-grey")
+    ui.label(f"Design confidence: {conf} · Decision posture: {posture}").classes("text-caption")
+    fl = summary.get("fidelity_label") or ""
+    if fl:
+        ui.label(f"Fidelity tier: {fl}").classes("text-caption")
+    risk = summary.get("primary_risk_driver") or ""
+    if risk:
+        ui.label(f"Primary risk driver: {risk}").classes("text-caption text-orange")
+    epoch = summary.get("epoch_overall") or ""
+    if epoch:
+        ui.label(f"Epoch feasibility (overall): {epoch}").classes("text-caption q-mt-xs")
+    rows = summary.get("epoch_rows") or []
+    if rows:
+        ui.table(
+            columns=[
+                {"name": "epoch", "label": "Epoch", "field": "epoch", "align": "left"},
+                {"name": "verdict", "label": "Verdict", "field": "verdict"},
+            ],
+            rows=rows,
+            row_key="epoch",
+        ).classes("w-full q-mt-xs")

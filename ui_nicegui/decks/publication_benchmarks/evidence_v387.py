@@ -1,4 +1,4 @@
-"""Regulatory Evidence Pack Builder v387."""
+"""Regulatory Evidence Pack Builder — session cache export."""
 from __future__ import annotations
 
 import json

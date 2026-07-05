@@ -6,6 +6,7 @@ from typing import Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.decks.control_room import case_deck_panel, run_audit, scenario_delta
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.cr_provenance_helpers import (
@@ -27,6 +28,9 @@ PROVENANCE_TABS = [
     "Studies & Protocol",
     "Repro Lock",
     "Authority & Citation",
+    "Run Audit",
+    "Case Deck Runner",
+    "Scenario Delta",
     "Studies Manager",
     "Regression Viewer",
 ]
@@ -62,6 +66,12 @@ def _render_panel(session: DesignSession, *, on_update: Optional[Callable[[], No
         _render_repro_lock(session)
     elif tab == "Authority & Citation":
         _render_authority_citation(session)
+    elif tab == "Run Audit":
+        run_audit.render_run_audit(session)
+    elif tab == "Case Deck Runner":
+        case_deck_panel.render_case_deck_runner(session)
+    elif tab == "Scenario Delta":
+        scenario_delta.render_scenario_delta(session)
     elif tab == "Studies Manager":
         _render_studies_manager(session)
     else:

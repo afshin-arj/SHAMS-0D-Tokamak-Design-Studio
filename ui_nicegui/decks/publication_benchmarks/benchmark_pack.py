@@ -15,11 +15,12 @@ from ui_nicegui.session import DesignSession
 
 
 def render_benchmark_pack(session: DesignSession) -> None:
-    ui.label("Publication Benchmarks").classes("text-h6")
-    ui.label(
-        "Generates paper-ready benchmark tables and per-machine artifacts using the frozen Point Designer. "
-        "Non-interactive, audit-grade run."
-    ).classes("text-caption q-mb-sm")
+    open_help = session.pub_teaching_mode and not session.pub_expert_view
+    from ui_nicegui.decks.publication_benchmarks.orientation import render_pack_orientation
+
+    render_pack_orientation(default_open=open_help)
+
+    ui.label("Generate pack").classes("text-subtitle2 q-mt-sm")
 
     topo = read_topology_regression_report()
     with ui.expansion("Topology regression (robust/fragile/empty stability)", icon="schema").classes("w-full"):

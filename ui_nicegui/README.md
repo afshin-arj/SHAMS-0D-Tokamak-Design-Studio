@@ -59,10 +59,10 @@ Open http://127.0.0.1:8080 (auto-fallback to 8081+ if busy).
 | Trade Study Studio | **Complete** — 5-tab workflow, frontier atlas, robust certification, surrogate, optimizer kits |
 | Reactor Design Forge | **Complete** — 5-tab workflow, 67 expert instruments, staged run, collaboration sessions |
 | Compare | **Complete** — 5-tab workflow (Load · Performance · Constraints · Inputs & Structure · Export) |
-| Publication Benchmarks | All 5 tabs |
-| Control Room | Orientation, Constitution, Diagnostics, Provenance, **Artifacts**, **Chronicle** |
+| Publication Benchmarks | **Complete** — 5-tab workflow (Atlas · Pack · Cross-Code · Governance · Evidence) |
+| Control Room | **Complete** — 6-section workflow (Orient · Constitution · Provenance · Artifacts · Diagnostics · Chronicle) |
 
-Streamlit (`run_ui.cmd`) redirects **Scan Lab**, **System Suite**, **Pareto Lab**, **Trade Study Studio**, **Reactor Design Forge**, and **Compare** to NiceGUI. The only deliberate Streamlit-only path is the archived legacy nested grid scan (Ti/H98/a/Q/g_conf) — noted in Scan Lab orientation.
+Streamlit (`run_ui.cmd`) redirects **Scan Lab**, **System Suite**, **Pareto Lab**, **Trade Study Studio**, **Reactor Design Forge**, **Compare**, **Publication Benchmarks**, and **Control Room** to NiceGUI. The only deliberate Streamlit-only path is the archived legacy nested grid scan (Ti/H98/a/Q/g_conf) — noted in Scan Lab orientation.
 
 User-facing labels use plain language (no internal `v###` / Batch / Phase tags). Legacy session values are normalized via `ui_nicegui/lib/display_labels.py`. Re-run `python tools/clean_user_version_tags.py --write` after adding new version-tagged UI strings.
 

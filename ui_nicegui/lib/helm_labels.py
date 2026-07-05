@@ -11,27 +11,32 @@ DESIGN_INTENT_OPTIONS: list[str] = [
     "High-field science (HFS)",
 ]
 
-# Expert navigation: (group title, help caption, deck names from DECK_LABELS).
+# Expert navigation: workflow phases for fusion engineers implementing a design study.
 HELM_NAV_GROUPS: list[tuple[str, str, list[str]]] = [
     (
-        "Frozen truth",
-        "Evaluate one operating point; read verdict-first telemetry.",
+        "1 · Anchor a design point",
+        "Define inputs and read the feasibility verdict under frozen truth.",
         ["Point Designer"],
     ),
     (
-        "Exploration engines",
-        "Systems solves, parameter scans, Pareto fronts, and trade studies.",
-        ["Systems Mode", "Scan Lab", "Pareto Lab", "Trade Study Studio"],
+        "2 · Map and close",
+        "Cartography across parameter space, then integrated systems closure.",
+        ["Scan Lab", "Systems Mode"],
     ),
     (
-        "Concept forge",
-        "Compile design intent and explore reactor concept families.",
+        "3 · Compare and trade",
+        "Artifact diffs, Pareto fronts, and certified trade studies.",
+        ["Compare", "Pareto Lab", "Trade Study Studio"],
+    ),
+    (
+        "4 · Develop concepts",
+        "Compile intent, explore machine families, archive candidates.",
         ["Reactor Design Forge"],
     ),
     (
-        "Evidence & audit",
-        "Batch campaigns, artifact compare, publication benchmarks, and governance.",
-        ["System Suite", "Compare", "Publication Benchmarks", "Control Room"],
+        "5 · Evidence and audit",
+        "Constitutional benchmarks, batch suites, provenance, and export.",
+        ["Publication Benchmarks", "System Suite", "Control Room"],
     ),
 ]
 

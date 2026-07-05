@@ -27,6 +27,8 @@ from ui_nicegui.lib.navigation import register_deck_change, register_helm_refres
 from ui_nicegui.decks import DECK_LABELS, DECK_RENDERERS
 from ui_nicegui.components.helm_console import helm_status_caption, render_helm_console
 from ui_nicegui.components.helm_theme import HELM_DRAWER_CLASS, inject_helm_drawer_theme
+from ui_nicegui.lib.control_room_helpers import read_version
+from ui_nicegui.lib.deck_workflow import deck_workflow_caption
 from ui_nicegui.session import DesignSession
 
 # Module-level session (single-user desktop; replace with per-client storage for multi-user)
@@ -55,6 +57,9 @@ def _render_deck() -> None:
         return
     _CONTENT.clear()
     with _CONTENT:
+        cap = deck_workflow_caption(_SESSION.active_deck)
+        if cap:
+            ui.label(cap).classes("text-caption text-grey-7 q-mb-sm")
         renderer = DECK_RENDERERS.get(_SESSION.active_deck)
         if renderer is None:
             ui.label(f"Unknown deck: {_SESSION.active_deck}")
@@ -71,7 +76,10 @@ def main_page() -> None:
     register_status_refresh(lambda: _render_status_header.refresh())
 
     with ui.header(elevated=True).classes("bg-slate-900 text-white items-center justify-between"):
-        ui.label("SHAMS — Tokamak Design Authority").classes("text-h6")
+        with ui.row().classes("items-center gap-md"):
+            ui.label("SHAMS").classes("text-h6 text-weight-bold")
+            ui.label("Feasibility-authoritative tokamak design studio").classes("text-caption text-grey-4")
+            ui.badge(f"v{read_version()}").props("outline color=grey-5")
         _render_status_header(_SESSION)
 
     with ui.left_drawer(value=True).classes(f"bg-slate-800 text-white {HELM_DRAWER_CLASS}").style("width: 340px"):
@@ -143,7 +151,7 @@ def main() -> None:
         port=port,
         reload=False,
         show=False,
-        title="SHAMS — Tokamak Design Authority",
+        title="SHAMS — Tokamak 0-D Design Studio",
     )
 
 

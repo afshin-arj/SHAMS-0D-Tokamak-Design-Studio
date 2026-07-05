@@ -22,6 +22,18 @@ def test_design_intent_options_count() -> None:
 def test_nav_groups_cover_all_decks() -> None:
     seen = [d for _, _, decks in HELM_NAV_GROUPS for d in decks]
     assert set(seen) == set(DECK_LABELS)
+    assert DECK_LABELS[0] == "Point Designer"
+    assert DECK_LABELS.index("Scan Lab") < DECK_LABELS.index("Systems Mode")
+    assert DECK_LABELS.index("Compare") < DECK_LABELS.index("Control Room")
+
+
+def test_deck_workflow_captions() -> None:
+    from ui_nicegui.lib.deck_workflow import DECK_WORKFLOW_STEP, deck_nav_short_label, deck_workflow_caption
+
+    assert DECK_WORKFLOW_STEP["Point Designer"] == 1
+    assert DECK_WORKFLOW_STEP["Control Room"] == len(DECK_LABELS)
+    assert "Workflow step 1" in deck_workflow_caption("Point Designer")
+    assert deck_nav_short_label("Scan Lab").startswith("2.")
 
 
 def test_helm_section_labels_plain_language() -> None:

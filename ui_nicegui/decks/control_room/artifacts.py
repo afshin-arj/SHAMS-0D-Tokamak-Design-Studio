@@ -5,6 +5,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
+from ui_nicegui.decks.control_room import benchmarks_reference
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.control_room_helpers import ARTIFACT_TABS, report_to_json_bytes
@@ -44,8 +45,10 @@ def _panel(session: DesignSession) -> None:
         _explorer(session)
     elif tab == "Run Library":
         _run_library(session)
-    else:
+    elif tab == "Export & Share":
         _export_share(session)
+    else:
+        benchmarks_reference.render_benchmark_reference(session)
 
 
 def _explorer(session: DesignSession) -> None:

@@ -25,6 +25,7 @@ from ui_nicegui.lib.helm_helpers import (
     verification_needs_run,
     verification_report_paths,
 )
+from ui_nicegui.lib.deck_workflow import deck_nav_short_label
 from ui_nicegui.lib.helm_labels import (
     DESIGN_INTENT_OPTIONS,
     HELM_NAV_GROUPS,
@@ -172,6 +173,9 @@ def _render_posture(session: DesignSession) -> None:
 
 def _render_navigation(session: DesignSession, *, on_deck_change: Callable[[str], None]) -> None:
     ui.label(helm_section_label("Navigation")).classes("text-subtitle2 q-mb-xs")
+    ui.label(
+        "Follow the numbered workflow — each deck builds on artifacts from the previous steps."
+    ).classes("text-caption q-mb-sm")
 
     def _go(deck: str) -> None:
         on_deck_change(deck)
@@ -185,7 +189,8 @@ def _render_navigation(session: DesignSession, *, on_deck_change: Callable[[str]
         ui.label(caption).classes("text-caption q-mb-xs")
         for deck in decks:
             active = deck == session.active_deck
-            btn = ui.button(deck, on_click=lambda d=deck: _go(d)).props("flat align=left dense").classes(
+            label = deck_nav_short_label(deck)
+            btn = ui.button(label, on_click=lambda d=deck: _go(d)).props("flat align=left dense").classes(
                 "w-full"
             )
             if active:

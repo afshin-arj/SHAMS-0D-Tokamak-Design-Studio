@@ -2804,14 +2804,14 @@ except Exception:
 # comparisons throughout app.py use these same plain IDs.
 _DECK_LABELS = [
     "Point Designer",
-    "Systems Mode",
     "Scan Lab",
+    "Systems Mode",
+    "Compare",
     "Pareto Lab",
     "Trade Study Studio",
     "Reactor Design Forge",
-    "System Suite",
-    "Compare",
     "Publication Benchmarks",
+    "System Suite",
     "Control Room",
 ]
 with st.sidebar:
@@ -2847,12 +2847,26 @@ if _deck == "System Suite":
     st.stop()
 
 if _deck == "Publication Benchmarks":
-    from ui.decks.publication_benchmarks import render_publication_benchmarks
-    render_publication_benchmarks(sys.modules[__name__])
+    st.info(
+        "Publication Benchmarks is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Publication Benchmarks** for the complete workflow."
+    )
+    st.markdown(
+        "5-tab workflow: Atlas · Publication Pack · Cross-Code · Governance · Evidence Export. "
+        "Constitutional atlas, reviewer packs, and licensing ZIPs are on NiceGUI."
+    )
+    st.stop()
 
 if _deck == "Control Room":
-    from ui.decks.control_room import render_control_room
-    render_control_room(sys.modules[__name__])
+    st.info(
+        "Control Room is fully available in the **NiceGUI** UI. "
+        "Run `run_ui_nicegui.cmd` and open **Control Room** for the complete workflow."
+    )
+    st.markdown(
+        "6-section workflow: Orient · Constitution · Provenance · Artifacts · Diagnostics · Chronicle. "
+        "Run audit overlays, case deck runner, scenario delta, constraint governance, and benchmark reference are on NiceGUI."
+    )
+    st.stop()
     
 # Shared state
 if "last_point_out"not in st.session_state:

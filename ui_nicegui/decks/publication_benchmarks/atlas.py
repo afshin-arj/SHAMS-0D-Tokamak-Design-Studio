@@ -141,52 +141,75 @@ def _render_atlas_detail(session: DesignSession) -> None:
     if not isinstance(res, dict):
         return
 
-    with ui.tabs().classes("w-full q-mt-md") as tabs:
-        t1 = ui.tab("Constitution diff")
-        t2 = ui.tab("Fragility")
-        t3 = ui.tab("Evidence")
+    expert = bool(getattr(session, "pub_expert_view", False))
 
-    with ui.tab_panels(tabs, value=t1).classes("w-full"):
-        with ui.tab_panel(t1):
-            diff_rows = constitution_diff_rows(res)
-            if not diff_rows:
-                ui.label("No constitutional differences (selected intent matches native semantics).").classes(
-                    "text-positive"
-                )
-            else:
-                ui.table(
-                    columns=[
-                        {"name": "clause", "label": "Clause", "field": "clause", "align": "left"},
-                        {"name": "selected", "label": "Selected", "field": "selected"},
-                        {"name": "native", "label": "Native", "field": "native"},
-                    ],
-                    rows=diff_rows,
-                    row_key="clause",
-                ).classes("w-full")
-            with ui.expansion("Constitution JSON", icon="code").classes("w-full"):
-                ui.json(res.get("constitution_selected") or {})
+    def _constitution_block() -> None:
+        ui.label("Constitution diff").classes("text-subtitle2")
+        diff_rows = constitution_diff_rows(res)
+        if not diff_rows:
+            ui.label("No constitutional differences (selected intent matches native semantics).").classes(
+                "text-positive text-caption"
+            )
+        else:
+            ui.table(
+                columns=[
+                    {"name": "clause", "label": "Clause", "field": "clause", "align": "left"},
+                    {"name": "selected", "label": "Selected", "field": "selected"},
+                    {"name": "native", "label": "Native", "field": "native"},
+                ],
+                rows=diff_rows,
+                row_key="clause",
+            ).classes("w-full")
+        with ui.expansion("Constitution JSON", icon="code").classes("w-full"):
+            ui.json(res.get("constitution_selected") or {})
 
-        with ui.tab_panel(t2):
-            scan = session.pub_atlas_fragility
-            if not isinstance(scan, dict):
-                ui.label("Run local fragility scan to classify robustness/fragility.").classes("text-caption")
-            else:
-                ui.markdown(
-                    f"**Pass fraction:** {float(scan.get('pass_fraction', 0)):.2f} · "
-                    f"**Mechanism stable:** {'Yes' if scan.get('mechanism_stable', True) else 'No'}"
-                )
-                wm = scan.get("worst_margin_min")
-                if isinstance(wm, (int, float)):
-                    ui.markdown(f"**Worst margin (min):** {float(wm):.3f}")
+    def _fragility_block() -> None:
+        ui.label("Local fragility scan").classes("text-subtitle2 q-mt-md")
+        scan = session.pub_atlas_fragility
+        if not isinstance(scan, dict):
+            ui.label("Run **Local fragility scan** to classify robustness in a small input neighborhood.").classes(
+                "text-caption text-grey"
+            )
+        else:
+            ui.markdown(
+                f"**Pass fraction:** {float(scan.get('pass_fraction', 0)):.2f} · "
+                f"**Mechanism stable:** {'Yes' if scan.get('mechanism_stable', True) else 'No'}"
+            )
+            wm = scan.get("worst_margin_min")
+            if isinstance(wm, (int, float)):
+                ui.markdown(f"**Worst margin (min):** {float(wm):.3f}")
+            if expert:
                 ui.json(scan)
 
-        with ui.tab_panel(t3):
-            data = atlas_evidence_json(res)
-            ui.button(
-                "Download Atlas Evidence (JSON)",
-                icon="download",
-                on_click=lambda: ui.download(
-                    data,
-                    f"atlas_{str(res.get('selected_intent', 'intent')).lower()}_{str(res.get('preset_key', 'preset')).replace('|', '_')}.json",
-                ),
-            ).props("outline")
+    def _evidence_block() -> None:
+        ui.label("Evidence export").classes("text-subtitle2 q-mt-md")
+        data = atlas_evidence_json(res)
+        ui.button(
+            "Download Atlas Evidence (JSON)",
+            icon="download",
+            on_click=lambda: ui.download(
+                data,
+                f"atlas_{str(res.get('selected_intent', 'intent')).lower()}_{str(res.get('preset_key', 'preset')).replace('|', '_')}.json",
+            ),
+        ).props("outline")
+        ui.label(
+            "Deterministic single-case capsule: inputs, outputs, ledger, constitution semantics, SHA-256 stamp."
+        ).classes("text-caption text-grey")
+
+    if expert:
+        with ui.tabs().classes("w-full q-mt-md") as tabs:
+            t1 = ui.tab("Constitution diff")
+            t2 = ui.tab("Fragility")
+            t3 = ui.tab("Evidence")
+        with ui.tab_panels(tabs, value=t1).classes("w-full"):
+            with ui.tab_panel(t1):
+                _constitution_block()
+            with ui.tab_panel(t2):
+                _fragility_block()
+            with ui.tab_panel(t3):
+                _evidence_block()
+    else:
+        ui.separator().classes("q-my-md")
+        _constitution_block()
+        _fragility_block()
+        _evidence_block()

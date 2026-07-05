@@ -432,6 +432,14 @@ class DesignSession:
     pub_v387_notes: str = ""
     pub_v387_last_index: Optional[dict[str, Any]] = None
     pub_v387_last_bytes: Optional[bytes] = None
+    pub_workflow_step: str = "1 · Constitutional Atlas"
+    pub_teaching_mode: bool = True
+    pub_expert_view: bool = False
+    pub_decision_state: str = "Benchmark a tokamak preset (ITER, SPARC, …)"
+    pub_regulatory_zip_bytes: Optional[bytes] = None
+    pub_regulatory_validate: Optional[dict[str, Any]] = None
+    pub_licensing_zip_bytes: Optional[bytes] = None
+    pub_licensing_validate: Optional[dict[str, Any]] = None
     # Phase 17 — external optimizers / advanced trade decks
     robust_pareto_source: str = ""
     robust_pareto_phases_json: str = ""
@@ -482,6 +490,14 @@ class DesignSession:
     cr_docs_sel: str = ""
     cr_interop_report: Optional[dict[str, Any]] = None
     cr_contract_report: Optional[dict[str, Any]] = None
+    cr_workflow_step: str = "1 · Orient"
+    cr_teaching_mode: bool = True
+    cr_expert_view: bool = False
+    cr_decision_state: str = "Find my workflow (launchpad)"
+    cr_case_deck_last: Optional[dict[str, Any]] = None
+    cr_scenario_base: Optional[dict[str, Any]] = None
+    cr_scenario_variant: Optional[dict[str, Any]] = None
+    cr_constraint_inspect_name: str = ""
     # Point Designer Phase 11 — outer-loop + forensics
     pd_telemetry_view: str = "Verdict & KPIs"
     phase_envelopes_phases_json: str = ""

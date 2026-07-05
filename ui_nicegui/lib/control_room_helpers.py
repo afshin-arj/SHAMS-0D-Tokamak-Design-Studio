@@ -18,7 +18,7 @@ CR_SECTIONS = [
 ]
 
 ORIENT_TABS = ["Launchpad", "Vocabulary", "Reference Gallery", "Scope"]
-CONST_TABS = ["Model Ledger", "Capability Matrix", "Docs Library"]
+CONST_TABS = ["Model Ledger", "Capability Matrix", "Assumptions", "Constraints", "Docs Library"]
 DIAG_TABS = ["Gatechecks", "Interoperability", "Session", "Non-Feasibility Guide"]
 
 CHRONICLE_TABS = [
@@ -30,7 +30,21 @@ CHRONICLE_TABS = [
     "Study Dashboard",
 ]
 
-ARTIFACT_TABS = ["Artifacts Explorer", "Run Library", "Export & Share"]
+ARTIFACT_TABS = ["Artifacts Explorer", "Run Library", "Export & Share", "Benchmark Reference"]
+
+BENCHMARK_REFERENCE_ROWS: List[Dict[str, Any]] = [
+    {"Tokamak": "ITER", "Country / Org": "Intl (EU/JP/US/etc.)", "Status": "Under construction", "SC type": "Nb₃Sn / NbTi (LTS)", "Major R (m)": 6.2, "Minor a (m)": 2.0, "B₀ on axis (T)": 5.3, "Ip (MA)": 15.0, "Primary role": "Burning plasma, Q≈10"},
+    {"Tokamak": "JT-60SA", "Country / Org": "Japan–EU", "Status": "Commissioning", "SC type": "NbTi (LTS)", "Major R (m)": 3.0, "Minor a (m)": 1.0, "B₀ on axis (T)": 2.3, "Ip (MA)": 5.5, "Primary role": "Advanced plasma physics"},
+    {"Tokamak": "WEST", "Country / Org": "France", "Status": "Operating", "SC type": "NbTi (LTS)", "Major R (m)": 2.5, "Minor a (m)": 0.5, "B₀ on axis (T)": 3.7, "Ip (MA)": 1.0, "Primary role": "Long-pulse, PFC/divertor"},
+    {"Tokamak": "EAST", "Country / Org": "China", "Status": "Operating", "SC type": "NbTi (LTS)", "Major R (m)": 1.9, "Minor a (m)": 0.5, "B₀ on axis (T)": 3.5, "Ip (MA)": 1.0, "Primary role": "Long-pulse operation"},
+    {"Tokamak": "KSTAR", "Country / Org": "Korea", "Status": "Operating", "SC type": "NbTi-based (LTS)", "Major R (m)": 1.8, "Minor a (m)": 0.5, "B₀ on axis (T)": 3.5, "Ip (MA)": 2.0, "Primary role": "Advanced tokamak scenarios"},
+    {"Tokamak": "SST-1", "Country / Org": "India", "Status": "Operating", "SC type": "NbTi (LTS)", "Major R (m)": 1.1, "Minor a (m)": 0.2, "B₀ on axis (T)": 3.0, "Ip (MA)": 0.1, "Primary role": "SC tokamak development"},
+    {"Tokamak": "TRIAM-1M", "Country / Org": "Japan", "Status": "Historical", "SC type": "Nb₃Sn (LTS)", "Major R (m)": 0.8, "Minor a (m)": 0.15, "B₀ on axis (T)": 8.0, "Ip (MA)": None, "Primary role": "High-field SC operation"},
+    {"Tokamak": "HT-7", "Country / Org": "China", "Status": "Historical", "SC type": "LTS", "Major R (m)": 1.22, "Minor a (m)": 0.27, "B₀ on axis (T)": 2.0, "Ip (MA)": 0.2, "Primary role": "Precursor to EAST"},
+    {"Tokamak": "SPARC", "Country / Org": "USA (MIT/CFS)", "Status": "Under construction", "SC type": "REBCO (HTS)", "Major R (m)": 1.85, "Minor a (m)": 0.57, "B₀ on axis (T)": 12.2, "Ip (MA)": 8.7, "Primary role": "Q>1, high-field compact"},
+    {"Tokamak": "HH70", "Country / Org": "China (Energy Singularity)", "Status": "Operating", "SC type": "REBCO (HTS)", "Major R (m)": 0.7, "Minor a (m)": 0.28, "B₀ on axis (T)": 0.6, "Ip (MA)": None, "Primary role": "Full-HTS integration demo"},
+    {"Tokamak": "HH170", "Country / Org": "China (Energy Singularity)", "Status": "Planned", "SC type": "REBCO (HTS)", "Major R (m)": None, "Minor a (m)": None, "B₀ on axis (T)": None, "Ip (MA)": None, "Primary role": "Reactor-relevant HTS tokamak"},
+]
 
 REFERENCE_GALLERY: List[Tuple[str, str]] = [
     ("ITER-like", "Large, conservative, physics-demonstration anchor; often stress and divertor constraints dominate."),

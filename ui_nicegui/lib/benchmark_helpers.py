@@ -82,6 +82,28 @@ def summarize_atlas_result(res_dict: dict) -> Dict[str, Any]:
     run = res_dict.get("run") or {}
     verdict = str(run.get("verdict", "")).upper() if isinstance(run, dict) else ""
     worst = run.get("worst_hard_margin")
+    if worst is None and isinstance(run, dict):
+        led = run.get("constraints") or {}
+        for _, c in led.items():
+            if isinstance(c, dict) and str(c.get("severity", "")).lower() == "hard":
+                m = c.get("margin")
+                if isinstance(m, (int, float)):
+                    worst = m if worst is None else min(worst, m)
+
+    art = (run.get("artifact") or {}) if isinstance(run, dict) else {}
+    ac = art.get("authority_confidence") or {} if isinstance(art, dict) else {}
+    dc = art.get("decision_consequences") or {} if isinstance(art, dict) else {}
+    ft = art.get("fidelity_tiers") or {} if isinstance(art, dict) else {}
+    ef = art.get("epoch_feasibility") or {} if isinstance(art, dict) else {}
+
+    epoch_rows: List[Dict[str, str]] = []
+    for e in ef.get("epochs") or []:
+        if isinstance(e, dict):
+            epoch_rows.append({
+                "epoch": str(e.get("epoch", "")),
+                "verdict": str(e.get("verdict", "")),
+            })
+
     return {
         "loaded": bool(res_dict),
         "verdict": verdict or "-",
@@ -92,6 +114,12 @@ def summarize_atlas_result(res_dict: dict) -> Dict[str, Any]:
         "selected_intent": res_dict.get("selected_intent") or "-",
         "native_intent": res_dict.get("native_intent") or "-",
         "stamp": str(res_dict.get("stamp_sha256") or "")[:12],
+        "design_confidence": str((ac.get("design") or {}).get("design_confidence_class", "UNKNOWN")),
+        "fidelity_label": str((ft.get("design") or {}).get("design_fidelity_label", "")),
+        "decision_posture": str(dc.get("decision_posture", "UNKNOWN")),
+        "primary_risk_driver": str(dc.get("primary_risk_driver") or ""),
+        "epoch_overall": str(ef.get("overall") or ""),
+        "epoch_rows": epoch_rows,
     }
 
 
