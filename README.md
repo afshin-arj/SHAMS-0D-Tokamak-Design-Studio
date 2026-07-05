@@ -69,6 +69,21 @@ python ui_nicegui/app.py
 
 The legacy Streamlit shell (`run_ui.cmd`) remains for compatibility but **redirects fully ported decks** to NiceGUI.
 
+### Helm Console (left sidebar)
+
+The **Helm Console** is the expert study compass — not a settings dump. It is workflow-first:
+
+| Feature | What it does |
+|---------|----------------|
+| **5-phase progress strip** | Anchor → Map & close → Compare & trade → Concepts → Evidence & audit |
+| **Do now** | 2–3 action bullets for the active deck |
+| **Next →** | Context-aware suggestion (e.g. evaluate first, then Scan Lab) |
+| **Numbered deck nav** | Collapsible groups; current phase auto-expands |
+| **☰ header toggle** | Close the panel for full-width decks; reopen anytime |
+| **Drag resize** | Drag the right edge of the sidebar (260–560px; width saved in browser) |
+
+Session setup (design contract, integrity gate, fidelity, calibration) lives in a collapsed **Session setup** panel so navigation stays on top.
+
 ---
 
 ## Quick start (first evaluation)

@@ -36,6 +36,24 @@ def test_deck_workflow_captions() -> None:
     assert deck_nav_short_label("Scan Lab").startswith("2.")
 
 
+def test_helm_workflow_guide() -> None:
+    from ui_nicegui.lib.helm_workflow_guide import (
+        DECK_NOW_ACTIONS,
+        deck_phase,
+        suggest_next_deck,
+    )
+
+    s = DesignSession()
+    nxt, reason = suggest_next_deck(s, "Scan Lab")
+    assert nxt == "Point Designer"
+    assert "anchor" in reason.lower() or "evaluation" in reason.lower()
+    s.pd_last_outputs = {"outputs": {"Q": 1.0}}
+    nxt2, _ = suggest_next_deck(s, "Point Designer")
+    assert nxt2 == "Scan Lab"
+    assert len(DECK_NOW_ACTIONS["Control Room"]) >= 2
+    assert deck_phase("Compare") == 3
+
+
 def test_helm_section_labels_plain_language() -> None:
     assert "Session posture" in helm_section_label("Captain's Ledger")
     assert helm_section_label("Black-Box Chronicle") == "Activity chronicle"
@@ -82,8 +100,10 @@ def test_invalidate_mode_caches_clears_compare_slots() -> None:
 def test_helm_console_exports() -> None:
     from ui_nicegui.components.helm_console import helm_status_caption, render_helm_console
     from ui_nicegui.components.helm_theme import HELM_DRAWER_CLASS, inject_helm_drawer_theme
+    from ui_nicegui.components.helm_workflow_panel import render_workflow_compass
 
     assert callable(render_helm_console)
+    assert callable(render_workflow_compass)
     assert callable(inject_helm_drawer_theme)
     assert "helm-drawer" in HELM_DRAWER_CLASS
     s = DesignSession()
@@ -97,3 +117,19 @@ def test_dsg_session_bootstrap() -> None:
     g = ensure_dsg(s)
     # May be None if DSG module unavailable in test env
     assert g is None or hasattr(g, "nodes")
+
+
+def test_helm_drawer_session_fields() -> None:
+    from ui_nicegui.components.drawer_resize import (
+        HELM_DRAWER_WIDTH_DEFAULT,
+        HELM_DRAWER_WIDTH_MAX,
+        HELM_DRAWER_WIDTH_MIN,
+        toggle_helm_drawer,
+    )
+
+    s = DesignSession()
+    assert s.helm_drawer_open is True
+    assert s.helm_drawer_width == HELM_DRAWER_WIDTH_DEFAULT
+    toggle_helm_drawer(s)
+    assert s.helm_drawer_open is False
+    assert HELM_DRAWER_WIDTH_MIN < HELM_DRAWER_WIDTH_MAX

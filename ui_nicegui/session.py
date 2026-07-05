@@ -290,6 +290,8 @@ class DesignSession:
     forge_deck: str = "Intent Compiler"
     forge_review_mode: bool = False
     # Helm Console (sidebar parity with Streamlit)
+    helm_drawer_open: bool = True
+    helm_drawer_width: int = 340
     explain_mode: bool = True
     expert_mode: bool = False
     activity_log_auto: bool = True

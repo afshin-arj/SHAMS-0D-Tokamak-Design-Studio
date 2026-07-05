@@ -25,6 +25,11 @@ from nicegui import ui
 
 from ui_nicegui.lib.navigation import register_deck_change, register_helm_refresh, register_status_refresh
 from ui_nicegui.decks import DECK_LABELS, DECK_RENDERERS
+from ui_nicegui.components.drawer_resize import (
+    inject_drawer_resize_script,
+    render_drawer_resize_handle,
+    toggle_helm_drawer,
+)
 from ui_nicegui.components.helm_console import helm_status_caption, render_helm_console
 from ui_nicegui.components.helm_theme import HELM_DRAWER_CLASS, inject_helm_drawer_theme
 from ui_nicegui.lib.control_room_helpers import read_version
@@ -71,21 +76,42 @@ def _render_deck() -> None:
 def main_page() -> None:
     global _CONTENT
     inject_helm_drawer_theme()
+    inject_drawer_resize_script()
     register_deck_change(_switch_deck)
     register_helm_refresh(lambda: _helm_shell.refresh())
     register_status_refresh(lambda: _render_status_header.refresh())
 
     with ui.header(elevated=True).classes("bg-slate-900 text-white items-center justify-between"):
-        with ui.row().classes("items-center gap-md"):
+        with ui.row().classes("items-center gap-sm"):
+            ui.button(
+                icon="menu",
+                on_click=lambda: (
+                    toggle_helm_drawer(_SESSION),
+                    _helm_drawer.set_value(_SESSION.helm_drawer_open),
+                ),
+            ).props('flat round dense title="Toggle study workflow panel (open / close)"').classes(
+                "text-white"
+            )
             ui.label("SHAMS").classes("text-h6 text-weight-bold")
             ui.label("Feasibility-authoritative tokamak design studio").classes("text-caption text-grey-4")
             ui.badge(f"v{read_version()}").props("outline color=grey-5")
         _render_status_header(_SESSION)
 
-    with ui.left_drawer(value=True).classes(f"bg-slate-800 text-white {HELM_DRAWER_CLASS}").style("width: 340px"):
-        with ui.scroll_area().classes("w-full").style("height: calc(100vh - 50px)"):
-            with ui.column().classes(f"w-full q-pa-sm {HELM_DRAWER_CLASS}"):
-                _helm_shell(_SESSION, on_deck_change=_switch_deck)
+    _helm_drawer = ui.left_drawer(value=_SESSION.helm_drawer_open).classes(
+        f"bg-slate-800 text-white {HELM_DRAWER_CLASS} shams-left-drawer"
+    ).props("bordered").style("overflow-x: hidden;")
+    _helm_drawer.bind_value(_SESSION, "helm_drawer_open")
+
+    with _helm_drawer:
+        with ui.element("div").classes("shams-drawer-body"):
+            with ui.scroll_area().classes("w-full shams-helm-scroll").style(
+                "height: calc(100vh - 50px);"
+            ):
+                with ui.column().classes(f"w-full q-pa-sm {HELM_DRAWER_CLASS} shams-helm-inner").style(
+                    "min-width: 0; max-width: 100%; overflow-x: hidden;"
+                ):
+                    _helm_shell(_SESSION, on_deck_change=_switch_deck)
+            render_drawer_resize_handle()
 
     with ui.column().classes("w-full p-4"):
         _CONTENT = ui.column().classes("w-full")

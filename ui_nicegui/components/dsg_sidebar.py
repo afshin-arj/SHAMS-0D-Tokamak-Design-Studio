@@ -19,7 +19,7 @@ def render_dsg_sidebar(session: DesignSession) -> None:
     if g is None or getattr(g, "nodes", None) is None:
         return
 
-    with ui.expansion("Design lineage graph (DSG)", icon="account_tree").classes("w-full"):
+    with ui.expansion("Design lineage graph (DSG)", icon="account_tree").classes("w-full overflow-hidden"):
         ui.label(
             "Exploration-only continuity ledger — links evaluations across decks. Does not change frozen physics."
         ).classes("text-caption q-mb-sm")
@@ -85,7 +85,9 @@ def render_dsg_sidebar(session: DesignSession) -> None:
         except Exception:
             chain = [sel]
         ui.label("Lineage").classes("text-caption text-weight-bold q-mt-xs")
-        ui.code(" -> ".join(_short(x, 10) for x in chain), language="text").classes("text-caption")
+        ui.code(" -> ".join(_short(x, 10) for x in chain), language="text").classes(
+            "text-caption w-full"
+        ).style("max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-all;")
 
         async def _adopt() -> None:
             try:

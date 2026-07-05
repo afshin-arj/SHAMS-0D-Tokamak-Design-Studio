@@ -6,6 +6,47 @@ from nicegui import ui
 HELM_DRAWER_CLASS = "helm-drawer shams-helm-drawer"
 
 _HELM_CSS = """
+:root {
+  --shams-drawer-width: 340px;
+}
+body.shams-drawer-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.shams-drawer-resizing * {
+  cursor: col-resize !important;
+}
+.shams-left-drawer {
+  width: var(--shams-drawer-width) !important;
+  max-width: var(--shams-drawer-width) !important;
+}
+.shams-drawer-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3200;
+  background: transparent;
+  touch-action: none;
+  pointer-events: auto;
+}
+.shams-drawer-resize-handle:hover,
+body.shams-drawer-resizing .shams-drawer-resize-handle {
+  background: rgba(96, 165, 250, 0.35);
+}
+.shams-drawer-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.shams-helm-scroll {
+  width: 100%;
+  max-width: var(--shams-drawer-width);
+}
 .shams-helm-drawer {
   color: #e2e8f0;
 }
@@ -95,6 +136,95 @@ _HELM_CSS = """
   padding: 8px 10px;
   color: #e0f2fe;
   font-size: 12px;
+}
+.shams-helm-drawer .helm-phase-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #334155;
+  color: #94a3b8;
+  border: 1px solid #475569;
+}
+.shams-helm-drawer .helm-phase-active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #60a5fa;
+}
+.shams-helm-drawer .helm-phase-done {
+  background: #14532d;
+  color: #86efac;
+  border-color: #22c55e;
+}
+.shams-helm-drawer .helm-deck-hint {
+  background: rgba(15, 23, 42, 0.55);
+  border-left: 3px solid #3b82f6;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+.shams-helm-drawer .helm-deck-btn-active {
+  background: #334155 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+.shams-helm-drawer .helm-nav-group .q-expansion-item__container {
+  border: 1px solid #475569;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+/* --- Drawer clipping: keep sidebar content inside the left panel --- */
+.shams-left-drawer,
+.shams-left-drawer .q-drawer__content,
+.shams-helm-scroll,
+.shams-helm-scroll .scroll,
+.shams-helm-scroll .q-scrollarea__container,
+.shams-helm-scroll .q-scrollarea__content,
+.shams-helm-inner {
+  overflow-x: hidden !important;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.shams-left-drawer {
+  z-index: 3000;
+}
+.shams-helm-drawer .q-expansion-item,
+.shams-helm-drawer .q-expansion-item__container,
+.shams-helm-drawer .q-expansion-item__content {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.shams-helm-drawer .q-expansion-item__content-inner {
+  max-width: 100%;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+.shams-helm-drawer .q-field,
+.shams-helm-drawer .q-btn,
+.shams-helm-drawer .q-select,
+.shams-helm-drawer .q-item,
+.shams-helm-drawer .q-markdown,
+.shams-helm-drawer .helm-deck-hint {
+  max-width: 100%;
+  min-width: 0;
+}
+.shams-helm-drawer pre,
+.shams-helm-drawer code,
+.shams-helm-drawer .q-field__native,
+.shams-helm-drawer .q-field__input {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.shams-helm-drawer .q-btn--flat {
+  text-align: left;
+  justify-content: flex-start;
 }
 """
 
