@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from ui_nicegui.lib.pd_artifact_helpers import build_point_artifact
 from ui_nicegui.lib.pd_overlay_catalog import ALL_OVERLAY_KEYS
+from ui_nicegui.lib.pd_run_summary import compute_run_summary_from_out
 
 from ui_nicegui.lib.verdict_core import constraint_table_rows
 
@@ -71,7 +72,8 @@ def set_point_evaluation(
 
         artifact["constraints"] = rows
 
-
+    if isinstance(outputs, dict) and outputs:
+        artifact["run_summary"] = compute_run_summary_from_out(outputs)
 
     session.pd_last_artifact = artifact
 

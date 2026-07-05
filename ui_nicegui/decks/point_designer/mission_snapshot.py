@@ -47,7 +47,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     art = session.pd_last_artifact or {}
     include_rad = bool(session.overlay.get("include_radiation", False))
-    use_lq = bool(session.inputs.get("use_lambda_q", False))
+    use_lq = bool(inp.get("use_lambda_q", True))
 
     with ui.expansion("Inboard build & coil stress", icon="architecture").classes("w-full"):
         coils = build_coils_metrics(out)

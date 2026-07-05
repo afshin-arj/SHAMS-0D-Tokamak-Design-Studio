@@ -57,6 +57,30 @@ def test_authority_toggle_defaults_reactor() -> None:
     assert "tritium" in reactor_intent_hint(s.design_intent).lower()
 
 
-def test_authority_toggle_keys_match_dashboard() -> None:
-    assert len(AUTHORITY_OVERLAY_TOGGLES) == 12
-    assert AUTHORITY_TOGGLE_KEYS == [t[0] for t in AUTHORITY_OVERLAY_TOGGLES]
+def test_envelope_targets_matched_dof() -> None:
+    from ui_nicegui.lib.pd_solver_helpers import _envelope_targets
+
+    s = DesignSession()
+    s.pd_eval_mode = "envelope"
+    s.pd_pfus_target = 0.0
+    s.pd_pnet_target = -1.0
+    tgt, vary, _ = _envelope_targets(s)
+    assert len(tgt) == len(vary) == 2
+    assert "Q_DT_eqv" in tgt and "H98" in tgt
+
+
+def test_run_summary_on_artifact() -> None:
+    from ui_nicegui.evaluate import ui_evaluate
+    from ui_nicegui.lib.session_store import set_point_evaluation
+
+    s = DesignSession()
+    out = ui_evaluate(s.build_point_inputs(), origin="test")
+    set_point_evaluation(s, outputs=out, inputs=dict(s.inputs))
+    art = s.pd_last_artifact or {}
+    assert isinstance(art.get("run_summary"), dict)
+    assert "tightest_hard_constraints" in art["run_summary"]
+
+
+def test_pd_pfus_default_ignores_envelope() -> None:
+    s = DesignSession()
+    assert s.pd_pfus_target == 0.0

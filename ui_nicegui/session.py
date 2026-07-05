@@ -547,7 +547,7 @@ class DesignSession:
     pd_baseline_artifact: Optional[dict[str, Any]] = None
     pd_pert_scan_rows: list[dict[str, Any]] = field(default_factory=list)
     pd_last_radial_png_bytes: Optional[bytes] = None
-    pd_pfus_target: float = 140.0
+    pd_pfus_target: float = 0.0
     pd_pnet_target: float = -1.0
     pd_pending_systems_action: Optional[str] = None
 

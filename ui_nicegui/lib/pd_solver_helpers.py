@@ -52,17 +52,47 @@ def sync_solver_bounds_from_inputs(session: DesignSession) -> None:
         session.pd_h98_target = min(session.pd_h98_target, 1.0) if session.pd_h98_target > 1.05 else session.pd_h98_target
 
 
+def _envelope_targets(session: DesignSession) -> Tuple[Dict[str, float], List[str], Dict[str, Tuple[float, float]]]:
+    """Build matched target/variable sets for envelope mode (#targets == #variables)."""
+    tgt: Dict[str, float] = {
+        "Q_DT_eqv": float(session.pd_q_target),
+        "H98": float(session.pd_h98_target),
+    }
+    vary = ["Ip_MA", "fG"]
+    bounds: Dict[str, Tuple[float, float]] = {
+        "Ip_MA": (float(session.pd_ip_min), float(session.pd_ip_max)),
+        "fG": (float(session.pd_fg_min), float(session.pd_fg_max)),
+    }
+    pfus = float(session.pd_pfus_target)
+    pnet = float(session.pd_pnet_target)
+    paux = _sf(session.inputs.get("Paux_MW"), 50.0)
+
+    if pnet > 0:
+        tgt["P_e_net_MW"] = pnet
+        vary.append("Paux_MW")
+        bounds["Paux_MW"] = (0.0, max(paux, 1e-6) * 2.0)
+    elif pfus > 0:
+        tgt["Pfus_DT_adj_MW"] = pfus
+        vary.append("Paux_MW")
+        bounds["Paux_MW"] = (0.0, max(paux, 1e-6) * 2.0)
+
+    return tgt, vary, bounds
+
+
 def compute_pd_inputs_fingerprint(session: DesignSession) -> Dict[str, Any]:
     inp = session.inputs
-    return {
+    fp: Dict[str, Any] = {
         "R0_m": _sf(inp.get("R0_m")),
         "a_m": _sf(inp.get("a_m")),
         "kappa": _sf(inp.get("kappa")),
         "delta": _sf(inp.get("delta")),
         "Bt_T": _sf(inp.get("Bt_T")),
         "Paux_MW": _sf(inp.get("Paux_MW")),
+        "Paux_for_Q_MW": _sf(inp.get("Paux_for_Q_MW")),
         "Ti_keV": _sf(inp.get("Ti_keV")),
         "Ti_over_Te": _sf(inp.get("Ti_over_Te")),
+        "Ip_MA": _sf(inp.get("Ip_MA")),
+        "fG": _sf(inp.get("fG")),
         "fuel_mode": str(inp.get("fuel_mode", "DT")),
         "Q_target": _sf(session.pd_q_target),
         "H98_target": _sf(session.pd_h98_target),
@@ -75,7 +105,12 @@ def compute_pd_inputs_fingerprint(session: DesignSession) -> Dict[str, Any]:
         "Tcoil_K": _sf(inp.get("Tcoil_K")),
         "pd_eval_mode": str(session.pd_eval_mode),
         "overlay": {k: session.overlay.get(k) for k in sorted(session.overlay.keys())},
+        "knobs": {k: session.knobs.get(k) for k in sorted(session.knobs.keys())},
     }
+    if str(session.pd_eval_mode) == "envelope":
+        fp["pd_pfus_target"] = _sf(session.pd_pfus_target)
+        fp["pd_pnet_target"] = _sf(session.pd_pnet_target)
+    return fp
 
 
 def compute_pd_inputs_hash(session: DesignSession) -> str:
@@ -98,29 +133,25 @@ def _log_append(log_lines: List[str], line: str) -> None:
         pass
 
 
+def _solver_success(out: Dict[str, Any], ev_ok: bool) -> bool:
+    if not ev_ok:
+        return False
+    if bool(out.get("_solver_clamped")) or bool(out.get("_solver_clamped_Q")):
+        return False
+    return True
+
+
 def _solver_event_iter(session: DesignSession, base) -> Iterator[Dict[str, Any]]:
     mode = str(session.pd_eval_mode)
     if mode == "envelope":
-        tgt: Dict[str, float] = {
-            "Q_DT_eqv": float(session.pd_q_target),
-            "H98": float(session.pd_h98_target),
-        }
-        pfus = float(session.pd_pfus_target)
-        pnet = float(session.pd_pnet_target)
-        if pfus > 0:
-            tgt["Pfus_MW"] = pfus
-        if pnet > 0:
-            tgt["P_e_net_MW"] = pnet
-
-        vary = ["Ip_MA", "fG"]
-        bounds: Dict[str, Tuple[float, float]] = {
-            "Ip_MA": (float(session.pd_ip_min), float(session.pd_ip_max)),
-            "fG": (float(session.pd_fg_min), float(session.pd_fg_max)),
-        }
-        paux = _sf(base.Paux_MW, 50.0)
-        if pnet > 0:
-            vary.append("Paux_MW")
-            bounds["Paux_MW"] = (0.0, max(paux, 1e-6) * 2.0)
+        tgt, vary, bounds = _envelope_targets(session)
+        if len(tgt) != len(vary):
+            def _dim_fail() -> Iterator[Dict[str, Any]]:
+                yield {
+                    "event": "fail",
+                    "reason": f"envelope_mismatch: {len(tgt)} targets vs {len(vary)} variables",
+                }
+            return _dim_fail()
 
         sol_inp, out_env, ok_env, msg_env = solve_sparc_envelope(
             base,
@@ -225,7 +256,9 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
             elif evt == "done":
                 sol_inp = ev.get("sol") or base
                 out = dict(ev.get("out") or {})
-                ok = bool(ev.get("ok", True))
+                ok = _solver_success(out, bool(ev.get("ok", True)))
+                if bool(out.get("_solver_clamped")) or bool(out.get("_solver_clamped_Q")):
+                    _log_append(log_lines, "WARN: solver clamped to bounds — targets may not be met.")
                 _log_append(
                     log_lines,
                     f"DONE: Ip={out.get('Ip_MA', float('nan')):.8g} MA, fG={out.get('fG', float('nan')):.8g}, "
@@ -236,7 +269,8 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
                 _log_append(log_lines, f"FAIL: {ev.get('reason', 'solver_failed')}")
                 trace.append(dict(ev))
 
-        if not ok and mode == "solver":
+        if not ok:
+            _log_append(log_lines, "Fallback: coupled Ip/fG solve (H98 + Q_DT_eqv).")
             sol_inp, out, ok = solve_Ip_for_H98_with_Q_match(
                 base,
                 target_H98=float(session.pd_h98_target),
@@ -248,13 +282,17 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
                 tol=float(session.pd_solver_tol),
                 Paux_for_Q_MW=session.paux_for_q,
             )
+            ok = _solver_success(out, ok)
     else:
         _log_append(log_lines, "Direct frozen-point evaluate (no solver)")
         out = ui_evaluate(sol_inp, origin="NiceGUI:Point Designer", Paux_for_Q_MW=session.paux_for_q)
 
-    if mode in ("solver", "envelope") and ok and sol_inp is not None:
+    if mode in ("solver", "envelope") and sol_inp is not None:
         session.inputs["Ip_MA"] = float(getattr(sol_inp, "Ip_MA", session.inputs.get("Ip_MA")))
         session.inputs["fG"] = float(getattr(sol_inp, "fG", session.inputs.get("fG")))
+        paux_sol = getattr(sol_inp, "Paux_MW", None)
+        if paux_sol is not None:
+            session.inputs["Paux_MW"] = float(paux_sol)
         if not out:
             out = ui_evaluate(sol_inp, origin="NiceGUI:Point Designer", Paux_for_Q_MW=session.paux_for_q)
 

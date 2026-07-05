@@ -69,36 +69,6 @@ python ui_nicegui/app.py
 
 The legacy Streamlit shell (`run_ui.cmd`) remains for compatibility but **redirects fully ported decks** to NiceGUI.
 
-### Helm Console (left sidebar)
-
-The **Helm Console** is the expert study compass — not a settings dump. It is workflow-first:
-
-| Feature | What it does |
-|---------|----------------|
-| **5-phase progress strip** | Anchor → Map & close → Compare & trade → Concepts → Evidence & audit |
-| **Do now** | 2–3 action bullets for the active deck |
-| **Next →** | Context-aware suggestion (e.g. evaluate first, then Scan Lab) |
-| **Numbered deck nav** | Collapsible groups; current phase auto-expands |
-| **☰ header toggle** | Close the panel for full-width decks; reopen anytime |
-| **Drag resize** | Drag the right edge of the sidebar (260–560px; width saved in browser) |
-
-Session setup (design contract, integrity gate, fidelity, calibration) lives in a collapsed **Session setup** panel so navigation stays on top.
-
-### Point Designer (Truth Console)
-
-The **Point Designer** is the anchor deck for single operating-point feasibility. Expert workflow:
-
-| Feature | What it does |
-|---------|----------------|
-| **Guided mode** | Decision router: set machine → evaluate → read telemetry → diagnose constraints |
-| **Truth Console tabs** | `1 · Configure` · `2 · Telemetry` · `3 · Constraints` — synced with workflow toggle |
-| **Authority status board** | Quick v396–v409 overlay toggles (governance only; frozen `hot_ion_point()` unchanged) |
-| **Verdict hero** | Q, triple-product proxy, subsystem badges — one strip above tabs (no duplicate in Telemetry) |
-| **Evaluate Point** | `direct` / `solver` / `envelope` modes; all paths call `ui_evaluate()` → L0 |
-| **Expert view** | Unlocks experimental input-search panel (proposals only — not L0 optimization) |
-
-Mission profile (intent, TRL, q95/Greenwald tiering) is set in **Helm Console → Design contract**. Configure holds machine inputs, overlay catalog, and the evaluate button. After a successful run, the workflow advances to **Telemetry** automatically.
-
 ---
 
 ## Quick start (first evaluation)
@@ -229,7 +199,7 @@ flowchart LR
 
 | Deck | Primary tabs / sections | Key capabilities |
 |------|-------------------------|------------------|
-| **Point Designer** | Configure · Telemetry · Constraints · Mission | Single-point evaluate; guided Truth Console workflow; authority status board; NO-SOLUTION atlas; constraint diff dossier |
+| **Point Designer** | Configure · Telemetry · Constraints · Mission | Single-point evaluate; solver modes; NO-SOLUTION atlas; constraint diff dossier |
 | **Scan Lab** | Setup · Cartography · Interpret · Artifact restore | 2D feasible-region maps; first-failure topology; scan atlas capsules |
 | **Systems Mode** | Workflow tabs + plant authority | Integrated systems solve; power-balance diagram; feasibility heatmap; reproduce/diff |
 | **Compare** | Load · Performance · Constraints · Inputs & Structure · Export | Metric/input/structural diffs; scenario delta; comparison bundles |
@@ -319,8 +289,7 @@ Those belong **outside** the evaluator, with SHAMS re-evaluating every proposed 
 ## Latest release notes (v418.x)
 
 - **NiceGUI studio complete** — all primary decks ported with expert workflow navigation, guided modes, and Streamlit redirects.
-- **Point Designer Truth Console** — guided workflow rail, authority status board, refreshable verdict hero, expert-gated input search.
-- Registry code-generation from `authority_caps.json`; NO-SOLUTION mechanism atlas; constraint diff dossier in Point Designer.
+- Point Designer solver/envelope wiring fixes, run_summary on artifacts, Configure refresh after solve.
 - H-mode scalings, ELM duty-cycle availability, tritium reactor preset; overlay dashboard refresh.
 
 Details: `docs/patch_notes/PATCH_NOTES_v418.md`

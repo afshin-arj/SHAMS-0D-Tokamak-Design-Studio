@@ -152,7 +152,9 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                     ui_evaluate, pi, origin="NiceGUI:PerturbationProbe", Paux_for_Q_MW=session.paux_for_q
                 )
                 q = yo.get("Q_DT_eqv", yo.get("Q"))
-                feas = "yes" if yo.get("is_feasible", True) else "no"
+                from ui_nicegui.lib.verdict_core import verdict_summary
+
+                feas = "yes" if verdict_summary(yo).get("feasible") else "no"
                 rows.append({"step": label, "knob": k, "value": f"{x0 * mult:.4g}", "Q": _fmt(q), "feasible": feas})
             result_area.clear()
             with result_area:

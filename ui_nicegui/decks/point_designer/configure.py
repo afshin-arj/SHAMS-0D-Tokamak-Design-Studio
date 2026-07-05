@@ -12,7 +12,6 @@ from nicegui import ui
 
 
 
-from ui_nicegui.components.pd_authority_dashboard import render_authority_status_board
 from ui_nicegui.decks.point_designer.configure_advanced_materials import render_advanced_materials
 from ui_nicegui.decks.point_designer.configure_engineering import render_engineering_plant
 from ui_nicegui.decks.point_designer.configure_governance import render_design_governance
@@ -113,7 +112,12 @@ def render_configure(session: DesignSession, *, on_evaluate) -> None:
     ).props("outline").classes("q-mb-sm")
 
     render_design_governance(session)
-    render_authority_status_board(session)
+
+    if str(session.pd_eval_mode) in ("solver", "envelope") and session.pd_last_outputs:
+        ui.label(
+            f"Last solve operating point: Ip = {finite_ui_number(inp.get('Ip_MA'), unset=0):.4g} MA, "
+            f"fG = {finite_ui_number(inp.get('fG'), unset=0):.4g}"
+        ).classes("text-caption text-info q-mb-sm")
 
     for section_id in CONFIGURE_SECTION_ORDER:
 
@@ -193,24 +197,15 @@ def render_configure(session: DesignSession, *, on_evaluate) -> None:
 
                 with ui.grid(columns=2).classes("w-full gap-2"):
 
-                    ui.number("R0 (m)", value=finite_ui_number(inp["R0_m"], unset=1.81), min=0.01, step=0.01,
-
+                    ui.number("R₀ (m)", value=finite_ui_number(inp["R0_m"], unset=1.81), min=0.01, step=0.01,
                               on_change=lambda e: inp.__setitem__("R0_m", e.value))
-
                     ui.number("a (m)", value=finite_ui_number(inp["a_m"], unset=0.62), min=0.1, step=0.01,
-
                               on_change=lambda e: inp.__setitem__("a_m", e.value))
-
-                    ui.number("kappa", value=finite_ui_number(inp["kappa"], unset=1.8), min=1.0, max=3.2, step=0.05,
-
+                    ui.number("κ (–)", value=finite_ui_number(inp["kappa"], unset=1.8), min=1.0, max=3.2, step=0.05,
                               on_change=lambda e: inp.__setitem__("kappa", e.value))
-
-                    ui.number("delta", value=finite_ui_number(inp["delta"], unset=0.0), min=0.0, max=0.8, step=0.02,
-
+                    ui.number("δ (–)", value=finite_ui_number(inp["delta"], unset=0.0), min=0.0, max=0.8, step=0.02,
                               on_change=lambda e: inp.__setitem__("delta", e.value))
-
-                    ui.number("B0 (T)", value=finite_ui_number(inp["Bt_T"], unset=10.0), min=0.5, max=25.0, step=0.1,
-
+                    ui.number("B₀ (T)", value=finite_ui_number(inp["Bt_T"], unset=10.0), min=0.5, max=25.0, step=0.1,
                               on_change=lambda e: inp.__setitem__("Bt_T", e.value))
 
 
@@ -250,16 +245,10 @@ def render_configure(session: DesignSession, *, on_evaluate) -> None:
                 with ui.grid(columns=2).classes("w-full gap-2"):
 
                     ui.number("Paux (MW)", value=finite_ui_number(inp["Paux_MW"], unset=50.0), min=0.0, max=500.0, step=1.0,
-
                               on_change=lambda e: inp.__setitem__("Paux_MW", e.value))
-
-                    ui.number("Paux for Q (MW)", value=finite_ui_number(inp["Paux_for_Q_MW"], unset=50.0), min=0.0, step=0.1,
-
+                    ui.number("Paux for Q_DT_eqv (MW)", value=finite_ui_number(inp["Paux_for_Q_MW"], unset=50.0), min=0.0, step=0.1,
                               on_change=lambda e: inp.__setitem__("Paux_for_Q_MW", e.value))
-
-                    ui.select(["DT", "DD"], label="Fuel mode", value=inp["fuel_mode"],
-
-                              on_change=lambda e: inp.__setitem__("fuel_mode", e.value))
+                ui.label("Fuel mode is set in Operating targets & solver.").classes("text-caption")
 
 
 

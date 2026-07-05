@@ -133,7 +133,7 @@ def build_point_inputs(session: DesignSession):
             "include_magnet_technology_authority_v400", True
         )),
         include_transport_envelope_v396=bool(session.overlay.get(
-            "include_transport_envelope_v396", True
+            "include_transport_envelope_v396", False
         )),
         include_profile_proxy_v397=bool(session.overlay.get("include_profile_proxy_v397", False)),
         include_tritium_tight_closure=bool(session.overlay.get("include_tritium_tight_closure", False)),

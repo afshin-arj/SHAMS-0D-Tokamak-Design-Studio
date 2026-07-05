@@ -1,6 +1,6 @@
 """Point Designer deck — NiceGUI Truth Console.
 
-Verdict-first layout: hero → Configure | Telemetry | Constraints tabs.
+Verdict-first layout: hero → Configure | Telemetry | Constraints workflow.
 Evaluate path: build_point_inputs → direct or solver → session store.
 """
 from __future__ import annotations
@@ -32,7 +32,8 @@ from ui_nicegui.session import DesignSession
 
 def _refresh_all() -> None:
     _render_hero.refresh()
-    _refresh_tabs.refresh()
+    _render_workflow.refresh()
+    _render_tab_body.refresh()
 
 
 def render_point_designer(session: DesignSession) -> None:
@@ -78,13 +79,16 @@ def render_point_designer(session: DesignSession) -> None:
                 value=session.pd_teaching_mode,
                 on_change=lambda e: (
                     setattr(session, "pd_teaching_mode", bool(e.value)),
-                    _refresh_workflow.refresh(),
+                    _render_workflow.refresh(),
                 ),
             )
             ui.switch(
                 "Expert view",
                 value=session.pd_expert_view,
-                on_change=lambda e: setattr(session, "pd_expert_view", bool(e.value)),
+                on_change=lambda e: (
+                    setattr(session, "pd_expert_view", bool(e.value)),
+                    _render_tab_body.refresh(),
+                ),
             )
 
     _render_workflow(session)
@@ -115,11 +119,20 @@ def render_point_designer(session: DesignSession) -> None:
                 ui.notify("Point evaluation complete. Open Telemetry for results.", type="positive")
                 session.pd_workflow_tab = "2 · Telemetry"
             else:
+                msg = "Solver did not fully meet targets"
+                if bool(out.get("_solver_clamped")) or bool(out.get("_solver_clamped_Q")):
+                    msg += " (clamped to bounds)"
                 ui.notify(
-                    "Solver did not fully converge — cached best-effort results. "
-                    "See Run history & export for trace.",
+                    f"{msg} — best-effort results cached. See Chronicle for trace.",
                     type="warning",
                 )
+            if mode in ("solver", "envelope"):
+                try:
+                    ip = float(session.inputs.get("Ip_MA", 0))
+                    fg = float(session.inputs.get("fG", 0))
+                    ui.notify(f"Solver set Ip={ip:.4g} MA, fG={fg:.4g}", type="info")
+                except (TypeError, ValueError):
+                    pass
             _refresh_all()
         except Exception as exc:
             session.last_error = str(exc)
@@ -132,7 +145,7 @@ def render_point_designer(session: DesignSession) -> None:
             refresh_status()
             refresh_helm()
 
-    _refresh_tabs(session, on_evaluate=_evaluate)
+    _render_tab_body(session, on_evaluate=_evaluate)
 
 
 @ui.refreshable
@@ -143,7 +156,7 @@ def _render_workflow(session: DesignSession) -> None:
         tab = DECISION_TO_TAB.get(state)
         if tab and session.pd_teaching_mode:
             session.pd_workflow_tab = tab
-            _refresh_tabs.refresh()
+            _render_tab_body.refresh()
 
     ui.select(
         DECISION_STATES,
@@ -164,7 +177,7 @@ def _render_workflow(session: DesignSession) -> None:
         value=session.pd_workflow_tab,
         on_change=lambda e: (
             setattr(session, "pd_workflow_tab", normalize_pd_tab(str(e.value))),
-            _refresh_tabs.refresh(),
+            _render_tab_body.refresh(),
         ),
     ).classes("w-full q-mb-xs")
     help_text = TAB_HELP.get(normalize_pd_tab(session.pd_workflow_tab), "")
@@ -182,23 +195,14 @@ def _render_hero(session: DesignSession) -> None:
 
 
 @ui.refreshable
-def _refresh_tabs(session: DesignSession, *, on_evaluate) -> None:
+def _render_tab_body(session: DesignSession, *, on_evaluate) -> None:
     tab_key = normalize_pd_tab(session.pd_workflow_tab)
-    tab_index = PD_TRUTH_TABS.index(tab_key) if tab_key in PD_TRUTH_TABS else 0
-
-    with ui.tabs().classes("w-full") as tabs:
-        t_cfg = ui.tab("Configure", icon="settings")
-        t_tel = ui.tab("Telemetry", icon="monitoring")
-        t_con = ui.tab("Constraints", icon="rule")
-
-    tab_refs = [t_cfg, t_tel, t_con]
-    with ui.tab_panels(tabs, value=tab_refs[tab_index]).classes("w-full"):
-        with ui.tab_panel(t_cfg):
-            render_configure(session, on_evaluate=on_evaluate)
-        with ui.tab_panel(t_tel):
-            render_telemetry(session)
-        with ui.tab_panel(t_con):
-            render_constraints(session)
+    if tab_key == "1 · Configure":
+        render_configure(session, on_evaluate=on_evaluate)
+    elif tab_key == "2 · Telemetry":
+        render_telemetry(session)
+    else:
+        render_constraints(session)
 
 
 def _set_subdeck(session: DesignSession, value: str) -> None:
