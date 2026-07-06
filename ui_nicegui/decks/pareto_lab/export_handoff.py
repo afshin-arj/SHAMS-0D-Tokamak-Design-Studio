@@ -6,6 +6,7 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
+from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.pareto_helpers import artifact_to_json_bytes, build_pareto_artifact
 from ui_nicegui.lib.pareto_interpret_helpers import (
     promote_point_inputs,
@@ -85,14 +86,21 @@ def render_export_tab(
         if i < 0 or i >= len(pareto):
             ui.notify("Invalid row", type="warning")
             return
-        focus = scan_lab_focus(pareto[i], bounds, pareto_last.get("objectives") or {})
+        focus = scan_lab_focus(
+            pareto[i],
+            bounds,
+            pareto_last.get("objectives") or {},
+            plot_x=session.pareto_plot_x,
+            plot_y=session.pareto_plot_y,
+        )
         session.scan_probe_focus = focus
         if focus.get("x_key"):
             session.scan_cart_x_key = str(focus["x_key"])
         if focus.get("y_key"):
             session.scan_cart_y_key = str(focus["y_key"])
         session.scan_workflow_step = "2 · Map & Probe"
-        ui.notify("Scan Lab focus set — open Scan Lab deck.", type="info")
+        switch_deck("Scan Lab")
+        ui.notify("Opened Scan Lab with Pareto focus.", type="info")
 
     ui.button("Hand off focus to Scan Lab", icon="map", on_click=_handoff_scan).props("flat outline")
 
@@ -102,6 +110,8 @@ def render_export_tab(
             ui.notify("Invalid row", type="warning")
             return
         session.systems_mode_queue = [systems_mode_handoff(pareto[i], bounds)]
-        ui.notify("Queued for Systems Mode — open System Suite.", type="info")
+        session.systems_workflow_step = "1 · Targets"
+        switch_deck("Systems Mode")
+        ui.notify("Opened Systems Mode with queued inputs.", type="info")
 
     ui.button("Queue for Systems Mode", icon="hub", on_click=_handoff_systems).props("flat outline")

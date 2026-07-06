@@ -5,8 +5,9 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
-from ui_nicegui.lib.pareto_helpers import OBJ_CATALOG
+from ui_nicegui.lib.pareto_helpers import FOCUS_METRIC_KEYS, OBJ_CATALOG, metric_label
 from ui_nicegui.lib.pareto_interpret_helpers import enrich_pareto_front, failure_atlas_points, robust_filtered
+from ui_nicegui.lib.pareto_labels import QUESTION_PRESETS, ROBUST_MARGIN_HELP
 from ui_nicegui.session import DesignSession
 
 
@@ -37,15 +38,46 @@ def render_explore_tab(
 
     ui.label("Frontier plot").classes("text-subtitle2")
     ui.label("Gray = infeasible shadow · Color = dominant constraint on Pareto points").classes("text-caption")
+    ui.markdown(ROBUST_MARGIN_HELP).classes("text-caption text-grey q-mb-xs")
+
+    preset_labels = list(QUESTION_PRESETS.keys())
+    if preset_labels:
+        def _apply_preset(e) -> None:
+            cfg = QUESTION_PRESETS.get(str(e.value), {})
+            if cfg.get("plot_x"):
+                session.pareto_plot_x = str(cfg["plot_x"])
+            if cfg.get("plot_y"):
+                session.pareto_plot_y = str(cfg["plot_y"])
+            if cfg.get("color"):
+                session.pareto_plot_color = str(cfg["color"])
+            if cfg.get("robust_only"):
+                session.pareto_robust_only = True
+            if cfg.get("show_failures"):
+                session.pareto_show_failures = True
+            if on_update:
+                on_update()
+
+        ui.select(preset_labels, label="Quick exploration lens", on_change=_apply_preset).classes("w-full q-mb-sm")
+
+    focus_opts = [k for k in FOCUS_METRIC_KEYS if any(k in p for p in (pareto + feasible))]
+    if not getattr(session, "pareto_focus_metrics", None):
+        session.pareto_focus_metrics = [k for k in ("Q_DT_eqv", "H98", "TBR") if k in focus_opts]
+    ui.select(
+        focus_opts or FOCUS_METRIC_KEYS,
+        label="Focus metrics (table + hover)",
+        value=[k for k in (session.pareto_focus_metrics or []) if k in (focus_opts or FOCUS_METRIC_KEYS)],
+        multiple=True,
+        on_change=lambda e: setattr(session, "pareto_focus_metrics", list(e.value or [])),
+    ).classes("w-full q-mb-sm")
 
     with ui.row().classes("w-full gap-2 items-end"):
         x_sel = ui.select(plot_keys, label="X axis", value=session.pareto_plot_x).classes("flex-1")
         y_sel = ui.select(plot_keys, label="Y axis", value=session.pareto_plot_y).classes("flex-1")
-        color_opts = ["dominant_constraint", "geography", "segment_id", "confidence", "(none)"] + obj_keys
+        color_opts = ["dominant_constraint", "intent", "geography", "segment_id", "confidence", "(none)"] + obj_keys
         c_val = session.pareto_plot_color if session.pareto_plot_color in color_opts else "dominant_constraint"
         c_sel = ui.select(color_opts, label="Color", value=c_val).classes("flex-1")
         robust_sw = ui.switch(
-            "Robust overlay only",
+            "Margin-robust overlay only",
             value=session.pareto_robust_only,
         ).classes("flex-none")
         fail_sw = ui.switch("Show failure atlas", value=session.pareto_show_failures).classes("flex-none")
@@ -82,10 +114,11 @@ def render_explore_tab(
         y_key,
         color_key,
         failure_pts=failure_atlas_points(all_samples, x_key, y_key) if session.pareto_show_failures else [],
+        focus_keys=list(session.pareto_focus_metrics or []),
     )
 
     ui.separator().classes("q-my-sm")
-    _render_table(enriched or plot_pareto or pareto, obj_keys)
+    _render_table(enriched or plot_pareto or pareto, obj_keys, list(session.pareto_focus_metrics or []))
 
 
 def _render_plot(
@@ -95,6 +128,7 @@ def _render_plot(
     color_key: str,
     *,
     failure_pts: list[dict],
+    focus_keys: list[str],
 ) -> None:
     if not pareto and not failure_pts:
         ui.label("Nothing to plot.").classes("text-caption")
@@ -121,6 +155,13 @@ def _render_plot(
         colors = None
         if color_key and color_key != "(none)":
             colors = [str(p.get(color_key) or "") for p in pareto]
+        hover_lines = []
+        for p in pareto:
+            parts = [f"dom: {p.get('dominant_constraint')}", f"margin: {p.get('min_constraint_margin')}"]
+            for fk in focus_keys:
+                if fk in p and p[fk] is not None:
+                    parts.append(f"{fk}: {p[fk]}")
+            hover_lines.append("<br>".join(parts))
         fig.add_trace(
             go.Scatter(
                 x=[p.get(x_key) for p in pareto],
@@ -128,7 +169,8 @@ def _render_plot(
                 mode="markers",
                 name="Pareto",
                 marker=dict(size=9, color=colors if colors and any(colors) else "#1976d2"),
-                text=[f"dom: {p.get('dominant_constraint')}" for p in pareto],
+                hovertext=hover_lines,
+                hoverinfo="text",
             )
         )
     xu = OBJ_CATALOG.get(x_key, {}).get("units", "-")
@@ -136,15 +178,16 @@ def _render_plot(
     fig.update_layout(
         height=420,
         margin=dict(l=48, r=20, t=36, b=48),
-        xaxis_title=f"{x_key} [{xu}]",
-        yaxis_title=f"{y_key} [{yu}]",
+        xaxis_title=metric_label(x_key) if x_key in OBJ_CATALOG else f"{x_key} [{xu}]",
+        yaxis_title=metric_label(y_key) if y_key in OBJ_CATALOG else f"{y_key} [{yu}]",
         legend=dict(orientation="h"),
     )
     ui.plotly(fig).classes("w-full")
 
 
-def _render_table(pareto: list[dict], obj_keys: list[str]) -> None:
-    cols = ["intent", "dominant_constraint", "min_constraint_margin", "geography", "freedom_left", "segment_id", "confidence"] + obj_keys[:8]
+def _render_table(pareto: list[dict], obj_keys: list[str], focus_keys: list[str]) -> None:
+    extra = [k for k in focus_keys if k not in obj_keys]
+    cols = ["intent", "dominant_constraint", "min_constraint_margin", "geography", "freedom_left", "segment_id", "confidence"] + obj_keys[:8] + extra[:6]
     rows = []
     for i, p in enumerate(pareto[:80]):
         row = {"idx": i}
@@ -155,8 +198,9 @@ def _render_table(pareto: list[dict], obj_keys: list[str]) -> None:
     if not rows:
         return
     ui.label(f"Pareto table ({len(pareto)} points, showing {len(rows)})").classes("text-subtitle2")
+    col_names = ["idx"] + [c for c in cols if c in rows[0]]
     ui.table(
-        columns=[{"name": k, "label": k, "field": k, "align": "left"} for k in ["idx"] + [c for c in cols if c in rows[0]]],
+        columns=[{"name": k, "label": metric_label(k) if k in OBJ_CATALOG else k, "field": k, "align": "left"} for k in col_names],
         rows=rows,
         row_key="idx",
         pagination={"rowsPerPage": 15},

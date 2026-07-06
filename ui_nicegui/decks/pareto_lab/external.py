@@ -131,6 +131,19 @@ def _robust_view(session: DesignSession) -> None:
             on_click=lambda: ui.download(report_to_json_bytes(res), "robust_pareto.json"),
         ).props("flat outline")
 
+        def _promote_robust() -> None:
+            pick = next((r for r in rows if str(r.get("tier")) == "ROBUST"), rows[0] if rows else None)
+            if not isinstance(pick, dict):
+                ui.notify("No row to promote", type="warning")
+                return
+            cand = pick.get("candidate") or pick
+            from ui_nicegui.lib.pareto_interpret_helpers import promote_point_inputs
+
+            promote_point_inputs(session, cand, session.pareto_bounds or {})
+            ui.notify("Promoted robust point to Point Designer inputs — evaluate there.", type="positive")
+
+        ui.button("Promote ROBUST point → Point Designer", icon="upload", on_click=_promote_robust).props("outline")
+
 
 def _render_regime_atlas(session: DesignSession) -> None:
     blob: dict = {"records": []}

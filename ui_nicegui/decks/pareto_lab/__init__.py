@@ -15,6 +15,7 @@ from ui_nicegui.decks.pareto_lab import (
     verdict,
 )
 from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
+from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.pareto_labels import (
     ALL_EXTERNAL as EXTERNAL_DECKS,
     DECISION_STATES,
@@ -43,32 +44,33 @@ def render_pareto_lab(session: DesignSession) -> None:
     render_mode_scope("pareto", default_open=False)
 
     _, _, point_out = get_point_artifact_triple(session)
-    if not isinstance(point_out, dict):
-        empty_state(
-            "Run **Point Designer → Evaluate Point** first — Pareto Lab uses that baseline.",
-            kind="info",
-        )
-        return
+    has_eval = isinstance(point_out, dict) and bool(point_out)
+    if not has_eval:
+        ui.badge(
+            "No Point Designer evaluation — using session baseline inputs",
+            color="orange",
+        ).props("outline").classes("q-mb-sm")
+    else:
+        with ui.row().classes("w-full items-center justify-between q-mb-sm"):
+            ui.label("Point evaluation loaded").classes("text-caption text-positive")
 
-    with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label("Point evaluation loaded").classes("text-caption text-positive")
-        with ui.row().classes("gap-4"):
-            ui.switch(
-                "Guided mode",
-                value=session.pareto_teaching_mode,
-                on_change=lambda e: (
-                    setattr(session, "pareto_teaching_mode", bool(e.value)),
-                    _render_tab_body.refresh(),
-                ),
-            )
-            ui.switch(
-                "Expert view",
-                value=session.pareto_expert_view,
-                on_change=lambda e: (
-                    setattr(session, "pareto_expert_view", bool(e.value)),
-                    _render_tab_body.refresh(),
-                ),
-            )
+    with ui.row().classes("w-full items-center justify-end gap-4 q-mb-sm"):
+        ui.switch(
+            "Guided mode",
+            value=session.pareto_teaching_mode,
+            on_change=lambda e: (
+                setattr(session, "pareto_teaching_mode", bool(e.value)),
+                _render_tab_body.refresh(),
+            ),
+        )
+        ui.switch(
+            "Expert view",
+            value=session.pareto_expert_view,
+            on_change=lambda e: (
+                setattr(session, "pareto_expert_view", bool(e.value)),
+                _render_tab_body.refresh(),
+            ),
+        )
 
     _render_dashboard(session)
 

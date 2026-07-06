@@ -85,3 +85,49 @@ def test_pareto_v2_enrichment_smoke() -> None:
     assert callable(explore.render_explore_tab)
     assert callable(interpret.render_interpret_tab)
     assert callable(export_handoff.render_export_tab)
+
+
+def test_frontier_posture_and_policy_filter() -> None:
+    from ui_nicegui.lib.pareto_helpers import frontier_posture
+    from ui_nicegui.lib.pareto_interpret_helpers import policy_filter_front
+
+    msg, tone = frontier_posture({"n_feasible": 0, "n_pareto": 0})
+    assert tone == "negative"
+    msg2, _ = frontier_posture({"n_feasible": 10, "n_pareto": 5, "confidence": "High"})
+    assert "High-confidence" in msg2
+
+    rows = [
+        {"TBR": 1.1, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0},
+        {"TBR": 0.8, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0},
+    ]
+    filtered = policy_filter_front(rows, tbr_min=1.0)
+    assert len(filtered) == 1
+
+
+def test_atlas_deck_name_matches_external_router() -> None:
+    from ui_nicegui.lib.pareto_labels import EXTERNAL_GROUPS
+
+    atlas_names = EXTERNAL_GROUPS.get("Atlas & narratives", [])
+    assert "Regime-Conditioned Pareto Atlas 2.0" in atlas_names
+    assert "Regime-Conditioned Pareto Atlas" not in atlas_names
+
+
+def test_objective_catalog_includes_fusion_metrics() -> None:
+    from ui_nicegui.lib.pareto_helpers import OBJ_CATALOG, metric_label
+
+    for key in ("H98", "Pfus_DT_adj_MW", "tauE_eff_s", "Paux_MW"):
+        assert key in OBJ_CATALOG
+    assert "confinement" in metric_label("H98").lower() or "H-mode" in metric_label("H98")
+
+
+def test_pareto_import_get_point_artifact_triple() -> None:
+    import importlib
+
+    mod = importlib.import_module("ui_nicegui.decks.pareto_lab")
+    src = importlib.import_module("inspect").getsource(mod.render_pareto_lab)
+    assert "get_point_artifact_triple" in src
+    from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+
+    s = DesignSession()
+    _, _, out = get_point_artifact_triple(s)
+    assert out is None or isinstance(out, dict)

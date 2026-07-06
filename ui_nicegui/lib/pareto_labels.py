@@ -16,7 +16,7 @@ EXTERNAL_GROUPS = {
         "Certified Optimization Orchestrator",
     ],
     "Atlas & narratives": [
-        "Regime-Conditioned Pareto Atlas",
+        "Regime-Conditioned Pareto Atlas 2.0",
         "Design Family Narratives",
     ],
     "Optimizers & evidence": [
@@ -78,6 +78,18 @@ PARETO_LOCK_LINE = (
     "**Pareto Lab is frozen** — trade-off cartography over feasible designs only. "
     "No optimization, relaxation, or recommendations."
 )
+
+ROBUST_MARGIN_HELP = (
+    "**Margin-robust overlay** filters Pareto points by `min_constraint_margin` ≥ threshold — "
+    "a local feasibility cushion, not Phase+UQ uncertainty robustness (use External Tools for that)."
+)
+
+QUESTION_PRESETS = {
+    "Where does robustness collapse?": {"color": "min_constraint_margin", "robust_only": True},
+    "Where is q_div limiting?": {"color": "dominant_constraint", "show_failures": True},
+    "Compare Reactor vs Research fronts": {"color": "intent"},
+    "Fusion power vs size": {"plot_x": "R0_m", "plot_y": "Pfus_DT_adj_MW"},
+}
 
 
 def normalize_pareto_tab(step: str) -> str:

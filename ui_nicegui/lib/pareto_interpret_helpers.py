@@ -120,13 +120,24 @@ def robust_filtered(pareto: list, thr: float) -> List[dict]:
 
 
 def promote_point_inputs(session, row: dict, bounds: dict) -> None:
-    """Merge pareto row decision vars into session.inputs."""
+    """Merge pareto row decision vars into session.inputs from full baseline."""
+    from dataclasses import asdict
+
+    base = session.build_point_inputs()
+    merged = asdict(base)
+    for k, v in row.items():
+        if k in merged and v is not None:
+            try:
+                merged[k] = float(v)
+            except (TypeError, ValueError):
+                pass
     for k in bounds:
         if k in row and row[k] is not None:
             try:
-                session.inputs[k] = float(row[k])
+                merged[k] = float(row[k])
             except (TypeError, ValueError):
                 pass
+    session.inputs = {k: merged[k] for k in merged}
 
 
 def systems_mode_handoff(row: dict, bounds: dict) -> dict:
@@ -142,17 +153,52 @@ def systems_mode_handoff(row: dict, bounds: dict) -> dict:
     return cand
 
 
-def scan_lab_focus(row: dict, bounds: dict, objectives: dict) -> dict:
-    xk = next(iter(bounds.keys()), "Ip_MA")
-    yk = list(bounds.keys())[1] if len(bounds) > 1 else "R0_m"
+def scan_lab_focus(
+    row: dict,
+    bounds: dict,
+    objectives: dict,
+    *,
+    plot_x: str = "",
+    plot_y: str = "",
+) -> dict:
+    obj_keys = list(objectives.keys()) if isinstance(objectives, dict) else []
+    xk = plot_x or (obj_keys[0] if obj_keys else next(iter(bounds.keys()), "Ip_MA"))
+    yk = plot_y or (obj_keys[1] if len(obj_keys) > 1 else (list(bounds.keys())[1] if len(bounds) > 1 else "R0_m"))
     return {
         "x_key": xk,
         "y_key": yk,
         "x": float(row.get(xk)) if row.get(xk) is not None else None,
         "y": float(row.get(yk)) if row.get(yk) is not None else None,
-        "objectives": list(objectives.keys()),
+        "objectives": obj_keys,
+        "dominant_constraint": row.get("dominant_constraint"),
+        "min_constraint_margin": row.get("min_constraint_margin"),
         "source": "Pareto Lab",
     }
+
+
+def policy_filter_front(
+    pareto: list,
+    *,
+    tbr_min: float | None = None,
+    qdiv_max: float | None = None,
+    sigma_max: float | None = None,
+) -> List[dict]:
+    out: List[dict] = []
+    for p in _rows_to_dicts(pareto):
+        if tbr_min is not None:
+            tbr = float(p.get("TBR", float("nan")))
+            if tbr != tbr or tbr < float(tbr_min):
+                continue
+        if qdiv_max is not None:
+            qd = float(p.get("q_div_MW_m2", float("nan")))
+            if qd != qd or qd > float(qdiv_max):
+                continue
+        if sigma_max is not None:
+            sig = float(p.get("sigma_vm_MPa", float("nan")))
+            if sig != sig or sig > float(sigma_max):
+                continue
+        out.append(p)
+    return out
 
 
 def restore_pareto_artifact(payload: dict) -> dict:
@@ -234,7 +280,7 @@ def trade_narrative(pareto_last: dict) -> str:
     return "\n".join(lines)
 
 
-def objective_sanity_warnings(objectives: dict, intent_mode: str) -> List[str]:
+def objective_sanity_warnings(objectives: dict, intent_mode: str, pareto_last: dict | None = None) -> List[str]:
     warns: List[str] = []
     keys = list(objectives.keys()) if isinstance(objectives, dict) else []
     if any(str(k).upper().startswith("TBR") for k in keys) and str(intent_mode).startswith("Research"):
@@ -245,6 +291,19 @@ def objective_sanity_warnings(objectives: dict, intent_mode: str) -> List[str]:
         warns.append("Net electric power is usually not a Research driver — confirm this objective is meaningful.")
     if len(set(keys)) != len(keys):
         warns.append("Duplicate objective keys detected.")
+    if "Q_DT_eqv" in keys:
+        bounds = (pareto_last or {}).get("bounds") or {}
+        if "Paux_MW" not in bounds:
+            warns.append(
+                "Q is an objective but Paux is not in sampling bounds — Q trade-offs may be misleading."
+            )
+    if "Bt_T" in keys and "B_peak_T" in keys:
+        warns.append("Both on-axis Bt and peak B are objectives — they are correlated; confirm both are needed.")
+    nan_rates = pareto_last.get("_nan_objective_rates") if isinstance(pareto_last, dict) else None
+    if isinstance(nan_rates, dict):
+        for k, rate in nan_rates.items():
+            if rate > 0.5:
+                warns.append(f"Objective {k} is NaN in >50% of feasible rows — check evaluator outputs.")
     return warns
 
 

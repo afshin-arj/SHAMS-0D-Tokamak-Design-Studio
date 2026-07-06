@@ -127,6 +127,35 @@ def dominates(a: Dict[str, float], b: Dict[str, float], objectives: Dict[str, st
     return better_or_equal and strictly_better
 
 
+"""Pareto row metrics projected from evaluator outputs (sequential/parallel parity)."""
+
+_PARETO_METRIC_KEYS = (
+    "Q_DT_eqv",
+    "H98",
+    "B_peak_T",
+    "P_e_net_MW",
+    "t_flat_s",
+    "q_div_MW_m2",
+    "sigma_vm_MPa",
+    "hts_margin_cs",
+    "TBR",
+    "Pfus_DT_adj_MW",
+    "tauE_eff_s",
+    "beta_N",
+    "P_recirc_MW",
+)
+
+
+def _pareto_row_metrics(out: dict) -> dict:
+    row: dict = {}
+    for k in _PARETO_METRIC_KEYS:
+        row[k] = float(out.get(k, float("nan")))
+    hts_cs = row.get("hts_margin_cs", float("nan"))
+    if hts_cs != hts_cs and out.get("hts_margin") is not None:
+        row["hts_margin_cs"] = float(out.get("hts_margin", float("nan")))
+    return row
+
+
 def _pareto_worker(payload):
     """Worker-safe evaluation for pareto sampling (pickleable)."""
     base_dict = payload["base"]
@@ -156,15 +185,7 @@ def _pareto_worker(payload):
         "first_failure": str(dom) if not bool(is_feas) else "",
         "dominant_constraint": str(dom),
         "min_constraint_margin": float(mmin),
-"q_div_MW_m2": float(out.get("q_div_MW_m2", float("nan"))),
-"sigma_vm_MPa": float(out.get("sigma_vm_MPa", float("nan"))),
-"hts_margin_cs": float(out.get("hts_margin_cs", float("nan"))),
-"TBR": float(out.get("TBR", float("nan"))),
-        "Q_DT_eqv": float(out.get("Q_DT_eqv", float("nan"))),
-        "H98": float(out.get("H98", float("nan"))),
-        "B_peak_T": float(out.get("B_peak_T", float("nan"))),
-        "P_e_net_MW": float(out.get("P_e_net_MW", float("nan"))),
-        "t_flat_s": float(out.get("t_flat_s", float("nan"))),
+        **_pareto_row_metrics(out),
     })
     return row
 
@@ -325,11 +346,7 @@ def pareto_optimize(
                 "first_failure": str(dom) if not bool(is_feas) else "",
                 "dominant_constraint": str(dom),
                 "min_constraint_margin": float(mmin),
-                "Q_DT_eqv": float(out.get("Q_DT_eqv", float("nan"))),
-                "H98": float(out.get("H98", float("nan"))),
-                "B_peak_T": float(out.get("B_peak_T", float("nan"))),
-                "P_e_net_MW": float(out.get("P_e_net_MW", float("nan"))),
-                "t_flat_s": float(out.get("t_flat_s", float("nan"))),
+                **_pareto_row_metrics(out),
             })
             all_rows.append(row)
             if bool(is_feas):

@@ -5,12 +5,14 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
+from ui_nicegui.lib.pareto_helpers import FOCUS_METRIC_KEYS, metric_label
 from ui_nicegui.lib.pareto_interpret_helpers import (
     enrich_pareto_front,
     explain_why_not,
     interaction_matrix,
     knee_candidates,
     objective_sanity_warnings,
+    policy_filter_front,
     redundancy_pairs,
     sampling_honesty,
     trade_narrative,
@@ -41,7 +43,9 @@ def render_interpret_tab(
     ui.label("Trade-off audit").classes("text-subtitle2")
     ui.markdown(trade_narrative(pareto_last)).classes("text-caption")
 
-    warns = objective_sanity_warnings(objectives, str(pareto_last.get("intent_mode") or session.pareto_intent_mode))
+    warns = objective_sanity_warnings(
+        objectives, str(pareto_last.get("intent_mode") or session.pareto_intent_mode), pareto_last
+    )
     with ui.expansion("Objective sanity (warnings only)", icon="rule", value=bool(warns)).classes("w-full"):
         if warns:
             for w in warns:
@@ -110,17 +114,56 @@ def render_interpret_tab(
 
     knees = knee_candidates(pareto, x_key, y_key)
     if knees:
-        ui.label("Knee region candidates").classes("text-subtitle2 q-mt-md")
+        ui.label("Knee region candidates (descriptive — not recommendations)").classes("text-subtitle2 q-mt-md")
         rows = [
             {"rank": i, **{k: p.get(k) for k in obj_keys[:4]}, "knee_score": p.get("knee_score")}
             for i, p in enumerate(knees)
         ]
         ui.table(
             columns=[{"name": "rank", "label": "#", "field": "rank"}, {"name": "knee_score", "label": "score", "field": "knee_score"}]
-            + [{"name": k, "label": k, "field": k} for k in obj_keys[:4]],
+            + [{"name": k, "label": metric_label(k), "field": k} for k in obj_keys[:4]],
             rows=rows,
             row_key="rank",
         ).classes("w-full")
+
+    with ui.expansion("Policy lens (filter front by thresholds)", icon="filter_alt").classes("w-full q-mt-md"):
+        tbr_min = ui.number("TBR min", value=1.0, step=0.05).classes("w-32")
+        qdiv_max = ui.number("q_div max [MW/m²]", value=15.0, step=0.5).classes("w-36")
+        sigma_max = ui.number("σ_vm max [MPa]", value=600.0, step=10.0).classes("w-36")
+
+        def _apply_policy() -> None:
+            filtered = policy_filter_front(
+                pareto,
+                tbr_min=float(tbr_min.value) if tbr_min.value is not None else None,
+                qdiv_max=float(qdiv_max.value) if qdiv_max.value is not None else None,
+                sigma_max=float(sigma_max.value) if sigma_max.value is not None else None,
+            )
+            ui.notify(f"Policy filter: {len(filtered)}/{len(pareto)} Pareto points pass", type="info")
+            session.pareto_policy_filtered = filtered
+            _policy_table.refresh()
+
+        ui.button("Apply policy filter", icon="filter_list", on_click=_apply_policy).props("outline q-mb-sm")
+        _policy_table(session)
+
+    if pareto:
+        with ui.expansion("Point inspector", icon="search", value=session.pareto_teaching_mode).classes("w-full q-mt-md"):
+            idx = ui.number("Pareto index", value=0, min=0, max=max(len(pareto) - 1, 0), step=1).classes("w-32")
+            focus = [k for k in (session.pareto_focus_metrics or FOCUS_METRIC_KEYS) if k in (pareto[0] or {})]
+
+            @ui.refreshable
+            def _inspect() -> None:
+                i = int(idx.value or 0)
+                if i < 0 or i >= len(pareto):
+                    return
+                p = pareto[i]
+                lines = [f"**Dominant:** {p.get('dominant_constraint')} · margin {p.get('min_constraint_margin')}"]
+                for fk in focus:
+                    if fk in p:
+                        lines.append(f"- {metric_label(fk)}: {p.get(fk)}")
+                ui.markdown("\n".join(lines))
+
+            idx.on("update:model-value", lambda: _inspect.refresh())
+            _inspect()
 
     ui.separator().classes("q-my-sm")
     ui.label("Run metadata").classes("text-subtitle2")
@@ -132,3 +175,21 @@ def render_interpret_tab(
         "top_constraint": summary.get("top_constraint"),
         "confidence": summary.get("confidence"),
     })
+
+
+@ui.refreshable
+def _policy_table(session: DesignSession) -> None:
+    rows = getattr(session, "pareto_policy_filtered", None)
+    if not isinstance(rows, list) or not rows:
+        return
+    ui.label(f"Policy-filtered front ({len(rows)} points)").classes("text-caption")
+    ui.table(
+        columns=[
+            {"name": "dominant_constraint", "label": "Dominant", "field": "dominant_constraint"},
+            {"name": "TBR", "label": "TBR", "field": "TBR"},
+            {"name": "q_div_MW_m2", "label": "q_div", "field": "q_div_MW_m2"},
+            {"name": "sigma_vm_MPa", "label": "σ_vm", "field": "sigma_vm_MPa"},
+        ],
+        rows=rows[:30],
+        row_key="dominant_constraint",
+    ).classes("w-full")

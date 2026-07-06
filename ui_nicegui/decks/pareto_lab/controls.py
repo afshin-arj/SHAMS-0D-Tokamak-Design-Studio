@@ -10,8 +10,11 @@ from ui_nicegui.lib.pareto_helpers import (
     OBJ_TEMPLATES,
     default_bounds,
     default_objective_sense,
+    frontier_posture,
+    metric_label,
     run_pareto_study,
 )
+from ui_nicegui.lib.pareto_labels import ROBUST_MARGIN_HELP
 from ui_nicegui.session import DesignSession
 
 
@@ -39,6 +42,11 @@ def render_pareto_controls(
             ui.number("Ip max [MA]", value=b["Ip_MA"][1], step=0.1, on_change=lambda e: _set_bound(session, "Ip_MA", 1, e.value)).classes("flex-1")
             ui.number("fG min [-]", value=b["fG"][0], step=0.05, on_change=lambda e: _set_bound(session, "fG", 0, e.value)).classes("flex-1")
             ui.number("fG max [-]", value=b["fG"][1], step=0.05, on_change=lambda e: _set_bound(session, "fG", 1, e.value)).classes("flex-1")
+        if "Paux_MW" in b:
+            with ui.row().classes("w-full gap-2 q-mt-sm"):
+                ui.number("Paux min [MW]", value=b["Paux_MW"][0], step=1.0, on_change=lambda e: _set_bound(session, "Paux_MW", 0, e.value)).classes("flex-1")
+                ui.number("Paux max [MW]", value=b["Paux_MW"][1], step=1.0, on_change=lambda e: _set_bound(session, "Paux_MW", 1, e.value)).classes("flex-1")
+            ui.label("Vary Paux when Q or net-electric objectives are active.").classes("text-caption text-grey")
 
     obj_ctx = ui.column().classes("w-full q-mt-sm") if flat else ui.expansion(
         "Objective contract", icon="rule", value=True
@@ -66,12 +74,12 @@ def render_pareto_controls(
         _render_objective_senses(session)
         with ui.row().classes("w-full gap-4"):
             ui.number(
-                "Robust margin threshold",
+                "Margin-robust threshold",
                 value=session.pareto_robust_margin_thr,
                 min=0.0,
                 step=0.05,
                 on_change=lambda e: setattr(session, "pareto_robust_margin_thr", float(e.value or 0.1)),
-            ).classes("flex-1")
+            ).classes("flex-1").tooltip("Min constraint margin filter for robust overlay — not UQ")
             ui.number(
                 "Samples",
                 value=session.pareto_n_samples,
@@ -88,6 +96,7 @@ def render_pareto_controls(
             ).classes("flex-1")
         if len(session.pareto_sel_objs) < 2:
             ui.label("Select at least 2 objectives for a meaningful Pareto front.").classes("text-orange")
+        ui.markdown(ROBUST_MARGIN_HELP).classes("text-caption text-grey q-mt-xs")
 
     if session.pareto_running:
         ui.linear_progress(show_value=False).props("indeterminate").classes("w-full q-my-sm")
@@ -121,6 +130,7 @@ def render_pareto_controls(
                 f"{summary.get('n_pareto', 0)} Pareto points",
                 type="positive",
             )
+            _post_run_verdict.refresh()
             if on_complete:
                 on_complete()
         except Exception as exc:
@@ -132,6 +142,26 @@ def render_pareto_controls(
     btn = ui.button("Run Pareto (feasible-only)", icon="play_arrow", on_click=_run).props("color=primary")
     if session.pareto_running or len(session.pareto_sel_objs) < 2:
         btn.props("disable")
+    _post_run_verdict(session)
+
+
+@ui.refreshable
+def _post_run_verdict(session: DesignSession) -> None:
+    rep = session.pareto_last
+    if not isinstance(rep, dict):
+        return
+    summary = rep.get("summary") or {}
+    if not summary:
+        return
+    posture, _ = frontier_posture(summary)
+    ui.separator().classes("q-my-sm")
+    ui.label("Last run verdict").classes("text-subtitle2")
+    ui.label(posture).classes("text-body2")
+    why = rep.get("summary", {})
+    ui.label(
+        f"Feasible {why.get('n_feasible', '-')} · Pareto {why.get('n_pareto', '-')} · "
+        f"Top limiter: {why.get('top_constraint', '-')} — open **Explore Frontier** to plot."
+    ).classes("text-caption text-grey")
 
 
 def _resolved_bounds(session: DesignSession, defaults: dict) -> dict:
@@ -181,13 +211,13 @@ def _render_objective_senses(session: DesignSession) -> None:
     with ui.row().classes("w-full gap-2 flex-wrap"):
         for k in session.pareto_sel_objs:
             sense = session.pareto_obj_senses.get(k, default_objective_sense(k))
-            ui.toggle(
-                ["min", "max"],
-                value=sense,
-                on_change=lambda e, key=k: _set_sense(session, key, str(e.value)),
-            ).props("dense").classes("flex-none").tooltip(
-                f"{k} [{OBJ_CATALOG.get(k, {}).get('units', '-')}]"
-            )
+            with ui.column().classes("flex-none"):
+                ui.toggle(
+                    ["min", "max"],
+                    value=sense,
+                    on_change=lambda e, key=k: _set_sense(session, key, str(e.value)),
+                ).props("dense").tooltip(metric_label(k))
+                ui.label(OBJ_CATALOG.get(k, {}).get("desc", k)).classes("text-caption text-grey")
 
 
 def _set_sense(session: DesignSession, key: str, sense: str) -> None:

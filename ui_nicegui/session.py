@@ -240,6 +240,8 @@ class DesignSession:
     pareto_plot_color: str = "dominant_constraint"
     pareto_robust_only: bool = False
     pareto_show_failures: bool = True
+    pareto_focus_metrics: list[str] = field(default_factory=lambda: ["Q_DT_eqv", "H98", "TBR"])
+    pareto_policy_filtered: Optional[list[dict[str, Any]]] = None
     pareto_external_group: str = "Robust screening"
     pareto_external_tool: str = "Robust Pareto Frontier (Phase+UQ)"
     feasible_optimizer_last: Optional[dict[str, Any]] = None
