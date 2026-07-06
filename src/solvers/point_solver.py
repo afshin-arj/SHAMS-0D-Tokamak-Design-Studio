@@ -218,6 +218,7 @@ def solve_Ip_for_H98_with_Q_match(
             max_iter=40,
             tol=float(tol),
             damping=0.6,
+            Paux_for_Q_MW=Paux_for_Q_MW,
         )
         out_c = dict(res.out)
         out_c["_solver"] = {

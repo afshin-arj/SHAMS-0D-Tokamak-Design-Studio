@@ -26,6 +26,7 @@ def solve_sparc_envelope(
     x0: Optional[Dict[str, float]] = None,
     tol: float = 1e-3,
     max_iter: int = 30,
+    Paux_for_Q_MW: float | None = None,
 ):
     """High-level SPARC-like design envelope solve.
 
@@ -63,5 +64,15 @@ def solve_sparc_envelope(
         x0v = float(x0.get(v, getattr(base, v)))
         variables[v] = (x0v, float(lo), float(hi))
 
-    res = solve_for_targets(base=base, targets=targets, variables=variables, max_iter=max_iter, tol=tol)
-    return res.inp, res.out, res.ok, res.message
+    res = solve_for_targets(
+        base=base,
+        targets=targets,
+        variables=variables,
+        max_iter=max_iter,
+        tol=tol,
+        Paux_for_Q_MW=Paux_for_Q_MW,
+    )
+    out = dict(res.out)
+    if res.trace:
+        out["_solver_trace"] = list(res.trace)
+    return res.inp, out, res.ok, res.message

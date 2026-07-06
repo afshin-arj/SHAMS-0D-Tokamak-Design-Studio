@@ -6,6 +6,7 @@ from nicegui import ui
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.verdict_banner import verdict_banner
+from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes, hero_kpi_cells
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 
@@ -40,15 +41,34 @@ def render_hero(session: DesignSession) -> None:
 
     verdict_banner(summary["verdict"], detail=detail)
 
-    h98 = headline.get("H98", out.get("H98"))
-    pnet = headline.get("P_net_e_MW", out.get("P_net_e_MW"))
+    fuel_mode = str(session.inputs.get("fuel_mode", "DT"))
+    cells = hero_kpi_cells(
+        out,
+        summary,
+        design_intent=str(session.design_intent),
+        fuel_mode=fuel_mode,
+        headline=headline,
+    )
+    kpi_row([(c.label, c.display) for c in cells])
+
+    for note in hero_diagnostic_notes(
+        out,
+        summary,
+        design_intent=str(session.design_intent),
+        fuel_mode=fuel_mode,
+        headline=headline,
+    ):
+        ui.label(note).classes("text-caption text-orange q-mt-xs")
+
+    suppressed = [c for c in cells if c.suppressed and c.raw_value is not None]
+    if suppressed:
+        with ui.expansion("Raw headline diagnostics (infeasible closure)", icon="science").classes(
+            "w-full q-mt-xs"
+        ):
+            for c in suppressed:
+                ui.label(f"{c.label}: {_fmt_num(c.raw_value)}").classes("text-caption text-grey")
+
     closure = rs.get("power_closure_MW")
-    kpi_row([
-        ("Performance", summary["q_label"]),
-        ("H98(y,2)", _fmt_num(h98)),
-        ("P_net,e", f"{_fmt_num(pnet)} MW" if pnet is not None else "n/a"),
-        ("Triple product proxy", summary["nt_label"]),
-    ])
     if closure == closure:
         ui.label(f"Power closure Pin−Ploss ≈ {_fmt_num(closure)} MW (diagnostic)").classes(
             "text-caption text-grey"
@@ -65,7 +85,7 @@ def render_hero(session: DesignSession) -> None:
             ui.label(
                 "Solver clamped to bounds — targets may not be fully met. See Configure target table."
             ).classes("text-caption text-orange q-mt-xs")
-        elif h98_a is not None and q_a is not None:
+        elif h98_a is not None and q_a is not None and summary.get("feasible"):
             ui.label(
                 f"Solver targets: H98={_fmt_num(h98_t)} → {_fmt_num(h98_a)}, "
                 f"Q={_fmt_num(q_t)} → {_fmt_num(q_a)}"

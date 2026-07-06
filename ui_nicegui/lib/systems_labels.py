@@ -66,7 +66,7 @@ TEACHING_HINTS = {
 
 
 def teaching_banner(session) -> str | None:
-    if not getattr(session, "systems_teaching_mode", False):
+    if not getattr(session, "systems_teaching_mode", True):
         return None
     state = str(getattr(session, "systems_decision_state", DECISION_STATES[0]))
     hint = TEACHING_HINTS.get(state, TEACHING_HINTS[DECISION_STATES[0]])

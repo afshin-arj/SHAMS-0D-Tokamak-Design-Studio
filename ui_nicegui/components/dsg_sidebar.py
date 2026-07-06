@@ -7,6 +7,7 @@ from nicegui import ui
 
 from ui.dsg_panel import build_active_node_markdown, _short
 from ui_nicegui.components.helm_theme import helm_dark_props
+from ui_nicegui.lib.deck_dsg_hooks import normalize_edge_kind
 from ui_nicegui.lib.dsg_session import ensure_dsg, save_dsg_best_effort
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.session import DesignSession
@@ -64,11 +65,16 @@ def render_dsg_sidebar(session: DesignSession) -> None:
             value=bool(session.dsg_edge_kind_auto),
             on_change=lambda e: setattr(session, "dsg_edge_kind_auto", bool(e.value)),
         )
+        edge_kind = normalize_edge_kind(session.dsg_context_edge_kind)
+        if edge_kind != session.dsg_context_edge_kind:
+            session.dsg_context_edge_kind = edge_kind
         ui.select(
             _EDGE_KINDS,
             label="Lineage edge kind for new evaluations",
-            value=session.dsg_context_edge_kind,
-            on_change=lambda e: setattr(session, "dsg_context_edge_kind", str(e.value)),
+            value=edge_kind,
+            on_change=lambda e: setattr(
+                session, "dsg_context_edge_kind", normalize_edge_kind(str(e.value))
+            ),
         ).props(helm_dark_props("disable" if session.dsg_edge_kind_auto else "")).classes("w-full")
 
         sel = session.dsg_selected_node_id or default_id

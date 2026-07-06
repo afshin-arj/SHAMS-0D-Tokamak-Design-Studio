@@ -630,11 +630,11 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
     if not ctx.session.suite_parity_suite:
         ctx.session.suite_parity_suite = "v364"
     suite_in = ui.input(
-        "Benchmark suite ID",
+        "Benchmark suite name",
         value=ctx.session.suite_parity_suite,
         on_change=lambda e: setattr(ctx.session, "suite_parity_suite", str(e.value or "v364")),
     ).classes("w-full")
-    ui.label("Suite ID selects case files under repository benchmarks.").classes("text-caption")
+    ui.label("Internal suite key selects case files under repository benchmarks (e.g. standard parity pack).").classes("text-caption")
     suite_internal = str(ctx.session.suite_parity_suite or "v364")
     preset = ui.select(["C8", "C16", "C32"], label="Profile preset", value=ctx.session.suite_parity_preset or "C8")
     tier = ui.select(["optimistic", "robust", "both"], label="Profile tier", value=ctx.session.suite_parity_tier or "both")

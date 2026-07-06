@@ -16,8 +16,8 @@ _DEFAULT_INPUTS: dict[str, Any] = {
     "fG": 0.8,
     "Paux_MW": 50.0,
     "Paux_for_Q_MW": 50.0,
-    "Ti_over_Te": 1.0,
-    "t_shield_m": 0.8,
+    "Ti_over_Te": 2.0,
+    "t_shield_m": 0.70,
     "q95_enforcement": "hard",
     "greenwald_enforcement": "hard",
     "tech_tier": "TRL7",
@@ -124,7 +124,7 @@ class DesignSession:
     systems_sensitivities_last: Optional[dict[str, Any]] = None
     systems_fs_multiseed_n: int = 0
     systems_decision_state: str = "Diagnose infeasibility"
-    systems_teaching_mode: bool = False
+    systems_teaching_mode: bool = True
     systems_recovery_seed_mode: str = "Point Designer baseline"
     systems_recovery_basevars_enabled: bool = False
     systems_recovery_basevars: list[str] = field(default_factory=list)

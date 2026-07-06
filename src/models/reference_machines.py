@@ -23,7 +23,9 @@ REFERENCE_MACHINES: Dict[str, Dict[str, Any]] = {
         "kappa": 1.8,
         "Bt_T": 12.2,
         "Ip_MA": 8.0,
-        "Ti_keV": 15.0,
+        # 0-D closure point at Paux=20 MW (Q_DT_eqv ~1.7, implied H98 ~1.9).
+        # Peak-performance Ti~15 keV is a separate target — use solver mode or raise Ti explicitly.
+        "Ti_keV": 4.0,
         "fG": 0.8,
         "Paux_MW": 20.0,
         "t_shield_m": 0.25,

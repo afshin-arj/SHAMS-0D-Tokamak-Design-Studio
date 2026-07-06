@@ -107,6 +107,9 @@ def compute_pd_inputs_fingerprint(session: DesignSession) -> Dict[str, Any]:
         "overlay": {k: session.overlay.get(k) for k in sorted(session.overlay.keys())},
         "knobs": {k: session.knobs.get(k) for k in sorted(session.knobs.keys())},
         "pd_confidence": str(session.knobs.get("pd_confidence", "Nominal")),
+        "calib_confinement": _sf(getattr(session, "calib_confinement", 1.0)),
+        "calib_divertor": _sf(getattr(session, "calib_divertor", 1.0)),
+        "calib_bootstrap": _sf(getattr(session, "calib_bootstrap", 1.0)),
     }
     if str(session.pd_eval_mode) == "envelope":
         fp["pd_pfus_target"] = _sf(session.pd_pfus_target)
@@ -161,12 +164,19 @@ def _solver_event_iter(session: DesignSession, base) -> Iterator[Dict[str, Any]]
             bounds=bounds,
             tol=float(session.pd_solver_tol),
             max_iter=40,
+            Paux_for_Q_MW=session.paux_for_q,
         )
 
         def _env_events() -> Iterator[Dict[str, Any]]:
+            trace = out_env.get("_solver_trace") or []
+            for i, row in enumerate(trace):
+                if isinstance(row, dict):
+                    ev = dict(row)
+                    ev.setdefault("iter", i)
+                    yield ev
             yield {
                 "event": "iter",
-                "iter": 0,
+                "iter": len(trace),
                 "Ip_MA": sol_inp.Ip_MA,
                 "fG": sol_inp.fG,
                 "H98": out_env.get("H98", float("nan")),
@@ -175,6 +185,39 @@ def _solver_event_iter(session: DesignSession, base) -> Iterator[Dict[str, Any]]
             yield {"event": "done", "sol": sol_inp, "out": out_env, "ok": ok_env, "message": msg_env}
 
         return _env_events()
+
+    if mode == "solver":
+        sol_inp, out, ok = solve_Ip_for_H98_with_Q_match(
+            base,
+            target_H98=float(session.pd_h98_target),
+            target_Q=float(session.pd_q_target),
+            Ip_min=float(session.pd_ip_min),
+            Ip_max=float(session.pd_ip_max),
+            fG_min=float(session.pd_fg_min),
+            fG_max=float(session.pd_fg_max),
+            tol=float(session.pd_solver_tol),
+            Paux_for_Q_MW=session.paux_for_q,
+        )
+
+        def _coupled_events() -> Iterator[Dict[str, Any]]:
+            meta = out.get("_solver") if isinstance(out.get("_solver"), dict) else {}
+            for i, row in enumerate(meta.get("trace") or []):
+                if isinstance(row, dict):
+                    ev = dict(row)
+                    ev.setdefault("iter", i)
+                    yield ev
+            yield {
+                "event": "iter",
+                "iter": 0,
+                "Ip_MA": getattr(sol_inp, "Ip_MA", float("nan")),
+                "fG": getattr(sol_inp, "fG", float("nan")),
+                "H98": out.get("H98", float("nan")),
+                "Q": out.get("Q_DT_eqv", float("nan")),
+            }
+            yield {"event": "done", "sol": sol_inp, "out": out, "ok": ok}
+
+        return _coupled_events()
+
     return solve_Ip_for_H98_with_Q_match_stream(
         base=base,
         target_H98=float(session.pd_h98_target),
@@ -236,15 +279,15 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
                 okb = bool(ev.get("ok"))
                 _log_append(
                     log_lines,
-                    f"BRACKET: H98(Ip_lo)={ev.get('H98_lo'):.6g}, H98(Ip_hi)={ev.get('H98_hi'):.6g} -> "
+                    f"BRACKET: H98(Ip_lo)={_sf(ev.get('H98_lo')):.6g}, H98(Ip_hi)={_sf(ev.get('H98_hi')):.6g} -> "
                     f"{'OK' if okb else 'NO_BRACKET'}",
                 )
                 trace.append(dict(ev))
             elif evt == "iter":
                 _log_append(
                     log_lines,
-                    f"ITER {int(ev.get('iter', 0)):>3d}: Ip={ev.get('Ip_MA'):.8g} MA, fG={ev.get('fG'):.8g}, "
-                    f"H98={ev.get('H98'):.8g}, Q={ev.get('Q'):.8g}, residual={ev.get('residual'):.8g}",
+                    f"ITER {int(ev.get('iter', 0)):>3d}: Ip={_sf(ev.get('Ip_MA')):.8g} MA, fG={_sf(ev.get('fG')):.8g}, "
+                    f"H98={_sf(ev.get('H98')):.8g}, Q={_sf(ev.get('Q')):.8g}, residual={_sf(ev.get('residual')):.8g}",
                 )
                 trace.append({
                     "iter": ev.get("iter"),
@@ -270,10 +313,10 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
                 _log_append(log_lines, f"FAIL: {ev.get('reason', 'solver_failed')}")
                 trace.append(dict(ev))
 
-        if not ok:
-            _log_append(log_lines, "Fallback: coupled Ip/fG solve (H98 + Q_DT_eqv).")
-            sol_inp, out, ok = solve_Ip_for_H98_with_Q_match(
-                base,
+        if not ok and mode == "solver":
+            _log_append(log_lines, "Fallback: nested Ip/fG bisection (H98 + Q_DT_eqv).")
+            for ev in solve_Ip_for_H98_with_Q_match_stream(
+                base=base,
                 target_H98=float(session.pd_h98_target),
                 target_Q=float(session.pd_q_target),
                 Ip_min=float(session.pd_ip_min),
@@ -282,8 +325,15 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
                 fG_max=float(session.pd_fg_max),
                 tol=float(session.pd_solver_tol),
                 Paux_for_Q_MW=session.paux_for_q,
-            )
-            ok = _solver_success(out, ok)
+            ):
+                evt = str(ev.get("event", ""))
+                if evt == "done":
+                    sol_inp = ev.get("sol") or base
+                    out = dict(ev.get("out") or {})
+                    ok = _solver_success(out, bool(ev.get("ok", True)))
+                elif evt == "fail":
+                    ok = False
+            ok = _solver_success(out, ok) if isinstance(out, dict) else ok
     else:
         _log_append(log_lines, "Direct frozen-point evaluate (no solver)")
         out = ui_evaluate(sol_inp, origin="NiceGUI:Point Designer", Paux_for_Q_MW=session.paux_for_q)

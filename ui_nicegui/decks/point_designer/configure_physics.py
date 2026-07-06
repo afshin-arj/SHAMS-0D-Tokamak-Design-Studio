@@ -58,7 +58,7 @@ def _set_overlay(session: DesignSession, key: str, value: bool) -> None:
 
 
 def render_model_options(session: DesignSession, *, embedded: bool = False) -> None:
-    """Confinement scaling, transport/profile authorities (v371/v396/v397/v372/v358/v349)."""
+    """Confinement scaling, transport/profile authority overlays."""
     inp = session.inputs
     title, icon, help_text = CONFIGURE_SECTIONS["model_options"]
 
@@ -78,7 +78,7 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
         with ui.expansion("Transport feasibility contracts", icon="route").classes("w-full"):
             en = _overlay(session, "include_transport_contracts_v371", False)
             ui.checkbox(
-                "Enable transport contract diagnostics (v371)",
+                "Enable transport feasibility contract diagnostics",
                 value=en,
                 on_change=lambda e: _set_overlay(session, "include_transport_contracts_v371", e.value),
             )
@@ -104,7 +104,7 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
         with ui.expansion("Multi-scaling confinement envelope", icon="stacked_line_chart").classes("w-full"):
             en396 = _overlay(session, "include_transport_envelope_v396", True)
             ui.checkbox(
-                "Enable transport envelope diagnostics (v396)",
+                "Enable multi-scaling confinement envelope diagnostics",
                 value=en396,
                 on_change=lambda e: _set_overlay(session, "include_transport_envelope_v396", e.value),
             )

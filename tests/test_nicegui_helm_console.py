@@ -119,6 +119,16 @@ def test_dsg_session_bootstrap() -> None:
     assert g is None or hasattr(g, "nodes")
 
 
+def test_dsg_edge_kind_normalizes_deck_tokens() -> None:
+    from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, normalize_edge_kind
+
+    s = DesignSession()
+    apply_deck_dsg_context(s, "point")
+    assert s.dsg_context_edge_kind == "derived"
+    assert normalize_edge_kind("bench") == "derived"
+    assert normalize_edge_kind("scan") == "scan"
+
+
 def test_helm_drawer_session_fields() -> None:
     from ui_nicegui.components.drawer_resize import (
         HELM_DRAWER_WIDTH_DEFAULT,

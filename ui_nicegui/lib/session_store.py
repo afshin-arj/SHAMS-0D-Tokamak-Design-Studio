@@ -43,8 +43,12 @@ def set_point_evaluation(
     if isinstance(subs, dict):
         outputs = dict(outputs)
         outputs["_subsystem_enabled"] = dict(subs)
-        session.pd_last_outputs = outputs
-        session.last_eval = outputs
+    for key in ("_warn_frac_max", "_warn_frac_min"):
+        if key in session.knobs:
+            outputs = dict(outputs)
+            outputs[key] = float(session.knobs[key])
+    session.pd_last_outputs = outputs
+    session.last_eval = outputs
 
     inp_dict = dict(inputs or session.inputs)
 

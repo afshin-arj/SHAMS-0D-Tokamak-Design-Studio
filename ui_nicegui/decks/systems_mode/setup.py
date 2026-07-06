@@ -4,8 +4,40 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.lib.pd_overlay_knobs import render_overlay_numeric_panels
+from ui_nicegui.lib.pd_panel_labels import overlay_caption, overlay_display_label
 from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 from ui_nicegui.session import DesignSession
+
+_TRANSPORT_OVERLAY_FLAGS = (
+    "include_transport_envelope_v396",
+    "include_profile_proxy_v397",
+)
+_TRANSPORT_DEFAULTS = {
+    "include_transport_envelope_v396": True,
+    "include_profile_proxy_v397": False,
+}
+
+
+def _render_transport_authority(session: DesignSession) -> None:
+    ui.separator().classes("q-my-md")
+    ui.label("Transport & profile authority caps").classes("text-subtitle2")
+    ui.label(
+        "Shared with Point Designer — when enabled, numeric caps feed precheck and target solve "
+        "through the frozen evaluator."
+    ).classes("text-caption text-grey q-mb-sm")
+
+    for flag in _TRANSPORT_OVERLAY_FLAGS:
+        default = _TRANSPORT_DEFAULTS[flag]
+        session.overlay.setdefault(flag, default)
+        ui.checkbox(
+            overlay_display_label(flag),
+            value=bool(session.overlay.get(flag, default)),
+            on_change=lambda e, k=flag: session.overlay.__setitem__(k, bool(e.value)),
+        )
+        ui.label(overlay_caption(flag)).classes("text-caption text-grey q-pl-lg q-mb-sm")
+
+    render_overlay_numeric_panels(session, flags_filter=set(_TRANSPORT_OVERLAY_FLAGS))
 
 
 def _render_baseline_summary(session: DesignSession) -> None:
@@ -97,3 +129,5 @@ def render_setup(session: DesignSession) -> None:
         ).classes("text-caption text-positive q-mt-sm")
     else:
         ui.label("Enable at least one target and one adjustable variable.").classes("text-orange q-mt-sm")
+
+    _render_transport_authority(session)

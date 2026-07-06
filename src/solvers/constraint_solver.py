@@ -95,6 +95,7 @@ def solve_for_targets(
     solver_backend: str = "hybrid_newton",
     cache_enabled: bool = True,
     cache_max: int = 256,
+    Paux_for_Q_MW: float | None = None,
 ) -> SolveResult:
     """Solve for iteration variables so that selected outputs hit targets.
 
@@ -191,7 +192,15 @@ def solve_for_targets(
         for i, k in enumerate(var_keys):
             xv = float(xvec_scaled[i]) * x_scales[i]
             upd[k] = _clamp(xv, bounds[i][0], bounds[i][1])
-        return evaluator.evaluate(_make_inp(base, upd)).out
+        try:
+            from solvers.evaluator_bridge import evaluate_point
+        except ImportError:
+            from src.solvers.evaluator_bridge import evaluate_point
+        return evaluate_point(
+            _make_inp(base, upd),
+            origin="constraint_solver",
+            Paux_for_Q_MW=Paux_for_Q_MW,
+        )
 
     # work in scaled variables for conditioning
     x_s = [x[i] / x_scales[i] if x_scales[i] != 0 else x[i] for i in range(n)]

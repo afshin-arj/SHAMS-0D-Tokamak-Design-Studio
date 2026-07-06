@@ -64,7 +64,7 @@ def _apply_confidence(session: DesignSession, level: str) -> None:
     session.knobs["_warn_frac_min"] = fracs["min"]
     preset = _CONFIDENCE_PRESETS.get(level, _CONFIDENCE_PRESETS["Nominal"])
     for k, v in preset.items():
-        session.knobs.setdefault(k, v)
+        session.knobs[k] = v
 
 
 def render_engineering_plant(session: DesignSession, *, embedded: bool = False) -> None:
@@ -80,11 +80,14 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
         ui.toggle(
             ["Conservative", "Nominal", "Aggressive"],
             value=confidence,
-            on_change=lambda e: _apply_confidence(session, str(e.value)),
+            on_change=lambda e: (
+                _apply_confidence(session, str(e.value)),
+                ui.notify(f"Engineering confidence → {e.value} (limits updated; re-evaluate).", type="info"),
+            ),
         ).props("spread no-caps").classes("q-mb-sm")
         ui.label("Confidence level — controls default assumptions and WARN bands.").classes("text-caption")
         ui.label(
-            "Availability v391 and structural life v404 numeric caps: enable overlays below, "
+            "Availability and structural-life numeric caps: enable the matching overlays below, "
             "then open Authority overlay numeric panels at the bottom of Configure."
         ).classes("text-caption q-mb-sm")
 

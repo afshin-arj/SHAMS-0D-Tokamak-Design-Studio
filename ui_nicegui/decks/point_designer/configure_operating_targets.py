@@ -40,15 +40,16 @@ def render_operating_targets(session: DesignSession, *, embedded: bool = False) 
         ui.label(
             "Direct — evaluate at Configure Ip/fG. Nested — outer Ip adjusts H98(y,2), "
             "inner fG adjusts Q_DT_eqv. Envelope — coupled Newton on Ip/fG (and Paux if power target set). "
-            "Not the v396 transport-envelope authority overlay."
+            "Not the multi-scaling confinement envelope authority overlay."
         ).classes("text-caption")
 
         ui.select(
             ["DT performance (targets Q & net electric)", "DD feasibility (secondary DT from DD-produced T)"],
             label="Fuel / design mode",
             value=fuel_label,
-            on_change=lambda e: inp.__setitem__(
-                "fuel_mode", "DT" if str(e.value).startswith("DT") else "DD"
+            on_change=lambda e: (
+                inp.__setitem__("fuel_mode", "DT" if str(e.value).startswith("DT") else "DD"),
+                sync_solver_bounds_from_inputs(session),
             ),
         ).classes("w-full")
 
@@ -140,7 +141,8 @@ def render_operating_targets(session: DesignSession, *, embedded: bool = False) 
             if mode == "envelope":
                 ui.label(
                     "Optional power targets — leave at 0 to ignore. "
-                    "When set, Paux is added as a solve variable (must match target count)."
+                    "When set, Paux is added as a solve variable (must match target count). "
+                    "If both P_net and Pfus are set, P_net takes priority."
                 ).classes("text-caption q-mt-sm")
                 with ui.grid(columns=2).classes("w-full gap-2"):
                     ui.number(

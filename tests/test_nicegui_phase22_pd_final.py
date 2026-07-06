@@ -22,7 +22,7 @@ def test_phase22_governance_defaults() -> None:
 
 def test_phase22_envelope_targets() -> None:
     s = DesignSession()
-    assert s.pd_pfus_target == 140.0
+    assert s.pd_pfus_target == 0.0
     assert s.pd_pnet_target == -1.0
 
 

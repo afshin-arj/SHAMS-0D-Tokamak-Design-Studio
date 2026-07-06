@@ -303,7 +303,7 @@ OVERLAY_GROUP_SPECS: List[Tuple[str, List[Tuple[str, bool]]]] = [
         "transport_profiles",
         [
             ("include_transport_contracts_v371", False),
-            ("include_transport_envelope_v396", False),
+            ("include_transport_envelope_v396", True),
             ("include_profile_proxy_v397", False),
             ("include_profile_family_v358", False),
             ("include_profile_contracts_v397", False),
@@ -395,7 +395,10 @@ def overlay_display_label(key: str) -> str:
 
 
 def overlay_traceability(key: str) -> Optional[str]:
-    return OVERLAY_LABELS[key][1]
+    code = OVERLAY_LABELS[key][1]
+    if code and str(code).lower().startswith("v") and str(code)[1:].replace(".", "").isdigit():
+        return None
+    return code
 
 
 def overlay_caption(key: str) -> str:

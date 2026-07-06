@@ -74,3 +74,15 @@ def test_decision_to_tab_mapping() -> None:
 
     assert DECISION_TO_TAB[DECISION_STATES[0]] == "2 · Check & Solve"
     assert DECISION_TO_TAB[DECISION_STATES[4]] == "4 · Apply"
+
+
+def test_systems_teaching_mode_default_on() -> None:
+    s = DesignSession()
+    assert s.systems_teaching_mode is True
+
+
+def test_systems_transport_overlay_flags() -> None:
+    from ui_nicegui.decks.systems_mode.setup import _TRANSPORT_OVERLAY_FLAGS
+
+    assert "include_transport_envelope_v396" in _TRANSPORT_OVERLAY_FLAGS
+    assert "include_profile_proxy_v397" in _TRANSPORT_OVERLAY_FLAGS

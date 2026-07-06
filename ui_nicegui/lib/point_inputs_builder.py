@@ -53,6 +53,8 @@ _PRIORITY_OVERLAY_KEYS = frozenset({
     "cd_mix_enable",
 })
 
+_NAN = float("nan")
+
 
 def _point_input_field_names() -> set[str]:
     return {f.name for f in fields(PointInputs)}
@@ -69,34 +71,105 @@ def _collect_session_overrides(session: DesignSession) -> dict[str, Any]:
     return merged
 
 
+def _set_nan(data: dict[str, Any], key: str) -> None:
+    if key in data:
+        data[key] = _NAN
+
+
+def _apply_overlay_gating(session: DesignSession, data: dict[str, Any]) -> dict[str, Any]:
+    """Mirror Streamlit evaluate gating — disable caps when parent overlays are off."""
+    ov = session.overlay
+    inp = session.inputs
+
+    if not bool(ov.get("include_transport_contracts_v371", False)):
+        _set_nan(data, "H_required_max_optimistic")
+        _set_nan(data, "H_required_max_robust")
+
+    if not bool(ov.get("include_transport_envelope_v396", True)):
+        _set_nan(data, "transport_spread_max_v396")
+        data["include_tauE_user_scaling_v396"] = False
+
+    if not bool(ov.get("include_profile_proxy_v397", False)):
+        for key in (
+            "profile_peaking_p_max_v397",
+            "q95_proxy_min_v397",
+            "q0_proxy_min_v397",
+            "bootstrap_localization_max_v397",
+        ):
+            _set_nan(data, key)
+
+    if not bool(ov.get("include_bootstrap_pressure_selfconsistency", False)):
+        _set_nan(data, "f_bootstrap_consistency_abs_max")
+
+    if not bool(ov.get("include_impurity_v399", False)):
+        for key in (
+            "zeff_max_v399",
+            "prad_core_frac_max_v399",
+            "prad_total_frac_max_v399",
+            "detachment_margin_min_v399",
+        ):
+            _set_nan(data, key)
+
+    if not bool(ov.get("include_neutronics_materials_coupling_v372", False)):
+        for key in ("nm_T_oper_C_v372", "dpa_rate_eff_max_v372", "damage_margin_min_v372"):
+            _set_nan(data, key)
+
+    sol_ctrl = bool(inp.get("include_sol_radiation_control", False))
+    if not sol_ctrl:
+        _set_nan(data, "q_div_target_MW_m2")
+    data["include_edge_core_coupled_exhaust"] = bool(
+        inp.get("include_edge_core_coupled_exhaust", False)
+    ) and sol_ctrl
+
+    if not bool(ov.get("include_radiation", False)):
+        data["zeff"] = 1.0
+        data["dilution_fuel"] = 1.0
+        data["f_rad_core"] = 0.0
+        data["include_synchrotron"] = False
+
+    if not bool(ov.get("include_hmode_physics", True)):
+        data["require_Hmode"] = False
+        data["PLH_margin"] = 0.0
+
+    return data
+
+
+def _apply_session_calibration_fields(session: DesignSession, data: dict[str, Any]) -> dict[str, Any]:
+    """Merge Helm reference-calibration sliders into PointInputs."""
+    for attr in ("calib_confinement", "calib_divertor", "calib_bootstrap"):
+        if hasattr(session, attr):
+            data[attr] = float(getattr(session, attr))
+    return data
+
+
 def _merge_overlay(session: DesignSession, inp: Any) -> Any:
     """Apply session fields onto PointInputs (overlay > inputs > knobs precedence for toggles)."""
     names = _point_input_field_names()
     overrides = _collect_session_overrides(session)
-    if not overrides:
-        return inp
     data = asdict(inp) if hasattr(inp, "__dataclass_fields__") else dict(inp)
-    data.update(overrides)
-    # Overlay toggles win for explicit authority keys
+    if overrides:
+        data.update(overrides)
+    data = _apply_session_calibration_fields(session, data)
     for key in _PRIORITY_OVERLAY_KEYS:
         if key in names and key in session.overlay:
             data[key] = session.overlay[key]
+    data = _apply_overlay_gating(session, data)
     return PointInputs(**{k: v for k, v in data.items() if k in names})
 
 
 def build_point_inputs(session: DesignSession):
     """Assemble PointInputs from session fields (Truth Console core path)."""
     inp = session.inputs
-    names = _point_input_field_names()
     knobs = strip_point_input_knob_dupes(
         session.knobs,
         "Tcoil_K", "magnet_technology", "Bt_T", "R0_m", "a_m", "kappa", "delta",
         "Ip_MA", "fG", "Paux_MW", "Ti_keV",
     )
-    extra_knobs = {k: v for k, v in knobs.items() if k in names}
+    extra_knobs = {k: v for k, v in knobs.items() if k in _point_input_field_names()}
 
     fuel = str(inp.get("fuel_mode", "DT"))
     include_secondary = bool(session.pd_include_secondary_dt) if fuel == "DD" else False
+    include_rad = bool(session.overlay.get("include_radiation", False))
 
     scaling = str(inp.get("confinement_scaling", "IPB98y2"))
     base = make_point_inputs_from(
@@ -111,13 +184,13 @@ def build_point_inputs(session: DesignSession):
         Ip_MA=float(inp.get("Ip_MA", 8.0)),
         Ti_keV=float(inp.get("Ti_keV", 10.0)),
         fG=float(inp.get("fG", 0.8)),
-        t_shield_m=float(inp.get("t_shield_m", 0.8)),
+        t_shield_m=float(inp.get("t_shield_m", 0.70)),
         Paux_MW=float(inp.get("Paux_MW", 50.0)),
-        Ti_over_Te=float(inp.get("Ti_over_Te", 1.0)),
+        Ti_over_Te=float(inp.get("Ti_over_Te", 2.0)),
         confinement_scaling=scaling,
         confinement_model=scaling.lower(),
-        zeff=float(inp.get("zeff", 1.8)),
-        dilution_fuel=float(inp.get("dilution_fuel", 0.85)),
+        zeff=float(inp.get("zeff", 1.8 if include_rad else 1.0)),
+        dilution_fuel=float(inp.get("dilution_fuel", 0.85 if include_rad else 1.0)),
         fuel_mode=fuel,
         include_secondary_DT=include_secondary,
         tritium_retention=float(session.pd_tritium_retention) if include_secondary else 0.0,
@@ -125,7 +198,7 @@ def build_point_inputs(session: DesignSession):
         use_lambda_q=bool(inp.get("use_lambda_q", True)),
         profile_model=str(inp.get("profile_model", "none")),
         profile_mode=bool(inp.get("profile_mode", False)),
-        include_radiation=bool(session.overlay.get("include_radiation", False)),
+        include_radiation=include_rad,
         include_alpha_loss=bool(session.overlay.get("include_alpha_loss", True)),
         include_hmode_physics=bool(session.overlay.get("include_hmode_physics", True)),
         include_synchrotron=bool(session.overlay.get("include_synchrotron", True)),
@@ -133,7 +206,7 @@ def build_point_inputs(session: DesignSession):
             "include_magnet_technology_authority_v400", True
         )),
         include_transport_envelope_v396=bool(session.overlay.get(
-            "include_transport_envelope_v396", False
+            "include_transport_envelope_v396", True
         )),
         include_profile_proxy_v397=bool(session.overlay.get("include_profile_proxy_v397", False)),
         include_tritium_tight_closure=bool(session.overlay.get("include_tritium_tight_closure", False)),

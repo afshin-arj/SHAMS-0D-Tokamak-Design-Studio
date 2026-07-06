@@ -155,7 +155,7 @@ OVERLAY_NUMERIC_PANELS: List[Tuple[str, List[Tuple[str, str, float, float, float
         "include_cost_authority_v388",
         [
             ("CAPEX_industrial_max_MUSD", "Max industrial CAPEX (MUSD)", float("nan"), 0.0, 50000.0, 10.0),
-            ("LCOE_lite_v388_max_USD_per_MWh", "Max LCOE v388 (USD/MWh)", float("nan"), 0.0, 500.0, 1.0),
+            ("LCOE_lite_v388_max_USD_per_MWh", "Max LCOE — cost authority (USD/MWh)", float("nan"), 0.0, 500.0, 1.0),
         ],
     ),
     (
@@ -223,10 +223,16 @@ def _overlay_enabled(session: DesignSession, flag: str) -> bool:
     return bool(session.overlay.get(flag, False))
 
 
-def render_overlay_numeric_panels(session: DesignSession) -> None:
+def render_overlay_numeric_panels(
+    session: DesignSession,
+    *,
+    flags_filter: set[str] | None = None,
+) -> None:
     """Show numeric sub-knobs when parent overlay toggles are enabled."""
     any_visible = False
     for flag, fields in OVERLAY_NUMERIC_PANELS:
+        if flags_filter is not None and flag not in flags_filter:
+            continue
         if not _overlay_enabled(session, flag):
             continue
         any_visible = True

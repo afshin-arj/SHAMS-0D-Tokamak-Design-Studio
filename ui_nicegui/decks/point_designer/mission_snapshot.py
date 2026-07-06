@@ -5,6 +5,7 @@ from nicegui import ui
 
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.decks.point_designer.pd_physics_deepening import DEEP_VIEWS, render_physics_deepening
+from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes
 from ui_nicegui.lib.pd_parity_helpers import (
     assumptions_snapshot,
     authority_contract_rows,
@@ -24,6 +25,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     raw_telemetry_rows,
     regime_compass_rows,
 )
+from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 
 
@@ -31,6 +33,19 @@ def render_mission_snapshot(session: DesignSession) -> None:
     out = session.pd_last_outputs or session.last_eval
     if not isinstance(out, dict):
         return
+
+    summary = verdict_summary(out)
+    art = session.pd_last_artifact if isinstance(session.pd_last_artifact, dict) else {}
+    rs = art.get("run_summary") if isinstance(art.get("run_summary"), dict) else {}
+    headline = rs.get("headline") if isinstance(rs.get("headline"), dict) else {}
+    for note in hero_diagnostic_notes(
+        out,
+        summary,
+        design_intent=str(session.design_intent),
+        fuel_mode=str(session.inputs.get("fuel_mode", "DT")),
+        headline=headline,
+    ):
+        ui.label(note).classes("text-caption text-orange q-mb-sm")
 
     kpis = headline_kpi_pairs(out)
     for i in range(0, len(kpis), 4):
@@ -47,7 +62,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     art = session.pd_last_artifact or {}
     include_rad = bool(session.overlay.get("include_radiation", False))
-    use_lq = bool(inp.get("use_lambda_q", True))
+    use_lq = bool(session.inputs.get("use_lambda_q", True))
 
     with ui.expansion("Inboard build & coil stress", icon="architecture").classes("w-full"):
         coils = build_coils_metrics(out)

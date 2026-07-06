@@ -303,7 +303,10 @@ def _render_calibration(session: DesignSession) -> None:
         ui.slider(
             min=0.5, max=1.5, step=0.01,
             value=float(getattr(session, attr)),
-            on_change=lambda e, a=attr: setattr(session, a, float(e.value)),
+            on_change=lambda e, a=attr: (
+                setattr(session, a, float(e.value)),
+                ui.notify("Reference calibration changed — re-evaluate Point Designer.", type="info"),
+            ),
         ).props('label color="primary"').classes("w-full")
         ui.label(title).classes("text-caption q-mb-sm")
 
