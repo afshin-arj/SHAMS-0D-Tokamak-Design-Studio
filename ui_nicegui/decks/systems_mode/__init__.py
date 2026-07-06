@@ -41,6 +41,7 @@ from ui_nicegui.lib.systems_labels import (
     normalize_systems_tab,
     teaching_banner,
 )
+from ui_nicegui.lib.systems_handoff import consume_systems_mode_queue
 from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 from ui_nicegui.lib.systems_workflow_helpers import collect_candidates
 from ui_nicegui.session import DesignSession
@@ -71,6 +72,7 @@ def _artifact_source(art: dict | None) -> str | None:
 
 def render_systems_mode(session: DesignSession) -> None:
     apply_deck_dsg_context(session, "systems_eval")
+    consume_systems_mode_queue(session)
     session.systems_workflow_step = normalize_systems_tab(session.systems_workflow_step)
 
     if session.pd_pending_systems_action == "precheck":
@@ -254,17 +256,27 @@ def _render_tab_content(session: DesignSession) -> None:
 
     if step == "5 · Review":
         if isinstance(art, dict):
-            verdict.render_causal_chain(art, inline=True)
-            verdict.render_constraint_table(art, design_intent=session.design_intent)
-            verdict.render_constraint_cards(art, design_intent=session.design_intent, expert=session.systems_expert_view)
-        ui.separator().classes("q-my-md")
-        diagnostics_ui.render_post_solve_diagnostics_sync(session)
-        ui.separator().classes("q-my-md")
-        audit_ui.render_audit_panel(session)
-        export_ui.render_export_panel(session)
-        certification_ui.render_certification_panels(session)
-        stories_ui.render_design_stories(session, on_change=refresh)
-        chronicle_ui.render_chronicle_panel(session)
-        reproduce_ui.render_reproduce_panel(session, on_change=refresh)
-        tools_ui.render_tools_panel(session)
+            with ui.expansion("Verdict & constraints", icon="gavel", value=True).classes("w-full"):
+                verdict.render_causal_chain(art, inline=True, expert=session.systems_expert_view)
+                verdict.render_constraint_table(art, design_intent=session.design_intent)
+                verdict.render_constraint_cards(
+                    art, design_intent=session.design_intent, expert=session.systems_expert_view
+                )
+            with ui.expansion("Diagnostics & authority", icon="science").classes("w-full q-mt-sm"):
+                diagnostics_ui.render_post_solve_diagnostics_sync(session)
+                if session.systems_expert_view:
+                    certification_ui.render_certification_panels(session)
+            with ui.expansion("Audit & export", icon="folder").classes("w-full q-mt-sm"):
+                audit_ui.render_audit_panel(session)
+                export_ui.render_export_panel(session)
+            if session.systems_expert_view:
+                with ui.expansion("Forensics & stories", icon="history").classes("w-full q-mt-sm"):
+                    stories_ui.render_design_stories(session, on_change=refresh)
+                    chronicle_ui.render_chronicle_panel(session)
+                    reproduce_ui.render_reproduce_panel(session, on_change=refresh)
+                    tools_ui.render_tools_panel(session)
+        else:
+            ui.label("Run precheck/solve or apply a candidate to populate review artifacts.").classes(
+                "text-caption text-grey"
+            )
         return

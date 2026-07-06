@@ -58,6 +58,7 @@ class DefaultTargetSolverBackend:
 
     def solve(self, req: SolverRequest) -> ConstraintSolveResult:
         trust_delta = req.options.get("trust_delta", None)
+        paux_for_q = req.options.get("Paux_for_Q_MW")
         solver_backend = req.options.get("solver_backend", "hybrid_newton")
         cache_enabled = bool(req.options.get("cache_enabled", True))
         cache_max = int(req.options.get("cache_max", 256))
@@ -98,9 +99,10 @@ class DefaultTargetSolverBackend:
                     tol=stage_tol,
                     damping=req.damping,
                     trust_delta=trust_delta,
-                        solver_backend=solver_backend,
-                        cache_enabled=cache_enabled,
-                        cache_max=cache_max,
+                    solver_backend=solver_backend,
+                    cache_enabled=cache_enabled,
+                    cache_max=cache_max,
+                    Paux_for_Q_MW=paux_for_q,
                 )
 
             # Heuristic grouping by target/variable names
@@ -145,7 +147,8 @@ class DefaultTargetSolverBackend:
                                      max_iter=req.max_iter, tol=req.tol, damping=req.damping, options=req.options, meta=req.meta)
                 res_full = solve_for_targets(
                     req2.base, req2.targets, req2.variables,
-                    max_iter=req2.max_iter, tol=req2.tol, damping=req2.damping, trust_delta=trust_delta
+                    max_iter=req2.max_iter, tol=req2.tol, damping=req2.damping,
+                    trust_delta=trust_delta, Paux_for_Q_MW=paux_for_q,
                 )
                 res_full.trace = (full_trace + [{"event": "block_stage", "stage": 99, "name": "final_full", "ok": bool(res_full.ok), "message": str(res_full.message)}] + list(res_full.trace or []))
                 res = res_full
@@ -177,9 +180,10 @@ class DefaultTargetSolverBackend:
                     tol=req.tol,
                     damping=req.damping,
                     trust_delta=trust_delta,
-                        solver_backend=solver_backend,
-                        cache_enabled=cache_enabled,
-                        cache_max=cache_max,
+                    solver_backend=solver_backend,
+                    cache_enabled=cache_enabled,
+                    cache_max=cache_max,
+                    Paux_for_Q_MW=paux_for_q,
                 )
 
         # Robustness ladder: deterministic multistart if first attempt fails

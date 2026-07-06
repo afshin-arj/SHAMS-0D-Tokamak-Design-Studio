@@ -10,7 +10,7 @@ from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_solve_helpers import run_systems_solve
-from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem
+from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem, validate_systems_problem
 from ui_nicegui.lib.systems_target_banner import systems_target_rows
 from ui_nicegui.lib.systems_workflow_helpers import append_run_card, systems_run_payload
 from ui_nicegui.session import DesignSession
@@ -81,8 +81,11 @@ def render_solve_panel(
     ui.label("Adjust declared variables to hit targets. Uses frozen Evaluator.").classes("text-caption q-mb-sm")
 
     _, targets, variables = resolve_systems_problem(session)
-    disabled = len(targets) == 0 or len(variables) == 0
-    if disabled:
+    valid, val_msg = validate_systems_problem(targets, variables)
+    disabled = not valid
+    if not valid and (targets or variables):
+        ui.label(val_msg).classes("text-caption text-orange q-mb-sm")
+    elif disabled:
         ui.label("Complete tab **1 · Targets** first.").classes("text-orange")
 
     pre = session.last_precheck_report
@@ -96,8 +99,9 @@ def render_solve_panel(
 
     async def _run_solve() -> None:
         base_now, targets_now, variables_now = resolve_systems_problem(session)
-        if not targets_now or not variables_now:
-            ui.notify("Configure targets first", type="warning")
+        ok_prob, prob_msg = validate_systems_problem(targets_now, variables_now)
+        if not ok_prob:
+            ui.notify(prob_msg, type="warning")
             return
         try:
             for warn in unrealistic_point_input_warnings(base_now, context="Systems Mode"):
@@ -133,6 +137,7 @@ def render_solve_panel(
                 input_overrides=dict(session.systems_inputs_overrides or {}),
                 precheck_report=session.last_precheck_report,
                 require_precheck=session.systems_do_precheck,
+                paux_for_q_mw=session.paux_for_q,
             )
             if result.get("blocked"):
                 ui.notify(str(result.get("message", "Solve blocked")), type="warning")
@@ -162,11 +167,22 @@ def render_solve_panel(
                     "blocked": bool(result.get("blocked")),
                 },
             )
-            ui.notify(
-                f"{'Converged' if result.get('ok') else 'Finished without convergence'} "
-                f"({result.get('iters')} iter)",
-                type="positive" if result.get("ok") else "warning",
-            )
+            converged = bool(result.get("target_converged", result.get("ok")))
+            feasible = bool(result.get("intent_feasible", result.get("ok")))
+            blocking = result.get("blocking_failed") or []
+            if converged and not feasible:
+                ui.notify(
+                    f"Targets matched but intent-blocking constraints failed: {', '.join(blocking[:3])}",
+                    type="warning",
+                )
+            elif converged and feasible:
+                ui.notify(f"Converged and intent-feasible ({result.get('iters')} iter)", type="positive")
+            else:
+                ui.notify(
+                    f"{'Finished without target convergence' if not converged else 'Target hit, not intent-feasible'} "
+                    f"({result.get('iters')} iter)",
+                    type="warning",
+                )
             _solve_result.refresh()
             if on_complete:
                 on_complete()
@@ -184,10 +200,15 @@ def _solve_result(session: DesignSession) -> None:
     result = session.systems_last_solve_result
     if not isinstance(result, dict):
         return
+    converged = bool(result.get("target_converged", result.get("ok")))
+    feasible = bool(result.get("intent_feasible", result.get("ok")))
     ui.label(
-        f"Last solve: converged={bool(result.get('ok'))} | iters={result.get('iters', '-')} | "
-        f"{float(result.get('wall_s', 0)):.2f}s"
+        f"Last solve: targets_matched={converged} | intent_feasible={feasible} | "
+        f"iters={result.get('iters', '-')} | {float(result.get('wall_s', 0)):.2f}s"
     ).classes("text-body2 q-mt-sm")
+    blocking = result.get("blocking_failed") or []
+    if blocking:
+        ui.label(f"Blocking constraints: {', '.join(map(str, blocking[:5]))}").classes("text-caption text-orange")
     out = result.get("out")
     if isinstance(out, dict) and out:
         tgt_rows = systems_target_rows(session, out)

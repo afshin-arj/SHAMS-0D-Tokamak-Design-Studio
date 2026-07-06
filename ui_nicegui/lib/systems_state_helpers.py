@@ -8,6 +8,23 @@ from typing import Any, Dict, Tuple
 from ui_nicegui.lib.systems_precheck import build_targets_and_variables
 
 
+def validate_systems_problem(
+    targets: Dict[str, float],
+    variables: Dict[str, Tuple[float, float, float]],
+) -> tuple[bool, str]:
+    """Newton solve requires #targets == #variables."""
+    nt, nv = len(targets), len(variables)
+    if nt == 0 or nv == 0:
+        return False, "Enable at least one performance target and one adjustable variable."
+    if nt != nv:
+        return (
+            False,
+            f"Target solve needs equal counts ({nt} targets vs {nv} knobs). "
+            "Example: Q + H98 → enable I_p and f_G; or drop one target.",
+        )
+    return True, ""
+
+
 def apply_input_overrides(base, overrides: Dict[str, float] | None):
     if not overrides:
         return base

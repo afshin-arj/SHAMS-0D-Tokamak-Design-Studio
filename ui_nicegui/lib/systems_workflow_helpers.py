@@ -223,6 +223,33 @@ def run_feasible_search(
 
 def collect_candidates(session: Any) -> List[dict]:
     out: List[dict] = []
+    sol = getattr(session, "systems_last_solve_result", None)
+    if isinstance(sol, dict) and sol.get("inp") is not None:
+        inp = sol["inp"]
+        x: Dict[str, float] = {}
+        for k in ("Ip_MA", "fG", "Paux_MW"):
+            if hasattr(inp, k):
+                try:
+                    x[k] = float(getattr(inp, k))
+                except (TypeError, ValueError):
+                    pass
+        sout = sol.get("out") if isinstance(sol.get("out"), dict) else {}
+        headline = {
+            "Q": sout.get("Q_DT_eqv", sout.get("Q")),
+            "P_net": sout.get("P_e_net_MW", sout.get("P_net_e_MW")),
+            "H98": sout.get("H98"),
+        }
+        out.append(
+            {
+                "id": "target_solve",
+                "source": "Target solve",
+                "x": x,
+                "feasible": bool(sol.get("intent_feasible", sol.get("ok"))),
+                "reason": "target_converged" if sol.get("target_converged") else str(sol.get("message", "")),
+                "headline": headline,
+                "rank_note": "Last Newton target solve",
+            }
+        )
     rec = getattr(session, "systems_recovery_last", None)
     if isinstance(rec, dict) and isinstance(rec.get("best_point"), dict):
         out.append(

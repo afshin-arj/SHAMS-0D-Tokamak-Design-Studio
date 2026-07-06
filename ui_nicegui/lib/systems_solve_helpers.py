@@ -9,7 +9,6 @@ from ui_nicegui.lib.pd_intent_policy import (
     classify_failed_constraints,
     constraint_policy_snapshot,
     design_intent_key,
-    hard_constraint_names_for_intent,
 )
 from ui_nicegui.lib.pd_run_summary import compute_run_summary_from_out
 from ui_nicegui.lib.systems_state_helpers import apply_input_overrides
@@ -115,6 +114,7 @@ def _make_solver_request(
     damping: float,
     block_solve: bool,
     trust_delta: Optional[float],
+    paux_for_q_mw: Optional[float] = None,
 ):
     SolverRequest, _, _ = _import_solvers()
     opts: dict = {"multistart": True, "restarts": 8, "cache_enabled": True, "cache_max": 1024}
@@ -122,6 +122,8 @@ def _make_solver_request(
         opts["block_solve"] = True
     if trust_delta is not None:
         opts["trust_delta"] = float(trust_delta)
+    if paux_for_q_mw is not None:
+        opts["Paux_for_Q_MW"] = float(paux_for_q_mw)
     return SolverRequest(
         base=base,
         targets=dict(targets),
@@ -144,12 +146,16 @@ def _run_continuation(
     damping: float,
     block_solve: bool,
     trust_delta: Optional[float],
+    paux_for_q_mw: Optional[float] = None,
 ) -> tuple[Any, Optional[str]]:
     """Ramp targets from current outputs to final targets."""
     _, DefaultTargetSolverBackend, solve_request = _import_solvers()
     ev = _get_evaluator()
     try:
-        out0 = dict(ev.evaluate(base).out or {})
+        if paux_for_q_mw is not None:
+            out0 = dict(ev.evaluate(base, Paux_for_Q_MW=float(paux_for_q_mw)).out or {})
+        else:
+            out0 = dict(ev.evaluate(base).out or {})
     except Exception:
         out0 = {}
 
@@ -181,6 +187,7 @@ def _run_continuation(
             damping=damping,
             block_solve=block_solve,
             trust_delta=trust_delta,
+            paux_for_q_mw=paux_for_q_mw,
         )
         res = solve_request(req, backend=DefaultTargetSolverBackend())
         if not res.ok:
@@ -203,7 +210,6 @@ def _run_feasibility_scout(
     except ImportError:
         from systems.feasibility_completion import feasibility_scout  # type: ignore
 
-    hard = hard_constraint_names_for_intent(design_intent)
     ev = _get_evaluator()
     return feasibility_scout(
         base,
@@ -212,7 +218,7 @@ def _run_feasibility_scout(
         n_samples=int(n_samples),
         seed=int(seed),
         n_refine=int(n_refine),
-        hard_constraint_names=hard if hard else None,
+        hard_constraint_names=None,
     )
 
 
@@ -247,6 +253,7 @@ def run_systems_solve(
     input_overrides: Optional[Dict[str, float]] = None,
     precheck_report: Any = None,
     require_precheck: bool = True,
+    paux_for_q_mw: Optional[float] = None,
 ) -> dict:
     """Run constraint-target Newton solve with optional scout, continuation, precheck gate."""
     blocked, block_msg = precheck_blocks_solve(
@@ -292,6 +299,7 @@ def run_systems_solve(
             damping=damping,
             block_solve=block_solve,
             trust_delta=trust_delta,
+            paux_for_q_mw=paux_for_q_mw,
         )
         if cont_err:
             return {
@@ -316,6 +324,7 @@ def run_systems_solve(
         damping=damping,
         block_solve=block_solve,
         trust_delta=trust_delta,
+        paux_for_q_mw=paux_for_q_mw,
     )
     t0 = time.perf_counter()
     res = solve_request(req, backend=DefaultTargetSolverBackend())
@@ -343,8 +352,22 @@ def run_systems_solve(
         design_intent=design_intent,
         solve_ok=bool(res.ok),
     )
+    failed_names = []
+    for c in constraints_list:
+        try:
+            if not bool(getattr(c, "passed", True)) and str(getattr(c, "severity", "hard")).lower() == "hard":
+                failed_names.append(str(getattr(c, "name", "")))
+        except Exception:
+            pass
+    cls = classify_failed_constraints(failed_names, design_intent=design_intent)
+    target_converged = bool(res.ok)
+    intent_feasible = len(cls.get("blocking", [])) == 0
+    ok = target_converged and intent_feasible
     return {
-        "ok": bool(res.ok),
+        "ok": ok,
+        "target_converged": target_converged,
+        "intent_feasible": intent_feasible,
+        "blocking_failed": list(cls.get("blocking", [])),
         "blocked": False,
         "artifact": artifact,
         "inp": inp_sol,

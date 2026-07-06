@@ -60,7 +60,9 @@ def compute_run_summary_from_out(out: Dict[str, Any]) -> Dict[str, Any]:
         "headline": {
             "Q_DT_eqv": float(out.get("Q_DT_eqv", float("nan"))) if isinstance(out, dict) else float("nan"),
             "H98": float(out.get("H98", float("nan"))) if isinstance(out, dict) else float("nan"),
-            "P_net_e_MW": float(out.get("P_net_e_MW", float("nan"))) if isinstance(out, dict) else float("nan"),
+            "P_net_e_MW": float(
+                out.get("P_e_net_MW", out.get("P_net_e_MW", float("nan")))
+            ) if isinstance(out, dict) else float("nan"),
         },
         "power_closure_MW": closure,
         "tightest_hard_constraints": tight,

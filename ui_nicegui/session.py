@@ -95,6 +95,7 @@ class DesignSession:
     systems_bounds_overrides: dict[str, dict[str, float]] = field(default_factory=dict)
     systems_targets_overrides: dict[str, float] = field(default_factory=dict)
     systems_undo_stack: list[dict[str, Any]] = field(default_factory=list)
+    systems_apply_undo_stack: list[dict[str, Any]] = field(default_factory=list)
     systems_last_applied_change: Optional[dict[str, Any]] = None
     systems_do_continuation: bool = True
     systems_cont_steps: int = 10
