@@ -79,6 +79,24 @@ def render_interpret_tab(
             ui.label(flag).classes("text-caption text-orange")
         ui.json(honesty)
 
+    with ui.expansion("Governance parity (Pareto vs Point Designer)", icon="verified", value=session.pareto_teaching_mode).classes("w-full"):
+        ui.label(
+            f"Feasibility mode: {pareto_last.get('feasibility_mode', 'governance+intent')} — "
+            "Pareto feasible = no intent-blocking hard failures on unified governance ledger."
+        ).classes("text-caption q-mb-sm")
+        if str(pareto_last.get("intent_mode", "")).startswith("Both") and pareto_last.get("pareto_union"):
+            ui.label(
+                f"Both-intent union Pareto (re-nominated): {len(pareto_last.get('pareto_union') or [])} points"
+            ).classes("text-caption text-grey")
+        n_gov_only = sum(
+            1 for r in (feasible or [])
+            if r.get("governance_feasible") is False and r.get("is_feasible") is True
+        )
+        if n_gov_only:
+            ui.label(
+                f"{n_gov_only} points are Pareto-feasible under Research intent but not governance-feasible — expected under intent lens."
+            ).classes("text-caption text-orange")
+
     rel = objective_relevance_table(feasible, pareto, obj_keys)
     if rel:
         with ui.expansion("Objective relevance on front", icon="insights").classes("w-full"):

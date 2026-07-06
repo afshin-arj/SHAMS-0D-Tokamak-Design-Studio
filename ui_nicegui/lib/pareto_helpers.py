@@ -191,11 +191,18 @@ def run_pareto_study(
         "seed": int(seed),
         "n_samples": int(n_samples),
         "robust_margin_thr": float(robust_margin_thr),
+        "feasibility_mode": "governance+intent",
         "feasible": all_feasible,
         "pareto": all_pareto,
         "all": all_samples,
         "perf": perf_runs,
     }
+    if str(intent_mode).startswith("Both") and len(objectives) >= 2 and all_pareto:
+        try:
+            from src.solvers.optimize import pareto_front
+        except ImportError:
+            from solvers.optimize import pareto_front  # type: ignore
+        payload["pareto_union"] = pareto_front(list(all_pareto), objectives)
     payload["summary"] = summarize_pareto_run(payload)
     payload["_nan_objective_rates"] = compute_nan_objective_rates(all_feasible, list(objectives.keys()))
     return payload
@@ -279,9 +286,11 @@ def build_pareto_artifact(pareto_last: dict) -> dict:
         pass
     prov["intent_mode"] = pareto_last.get("intent_mode")
     prov["created_schema"] = "shams.pareto.v1"
+    prov["feasibility_mode"] = pareto_last.get("feasibility_mode", "governance+intent")
     return {
         "schema": "shams.pareto.v1",
         "provenance": prov,
+        "feasibility_mode": pareto_last.get("feasibility_mode", "governance+intent"),
         "intent_mode": pareto_last.get("intent_mode"),
         "objectives": {
             k: {"sense": v, **OBJ_CATALOG.get(k, {})} for k, v in objectives.items()

@@ -164,7 +164,7 @@ def _pareto_worker(payload):
     from dataclasses import replace
     from models.inputs import PointInputs
     from solvers.evaluator_bridge import evaluate_point
-    from constraints.system import build_constraints_from_outputs
+    from solvers.pareto_feasibility import annotate_pareto_feasibility
     base = PointInputs(**base_dict)
     inp = base
     for k, v in sample.items():
@@ -174,15 +174,17 @@ def _pareto_worker(payload):
     out = evaluate_point(inp, origin="pareto_worker")
     _eval_s = _time.perf_counter() - _t0
     intent_key = payload.get("intent_key", "Reactor")
-    cs = build_constraints_from_outputs(out)
-    is_feas = _is_feasible_for_intent(cs, intent_key)
-    dom, mmin = _dominant_constraint(cs, intent_key)
+    ann = annotate_pareto_feasibility(out, intent_key)
+    is_feas = bool(ann["is_feasible"])
+    dom = str(ann["dominant_constraint"])
+    mmin = float(ann["min_constraint_margin"])
     row = {**sample}
     row.update({
         "eval_s": float(_eval_s),
         "intent": str(intent_key),
         "is_feasible": bool(is_feas),
-        "first_failure": str(dom) if not bool(is_feas) else "",
+        "governance_feasible": bool(ann.get("governance_feasible", False)),
+        "first_failure": str(ann.get("first_failure") or ""),
         "dominant_constraint": str(dom),
         "min_constraint_margin": float(mmin),
         **_pareto_row_metrics(out),
@@ -258,44 +260,6 @@ def _constraint_margin(cs) -> Dict[str, float]:
     return out
 
 
-_INTENT_BLOCKING = {
-    "reactor": {"q95", "q_div", "P_SOL/R", "sigma_vm", "B_peak", "TF_SC", "HTS margin", "TBR", "NWL"},
-    "research": {"q95"},
-}
-
-def _intent_key(intent_key: str) -> str:
-    s = str(intent_key or "Reactor").strip().lower()
-    return "research" if s.startswith("research") else "reactor"
-
-
-def _is_feasible_for_intent(cs, intent_key: str) -> bool:
-    k = _intent_key(intent_key)
-    blocking = _INTENT_BLOCKING.get(k, set())
-    # conservative: if a blocking constraint is missing, treat as failed
-    ok_by = { _canonical_constraint_name(getattr(c, "name", "")): bool(getattr(c, "ok")) for c in cs }
-    for b in blocking:
-        if not ok_by.get(b, False):
-            return False
-    return True
-
-
-def _dominant_constraint(cs, intent_key: str) -> tuple[str, float]:
-    """Return (dominant_constraint, min_margin) over blocking set for intent."""
-    k = _intent_key(intent_key)
-    blocking = _INTENT_BLOCKING.get(k, set())
-    margins = _constraint_margin(cs)
-    dom = None
-    mmin = float("inf")
-    for name in blocking:
-        m = margins.get(name)
-        if m is None or m != m:
-            # missing margin -> conservative as very negative
-            m = -1e9
-        if m < mmin:
-            mmin = m
-            dom = name
-    return (dom or "(unknown)", float(mmin) if mmin != float("inf") else float("nan"))
-
 def pareto_optimize(
     base: PointInputs,
     bounds: Dict[str, Tuple[float, float]],
@@ -335,15 +299,19 @@ def pareto_optimize(
             _t0 = _time.perf_counter()
             out = evaluate_point(inp, origin="pareto_sample")
             _eval_s = _time.perf_counter() - _t0
-            cs = build_constraints_from_outputs(out)
-            is_feas = _is_feasible_for_intent(cs, intent_key)
-            dom, mmin = _dominant_constraint(cs, intent_key)
+            from solvers.pareto_feasibility import annotate_pareto_feasibility
+
+            ann = annotate_pareto_feasibility(out, intent_key)
+            is_feas = bool(ann["is_feasible"])
+            dom = str(ann["dominant_constraint"])
+            mmin = float(ann["min_constraint_margin"])
             row = {**s}
             row.update({
                 "eval_s": float(_eval_s),
                 "intent": str(intent_key),
                 "is_feasible": bool(is_feas),
-                "first_failure": str(dom) if not bool(is_feas) else "",
+                "governance_feasible": bool(ann.get("governance_feasible", False)),
+                "first_failure": str(ann.get("first_failure") or ""),
                 "dominant_constraint": str(dom),
                 "min_constraint_margin": float(mmin),
                 **_pareto_row_metrics(out),
