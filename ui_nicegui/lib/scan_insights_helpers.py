@@ -110,19 +110,13 @@ def guided_walkthrough() -> List[dict]:
 def time_to_failure(base, rep: dict, intent: str, i: int, j: int, knob: str, rel_step: float) -> dict:
     from tools.scan_insights import time_to_failure_along_knob
     from src.evaluator.core import Evaluator
-    from ui_nicegui.lib.scan_workbench_helpers import build_point_grid, cell_intent_state
+    from ui_nicegui.lib.scan_workbench_helpers import build_point_grid, cell_intent_state, _cell_xy_overrides
 
     grid = build_point_grid(rep)
     cell = grid.get((int(i), int(j)), {})
     s = cell_intent_state(grid, intent, i, j)
     domc = str(s.get("dominant_blocking") or "").strip()
-    x_key = str(rep.get("x_key") or "")
-    y_key = str(rep.get("y_key") or "")
-    overrides = {}
-    if x_key:
-        overrides[x_key] = float(cell.get("x"))
-    if y_key:
-        overrides[y_key] = float(cell.get("y"))
+    overrides = _cell_xy_overrides(rep, cell)
     ev = Evaluator(label="NiceGUI:ScanTTF", cache_enabled=True, cache_max=4096)
     return time_to_failure_along_knob(
         evaluator=ev,
@@ -137,17 +131,11 @@ def time_to_failure(base, rep: dict, intent: str, i: int, j: int, knob: str, rel
 def uncertainty_stress(base, rep: dict, intent: str, i: int, j: int, *, n_samples: int = 40, seed: int = 1) -> dict:
     from tools.scan_insights import uncertainty_stress_test
     from src.evaluator.core import Evaluator
-    from ui_nicegui.lib.scan_workbench_helpers import build_point_grid
+    from ui_nicegui.lib.scan_workbench_helpers import build_point_grid, _cell_xy_overrides
 
     grid = build_point_grid(rep)
     cell = grid.get((int(i), int(j)), {})
-    x_key = str(rep.get("x_key") or "")
-    y_key = str(rep.get("y_key") or "")
-    overrides = {}
-    if x_key:
-        overrides[x_key] = float(cell.get("x"))
-    if y_key:
-        overrides[y_key] = float(cell.get("y"))
+    overrides = _cell_xy_overrides(rep, cell)
     ev = Evaluator(label="NiceGUI:ScanUQ", cache_enabled=True, cache_max=4096)
     return uncertainty_stress_test(
         evaluator=ev,

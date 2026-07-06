@@ -14,7 +14,7 @@ from ui_nicegui.lib.scan_helpers import (
     estimate_eval_count,
     run_cartography_scan,
 )
-from ui_nicegui.lib.scan_labels import INTENT_HELP, PROJECTION_CAVEAT, RECOMMENDED_SLICES, ROBUSTNESS_GLOSSARY
+from ui_nicegui.lib.scan_labels import INTENT_HELP, PROJECTION_CAVEAT, RECOMMENDED_SLICES, ROBUSTNESS_GLOSSARY, helm_suggested_scan_lens
 from ui_nicegui.session import DesignSession
 
 
@@ -43,6 +43,12 @@ def render_cartography_controls(
     ).classes("text-caption text-grey q-mb-sm")
     ui.markdown(INTENT_HELP).classes("text-caption q-mb-xs")
     ui.markdown(PROJECTION_CAVEAT).classes("text-caption text-orange q-mb-xs")
+    helm_lens = helm_suggested_scan_lens(str(session.design_intent or ""))
+    scan_lenses = set(session.scan_cart_intents or ["Reactor"])
+    if helm_lens not in scan_lenses:
+        ui.label(
+            f"Helm mission profile aligns with **{helm_lens}** lens — intent checkboxes below are independent."
+        ).classes("text-caption text-orange q-mb-xs")
     if session.scan_teaching_mode:
         ui.markdown(ROBUSTNESS_GLOSSARY).classes("text-caption text-grey q-mb-sm")
 

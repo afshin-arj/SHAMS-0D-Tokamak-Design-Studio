@@ -213,10 +213,12 @@ def test_scan_governance_labels_and_imports() -> None:
     from ui_nicegui.decks.scan_lab.governance_ui import render_governance_panel
     from ui_nicegui.decks.scan_lab.legacy_nested_ui import render_legacy_nested_panel
     from ui_nicegui.decks.scan_lab.slice_diagnostics_ui import render_slice_diagnostics
-    from ui_nicegui.lib.scan_labels import NO_OPTIMIZATION_NOTICE, SLICE_MITIGATION
+    from ui_nicegui.lib.scan_labels import NO_OPTIMIZATION_NOTICE, SLICE_MITIGATION, helm_suggested_scan_lens
 
     assert "does **not** optimize" in NO_OPTIMIZATION_NOTICE
     assert "off-plane" in SLICE_MITIGATION.lower()
+    assert helm_suggested_scan_lens("Experimental Device (research)") == "Research"
+    assert helm_suggested_scan_lens("Power Reactor (net-electric)") == "Reactor"
     assert callable(render_governance_panel)
     assert callable(render_legacy_nested_panel)
     assert callable(render_slice_diagnostics)

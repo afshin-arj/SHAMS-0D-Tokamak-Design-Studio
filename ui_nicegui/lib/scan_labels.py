@@ -102,6 +102,14 @@ PROJECTION_CAVEAT = (
     "Treat maps as **slice truth**, not full-parameter truth."
 )
 
+
+def helm_suggested_scan_lens(design_intent: str) -> str:
+    """Map Helm mission profile to the matching Scan Lab intent lens label."""
+    di = (design_intent or "").strip().lower()
+    if "research" in di or "experimental" in di:
+        return "Research"
+    return "Reactor"
+
 RECOMMENDED_SLICES = [
     ("Ip vs R₀ (size–current)", "Ip_MA", "R0_m"),
     ("Ip vs P_aux (heating)", "Ip_MA", "Paux_MW"),

@@ -69,6 +69,11 @@ def test_probe_promote_inputs() -> None:
     assert "Ip_MA" in cand
     assert "R0_m" in cand
 
+    cell_ij = {"i": 1, "j": 2}
+    cand2 = probe_promote_inputs(rep, cell_ij)
+    assert float(cand2["Ip_MA"]) == float(rep["x_vals"][1])
+    assert float(cand2["R0_m"]) == float(rep["y_vals"][2])
+
 
 def test_causality_trace_smoke() -> None:
     rep = _small_scan_report()
@@ -91,6 +96,29 @@ def test_causality_trace_smoke() -> None:
     )
     assert isinstance(tr, dict)
     assert "constraint" in tr or tr.get("status") == "skipped"
+    if tr.get("constraint"):
+        drivers = tr.get("drivers") or []
+        assert len(drivers) >= 1, "causality trace should report knob drivers via constraint bridge"
+
+
+def test_projection_stability_uses_constraint_bridge() -> None:
+    from ui_nicegui.lib.scan_insights_helpers import projection_stability
+
+    rep = _small_scan_report()
+    s = DesignSession()
+    out = projection_stability(
+        s.build_point_inputs(),
+        rep,
+        intent="Reactor",
+        i=0,
+        j=0,
+        z_key="Bt_T",
+        rel_step=0.05,
+    )
+    assert out.get("ok") is True
+    doms = out.get("dominant") or []
+    assert doms, "off-plane check should classify dominance per sample"
+    assert not all(str(d).upper() == "PASS" for d in doms), "failing Reactor cell should not read all-PASS"
 
 
 def test_design_families_smoke() -> None:

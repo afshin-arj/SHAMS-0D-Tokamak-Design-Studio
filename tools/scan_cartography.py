@@ -35,20 +35,45 @@ def _point_inputs_dict(inp: Any) -> Optional[dict]:
     return None
 
 
-def _constraints_for_scan(out: dict, inp: Any) -> List[Dict[str, Any]]:
-    """Constraint rows for cartography — evaluate when not embedded in L0 outputs."""
+_CONSTRAINT_BRIDGE_FAILED: Dict[str, Any] = {
+    "name": "CONSTRAINT_BRIDGE",
+    "severity": "hard",
+    "passed": False,
+    "margin_frac": -1.0,
+}
+
+
+def _physics_outputs_present(out: dict) -> bool:
+    if not isinstance(out, dict):
+        return False
+    for key in ("P_fus_MW", "Q_DT_eqv", "Q", "H98", "Ip_MA", "Pfus_DT_adj_MW"):
+        if _finite(out.get(key)):
+            return True
+    return False
+
+
+def constraints_for_scan(out: dict, inp: Any) -> List[Dict[str, Any]]:
+    """Constraint rows for Scan Lab — evaluate when not embedded in L0 outputs."""
     raw = out.get("constraints") if isinstance(out, dict) else None
     if isinstance(raw, list) and raw:
         return [c if isinstance(c, dict) else (c.as_dict() if hasattr(c, "as_dict") else {}) for c in raw]
+    rows: List[Dict[str, Any]] = []
     try:
         try:
             from constraints.constraints import evaluate_constraints
         except ImportError:
             from src.constraints.constraints import evaluate_constraints  # type: ignore
-        rows = evaluate_constraints(out or {}, point_inputs=_point_inputs_dict(inp))
-        return [c.as_dict() if hasattr(c, "as_dict") else dict(c) for c in rows]
+        evaluated = evaluate_constraints(out or {}, point_inputs=_point_inputs_dict(inp))
+        rows = [c.as_dict() if hasattr(c, "as_dict") else dict(c) for c in evaluated]
     except Exception:
-        return []
+        rows = []
+    if not rows and _physics_outputs_present(out or {}):
+        return [dict(_CONSTRAINT_BRIDGE_FAILED)]
+    return rows
+
+
+def _constraints_for_scan(out: dict, inp: Any) -> List[Dict[str, Any]]:
+    return constraints_for_scan(out, inp)
 
 
 def _finite(x: Any) -> bool:

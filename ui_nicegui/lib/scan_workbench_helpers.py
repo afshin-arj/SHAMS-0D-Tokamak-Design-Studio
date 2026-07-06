@@ -352,13 +352,33 @@ def probe_cell_summary(grid: Dict[Tuple[int, int], dict], rep: dict, intent: str
 def probe_promote_inputs(rep: dict, cell: dict) -> dict:
     base = rep.get("base_inputs") if isinstance(rep.get("base_inputs"), dict) else {}
     cand = dict(base)
+    cand.update(_cell_xy_overrides(rep, cell))
+    return cand
+
+
+def _cell_xy_overrides(rep: dict, cell: dict) -> dict:
     x_key = str(rep.get("x_key") or "")
     y_key = str(rep.get("y_key") or "")
-    if x_key:
-        cand[x_key] = float(cell.get("x"))
-    if y_key:
-        cand[y_key] = float(cell.get("y"))
-    return cand
+    x_vals = rep.get("x_vals") or []
+    y_vals = rep.get("y_vals") or []
+    x_raw = cell.get("x")
+    y_raw = cell.get("y")
+    if x_raw is None and x_key:
+        try:
+            x_raw = x_vals[int(cell.get("i", 0))]
+        except (IndexError, TypeError, ValueError):
+            x_raw = None
+    if y_raw is None and y_key:
+        try:
+            y_raw = y_vals[int(cell.get("j", 0))]
+        except (IndexError, TypeError, ValueError):
+            y_raw = None
+    overrides: dict = {}
+    if x_key and x_raw is not None:
+        overrides[x_key] = float(x_raw)
+    if y_key and y_raw is not None:
+        overrides[y_key] = float(y_raw)
+    return overrides
 
 
 def run_causality_trace(
@@ -384,11 +404,7 @@ def run_causality_trace(
 
     x_key = str(rep.get("x_key") or "")
     y_key = str(rep.get("y_key") or "")
-    point_overrides = {}
-    if x_key:
-        point_overrides[x_key] = float(cell.get("x"))
-    if y_key:
-        point_overrides[y_key] = float(cell.get("y"))
+    point_overrides = _cell_xy_overrides(rep, cell)
 
     knobs = [x_key, y_key, "R0_m", "Bt_T", "Ip_MA", "fG", "Paux_MW", "a_m"]
     knobs = list(dict.fromkeys(k for k in knobs if k and hasattr(base, k)))

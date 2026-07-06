@@ -27,6 +27,8 @@ def _finite(x: Any) -> bool:
 
 
 def _constraint_margin_by_name(constraints: List[Dict[str, Any]], name: str) -> Optional[float]:
+    from tools.scan_cartography import _margin
+
     target = (name or "").strip().lower()
     for c in constraints or []:
         if not isinstance(c, dict):
@@ -36,13 +38,9 @@ def _constraint_margin_by_name(constraints: List[Dict[str, Any]], name: str) -> 
         nm = str(c.get("name", "")).strip().lower()
         if nm != target:
             continue
-        m = c.get("margin_frac")
-        try:
-            mm = float(m)
-            if _finite(mm):
-                return mm
-        except Exception:
-            pass
+        m = _margin(c)
+        if _finite(m):
+            return float(m)
     return None
 
 
@@ -69,9 +67,11 @@ This is not symbolic algebra — it's a local sensitivity report.
     except Exception:
         pass
 
+    from tools.scan_cartography import constraints_for_scan
+
     res0 = evaluator.evaluate(p)
     out0 = dict(res0.out or {})
-    cons0 = out0.get("constraints") or []
+    cons0 = constraints_for_scan(out0, p)
     m0 = _constraint_margin_by_name(cons0, constraint_name)
 
     drivers: List[Dict[str, Any]] = []
@@ -96,8 +96,8 @@ This is not symbolic algebra — it's a local sensitivity report.
         r_lo = evaluator.evaluate(p_lo)
         o_hi = dict(r_hi.out or {})
         o_lo = dict(r_lo.out or {})
-        m_hi = _constraint_margin_by_name(o_hi.get("constraints") or [], constraint_name)
-        m_lo = _constraint_margin_by_name(o_lo.get("constraints") or [], constraint_name)
+        m_hi = _constraint_margin_by_name(constraints_for_scan(o_hi, p_hi), constraint_name)
+        m_lo = _constraint_margin_by_name(constraints_for_scan(o_lo, p_lo), constraint_name)
         if not _finite(m_hi) or not _finite(m_lo):
             continue
         dmdk = (float(m_hi) - float(m_lo)) / (2.0 * dv)
@@ -147,7 +147,7 @@ def uncertainty_stress_test(
 Perturbs selected nuisance keys by ±rel_unc (uniform) and evaluates the
 intent-feasibility and dominant constraint distribution.
 """
-    from tools.scan_cartography import intent_feasible
+    from tools.scan_cartography import constraints_for_scan, intent_feasible
 
     p0 = base_inputs
     try:
@@ -181,7 +181,8 @@ intent-feasibility and dominant constraint distribution.
             p = p0
 
         res = evaluator.evaluate(p)
-        cons = (dict(res.out or {}).get("constraints") or [])
+        out = dict(res.out or {})
+        cons = constraints_for_scan(out, p)
         summ = intent_feasible(cons, intent)
         dom = str(summ.get("dominant_blocking") or "PASS")
         dom_counts[dom] = dom_counts.get(dom, 0) + 1
@@ -228,7 +229,7 @@ def time_to_failure_along_knob(
 Binary searches along a single knob direction from a starting feasible point.
 Returns None if point is already infeasible or never fails within max_rel.
 """
-    from tools.scan_cartography import intent_feasible
+    from tools.scan_cartography import constraints_for_scan, intent_feasible
 
     p0 = base_inputs
     try:
@@ -250,7 +251,8 @@ Returns None if point is already infeasible or never fails within max_rel.
         except Exception:
             p = p0
         res = evaluator.evaluate(p)
-        cons = (dict(res.out or {}).get("constraints") or [])
+        out = dict(res.out or {})
+        cons = constraints_for_scan(out, p)
         return bool(intent_feasible(cons, intent).get("blocking_feasible"))
 
     if not ok_at(0.0):

@@ -306,7 +306,7 @@ def projection_stability_check(
     n: int = 7,
 ) -> Dict[str, Any]:
     """Perturb a 3rd variable around a picked cell and report dominance stability."""
-    from tools.scan_cartography import intent_feasible
+    from tools.scan_cartography import constraints_for_scan, intent_feasible
 
     # base point at cell
     pts = _neighbors(report, i0=i0, j0=j0, radius=0)
@@ -336,7 +336,8 @@ def projection_stability_check(
     for z in zs:
         p = replace(p0, **{z_key: float(z)})
         res = evaluator.evaluate(p)
-        cons = (dict(res.out or {}).get("constraints") or [])
+        out = dict(res.out or {})
+        cons = constraints_for_scan(out, p)
         s = intent_feasible(cons, intent)
         doms.append(str(s.get("dominant_blocking") or "PASS"))
         oks.append(bool(s.get("blocking_feasible")))
