@@ -198,6 +198,13 @@ class DesignSession:
     scan_path_follow_last: Optional[dict[str, Any]] = None
     scan_lib_tag: str = "interesting"
     scan_lib_note: str = ""
+    scan_slice_z_key: str = ""
+    scan_slice_rel_step: float = 0.05
+    scan_slice_diag_last: Optional[dict[str, Any]] = None
+    scan_legacy_spec: Optional[dict[str, Any]] = None
+    scan_legacy_last: Optional[dict[str, Any]] = None
+    scan_legacy_running: bool = False
+    scan_legacy_progress: float = 0.0
     scan_benchmark_learned: bool = False
     scan_benchmark_note: str = ""
     scan_view_mode: str = ""

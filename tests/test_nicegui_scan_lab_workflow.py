@@ -136,3 +136,61 @@ def test_boundaries_bytes_optional() -> None:
     )
     bnd = boundaries_json_bytes(rep)
     assert bnd is None or isinstance(bnd, bytes)
+
+
+def test_legacy_nested_scan_helpers() -> None:
+    from tools.legacy_nested_scan import estimate_legacy_grid_count, frange
+
+    assert frange(0.0, 1.0, 0.5) == [0.0, 0.5, 1.0]
+    assert frange(1.0, 0.0, -0.5) == [1.0, 0.5, 0.0]
+    n = estimate_legacy_grid_count(
+        {
+            "gconf_start": 0.8,
+            "gconf_stop": 1.0,
+            "gconf_step": 0.2,
+            "Ti_start": 10.0,
+            "Ti_stop": 11.0,
+            "Ti_step": 1.0,
+            "H98_start": 1.0,
+            "H98_stop": 1.0,
+            "H98_step": 0.1,
+            "a_min": 2.0,
+            "a_max": 2.0,
+            "a_step": 0.1,
+            "Q_start": 10.0,
+            "Q_stop": 10.0,
+            "Q_step": 5.0,
+        }
+    )
+    assert n == 4  # g: 2 × Ti: 2 × singleton axes
+
+
+def test_format_projection_stability() -> None:
+    from ui_nicegui.lib.scan_insight_display import format_projection_stability
+
+    txt = format_projection_stability(
+        {
+            "ok": True,
+            "z_key": "Paux_MW",
+            "z0": 50.0,
+            "mode_dominant": "q95",
+            "dominant_stability": 0.75,
+            "dominant": ["q95", "q95", "betaN"],
+            "note": "Slice caveat applies.",
+        }
+    )
+    assert "Paux_MW" in txt
+    assert "75%" in txt
+
+
+def test_scan_governance_labels_and_imports() -> None:
+    from ui_nicegui.decks.scan_lab.governance_ui import render_governance_panel
+    from ui_nicegui.decks.scan_lab.legacy_nested_ui import render_legacy_nested_panel
+    from ui_nicegui.decks.scan_lab.slice_diagnostics_ui import render_slice_diagnostics
+    from ui_nicegui.lib.scan_labels import NO_OPTIMIZATION_NOTICE, SLICE_MITIGATION
+
+    assert "does **not** optimize" in NO_OPTIMIZATION_NOTICE
+    assert "off-plane" in SLICE_MITIGATION.lower()
+    assert callable(render_governance_panel)
+    assert callable(render_legacy_nested_panel)
+    assert callable(render_slice_diagnostics)

@@ -174,6 +174,9 @@ def _render_tab_body(session: DesignSession) -> None:
     open_orientation = session.scan_teaching_mode and not session.scan_expert_view
 
     if step == "1 · Setup & Run":
+        from ui_nicegui.decks.scan_lab.governance_ui import render_governance_panel
+
+        render_governance_panel(session, session.scan_cartography_report if isinstance(session.scan_cartography_report, dict) else None)
         orientation.render_orientation_panel(session, default_open=open_orientation)
         ui.separator().classes("q-my-sm")
         cartography.render_cartography_controls(
@@ -192,6 +195,10 @@ def _render_tab_body(session: DesignSession) -> None:
             empty_state("Run a cartography scan first.", kind="info")
             return
         insights.render_interpret_tab(session, rep, on_update=_render_tab_body.refresh)
+        ui.separator().classes("q-my-md")
+        from ui_nicegui.decks.scan_lab.slice_diagnostics_ui import render_slice_diagnostics
+
+        render_slice_diagnostics(session, rep, on_update=_render_tab_body.refresh)
         ui.separator().classes("q-my-md")
         deep_maps.render_deep_landscape_maps(session, rep, on_update=_render_tab_body.refresh)
     elif step == "4 · Export & Archive":

@@ -115,6 +115,18 @@ ROBUSTNESS_GLOSSARY = (
     "**Robustness map** = heatmap of that proxy — not the KPI band."
 )
 
+NO_OPTIMIZATION_NOTICE = (
+    "Scan Lab **maps** frozen truth — it does **not** optimize, relax constraints, or search for "
+    "best designs. For target matching use **Systems Mode** (Newton solve proposes inputs only; "
+    "SHAMS re-evaluates with frozen physics)."
+)
+
+SLICE_MITIGATION = (
+    "Mitigate 2D slice limits: (1) run **off-plane stability** on Interpret, (2) compare Research vs "
+    "Reactor maps, (3) re-slice along a different axis pair, (4) use **Systems Mode** when you need "
+    "a matched operating point rather than a landscape map."
+)
+
 
 def normalize_scan_tab(step: str) -> str:
     s = str(step or DEFAULT_TAB).strip()

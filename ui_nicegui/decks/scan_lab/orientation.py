@@ -24,8 +24,8 @@ def render_orientation_panel(session: DesignSession, *, default_open: bool = Fal
         ui.markdown(INTENT_HELP).classes("text-caption q-mt-sm")
         ui.markdown(PROJECTION_CAVEAT).classes("text-caption text-orange q-mt-xs")
         ui.markdown(
-            "Legacy nested grid scan (Ti/H98/a/Q/g_conf) is archived in **Streamlit only**; "
-            "**cartography over PointInputs** is the supported path."
+            "Legacy nested grid (Ti/H98/a/Q/g_conf) is available below in NiceGUI for expert workflows — "
+            "solver-assisted screening, not frozen cartography."
         ).classes("text-caption text-grey q-mt-xs")
         ui.markdown(
             "**One-scan benchmark** (Streamlit legacy self-check) is not in NiceGUI — use golden scans + freeze QA on Export."
@@ -99,6 +99,9 @@ def render_orientation_panel(session: DesignSession, *, default_open: bool = Fal
         _render_physics_mapping()
         _render_canonical_questions(session)
         _render_golden_presets_full(session)
+        from ui_nicegui.decks.scan_lab.legacy_nested_ui import render_legacy_nested_panel
+
+        render_legacy_nested_panel(session)
 
 
 def _render_physics_mapping() -> None:

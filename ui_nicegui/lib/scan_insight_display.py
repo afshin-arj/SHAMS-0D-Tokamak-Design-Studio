@@ -49,3 +49,19 @@ def format_insight_dict(out: dict, *, title: str = "") -> str:
         for item in ranked[:10]:
             lines.append(f"- {item}")
     return "\n".join(lines) if lines else ""
+
+
+def format_projection_stability(out: dict) -> str:
+    if not isinstance(out, dict) or not out.get("ok"):
+        return str(out.get("reason") or "Off-plane check failed.")
+    lines = [
+        f"**Off-plane axis:** {out.get('z_key')} (z₀ ≈ {out.get('z0')})",
+        f"**Dominance mode:** {out.get('mode_dominant')}",
+        f"**Stability:** {float(out.get('dominant_stability', 0)):.0%} of samples share the same dominant limiter",
+    ]
+    if out.get("note"):
+        lines.append(str(out["note"]))
+    doms = out.get("dominant") or []
+    if isinstance(doms, list) and doms:
+        lines.append("**Dominant limiter along z sweep:** " + " → ".join(str(d) for d in doms[:7]))
+    return "\n".join(lines)

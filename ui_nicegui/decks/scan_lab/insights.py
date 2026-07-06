@@ -274,7 +274,9 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
             elif pick == "Counterfactual lens":
                 out = await run.io_bound(counterfactual, rep, it, "TBR")
             elif pick == "Projection stability":
-                z = SCAN_VAR_KEYS[0]
+                z = str(getattr(session, "scan_slice_z_key", "") or SCAN_VAR_KEYS[0])
+                if z in (str(rep.get("x_key")), str(rep.get("y_key"))):
+                    z = next((k for k in SCAN_VAR_KEYS if k not in (rep.get("x_key"), rep.get("y_key"))), z)
                 out = await run.io_bound(
                     projection_stability,
                     session.build_point_inputs(),
@@ -283,7 +285,7 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
                     i,
                     j,
                     z,
-                    0.05,
+                    float(getattr(session, "scan_slice_rel_step", 0.05)),
                 )
             elif pick == "Path-follow scan":
                 out = await run.io_bound(
