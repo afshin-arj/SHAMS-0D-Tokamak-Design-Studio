@@ -29,21 +29,27 @@ def systems_target_rows(session: DesignSession, out: Optional[Dict[str, Any]] = 
         "Q_DT_eqv": "Q_DT_eqv",
         "H98": "H98",
         "P_e_net_MW": "P_e_net_MW",
+        "Pfus_DT_adj_MW": "Pfus_DT_adj_MW",
     }
     for tgt_key, val in targets.items():
         out_key = key_map.get(tgt_key, tgt_key)
         ach = out.get(out_key, out.get(tgt_key))
         t = _sf(val)
         a = _sf(ach)
+        sense = "min" if tgt_key in ("Q_DT_eqv", "H98", "P_e_net_MW", "Pfus_DT_adj_MW") else "eq"
         if t == t and a == a:
-            rel = abs(a - t) / max(abs(t), 1e-9)
-            flag = "ok" if rel <= max(tol, 1e-3) * 10 else "miss"
+            if sense == "min":
+                flag = "ok" if a + max(tol, 1e-3) * max(abs(t), 1e-9) >= t else "miss"
+            else:
+                rel = abs(a - t) / max(abs(t), 1e-9)
+                flag = "ok" if rel <= max(tol, 1e-3) * 10 else "miss"
         else:
             flag = "n/a"
         label = {
             "Q_DT_eqv": "Q_DT_eqv",
             "H98": "H98(y,2)",
             "P_e_net_MW": "P_e_net [MW]",
+            "Pfus_DT_adj_MW": "Pfus_DT_adj [MW]",
         }.get(tgt_key, tgt_key)
         rows.append({
             "quantity": label,

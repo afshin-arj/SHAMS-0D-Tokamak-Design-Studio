@@ -121,6 +121,57 @@ def test_systems_teaching_mode_default_on() -> None:
     assert s.systems_teaching_mode is True
 
 
+def test_evaluator_residuals_min_sense() -> None:
+    try:
+        from src.evaluator.core import Evaluator
+    except ImportError:
+        from evaluator.core import Evaluator  # type: ignore
+
+    out = {"Q_DT_eqv": 12.0, "H98": 1.2}
+    targets = {"Q_DT_eqv": 10.0, "H98": 1.0}
+    eq = Evaluator.residuals(out, targets)
+    assert eq["Q_DT_eqv"] == 2.0
+    mn = Evaluator.residuals(out, targets, senses={"Q_DT_eqv": "min", "H98": "min"})
+    assert mn["Q_DT_eqv"] == 0.0
+    assert mn["H98"] == 0.0
+    below = Evaluator.residuals({"Q_DT_eqv": 8.0}, {"Q_DT_eqv": 10.0}, senses={"Q_DT_eqv": "min"})
+    assert below["Q_DT_eqv"] == 2.0
+
+
+def test_pfus_target_build() -> None:
+    from types import SimpleNamespace
+
+    s = DesignSession()
+    s.systems_use_q = False
+    s.systems_use_pfus = True
+    s.systems_pfus_target = 150.0
+    s.systems_solve_paux = True
+    targets, variables = build_targets_and_variables(s, SimpleNamespace(Ip_MA=8, fG=0.8, Paux_MW=50))
+    assert "Pfus_DT_adj_MW" in targets
+    assert "Paux_MW" in variables
+
+
+def test_assumption_lock_drift_blocks() -> None:
+    from ui_nicegui.lib.systems_assumption_lock import assumption_settings_hash, check_assumption_lock
+
+    s = DesignSession()
+    s.systems_assumption_lock_enabled = True
+    s.systems_assumption_lock_hash = assumption_settings_hash(s)
+    ok, _ = check_assumption_lock(s)
+    assert ok
+    s.systems_q_target = 99.0
+    ok2, msg2 = check_assumption_lock(s)
+    assert not ok2
+    assert msg2
+
+
+def test_fs_objective_negated_tbr() -> None:
+    from ui_nicegui.lib.systems_fs_helpers import fs_objective_value
+
+    v = fs_objective_value({"TBR": 1.1}, "-TBR")
+    assert v == -1.1
+
+
 def test_systems_transport_overlay_flags() -> None:
     from ui_nicegui.decks.systems_mode.setup import _TRANSPORT_OVERLAY_FLAGS
 

@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.decks.systems_mode import assumption_lock_ui
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.systems_precheck import run_systems_precheck
@@ -60,6 +61,8 @@ def render_precheck_panel(
         "Monte Carlo over declared variable bounds via frozen Evaluator. Run before target solve."
     ).classes("text-caption text-grey q-mb-sm")
 
+    assumption_lock_ui.render_assumption_lock_bar(session)
+
     _, targets, variables = resolve_systems_problem(session)
     valid, val_msg = validate_systems_problem(targets, variables)
     disabled = not valid
@@ -86,6 +89,10 @@ def render_precheck_panel(
         ).classes("w-32")
 
     async def _run_precheck() -> None:
+        blocked, block_msg = assumption_lock_ui.assumption_lock_blocks(session)
+        if blocked:
+            ui.notify(block_msg, type="negative")
+            return
         if session.systems_precheck_running:
             ui.notify("Precheck already running", type="warning")
             return

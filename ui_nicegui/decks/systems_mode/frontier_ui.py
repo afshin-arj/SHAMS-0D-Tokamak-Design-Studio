@@ -1,4 +1,4 @@
-"""Frontier visualization — precheck / recovery / search traces."""
+"""Frontier visualization — precheck / recovery / search traces with Plotly."""
 
 from __future__ import annotations
 
@@ -8,38 +8,65 @@ from nicegui import ui
 
 from ui_nicegui.session import DesignSession
 
+_Y_OPTS = [
+    "Q_DT_eqv",
+    "H98",
+    "q95",
+    "P_e_net_MW",
+    "Pfus_DT_adj_MW",
+    "V (hard violation)",
+]
+_X_OPTS = ["R0_m", "a_m", "Bt_T", "Ti_keV", "Paux_MW", "Ip_MA", "fG", "kappa"]
+
 
 def render_frontier_panel(session: DesignSession) -> None:
-    if not session.systems_expert_view:
-        return
-
-    with ui.expansion("Frontier scatter (expert)", icon="scatter_plot").classes("w-full q-mt-sm"):
+    with ui.expansion("Frontier scatter", icon="scatter_plot", value=True).classes("w-full q-mt-sm"):
         src = ui.select(
             ["Precheck samples", "Seeded recovery trace", "Feasible search trace"],
             label="Source",
             value=session.systems_frontier_src,
-            on_change=lambda e: setattr(session, "systems_frontier_src", str(e.value)),
+            on_change=lambda e: (_set_src(session, str(e.value)), _frontier_view.refresh()),
         ).classes("w-48")
         x_key = ui.select(
-            ["R0_m", "a_m", "Bt_T", "Ti_keV", "Paux_MW", "Ip_MA", "fG", "kappa"],
+            _X_OPTS,
             label="X variable",
-            value=session.systems_frontier_x,
-            on_change=lambda e: setattr(session, "systems_frontier_x", str(e.value)),
+            value=session.systems_frontier_x if session.systems_frontier_x in _X_OPTS else _X_OPTS[4],
+            on_change=lambda e: (_set_x(session, str(e.value)), _frontier_view.refresh()),
         ).classes("w-36")
-        y_opts = ["Q_DT_eqv", "H98", "q95", "P_e_net_MW", "V (hard violation)"]
         y_key = ui.select(
-            y_opts,
+            _Y_OPTS,
             label="Y metric",
-            value=session.systems_frontier_y if session.systems_frontier_y in y_opts else y_opts[0],
-            on_change=lambda e: setattr(session, "systems_frontier_y", str(e.value)),
+            value=session.systems_frontier_y if session.systems_frontier_y in _Y_OPTS else _Y_OPTS[0],
+            on_change=lambda e: (_set_y(session, str(e.value)), _frontier_view.refresh()),
         ).classes("w-36")
+        _frontier_view(session, str(src.value), str(x_key.value), str(y_key.value))
 
-        pts = _collect_points(session, str(src.value), str(x_key.value), str(y_key.value))
-        if not pts:
-            ui.label("No points — run precheck, recovery, or search first.").classes("text-grey")
-            return
 
-        rows = [{"x": p[0], "y": p[1], "feasible": p[2]} for p in pts[:100]]
+def _set_src(session: DesignSession, v: str) -> None:
+    session.systems_frontier_src = v
+
+
+def _set_x(session: DesignSession, v: str) -> None:
+    session.systems_frontier_x = v
+
+
+def _set_y(session: DesignSession, v: str) -> None:
+    session.systems_frontier_y = v
+
+
+@ui.refreshable
+def _frontier_view(session: DesignSession, src: str, x_key: str, y_key: str) -> None:
+    pts = _collect_points(session, src, x_key, y_key)
+    if not pts:
+        ui.label("No points — run precheck, recovery, or search first.").classes("text-grey")
+        return
+
+    n_feas = sum(1 for p in pts if p[2])
+    ui.label(f"Points: {len(pts)} | feasible: {n_feas}").classes("text-caption q-mb-xs")
+    _render_plotly_scatter(pts, x_key, y_key)
+
+    rows = [{"x": p[0], "y": p[1], "feasible": p[2]} for p in pts[:100]]
+    with ui.expansion("Point table", icon="table_rows").classes("w-full"):
         ui.table(
             columns=[
                 {"name": "x", "label": "X", "field": "x"},
@@ -49,8 +76,46 @@ def render_frontier_panel(session: DesignSession) -> None:
             rows=rows,
             row_key="x",
         ).classes("w-full")
-        n_feas = sum(1 for p in pts if p[2])
-        ui.label(f"Points: {len(pts)} | feasible: {n_feas}").classes("text-caption")
+
+
+def _render_plotly_scatter(pts: list[tuple[float, float, bool]], x_key: str, y_key: str) -> None:
+    try:
+        import plotly.graph_objects as go
+    except ImportError:
+        ui.label("Install plotly for scatter chart.").classes("text-caption text-grey")
+        return
+
+    feas = [(p[0], p[1]) for p in pts if p[2]]
+    infeas = [(p[0], p[1]) for p in pts if not p[2]]
+    fig = go.Figure()
+    if infeas:
+        fig.add_trace(
+            go.Scatter(
+                x=[p[0] for p in infeas],
+                y=[p[1] for p in infeas],
+                mode="markers",
+                name="Infeasible",
+                marker=dict(color="rgba(160,160,160,0.35)", size=5),
+            )
+        )
+    if feas:
+        fig.add_trace(
+            go.Scatter(
+                x=[p[0] for p in feas],
+                y=[p[1] for p in feas],
+                mode="markers",
+                name="Feasible",
+                marker=dict(color="#1976d2", size=7),
+            )
+        )
+    fig.update_layout(
+        height=420,
+        margin=dict(l=48, r=20, t=36, b=48),
+        xaxis_title=x_key,
+        yaxis_title=y_key,
+        legend=dict(orientation="h"),
+    )
+    ui.plotly(fig).classes("w-full")
 
 
 def _collect_points(session: DesignSession, src: str, x_key: str, y_key: str) -> list[tuple[float, float, bool]]:
@@ -64,7 +129,10 @@ def _collect_points(session: DesignSession, src: str, x_key: str, y_key: str) ->
             try:
                 sp = getattr(sr, "sample", None)
                 xv = float(getattr(sp, "values", {}).get(x_key, float("nan")))
-                yv = float(getattr(sr, "outputs", {}).get(y_key, float("nan")))
+                if y_key == "V (hard violation)":
+                    yv = float(getattr(sr, "violation_score", float("nan")))
+                else:
+                    yv = float(getattr(sr, "outputs", {}).get(y_key, float("nan")))
                 feas = len(getattr(sr, "hard_failed", []) or []) == 0
                 if math.isfinite(xv) and math.isfinite(yv):
                     pts.append((xv, yv, feas))

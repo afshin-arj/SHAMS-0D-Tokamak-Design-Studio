@@ -183,14 +183,32 @@ class Evaluator:
         return v
 
     @staticmethod
-    def residuals(out: Dict[str, float], targets: Dict[str, float]) -> Dict[str, float]:
-        """Compute residuals (out - target) for selected keys."""
+    def residuals(
+        out: Dict[str, float],
+        targets: Dict[str, float],
+        senses: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, float]:
+        """Compute residuals for target solve.
+
+        senses: per-key 'eq' | 'min' | 'max'. Default 'eq' (out - target).
+        'min' -> max(0, target - out)  (floor: satisfied when out >= target)
+        'max' -> max(0, out - target)
+        """
         r: Dict[str, float] = {}
         for k, tgt in targets.items():
             try:
-                r[k] = float(out.get(k, float("nan"))) - float(tgt)
-            except Exception:
+                val = float(out.get(k, float("nan")))
+                t = float(tgt)
+            except (TypeError, ValueError):
                 r[k] = float("nan")
+                continue
+            sense = str((senses or {}).get(k, "eq")).lower()
+            if sense == "min":
+                r[k] = max(0.0, t - val)
+            elif sense == "max":
+                r[k] = max(0.0, val - t)
+            else:
+                r[k] = val - t
         return r
 
     @staticmethod

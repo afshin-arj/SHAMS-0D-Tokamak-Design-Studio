@@ -163,10 +163,22 @@ def render_setup(session: DesignSession) -> None:
                 step=0.05,
                 on_change=lambda e: setattr(session, "systems_h_target", float(e.value or 1.15)),
             ).classes("w-full")
+
+            def _on_pnet(e) -> None:
+                session.systems_use_pnet = bool(e.value)
+                if session.systems_use_pnet:
+                    session.systems_use_pfus = False
+
+            def _on_pfus(e) -> None:
+                session.systems_use_pfus = bool(e.value)
+                if session.systems_use_pfus:
+                    session.systems_use_pnet = False
+                    session.systems_solve_paux = True
+
             ui.checkbox(
                 "Match net electric P_net",
                 value=session.systems_use_pnet,
-                on_change=lambda e: setattr(session, "systems_use_pnet", bool(e.value)),
+                on_change=_on_pnet,
             )
             ui.number(
                 "P_net target [MW(e)]",
@@ -174,6 +186,18 @@ def render_setup(session: DesignSession) -> None:
                 min=5.0,
                 step=5.0,
                 on_change=lambda e: setattr(session, "systems_pnet_target", float(e.value or 50.0)),
+            ).classes("w-full")
+            ui.checkbox(
+                "Match fusion power Pfus_DT_adj",
+                value=session.systems_use_pfus,
+                on_change=_on_pfus,
+            )
+            ui.number(
+                "Pfus_DT_adj target [MW]",
+                value=session.systems_pfus_target,
+                min=10.0,
+                step=10.0,
+                on_change=lambda e: setattr(session, "systems_pfus_target", float(e.value or 200.0)),
             ).classes("w-full")
         with ui.column().classes("flex-1"):
             ui.label("What may the solver adjust?").classes("text-subtitle2")

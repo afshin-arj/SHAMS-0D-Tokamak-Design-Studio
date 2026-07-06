@@ -65,6 +65,8 @@ class DesignSession:
     systems_h_target: float = 1.15
     systems_use_pnet: bool = False
     systems_pnet_target: float = 50.0
+    systems_use_pfus: bool = False
+    systems_pfus_target: float = 200.0
     systems_solve_ip: bool = False
     systems_solve_fg: bool = False
     systems_solve_paux: bool = True
@@ -122,8 +124,14 @@ class DesignSession:
     systems_frontier_y: str = "Q_DT_eqv"
     systems_timeline_src: str = "Seeded recovery"
     systems_assumption_lock_hash: str = ""
+    systems_assumption_lock_enabled: bool = False
     systems_sensitivities_last: Optional[dict[str, Any]] = None
-    systems_fs_multiseed_n: int = 0
+    systems_fs_multiseed_n: int = 1
+    systems_fs_objective: str = "q_div_MW_m2"
+    systems_fs_src: str = "Manual (midpoint of bounds)"
+    systems_fs_vars: list[str] = field(default_factory=list)
+    systems_fs_bounds: dict[str, dict[str, float]] = field(default_factory=dict)
+    systems_fs_trace_keep: int = 2500
     systems_decision_state: str = "Diagnose infeasibility"
     systems_teaching_mode: bool = True
     systems_recovery_seed_mode: str = "Point Designer baseline"

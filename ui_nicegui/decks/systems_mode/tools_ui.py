@@ -2,22 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 
 from nicegui import run, ui
 
+from ui_nicegui.lib.systems_assumption_lock import assumption_settings_hash, check_assumption_lock
 from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 from ui_nicegui.session import DesignSession
-
-
-def _settings_hash(session: DesignSession) -> str:
-    payload = {
-        "targets_overrides": session.systems_targets_overrides,
-        "bounds_overrides": session.systems_bounds_overrides,
-        "base_overrides": session.systems_base_overrides,
-    }
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
 def render_tools_panel(session: DesignSession) -> None:
@@ -26,9 +17,12 @@ def render_tools_panel(session: DesignSession) -> None:
 
     with ui.expansion("Expert tools", icon="build").classes("w-full q-mt-sm"):
         ui.label("Assumption lock").classes("text-subtitle2")
-        h = _settings_hash(session)
+        h = assumption_settings_hash(session)
         locked = session.systems_assumption_lock_hash
+        ok, msg = check_assumption_lock(session)
         ui.label(f"Current hash: {h} | Locked: {locked or '(none)'}").classes("text-caption")
+        if not ok and msg:
+            ui.label(msg).classes("text-caption text-negative")
 
         def _capture_lock() -> None:
             session.systems_assumption_lock_hash = h

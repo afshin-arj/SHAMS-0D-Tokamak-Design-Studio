@@ -8,6 +8,7 @@ import time
 from dataclasses import fields, replace
 from typing import Any, Dict, List, Optional, Tuple
 
+from ui_nicegui.lib.systems_state_helpers import apply_input_overrides
 from ui_nicegui.lib.verdict_core import verdict_summary
 
 
@@ -124,35 +125,115 @@ def run_feasible_search(
     topk: int = 8,
     radius: float = 0.25,
     reactor_intent: bool = True,
+    objective_key: str = "q_div_MW_m2",
+    search_vars: Optional[List[str]] = None,
+    bounds_override: Optional[Dict[str, Dict[str, float]]] = None,
+    start_vals: Optional[Dict[str, float]] = None,
+    design_intent: str = "",
+    input_overrides: Optional[Dict[str, float]] = None,
+    trace_keep: int = 2500,
 ) -> dict:
-    bounds = tuple_bounds_to_dict(variables)
-    if not bounds:
-        return {"ok": False, "reason": "no_bounds", "candidates": []}
+    """Budgeted local random walk — feasible-only (reactor) or best-compromise (research)."""
+    from ui_nicegui.lib.pd_intent_policy import hard_constraint_names_for_intent
+    from ui_nicegui.lib.systems_fs_helpers import FS_METRIC_KEYS, fs_objective_value
 
+    default_bounds = tuple_bounds_to_dict(variables)
+    if bounds_override:
+        for k, b in bounds_override.items():
+            if isinstance(b, dict) and "lo" in b and "hi" in b:
+                default_bounds[k] = {"lo": float(b["lo"]), "hi": float(b["hi"])}
+
+    keys = [k for k in (search_vars or list(default_bounds.keys())) if k in default_bounds]
+    bounds = {k: dict(default_bounds[k]) for k in keys}
+    if not bounds:
+        return {"ok": False, "reason": "no_bounds", "candidates": [], "trace": []}
+
+    for k, b in list(bounds.items()):
+        lo, hi = float(b["lo"]), float(b["hi"])
+        if lo > hi:
+            lo, hi = hi, lo
+        bounds[k] = {"lo": lo, "hi": hi}
+
+    base_eval = apply_input_overrides(base, input_overrides)
     ev = _get_evaluator()
     rng = random.Random(int(rng_seed))
-    search_vars = list(bounds.keys())
+    hard_set = set(hard_constraint_names_for_intent(design_intent))
 
-    x_start = {
-        k: 0.5 * (bounds[k]["lo"] + bounds[k]["hi"]) for k in search_vars
-    }
-    res0 = ev.evaluate(_build_inputs(base, x_start))
-    out0 = res0.out if res0 and res0.ok else {}
-    feas0 = _feasible_outputs(out0)
-    obj0 = float(out0.get("Q_DT_eqv", out0.get("Q", float("inf"))) or float("inf"))
-    V0 = _violation_score(out0)
+    def _is_feasible(out: dict) -> bool:
+        if not _feasible_outputs(out):
+            return False
+        if not hard_set:
+            return True
+        try:
+            try:
+                from constraints.constraints import evaluate_constraints
+            except ImportError:
+                from src.constraints.constraints import evaluate_constraints  # type: ignore
+            for c in evaluate_constraints(out or {}):
+                nm = str(getattr(c, "name", ""))
+                if nm in hard_set and not bool(getattr(c, "passed", False)):
+                    return False
+            return True
+        except Exception:
+            return _feasible_outputs(out)
 
-    best_x = dict(x_start)
-    best_obj = obj0 if math.isfinite(obj0) else float("inf")
-    best_V = V0
-    cands: List[dict] = []
+    def _violation_score_intent(out: dict) -> float:
+        v = _violation_score(out)
+        if reactor_intent:
+            return v
+        try:
+            try:
+                from constraints.constraints import evaluate_constraints
+            except ImportError:
+                from src.constraints.constraints import evaluate_constraints  # type: ignore
+            V = 0.0
+            for c in evaluate_constraints(out or {}):
+                if str(getattr(c, "severity", "hard")).lower() != "hard":
+                    continue
+                nm = str(getattr(c, "name", ""))
+                if nm not in hard_set:
+                    continue
+                try:
+                    m = float(getattr(c, "margin", float("nan")))
+                except (TypeError, ValueError):
+                    m = float("nan")
+                if not math.isfinite(m):
+                    V += 1e6
+                else:
+                    V += 100.0 * max(0.0, -m) ** 2
+            return float(V)
+        except Exception:
+            return v
 
     def _headline(out: dict) -> dict:
         return {
             "Q": out.get("Q_DT_eqv", out.get("Q")),
             "H98": out.get("H98"),
             "P_net": out.get("P_e_net_MW", out.get("P_net_MW")),
+            "Pfus": out.get("Pfus_DT_adj_MW"),
         }
+
+    def _metrics(out: dict) -> dict:
+        return {k: out.get(k) for k in FS_METRIC_KEYS}
+
+    x_start = {}
+    for k in bounds:
+        if start_vals and k in start_vals:
+            x_start[k] = max(bounds[k]["lo"], min(bounds[k]["hi"], float(start_vals[k])))
+        else:
+            x_start[k] = 0.5 * (bounds[k]["lo"] + bounds[k]["hi"])
+
+    res0 = ev.evaluate(_build_inputs(base_eval, x_start))
+    out0 = res0.out if res0 and res0.ok else {}
+    feas0 = _is_feasible(out0)
+    obj0 = fs_objective_value(out0, objective_key)
+    V0 = _violation_score_intent(out0)
+
+    best_x = dict(x_start)
+    best_obj = obj0 if math.isfinite(obj0) else float("inf")
+    best_V = V0
+    cands: List[dict] = []
+    trace: List[dict] = []
 
     if (not reactor_intent) or feas0:
         cands.append(
@@ -162,6 +243,18 @@ def run_feasible_search(
                 "V": V0,
                 "feasible": feas0,
                 "headline": _headline(out0),
+                "metrics": _metrics(out0),
+            }
+        )
+    if len(trace) < trace_keep:
+        trace.append(
+            {
+                "i": 0,
+                "x": dict(x_start),
+                "obj": obj0 if math.isfinite(obj0) else None,
+                "V": V0 if math.isfinite(V0) else None,
+                "feasible": feas0,
+                "metrics": _metrics(out0),
             }
         )
 
@@ -175,13 +268,25 @@ def run_feasible_search(
             xv = x0 + (rng.random() * 2.0 - 1.0) * frac * span
             x[k] = max(lo, min(hi, xv))
 
-        res = ev.evaluate(_build_inputs(base, x))
+        res = ev.evaluate(_build_inputs(base_eval, x))
         if not (res and res.ok and isinstance(res.out, dict)):
             continue
         out = res.out
-        feas = _feasible_outputs(out)
-        V = _violation_score(out)
-        obj = float(out.get("Q_DT_eqv", out.get("Q", float("inf"))) or float("inf"))
+        feas = _is_feasible(out)
+        V = _violation_score_intent(out)
+        obj = fs_objective_value(out, objective_key)
+
+        if len(trace) < trace_keep:
+            trace.append(
+                {
+                    "i": i + 1,
+                    "x": dict(x),
+                    "obj": obj if math.isfinite(obj) else None,
+                    "V": V if math.isfinite(V) else None,
+                    "feasible": feas,
+                    "metrics": _metrics(out),
+                }
+            )
 
         if reactor_intent and not feas:
             continue
@@ -193,6 +298,7 @@ def run_feasible_search(
                 "V": V,
                 "feasible": feas,
                 "headline": _headline(out),
+                "metrics": _metrics(out),
             }
         )
 
@@ -211,14 +317,63 @@ def run_feasible_search(
         cands.sort(key=lambda c: (float(c.get("V", float("inf"))), float(c.get("obj", float("inf")))))
 
     top = cands[: max(1, int(topk))]
+    reason = "feasible_candidates" if (reactor_intent and top) else (
+        "best_compromise" if (not reactor_intent and top) else (
+            "start_not_feasible" if not feas0 else "no_feasible_found"
+        )
+    )
     return {
         "ok": bool(len(top) > 0),
-        "reason": "feasible_candidates" if top else "no_feasible_found",
+        "reason": reason,
+        "objective": str(objective_key),
         "candidates": top,
         "best_point": dict(best_x),
+        "trace": trace,
+        "trace_keep": int(trace_keep),
         "eval_budget": int(budget),
+        "topk": int(topk),
+        "radius": float(radius),
         "seed": int(rng_seed),
+        "vars": list(bounds.keys()),
+        "bounds": bounds,
+        "start_feasible": bool(feas0),
+        "ts_unix": time.time(),
     }
+
+
+def merge_multiseed_feasible_search(
+    runs: List[dict],
+    *,
+    topk: int,
+    reactor_intent: bool,
+) -> dict:
+    """Merge multi-seed feasible-search runs (Streamlit parity)."""
+    if not runs:
+        return {"ok": False, "reason": "no_result", "candidates": [], "trace": []}
+    rep = dict(runs[0])
+    cands: List[dict] = []
+    trace: List[dict] = []
+    for r in runs:
+        for c in list(r.get("candidates") or []):
+            cc = dict(c)
+            cc["seed"] = r.get("seed")
+            cands.append(cc)
+        for t in list(r.get("trace") or []):
+            tt = dict(t)
+            tt["seed"] = r.get("seed")
+            trace.append(tt)
+    if reactor_intent:
+        cands.sort(key=lambda c: float(c.get("obj", float("inf"))))
+    else:
+        cands.sort(key=lambda c: (float(c.get("V", float("inf"))), float(c.get("obj", float("inf")))))
+    rep["candidates"] = cands[: max(1, int(topk))] if cands else []
+    keep = int(rep.get("trace_keep", 2500))
+    rep["trace"] = trace[-keep:] if trace else []
+    rep["multi_seed_runs"] = len(runs)
+    rep["all_runs"] = runs
+    rep["ok"] = bool(rep.get("candidates"))
+    rep["reason"] = f"multi_seed_{rep.get('reason', 'merged')}"
+    return rep
 
 
 def collect_candidates(session: Any) -> List[dict]:

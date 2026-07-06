@@ -59,6 +59,7 @@ class DefaultTargetSolverBackend:
     def solve(self, req: SolverRequest) -> ConstraintSolveResult:
         trust_delta = req.options.get("trust_delta", None)
         paux_for_q = req.options.get("Paux_for_Q_MW")
+        target_senses = req.options.get("target_senses")
         solver_backend = req.options.get("solver_backend", "hybrid_newton")
         cache_enabled = bool(req.options.get("cache_enabled", True))
         cache_max = int(req.options.get("cache_max", 256))
@@ -103,6 +104,7 @@ class DefaultTargetSolverBackend:
                     cache_enabled=cache_enabled,
                     cache_max=cache_max,
                     Paux_for_Q_MW=paux_for_q,
+                    target_senses=target_senses,
                 )
 
             # Heuristic grouping by target/variable names
@@ -134,7 +136,10 @@ class DefaultTargetSolverBackend:
                 full_trace.append({"event": "block_stage", "stage": i, "name": nm, "ok": bool(r.ok), "message": str(r.message)})
                 full_trace.extend(list(r.trace or []))
                 try:
-                    nrm = Evaluator.residual_norm(Evaluator.residuals(r.out, {k: req.targets[k] for k in tk if k in req.targets}))
+                    st_tgt = {k: req.targets[k] for k in tk if k in req.targets}
+                    nrm = Evaluator.residual_norm(
+                        Evaluator.residuals(r.out, st_tgt, senses=target_senses)
+                    )
                 except Exception:
                     nrm = float("inf")
                 if (r.ok and (best is None or not best.ok)) or (nrm <= best_norm):
@@ -149,6 +154,7 @@ class DefaultTargetSolverBackend:
                     req2.base, req2.targets, req2.variables,
                     max_iter=req2.max_iter, tol=req2.tol, damping=req2.damping,
                     trust_delta=trust_delta, Paux_for_Q_MW=paux_for_q,
+                    target_senses=target_senses,
                 )
                 res_full.trace = (full_trace + [{"event": "block_stage", "stage": 99, "name": "final_full", "ok": bool(res_full.ok), "message": str(res_full.message)}] + list(res_full.trace or []))
                 res = res_full
@@ -184,6 +190,7 @@ class DefaultTargetSolverBackend:
                     cache_enabled=cache_enabled,
                     cache_max=cache_max,
                     Paux_for_Q_MW=paux_for_q,
+                    target_senses=target_senses,
                 )
 
         # Robustness ladder: deterministic multistart if first attempt fails
@@ -200,11 +207,12 @@ class DefaultTargetSolverBackend:
                         cache_enabled=cache_enabled,
                         cache_max=cache_max,
                 restarts=int(req.options.get("restarts", 8)),
+                target_senses=target_senses,
             )
             try:
                 from evaluator.core import Evaluator
-                n1 = Evaluator.residual_norm(Evaluator.residuals(res.out, req.targets))
-                n2 = Evaluator.residual_norm(Evaluator.residuals(res2.out, req.targets))
+                n1 = Evaluator.residual_norm(Evaluator.residuals(res.out, req.targets, senses=target_senses))
+                n2 = Evaluator.residual_norm(Evaluator.residuals(res2.out, req.targets, senses=target_senses))
                 if (res2.ok and not res.ok) or (n2 <= n1):
                     res = res2
             except Exception:

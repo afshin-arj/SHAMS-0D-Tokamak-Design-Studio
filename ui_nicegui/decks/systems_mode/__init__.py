@@ -245,8 +245,8 @@ def _render_tab_content(session: DesignSession) -> None:
         ui.separator().classes("q-my-md")
         ui.label("B · Budgeted feasible search").classes("text-subtitle2")
         explore_ui.render_explore_panel(session, on_complete=refresh)
+        frontier_ui.render_frontier_panel(session)
         if session.systems_expert_view:
-            frontier_ui.render_frontier_panel(session)
             timeline_ui.render_timeline_panel(session)
         return
 

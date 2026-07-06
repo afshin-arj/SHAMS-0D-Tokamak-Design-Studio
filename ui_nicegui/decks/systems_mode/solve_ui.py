@@ -6,6 +6,7 @@ from typing import Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.decks.systems_mode import assumption_lock_ui
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.session_store import set_point_evaluation
@@ -80,6 +81,8 @@ def render_solve_panel(
     ui.label("Step ② — Target solve (Newton)").classes("text-subtitle1")
     ui.label("Adjust declared variables to hit targets. Uses frozen Evaluator.").classes("text-caption q-mb-sm")
 
+    assumption_lock_ui.render_assumption_lock_bar(session)
+
     _, targets, variables = resolve_systems_problem(session)
     valid, val_msg = validate_systems_problem(targets, variables)
     disabled = not valid
@@ -98,6 +101,10 @@ def render_solve_panel(
             _render_solver_numerics(session)
 
     async def _run_solve() -> None:
+        blocked, block_msg = assumption_lock_ui.assumption_lock_blocks(session)
+        if blocked:
+            ui.notify(block_msg, type="negative")
+            return
         base_now, targets_now, variables_now = resolve_systems_problem(session)
         ok_prob, prob_msg = validate_systems_problem(targets_now, variables_now)
         if not ok_prob:

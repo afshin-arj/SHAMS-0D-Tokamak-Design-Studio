@@ -12,6 +12,7 @@ from ui_nicegui.lib.pd_intent_policy import (
 )
 from ui_nicegui.lib.pd_run_summary import compute_run_summary_from_out
 from ui_nicegui.lib.systems_state_helpers import apply_input_overrides
+from ui_nicegui.lib.systems_target_sense import build_target_senses
 from ui_nicegui.lib.systems_workflow_helpers import _get_evaluator
 
 
@@ -124,6 +125,7 @@ def _make_solver_request(
         opts["trust_delta"] = float(trust_delta)
     if paux_for_q_mw is not None:
         opts["Paux_for_Q_MW"] = float(paux_for_q_mw)
+    opts["target_senses"] = build_target_senses(targets)
     return SolverRequest(
         base=base,
         targets=dict(targets),

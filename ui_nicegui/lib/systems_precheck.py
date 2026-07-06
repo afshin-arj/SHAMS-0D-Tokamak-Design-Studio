@@ -13,6 +13,8 @@ def build_targets_and_variables(session, base) -> Tuple[Dict[str, float], Dict[s
         targets["H98"] = float(session.systems_h_target)
     if session.systems_use_pnet:
         targets["P_e_net_MW"] = float(session.systems_pnet_target)
+    elif getattr(session, "systems_use_pfus", False) and float(getattr(session, "systems_pfus_target", 0) or 0) > 0:
+        targets["Pfus_DT_adj_MW"] = float(session.systems_pfus_target)
 
     variables: Dict[str, Tuple[float, float, float]] = {}
     ip = float(getattr(base, "Ip_MA", 8.0))

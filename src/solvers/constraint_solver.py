@@ -79,6 +79,16 @@ def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
 
 
+def _physical_target_residual(val: float, tgt: float, sense: str) -> float:
+    """Residual in physical units for Newton (eq | min | max)."""
+    s = str(sense or "eq").lower()
+    if s == "min":
+        return max(0.0, float(tgt) - float(val))
+    if s == "max":
+        return max(0.0, float(val) - float(tgt))
+    return float(val) - float(tgt)
+
+
 def _make_inp(base: PointInputs, updates: Dict[str, float]) -> PointInputs:
     return base.__class__(**{**base.__dict__, **updates})
 
@@ -96,6 +106,7 @@ def solve_for_targets(
     cache_enabled: bool = True,
     cache_max: int = 256,
     Paux_for_Q_MW: float | None = None,
+    target_senses: Dict[str, str] | None = None,
 ) -> SolveResult:
     """Solve for iteration variables so that selected outputs hit targets.
 
@@ -212,7 +223,10 @@ def solve_for_targets(
         for key in out_keys:
             val = float(out.get(key, float("nan")))
             tgt = float(targets[key])
-            ri = (val - tgt) / float(res_scaling.scale_by_name.get(key, 1.0) or 1.0)
+            sense = str((target_senses or {}).get(key, "eq")).lower()
+            ri = _physical_target_residual(val, tgt, sense) / float(
+                res_scaling.scale_by_name.get(key, 1.0) or 1.0
+            )
             r.append(ri)
             if not math.isfinite(ri) or abs(ri) > tol:
                 ok_fin = False
@@ -354,7 +368,10 @@ def solve_for_targets(
             for key in out_keys:
                 val = float(out_dict.get(key, float("nan")))
                 tgt = float(targets[key])
-                ri = (val - tgt) / float(res_scaling.scale_by_name.get(key, 1.0) or 1.0)
+                sense = str((target_senses or {}).get(key, "eq")).lower()
+                ri = _physical_target_residual(val, tgt, sense) / float(
+                    res_scaling.scale_by_name.get(key, 1.0) or 1.0
+                )
                 rr.append(ri)
             try:
                 return float(math.sqrt(sum((ri * ri) for ri in rr)))
@@ -619,6 +636,7 @@ def solve_for_targets_multistart(
     trust_delta: float | None = None,
     restarts: int = 8,
     solver_backend: str | None = None,
+    target_senses: Dict[str, str] | None = None,
 ) -> SolveResult:
     '''Try multiple starting points within bounds and return the best result.
 
@@ -632,7 +650,7 @@ def solve_for_targets_multistart(
     evaluator = Evaluator()
 
     def residual_norm_for_out(out: Dict[str, float]) -> float:
-        res = Evaluator.residuals(out, targets)
+        res = Evaluator.residuals(out, targets, senses=target_senses)
         return Evaluator.residual_norm(res)
 
     bounds = [(float(variables[k][1]), float(variables[k][2])) for k in var_keys]
@@ -662,7 +680,16 @@ def solve_for_targets_multistart(
 
     for cand in candidates[: max(2, restarts)]:
         vars2 = {k: (float(cand[i]), variables[k][1], variables[k][2]) for i, k in enumerate(var_keys)}
-        res = solve_for_targets(base, targets, vars2, max_iter=max_iter, tol=tol, damping=damping, solver_backend=solver_backend)
+        res = solve_for_targets(
+            base,
+            targets,
+            vars2,
+            max_iter=max_iter,
+            tol=tol,
+            damping=damping,
+            solver_backend=solver_backend,
+            target_senses=target_senses,
+        )
         norm = residual_norm_for_out(res.out)
         if res.ok and norm <= best_norm:
             best, best_norm = res, norm
