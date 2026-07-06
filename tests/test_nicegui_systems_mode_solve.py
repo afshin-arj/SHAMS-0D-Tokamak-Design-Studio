@@ -51,3 +51,26 @@ def test_systems_solve_smoke() -> None:
     assert "ok" in result
     assert isinstance(result.get("artifact"), dict)
     assert result["artifact"].get("source") == "systems_solve"
+    rs = result["artifact"].get("run_summary")
+    if rs is not None:
+        assert isinstance(rs, dict)
+        assert "tightest_hard_constraints" in rs
+
+
+def test_systems_target_rows_after_solve() -> None:
+    from ui_nicegui.lib.systems_target_banner import systems_target_rows
+
+    s = DesignSession()
+    s.systems_use_q = True
+    s.systems_q_target = 10.0
+    rows = systems_target_rows(s, {"Q_DT_eqv": 9.5, "H98": 1.1})
+    assert rows
+    assert rows[0]["quantity"] == "Q_DT_eqv"
+    assert rows[0]["status"] in ("ok", "miss", "n/a")
+
+
+def test_decision_to_tab_mapping() -> None:
+    from ui_nicegui.lib.systems_labels import DECISION_STATES, DECISION_TO_TAB
+
+    assert DECISION_TO_TAB[DECISION_STATES[0]] == "2 · Check & Solve"
+    assert DECISION_TO_TAB[DECISION_STATES[4]] == "4 · Apply"

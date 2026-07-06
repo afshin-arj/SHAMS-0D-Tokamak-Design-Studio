@@ -14,7 +14,7 @@ def _render_baseline_summary(session: DesignSession) -> None:
     with ui.row().classes("gap-3 flex-wrap q-mb-sm"):
         for key, label in (
             ("R0_m", "R₀ [m]"),
-            ("B_T", "B_t [T]"),
+            ("Bt_T", "B₀ [T]"),
             ("Ip_MA", "I_p [MA]"),
             ("Paux_MW", "P_aux [MW]"),
             ("fG", "f_G [-]"),
@@ -38,24 +38,24 @@ def render_setup(session: DesignSession) -> None:
         with ui.column().classes("flex-1"):
             ui.label("What should the point achieve?").classes("text-subtitle2")
             ui.checkbox(
-                "Match fusion gain Q",
+                "Match fusion gain Q_DT_eqv",
                 value=session.systems_use_q,
                 on_change=lambda e: setattr(session, "systems_use_q", bool(e.value)),
             )
             ui.number(
-                "Q target [-]",
+                "Q_DT_eqv target [-]",
                 value=session.systems_q_target,
                 min=0.5,
                 step=0.5,
                 on_change=lambda e: setattr(session, "systems_q_target", float(e.value or 10.0)),
             ).classes("w-full")
             ui.checkbox(
-                "Match confinement H98",
+                "Match confinement H98(y,2)",
                 value=session.systems_use_h,
                 on_change=lambda e: setattr(session, "systems_use_h", bool(e.value)),
             )
             ui.number(
-                "H98 target [-]",
+                "H98(y,2) target [-]",
                 value=session.systems_h_target,
                 min=0.05,
                 step=0.05,

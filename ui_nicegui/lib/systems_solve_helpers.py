@@ -11,6 +11,7 @@ from ui_nicegui.lib.pd_intent_policy import (
     design_intent_key,
     hard_constraint_names_for_intent,
 )
+from ui_nicegui.lib.pd_run_summary import compute_run_summary_from_out
 from ui_nicegui.lib.systems_state_helpers import apply_input_overrides
 from ui_nicegui.lib.systems_workflow_helpers import _get_evaluator
 
@@ -96,6 +97,11 @@ def build_systems_solve_artifact(
         artifact.setdefault("freeze_contract", _fc())
     except Exception:
         pass
+    if isinstance(outputs, dict) and outputs:
+        try:
+            artifact["run_summary"] = compute_run_summary_from_out(outputs)
+        except Exception:
+            pass
     return artifact
 
 

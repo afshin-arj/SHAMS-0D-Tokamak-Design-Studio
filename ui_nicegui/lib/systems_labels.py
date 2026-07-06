@@ -48,6 +48,14 @@ DECISION_STATES = [
     "Apply & iterate (update Base/x0)",
 ]
 
+DECISION_TO_TAB = {
+    DECISION_STATES[0]: "2 · Check & Solve",
+    DECISION_STATES[1]: "3 · Alternatives",
+    DECISION_STATES[2]: "3 · Alternatives",
+    DECISION_STATES[3]: "3 · Alternatives",
+    DECISION_STATES[4]: "4 · Apply",
+}
+
 TEACHING_HINTS = {
     "Diagnose infeasibility": "Run **Step ① precheck** — read the dominant limiter before changing targets.",
     "Recover feasibility near seed": "Open **3 · Alternatives** → seeded recovery. Increase eval budget if the seed stays infeasible.",

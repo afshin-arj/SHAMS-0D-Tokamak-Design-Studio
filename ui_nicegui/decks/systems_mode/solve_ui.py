@@ -6,9 +6,12 @@ from typing import Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.lib.helm_helpers import log_ui_event
+from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_solve_helpers import run_systems_solve
 from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem
+from ui_nicegui.lib.systems_target_banner import systems_target_rows
 from ui_nicegui.lib.systems_workflow_helpers import append_run_card, systems_run_payload
 from ui_nicegui.session import DesignSession
 
@@ -92,16 +95,27 @@ def render_solve_panel(
             _render_solver_numerics(session)
 
     async def _run_solve() -> None:
-        base, targets_now, variables_now = resolve_systems_problem(session)
+        base_now, targets_now, variables_now = resolve_systems_problem(session)
         if not targets_now or not variables_now:
             ui.notify("Configure targets first", type="warning")
             return
+        try:
+            for warn in unrealistic_point_input_warnings(base_now, context="Systems Mode"):
+                ui.notify(warn, type="warning")
+        except Exception:
+            pass
+        log_ui_event(
+            session,
+            "SystemsMode",
+            "TargetSolve",
+            {"targets": dict(targets_now), "variables": list(variables_now.keys())},
+        )
         ui.notify("Running target solve…", type="info")
         try:
             trust = float(session.systems_trust_delta) if session.systems_use_trust_delta else None
             result = await run.io_bound(
                 run_systems_solve,
-                base,
+                base_now,
                 targets_now,
                 variables_now,
                 max_iter=session.systems_max_iter,
@@ -138,6 +152,16 @@ def render_solve_panel(
                 payload=systems_run_payload(session, result.get("artifact")),
             )
             append_journal(session, "SystemsSolve", {"ok": bool(result.get("ok"))})
+            log_ui_event(
+                session,
+                "SystemsMode",
+                "TargetSolveResult",
+                {
+                    "ok": bool(result.get("ok")),
+                    "iters": result.get("iters"),
+                    "blocked": bool(result.get("blocked")),
+                },
+            )
             ui.notify(
                 f"{'Converged' if result.get('ok') else 'Finished without convergence'} "
                 f"({result.get('iters')} iter)",
@@ -164,3 +188,17 @@ def _solve_result(session: DesignSession) -> None:
         f"Last solve: converged={bool(result.get('ok'))} | iters={result.get('iters', '-')} | "
         f"{float(result.get('wall_s', 0)):.2f}s"
     ).classes("text-body2 q-mt-sm")
+    out = result.get("out")
+    if isinstance(out, dict) and out:
+        tgt_rows = systems_target_rows(session, out)
+        if tgt_rows:
+            ui.table(
+                columns=[
+                    {"name": "quantity", "label": "Quantity", "field": "quantity", "align": "left"},
+                    {"name": "target", "label": "Target", "field": "target"},
+                    {"name": "achieved", "label": "Achieved", "field": "achieved"},
+                    {"name": "status", "label": "Status", "field": "status"},
+                ],
+                rows=tgt_rows,
+                row_key="quantity",
+            ).classes("w-full q-mt-sm")

@@ -28,8 +28,12 @@ from ui_nicegui.decks.systems_mode import (
 )
 from ui_nicegui.lib.pd_intent_policy import policy_caption
 from ui_nicegui.lib.systems_artifact import fetch_systems_artifact
+from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
+from ui_nicegui.lib.helm_helpers import log_ui_event
+from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.systems_labels import (
     DECISION_STATES,
+    DECISION_TO_TAB,
     DECK_SUBTITLE,
     SYSTEMS_TABS,
     TAB_HELP,
@@ -66,6 +70,7 @@ def _artifact_source(art: dict | None) -> str | None:
 
 
 def render_systems_mode(session: DesignSession) -> None:
+    apply_deck_dsg_context(session, "systems_eval")
     session.systems_workflow_step = normalize_systems_tab(session.systems_workflow_step)
 
     if session.pd_pending_systems_action == "precheck":
@@ -87,6 +92,38 @@ def render_systems_mode(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-xs")
     ui.label(policy_caption(session.design_intent)).classes("text-caption q-mb-sm")
 
+    with ui.expansion("About this mode", icon="info").classes("w-full q-mb-sm"):
+        ui.markdown(
+            "**Systems Mode is an explanation layer** around frozen Point Designer truth — "
+            "it proposes inputs and narratives, but **never modifies** L0 physics or constraints."
+        )
+        with ui.row().classes("w-full gap-4"):
+            with ui.column().classes("flex-1"):
+                ui.markdown(
+                    "**What this mode does**\n"
+                    "- Monte Carlo precheck over declared variable bounds\n"
+                    "- Newton target solve via frozen `Evaluator.evaluate()`\n"
+                    "- Recovery, feasible search, apply-to-baseline with undo"
+                )
+            with ui.column().classes("flex-1"):
+                ui.markdown(
+                    "**What this mode does not do**\n"
+                    "- Change physics, relax hard constraints, or hide NO-SOLUTION\n"
+                    "- Auto-apply designs without your explicit action\n"
+                    "- Replace Scan Lab / Pareto for broad trade-space exploration"
+                )
+        ui.label("Apply actions are reversible (undo/redo on tab 4 · Apply).").classes("text-caption text-grey")
+
+    def _on_decision(e) -> None:
+        state = str(e.value)
+        session.systems_decision_state = state
+        tab = DECISION_TO_TAB.get(state)
+        if tab and session.systems_teaching_mode:
+            session.systems_workflow_step = tab
+            _render_posture.refresh()
+            _render_workflow_chips.refresh()
+            _render_tab_content.refresh()
+
     with ui.row().classes("w-full gap-4 flex-wrap items-center q-mb-sm"):
         ui.select(
             DECISION_STATES,
@@ -94,7 +131,7 @@ def render_systems_mode(session: DesignSession) -> None:
             value=session.systems_decision_state
             if session.systems_decision_state in DECISION_STATES
             else DECISION_STATES[0],
-            on_change=lambda e: setattr(session, "systems_decision_state", str(e.value)),
+            on_change=_on_decision,
         ).classes("flex-[2]")
         ui.switch(
             "Guided mode",

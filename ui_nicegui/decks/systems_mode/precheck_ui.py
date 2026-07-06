@@ -7,6 +7,8 @@ from typing import Any, Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.lib.helm_helpers import log_ui_event
+from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.systems_precheck import run_systems_precheck
 from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem
 from ui_nicegui.session import DesignSession
@@ -73,6 +75,17 @@ def render_precheck_panel(
         if not targets_now or not variables_now:
             ui.notify("Configure targets first", type="warning")
             return
+        try:
+            for warn in unrealistic_point_input_warnings(base_now, context="Systems Mode"):
+                ui.notify(warn, type="warning")
+        except Exception:
+            pass
+        log_ui_event(
+            session,
+            "SystemsMode",
+            "Precheck",
+            {"n_random": session.systems_precheck_n_random, "seed": session.systems_precheck_seed},
+        )
         session.systems_precheck_running = True
         ui.notify("Running precheck…", type="info")
         try:
@@ -88,6 +101,12 @@ def render_precheck_panel(
             session.last_precheck_report = report
             session.systems_precheck_seconds = time.perf_counter() - t0
             append_journal(session, "Precheck", {"ok": _precheck_ok(report)})
+            log_ui_event(
+                session,
+                "SystemsMode",
+                "PrecheckResult",
+                {"ok": _precheck_ok(report), "n_samples": int(_precheck_attr(report, "n_samples", 0))},
+            )
             ui.notify(
                 "Precheck feasible" if _precheck_ok(report) else "Precheck infeasible",
                 type="positive" if _precheck_ok(report) else "warning",
