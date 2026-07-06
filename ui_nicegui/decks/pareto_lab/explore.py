@@ -52,6 +52,8 @@ def render_explore_tab(
                 session.pareto_plot_color = str(cfg["color"])
             if cfg.get("robust_only"):
                 session.pareto_robust_only = True
+            if cfg.get("intent_split"):
+                session.pareto_intent_split = True
             if cfg.get("show_failures"):
                 session.pareto_show_failures = True
             if on_update:
@@ -77,8 +79,16 @@ def render_explore_tab(
         c_val = session.pareto_plot_color if session.pareto_plot_color in color_opts else "dominant_constraint"
         c_sel = ui.select(color_opts, label="Color", value=c_val).classes("flex-1")
         robust_sw = ui.switch(
-            "Margin-robust overlay only",
+            "Show only margin-robust",
             value=session.pareto_robust_only,
+        ).classes("flex-none")
+        overlay_sw = ui.switch(
+            "Highlight margin-robust overlay",
+            value=getattr(session, "pareto_robust_overlay", True),
+        ).classes("flex-none")
+        intent_sw = ui.switch(
+            "Split Reactor / Research traces",
+            value=getattr(session, "pareto_intent_split", False),
         ).classes("flex-none")
         fail_sw = ui.switch("Show failure atlas", value=session.pareto_show_failures).classes("flex-none")
 
@@ -87,6 +97,8 @@ def render_explore_tab(
         session.pareto_plot_y = str(y_sel.value)
         session.pareto_plot_color = str(c_sel.value)
         session.pareto_robust_only = bool(robust_sw.value)
+        session.pareto_robust_overlay = bool(overlay_sw.value)
+        session.pareto_intent_split = bool(intent_sw.value)
         session.pareto_show_failures = bool(fail_sw.value)
         if on_update:
             on_update()
@@ -94,11 +106,15 @@ def render_explore_tab(
     for w in (x_sel, y_sel, c_sel):
         w.on("update:model-value", lambda: _sync())
     robust_sw.on("update:model-value", lambda: _sync())
+    overlay_sw.on("update:model-value", lambda: _sync())
+    intent_sw.on("update:model-value", lambda: _sync())
     fail_sw.on("update:model-value", lambda: _sync())
 
     x_key, y_key = session.pareto_plot_x, session.pareto_plot_y
     thr = float(pareto_last.get("robust_margin_thr") or session.pareto_robust_margin_thr or 0.1)
-    plot_pareto = robust_filtered(pareto, thr) if session.pareto_robust_only else list(pareto)
+    full_pareto = list(pareto)
+    robust_subset = robust_filtered(full_pareto, thr)
+    plot_pareto = robust_subset if session.pareto_robust_only else full_pareto
     enriched = enrich_pareto_front(
         plot_pareto, feasible, x_key=x_key, y_key=y_key, robust_margin_thr=thr,
     )
@@ -108,6 +124,9 @@ def render_explore_tab(
         plot_src = enriched
     else:
         plot_src = plot_pareto
+    intent_split = bool(getattr(session, "pareto_intent_split", False)) or str(
+        pareto_last.get("intent_mode") or ""
+    ).startswith("Both")
     _render_plot(
         plot_src if color_key != "(none)" else plot_pareto,
         x_key,
@@ -115,6 +134,8 @@ def render_explore_tab(
         color_key,
         failure_pts=failure_atlas_points(all_samples, x_key, y_key) if session.pareto_show_failures else [],
         focus_keys=list(session.pareto_focus_metrics or []),
+        robust_highlight=robust_subset if session.pareto_robust_overlay and not session.pareto_robust_only else [],
+        intent_split=intent_split,
     )
 
     ui.separator().classes("q-my-sm")
@@ -129,6 +150,8 @@ def _render_plot(
     *,
     failure_pts: list[dict],
     focus_keys: list[str],
+    robust_highlight: list[dict] | None = None,
+    intent_split: bool = False,
 ) -> None:
     if not pareto and not failure_pts:
         ui.label("Nothing to plot.").classes("text-caption")
@@ -152,27 +175,24 @@ def _render_plot(
             )
         )
     if pareto:
-        colors = None
-        if color_key and color_key != "(none)":
-            colors = [str(p.get(color_key) or "") for p in pareto]
-        hover_lines = []
-        for p in pareto:
-            parts = [f"dom: {p.get('dominant_constraint')}", f"margin: {p.get('min_constraint_margin')}"]
-            for fk in focus_keys:
-                if fk in p and p[fk] is not None:
-                    parts.append(f"{fk}: {p[fk]}")
-            hover_lines.append("<br>".join(parts))
-        fig.add_trace(
-            go.Scatter(
-                x=[p.get(x_key) for p in pareto],
-                y=[p.get(y_key) for p in pareto],
-                mode="markers",
-                name="Pareto",
-                marker=dict(size=9, color=colors if colors and any(colors) else "#1976d2"),
-                hovertext=hover_lines,
-                hoverinfo="text",
+        if intent_split:
+            for intent_name, color in (("Reactor", "#1976d2"), ("Research", "#e65100")):
+                subset = [p for p in pareto if str(p.get("intent", "")).startswith(intent_name[:4])]
+                if not subset:
+                    continue
+                _add_pareto_trace(fig, subset, x_key, y_key, color_key, focus_keys, name=intent_name, default_color=color)
+        else:
+            _add_pareto_trace(fig, pareto, x_key, y_key, color_key, focus_keys, name="Pareto")
+        if robust_highlight:
+            fig.add_trace(
+                go.Scatter(
+                    x=[p.get(x_key) for p in robust_highlight],
+                    y=[p.get(y_key) for p in robust_highlight],
+                    mode="markers",
+                    name="Margin-robust",
+                    marker=dict(size=12, symbol="x", color="#2e7d32", line=dict(width=2)),
+                )
             )
-        )
     xu = OBJ_CATALOG.get(x_key, {}).get("units", "-")
     yu = OBJ_CATALOG.get(y_key, {}).get("units", "-")
     fig.update_layout(
@@ -183,6 +203,44 @@ def _render_plot(
         legend=dict(orientation="h"),
     )
     ui.plotly(fig).classes("w-full")
+
+
+def _add_pareto_trace(
+    fig,
+    pareto: list[dict],
+    x_key: str,
+    y_key: str,
+    color_key: str,
+    focus_keys: list[str],
+    *,
+    name: str = "Pareto",
+    default_color: str = "#1976d2",
+) -> None:
+    import plotly.graph_objects as go
+
+    colors = None
+    if color_key and color_key != "(none)":
+        colors = [str(p.get(color_key) or "") for p in pareto]
+    hover_lines = []
+    for p in pareto:
+        parts = [f"dom: {p.get('dominant_constraint')}", f"margin: {p.get('min_constraint_margin')}"]
+        if p.get("intent"):
+            parts.append(f"intent: {p.get('intent')}")
+        for fk in focus_keys:
+            if fk in p and p[fk] is not None:
+                parts.append(f"{fk}: {p[fk]}")
+        hover_lines.append("<br>".join(parts))
+    fig.add_trace(
+        go.Scatter(
+            x=[p.get(x_key) for p in pareto],
+            y=[p.get(y_key) for p in pareto],
+            mode="markers",
+            name=name,
+            marker=dict(size=9, color=colors if colors and any(colors) else default_color),
+            hovertext=hover_lines,
+            hoverinfo="text",
+        )
+    )
 
 
 def _render_table(pareto: list[dict], obj_keys: list[str], focus_keys: list[str]) -> None:

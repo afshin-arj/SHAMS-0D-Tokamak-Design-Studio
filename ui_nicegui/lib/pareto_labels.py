@@ -87,7 +87,7 @@ ROBUST_MARGIN_HELP = (
 QUESTION_PRESETS = {
     "Where does robustness collapse?": {"color": "min_constraint_margin", "robust_only": True},
     "Where is q_div limiting?": {"color": "dominant_constraint", "show_failures": True},
-    "Compare Reactor vs Research fronts": {"color": "intent"},
+    "Compare Reactor vs Research fronts": {"color": "intent", "intent_split": True},
     "Fusion power vs size": {"plot_x": "R0_m", "plot_y": "Pfus_DT_adj_MW"},
 }
 

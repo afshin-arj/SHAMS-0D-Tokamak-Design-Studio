@@ -177,14 +177,17 @@ def scan_lab_focus(
 
 
 def policy_filter_front(
-    pareto: list,
+    feasible: list,
+    objectives: dict,
     *,
     tbr_min: float | None = None,
     qdiv_max: float | None = None,
     sigma_max: float | None = None,
+    hts_min: float | None = None,
 ) -> List[dict]:
-    out: List[dict] = []
-    for p in _rows_to_dicts(pareto):
+    """Filter feasible set by policy thresholds, then recompute Pareto front."""
+    filtered: List[dict] = []
+    for p in _rows_to_dicts(feasible):
         if tbr_min is not None:
             tbr = float(p.get("TBR", float("nan")))
             if tbr != tbr or tbr < float(tbr_min):
@@ -197,8 +200,126 @@ def policy_filter_front(
             sig = float(p.get("sigma_vm_MPa", float("nan")))
             if sig != sig or sig > float(sigma_max):
                 continue
-        out.append(p)
-    return out
+        if hts_min is not None:
+            hts = float(p.get("hts_margin_cs", p.get("hts_margin", float("nan"))))
+            if hts != hts or hts < float(hts_min):
+                continue
+        filtered.append(p)
+    if len(objectives) < 2 or not filtered:
+        return filtered
+    try:
+        from src.solvers.optimize import pareto_front
+    except ImportError:
+        from solvers.optimize import pareto_front  # type: ignore
+    return pareto_front(filtered, objectives)
+
+
+def explain_segment(
+    seg_rows: list,
+    *,
+    y_key: str,
+    bounds_keys: list[str] | None = None,
+) -> dict:
+    rows = _rows_to_dicts(seg_rows)
+    if not rows:
+        return {"dominant": "(unknown)", "n": 0, "driver": "", "narrative": "Empty segment."}
+    dom = str(rows[0].get("dominant_constraint") or "(unknown)")
+    drivers = bounds_keys or ["R0_m", "Bt_T", "Ip_MA", "fG", "Paux_MW"]
+    driver_msg = ""
+    try:
+        import numpy as np
+
+        corrs = []
+        for dv in drivers:
+            if dv not in rows[0]:
+                continue
+            a = np.array([float(r.get(dv, float("nan"))) for r in rows], dtype=float)
+            b = np.array([float(r.get(y_key, float("nan"))) for r in rows], dtype=float)
+            m = np.isfinite(a) & np.isfinite(b)
+            if m.sum() < 4:
+                continue
+            c = float(np.corrcoef(a[m], b[m])[0, 1])
+            if c == c:
+                corrs.append((dv, c))
+        if corrs:
+            dv, cc = sorted(corrs, key=lambda kv: -abs(kv[1]))[0]
+            driver_msg = f"Within this segment, `{y_key}` co-moves most with `{dv}` (ρ≈{cc:.2f})."
+    except Exception:
+        pass
+    narrative = f"Segment pinned by **{dom}** ({len(rows)} points)."
+    if driver_msg:
+        narrative += f" {driver_msg}"
+    return {"dominant": dom, "n": len(rows), "driver": driver_msg, "narrative": narrative}
+
+
+def detect_free_lunch_steps(pareto: list, x_key: str, y_key: str, objectives: dict) -> List[dict]:
+    """Flag stretches where both plotted objectives improve together (projection artifact)."""
+    pts = sorted(_rows_to_dicts(pareto), key=lambda p: float(p.get(x_key) or 0))
+    if len(pts) < 4:
+        return []
+    sx = str(objectives.get(x_key, "min"))
+    sy = str(objectives.get(y_key, "min"))
+    steps: List[dict] = []
+    for i in range(1, len(pts)):
+        a, b = pts[i - 1], pts[i]
+        try:
+            dx = float(b.get(x_key)) - float(a.get(x_key))
+            dy = float(b.get(y_key)) - float(a.get(y_key))
+        except (TypeError, ValueError):
+            continue
+        if dx == 0 and dy == 0:
+            continue
+        x_better = (dx < 0) if sx == "min" else (dx > 0)
+        y_better = (dy < 0) if sy == "min" else (dy > 0)
+        if x_better and y_better:
+            steps.append({"from_idx": i - 1, "to_idx": i, "note": "Both objectives improve along this step — check redundancy or sampling."})
+    return steps[:12]
+
+
+def objective_relevance_table(feasible: list, pareto: list, obj_keys: List[str]) -> List[dict]:
+    rows_out: List[dict] = []
+    if not obj_keys:
+        return rows_out
+    try:
+        import numpy as np
+
+        for k in obj_keys:
+            fvals = [float(r.get(k)) for r in _rows_to_dicts(feasible) if r.get(k) is not None]
+            pvals = [float(r.get(k)) for r in _rows_to_dicts(pareto) if r.get(k) is not None]
+            vf = float(np.nanstd(np.array(fvals, dtype=float))) if len(fvals) >= 3 else float("nan")
+            vp = float(np.nanstd(np.array(pvals, dtype=float))) if len(pvals) >= 2 else float("nan")
+            if vp != vp or vf == 0:
+                label = "flat on front"
+            elif vp / (vf + 1e-12) < 0.05:
+                label = "low front variation"
+            else:
+                label = "shapes front"
+            rows_out.append({"objective": k, "std_feasible": vf, "std_front": vp, "relevance": label})
+    except Exception:
+        pass
+    return rows_out
+
+
+def possible_next_questions(pareto_last: dict) -> List[str]:
+    summary = pareto_last.get("summary") or {}
+    qs: List[str] = []
+    n_pareto = int(summary.get("n_pareto") or 0)
+    conf = str(summary.get("confidence") or "")
+    if n_pareto < 3:
+        qs.append("Increase samples or widen bounds — is the front incomplete?")
+    if conf in ("Low", "Sparse"):
+        qs.append("Where is sampling coverage thin (confidence halo)?")
+    robust = str(summary.get("robust_mix") or "")
+    if robust and robust not in ("-", "0/0") and robust.startswith("0/"):
+        qs.append("Most Pareto points are fragile under the margin threshold — run Phase+UQ robust screening?")
+    top = str(summary.get("top_constraint") or "")
+    if "q_div" in top.lower():
+        qs.append("Where is heat exhaust (q_div) shaping the trade-off?")
+    if str(pareto_last.get("intent_mode", "")).startswith("Both"):
+        qs.append("Do Reactor and Research fronts disagree on the same axes?")
+    if not qs:
+        qs.append("Explore policy lens — how sensitive is the front to TBR / exhaust thresholds?")
+    return qs
 
 
 def restore_pareto_artifact(payload: dict) -> dict:
@@ -343,7 +464,16 @@ def sampling_honesty(pareto_last: dict) -> dict:
         "feasible_fraction": float(n_feas) / max(n_all, 1),
         "seed": pareto_last.get("seed"),
         "intent_mode": pareto_last.get("intent_mode"),
+        "incompleteness_flags": [],
     }
+    ff = rep["feasible_fraction"]
+    n_pareto = len(pareto_last.get("pareto") or [])
+    if ff < 0.001:
+        rep["incompleteness_flags"].append("Feasible sample is extremely sparse — front may be empty or misleading.")
+    elif ff < 0.01 and n_pareto < 5:
+        rep["incompleteness_flags"].append("Low feasible fraction with thin Pareto set — increase samples.")
+    if n_pareto >= 1 and n_pareto < 5:
+        rep["incompleteness_flags"].append("Few Pareto points — trade-off geometry may be under-resolved.")
     if len(obj_keys) >= 2 and n_feas >= 10:
         try:
             import numpy as np

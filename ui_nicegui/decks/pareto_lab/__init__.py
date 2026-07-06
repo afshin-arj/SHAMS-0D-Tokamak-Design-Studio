@@ -125,7 +125,10 @@ def _render_tab_body(session: DesignSession) -> None:
     open_setup = session.pareto_teaching_mode and not session.pareto_expert_view
 
     if step == "1 · Setup & Run":
-        setup_panel.render_setup_panel(default_open=open_setup)
+        setup_panel.render_setup_panel(
+            default_open=open_setup,
+            on_restore=lambda art: (setattr(session, "pareto_last", art), _refresh_all()),
+        )
         ui.separator().classes("q-my-sm")
         controls.render_pareto_controls(
             session,
@@ -135,6 +138,10 @@ def _render_tab_body(session: DesignSession) -> None:
     elif step == "2 · Explore Frontier":
         if not isinstance(session.pareto_last, dict):
             empty_state("Run a Pareto study on **Setup & Run** first.", kind="info")
+            ui.button("Go to Setup & Run", icon="settings", on_click=lambda: (
+                setattr(session, "pareto_workflow_step", "1 · Setup & Run"),
+                _render_tab_body.refresh(),
+            )).props("outline")
             return
         explore.render_explore_tab(session, session.pareto_last, on_update=_render_tab_body.refresh)
     elif step == "3 · Interpret & Audit":

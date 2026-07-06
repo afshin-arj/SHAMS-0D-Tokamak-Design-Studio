@@ -197,7 +197,27 @@ def run_pareto_study(
         "perf": perf_runs,
     }
     payload["summary"] = summarize_pareto_run(payload)
+    payload["_nan_objective_rates"] = compute_nan_objective_rates(all_feasible, list(objectives.keys()))
     return payload
+
+
+def compute_nan_objective_rates(feasible: list, obj_keys: List[str]) -> Dict[str, float]:
+    if not feasible or not obj_keys:
+        return {}
+    rates: Dict[str, float] = {}
+    n = max(len(feasible), 1)
+    for k in obj_keys:
+        bad = 0
+        for r in feasible:
+            v = r.get(k) if isinstance(r, dict) else None
+            try:
+                fv = float(v)
+                if fv != fv:
+                    bad += 1
+            except (TypeError, ValueError):
+                bad += 1
+        rates[k] = float(bad) / float(n)
+    return rates
 
 
 def summarize_pareto_run(pareto_last: dict) -> Dict[str, Any]:

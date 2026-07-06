@@ -14,6 +14,7 @@ from ui_nicegui.lib.pareto_helpers import (
     metric_label,
     run_pareto_study,
 )
+from ui_nicegui.lib.pareto_interpret_helpers import possible_next_questions
 from ui_nicegui.lib.pareto_labels import ROBUST_MARGIN_HELP
 from ui_nicegui.session import DesignSession
 
@@ -157,6 +158,8 @@ def _post_run_verdict(session: DesignSession) -> None:
     ui.separator().classes("q-my-sm")
     ui.label("Last run verdict").classes("text-subtitle2")
     ui.label(posture).classes("text-body2")
+    for q in possible_next_questions({"summary": summary, "intent_mode": rep.get("intent_mode")}):
+        ui.label(f"→ {q}").classes("text-caption text-grey")
     why = rep.get("summary", {})
     ui.label(
         f"Feasible {why.get('n_feasible', '-')} · Pareto {why.get('n_pareto', '-')} · "

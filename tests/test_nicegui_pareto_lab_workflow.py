@@ -96,12 +96,40 @@ def test_frontier_posture_and_policy_filter() -> None:
     msg2, _ = frontier_posture({"n_feasible": 10, "n_pareto": 5, "confidence": "High"})
     assert "High-confidence" in msg2
 
-    rows = [
-        {"TBR": 1.1, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0},
-        {"TBR": 0.8, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0},
+    feasible = [
+        {"TBR": 1.1, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0, "R0_m": 1.8, "P_e_net_MW": 100.0},
+        {"TBR": 0.8, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0, "R0_m": 2.0, "P_e_net_MW": 120.0},
+        {"TBR": 1.2, "q_div_MW_m2": 8.0, "sigma_vm_MPa": 350.0, "R0_m": 1.9, "P_e_net_MW": 90.0},
     ]
-    filtered = policy_filter_front(rows, tbr_min=1.0)
-    assert len(filtered) == 1
+    filtered = policy_filter_front(feasible, {"R0_m": "min", "P_e_net_MW": "max"}, tbr_min=1.0)
+    assert len(filtered) >= 1
+    assert all(float(r.get("TBR", 0)) >= 1.0 for r in filtered)
+
+
+def test_interpret_helpers_second_pass() -> None:
+    from ui_nicegui.lib.pareto_helpers import compute_nan_objective_rates
+    from ui_nicegui.lib.pareto_interpret_helpers import (
+        detect_free_lunch_steps,
+        explain_segment,
+        objective_relevance_table,
+        possible_next_questions,
+    )
+
+    seg = explain_segment(
+        [{"dominant_constraint": "q95", "R0_m": 1.8, "P_e_net_MW": 100}],
+        y_key="P_e_net_MW",
+    )
+    assert "q95" in seg.get("narrative", "")
+    rel = objective_relevance_table(
+        [{"R0_m": 1.8, "P_e_net_MW": 100}, {"R0_m": 2.0, "P_e_net_MW": 80}],
+        [{"R0_m": 1.9, "P_e_net_MW": 95}],
+        ["R0_m", "P_e_net_MW"],
+    )
+    assert rel
+    rates = compute_nan_objective_rates([{"R0_m": 1.0}], ["R0_m", "missing"])
+    assert rates["missing"] == 1.0
+    qs = possible_next_questions({"summary": {"n_pareto": 1, "confidence": "Sparse"}, "intent_mode": "Reactor"})
+    assert qs
 
 
 def test_atlas_deck_name_matches_external_router() -> None:

@@ -131,6 +131,15 @@ def candidate_sources(session) -> List[Tuple[str, dict]]:
     return out
 
 
+def _robust_objective_agg(orientation: str, vals: List[float]) -> float:
+    v = [float(x) for x in vals if x is not None and float(x) == float(x)]
+    if not v:
+        return float("nan")
+    if str(orientation).lower().startswith("max"):
+        return float(min(v))
+    return float(max(v))
+
+
 def run_robust_pareto_frontier(
     session,
     *,
@@ -150,7 +159,13 @@ def run_robust_pareto_frontier(
     pareto_pts = list(bundle.get("pareto") or [])[: int(n_take)]
     bounds = bundle.get("bounds") or {}
     bound_keys = list(bounds.keys()) if isinstance(bounds, dict) else []
+    objectives = bundle.get("objectives") or {}
+    if isinstance(objectives, dict) and objectives and "sense" in str(next(iter(objectives.values()), "")):
+        obj_senses = {k: (v.get("sense") if isinstance(v, dict) else str(v)) for k, v in objectives.items()}
+    else:
+        obj_senses = {k: str(v) for k, v in objectives.items()} if isinstance(objectives, dict) else {}
     rows: List[dict] = []
+    point_arts: List[dict] = []
 
     for i, row in enumerate(pareto_pts):
         d = dict(base_d)
@@ -174,27 +189,108 @@ def run_robust_pareto_frontier(
         env = run_phase_envelope_for_point(inp, phases, label_prefix=f"{label_prefix}:p{i:04d}")
         env_s = (env.get("envelope_summary") or {}) if isinstance(env, dict) else {}
         env_verdict = str(env_s.get("envelope_verdict", "UNKNOWN"))
+        env_worst_margin = env_s.get("worst_phase_worst_hard_margin_frac")
+        try:
+            env_worst_margin_f = float(env_worst_margin) if env_worst_margin is not None else float("nan")
+        except (TypeError, ValueError):
+            env_worst_margin_f = float("nan")
 
         uq = run_uncertainty_contract_for_point(inp, uq_spec, label_prefix=f"{label_prefix}:u{i:04d}")
         uq_sum = (uq.get("summary") or {}) if isinstance(uq, dict) else {}
         uq_verdict = str(uq_sum.get("verdict", "UNKNOWN"))
+        uq_worst_margin = uq_sum.get("worst_hard_margin_frac")
+        try:
+            uq_worst_margin_f = float(uq_worst_margin) if uq_worst_margin is not None else float("nan")
+        except (TypeError, ValueError):
+            uq_worst_margin_f = float("nan")
 
         tier = _classify_robust(nominal_feasible, env_verdict, uq_verdict)
-        rows.append(
+
+        def _val_from_out(o: dict, k: str) -> float:
+            try:
+                v = o.get(k)
+                return float(v) if v is not None else float("nan")
+            except (TypeError, ValueError):
+                return float("nan")
+
+        worst_phase_idx = int(env.get("worst_phase_index", 0) or 0) if isinstance(env, dict) else 0
+        worst_phase_out: dict = {}
+        try:
+            phs = env.get("phases_ordered") if isinstance(env, dict) else None
+            if isinstance(phs, list) and 0 <= worst_phase_idx < len(phs):
+                wp = phs[worst_phase_idx]
+                worst_phase_out = (wp.get("outputs") if isinstance(wp, dict) else None) or {}
+        except Exception:
+            pass
+        worst_corner_out: dict = {}
+        try:
+            ci = uq_sum.get("worst_corner_index")
+            corners = uq.get("corners") if isinstance(uq, dict) else None
+            if ci is not None and isinstance(corners, list):
+                cidx = int(ci)
+                if 0 <= cidx < len(corners):
+                    wc = corners[cidx]
+                    worst_corner_out = (wc.get("outputs") if isinstance(wc, dict) else None) or {}
+        except Exception:
+            pass
+
+        rec: dict = {
+            "i": i,
+            "tier": tier,
+            "env_verdict": env_verdict,
+            "uq_verdict": uq_verdict,
+            "env_worst_margin": env_worst_margin_f,
+            "uq_worst_margin": uq_worst_margin_f,
+            "nominal_feasible": nominal_feasible,
+            "dominant_constraint": row.get("dominant_constraint") if isinstance(row, dict) else None,
+        }
+        if isinstance(row, dict):
+            for k in bound_keys:
+                if k in row:
+                    rec[k] = row.get(k)
+        for ok, sense in obj_senses.items():
+            nom = _val_from_out(out0, ok)
+            wph = _val_from_out(worst_phase_out, ok)
+            wco = _val_from_out(worst_corner_out, ok)
+            rob = _robust_objective_agg(str(sense), [nom, wph, wco])
+            rec[f"robust_{ok}"] = rob
+            if nom == nom and nom != 0 and rob == rob:
+                rec[f"degrade_{ok}"] = float((rob - nom) / abs(nom))
+            else:
+                rec[f"degrade_{ok}"] = float("nan")
+        rows.append(rec)
+        point_arts.append(
             {
-                "i": i,
-                "tier": tier,
-                "env_verdict": env_verdict,
-                "uq_verdict": uq_verdict,
-                "nominal_feasible": nominal_feasible,
-                "dominant_constraint": row.get("dominant_constraint") if isinstance(row, dict) else None,
+                "index": i,
+                "inputs": dict(inp.__dict__) if hasattr(inp, "__dict__") else d,
+                "nominal_outputs": dict(out0),
+                "phase_envelope": env,
+                "uncertainty_contract": uq,
             }
         )
 
     counts: Dict[str, int] = {}
     for r in rows:
         counts[str(r.get("tier", "?"))] = counts.get(str(r.get("tier", "?")), 0) + 1
-    return {"rows": rows, "counts": counts, "n": len(rows)}
+    root = repo()
+    ver = "unknown"
+    try:
+        vp = root / "VERSION"
+        if vp.is_file():
+            ver = vp.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+    return {
+        "schema": "robust_pareto.v1",
+        "shams_version": ver,
+        "rows": rows,
+        "points": point_arts,
+        "counts": counts,
+        "n": len(rows),
+        "objectives": obj_senses,
+        "phase_spec_json": phases_json,
+        "uq_spec_json": uq_json,
+    }
 
 
 def load_records_from_upload(name: str, data: bytes) -> List[dict]:

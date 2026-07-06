@@ -114,35 +114,68 @@ def _robust_view(session: DesignSession) -> None:
     kpi_row([(k, str(v)) for k, v in sorted(counts.items())])
     rows = res.get("rows") or []
     if rows:
-        ui.table(
-            columns=[
-                {"name": "i", "label": "#", "field": "i"},
-                {"name": "tier", "label": "Tier", "field": "tier"},
-                {"name": "env_verdict", "label": "Phase", "field": "env_verdict"},
-                {"name": "uq_verdict", "label": "UQ", "field": "uq_verdict"},
-                {"name": "dominant_constraint", "label": "Dominant", "field": "dominant_constraint", "align": "left"},
-            ],
-            rows=rows,
-            row_key="i",
-        ).classes("w-full")
+        obj_senses = res.get("objectives") or {}
+        rob_keys = [k for k in rows[0].keys() if str(k).startswith("robust_")]
+        if len(rob_keys) >= 1:
+            try:
+                import plotly.graph_objects as go
+
+                xk = rob_keys[0]
+                yk = rob_keys[1] if len(rob_keys) > 1 else rob_keys[0]
+                fig = go.Figure()
+                tiers = sorted({str(r.get("tier")) for r in rows})
+                for tier in tiers:
+                    sub = [r for r in rows if str(r.get("tier")) == tier]
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[r.get(xk) for r in sub],
+                            y=[r.get(yk) for r in sub],
+                            mode="markers",
+                            name=tier,
+                        )
+                    )
+                fig.update_layout(
+                    height=360,
+                    xaxis_title=xk.replace("robust_", ""),
+                    yaxis_title=yk.replace("robust_", ""),
+                    margin=dict(l=48, r=20, t=36, b=48),
+                )
+                ui.plotly(fig).classes("w-full q-mb-sm")
+            except Exception:
+                pass
+        cols = [
+            {"name": "i", "label": "#", "field": "i"},
+            {"name": "tier", "label": "Tier", "field": "tier"},
+            {"name": "env_verdict", "label": "Phase", "field": "env_verdict"},
+            {"name": "uq_verdict", "label": "UQ", "field": "uq_verdict"},
+            {"name": "env_worst_margin", "label": "Phase margin", "field": "env_worst_margin"},
+            {"name": "uq_worst_margin", "label": "UQ margin", "field": "uq_worst_margin"},
+            {"name": "dominant_constraint", "label": "Dominant", "field": "dominant_constraint", "align": "left"},
+        ]
+        for rk in rob_keys[:3]:
+            cols.append({"name": rk, "label": rk, "field": rk})
+        ui.table(columns=cols, rows=rows, row_key="i").classes("w-full")
+        pick = ui.number("Promote row #", value=0, min=0, max=max(len(rows) - 1, 0), step=1).classes("w-32")
+
+        def _promote_robust() -> None:
+            i = int(pick.value or 0)
+            if i < 0 or i >= len(rows):
+                ui.notify("Invalid row", type="warning")
+                return
+            pick_row = rows[i]
+            bundle_pts = (session.pareto_last or {}).get("pareto") or []
+            cand = bundle_pts[i] if i < len(bundle_pts) else pick_row
+            from ui_nicegui.lib.pareto_interpret_helpers import promote_point_inputs
+
+            promote_point_inputs(session, cand if isinstance(cand, dict) else pick_row, session.pareto_bounds or {})
+            ui.notify("Promoted point to Point Designer inputs — evaluate there.", type="positive")
+
+        ui.button("Promote row → Point Designer", icon="upload", on_click=_promote_robust).props("outline")
         ui.button(
             "Download robust_pareto.json",
             icon="download",
             on_click=lambda: ui.download(report_to_json_bytes(res), "robust_pareto.json"),
         ).props("flat outline")
-
-        def _promote_robust() -> None:
-            pick = next((r for r in rows if str(r.get("tier")) == "ROBUST"), rows[0] if rows else None)
-            if not isinstance(pick, dict):
-                ui.notify("No row to promote", type="warning")
-                return
-            cand = pick.get("candidate") or pick
-            from ui_nicegui.lib.pareto_interpret_helpers import promote_point_inputs
-
-            promote_point_inputs(session, cand, session.pareto_bounds or {})
-            ui.notify("Promoted robust point to Point Designer inputs — evaluate there.", type="positive")
-
-        ui.button("Promote ROBUST point → Point Designer", icon="upload", on_click=_promote_robust).props("outline")
 
 
 def _render_regime_atlas(session: DesignSession) -> None:
