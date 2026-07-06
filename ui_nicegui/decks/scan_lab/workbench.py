@@ -241,6 +241,15 @@ def _render_probe_block(session: DesignSession, rep: dict, grid: dict, intent: s
         f"- Min blocking margin: **{summary.get('min_blocking_margin') or '-'}**\n"
         f"- Cell robustness label: **{summary.get('robustness') or '-'}**"
     ).classes("text-body2")
+    perf = summary.get("performance") or {}
+    if perf:
+        bits = []
+        for k, v in perf.items():
+            try:
+                bits.append(f"{k}={float(v):.4g}")
+            except (TypeError, ValueError):
+                bits.append(f"{k}={v}")
+        ui.label("Operating point: " + ", ".join(bits)).classes("text-caption q-mb-xs")
     failed = summary.get("failed_blocking") or []
     if failed:
         with ui.expansion("Failed blocking constraints", icon="warning").classes("w-full"):

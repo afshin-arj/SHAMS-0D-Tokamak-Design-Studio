@@ -28,6 +28,19 @@ def _attr(base, key: str, default: float) -> float:
         return float(default)
 
 
+def estimate_eval_count(nx: int, ny: int) -> int:
+    return max(1, int(nx)) * max(1, int(ny))
+
+
+def baseline_axis_values(base, x_key: str, y_key: str) -> dict:
+    return {
+        "x_key": x_key,
+        "y_key": y_key,
+        "x_val": _attr(base, x_key, float("nan")),
+        "y_val": _attr(base, y_key, float("nan")),
+    }
+
+
 def default_scan_bounds(base, x_key: str, y_key: str) -> Tuple[float, float, float, float]:
     bx = _attr(base, x_key, 1.0)
     by = _attr(base, y_key, 1.0)

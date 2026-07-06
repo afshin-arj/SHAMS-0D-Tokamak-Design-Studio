@@ -41,11 +41,25 @@ def test_decision_routes_to_tabs() -> None:
         assert tab in SCAN_TABS
 
 
-def test_teaching_banner_off_by_default() -> None:
+def test_teaching_banner_guided_default() -> None:
     s = DesignSession()
-    assert teaching_banner(s) is None
-    s.scan_teaching_mode = True
+    assert s.scan_teaching_mode is True
     assert teaching_banner(s) is not None
+    s.scan_teaching_mode = False
+    assert teaching_banner(s) is None
+
+
+def test_estimate_eval_count() -> None:
+    from ui_nicegui.lib.scan_helpers import estimate_eval_count
+
+    assert estimate_eval_count(31, 25) == 775
+
+
+def test_format_causality_trace() -> None:
+    from ui_nicegui.lib.scan_insight_display import format_causality_trace
+
+    txt = format_causality_trace({"constraint": "q95", "margin_baseline": -0.1})
+    assert "q95" in txt
 
 
 def test_restore_scan_artifact_roundtrip() -> None:

@@ -9,6 +9,7 @@ from nicegui import run, ui
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.decks.scan_lab import results
 from ui_nicegui.lib.scan_archive_helpers import compute_repo_fingerprints
+from ui_nicegui.lib.scan_insight_display import format_causality_trace, format_insight_dict
 from ui_nicegui.lib.scan_helpers import SCAN_VAR_KEYS
 from ui_nicegui.lib.scan_insights_helpers import (
     LOCAL_INSIGHTS,
@@ -210,7 +211,11 @@ def _local_results(session: DesignSession) -> None:
     if tr.get("status") == "skipped":
         ui.label(str(tr.get("reason") or "Skipped")).classes("text-caption text-grey")
         return
-    ui.code(json.dumps(tr, indent=2, default=str)[:4000], language="json").classes("w-full")
+    plain = format_causality_trace(tr) or format_insight_dict(tr)
+    if plain:
+        ui.markdown(plain).classes("text-body2 q-mb-sm")
+    with ui.expansion("Raw JSON", icon="data_object").classes("w-full"):
+        ui.code(json.dumps(tr, indent=2, default=str)[:4000], language="json").classes("w-full")
 
 
 def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
@@ -324,7 +329,11 @@ def _tier_results(session: DesignSession) -> None:
             if isinstance(s, dict):
                 ui.label(f"{s.get('step')}. {s.get('title')} — {s.get('hint')}").classes("text-caption")
         return
-    ui.code(json.dumps(tr, indent=2, default=str)[:5000], language="json").classes("w-full")
+    plain = format_insight_dict(tr)
+    if plain:
+        ui.markdown(plain).classes("text-body2 q-mb-sm")
+    with ui.expansion("Raw JSON", icon="data_object").classes("w-full"):
+        ui.code(json.dumps(tr, indent=2, default=str)[:5000], language="json").classes("w-full")
     pf = session.scan_path_follow_last
     if isinstance(pf, dict) and pf.get("path"):
         ui.label("Path-follow trajectory").classes("text-subtitle2 q-mt-sm")

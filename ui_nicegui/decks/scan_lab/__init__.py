@@ -58,8 +58,21 @@ def render_scan_lab(session: DesignSession) -> None:
         )
         return
 
-    with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label("Point evaluation loaded").classes("text-caption text-positive")
+    with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
+        q = point_out.get("Q_DT_eqv", point_out.get("Q"))
+        h98 = point_out.get("H98")
+        pnet = point_out.get("P_e_net_MW")
+        baseline_bits = []
+        if q is not None:
+            baseline_bits.append(f"Q≈{q}")
+        if h98 is not None:
+            baseline_bits.append(f"H98≈{h98}")
+        if pnet is not None:
+            baseline_bits.append(f"P_net≈{pnet} MW")
+        cap = "Point evaluation loaded"
+        if baseline_bits:
+            cap += f" ({', '.join(str(b) for b in baseline_bits[:3])})"
+        ui.label(cap).classes("text-caption text-positive")
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",

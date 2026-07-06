@@ -6,6 +6,7 @@ from nicegui import ui
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.scan_helpers import summarize_scan_report
+from ui_nicegui.lib.scan_labels import ROBUSTNESS_GLOSSARY
 
 
 def render_scan_verdict(rep: dict | None) -> None:
@@ -31,4 +32,6 @@ def render_scan_verdict(rep: dict | None) -> None:
         ui.label(
             f"Scan: {summary['x_key']} vs {summary['y_key']} · "
             f"{summary['n_points']} points · {float(rs):.1f} s"
-        ).classes("text-caption text-grey q-mb-sm")
+        ).classes("text-caption text-grey q-mb-xs")
+    with ui.expansion("Robustness terminology", icon="help_outline").classes("w-full q-mb-sm"):
+        ui.markdown(ROBUSTNESS_GLOSSARY).classes("text-caption")

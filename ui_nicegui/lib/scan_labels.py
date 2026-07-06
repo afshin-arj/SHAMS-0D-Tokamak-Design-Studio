@@ -102,6 +102,19 @@ PROJECTION_CAVEAT = (
     "Treat maps as **slice truth**, not full-parameter truth."
 )
 
+RECOMMENDED_SLICES = [
+    ("Ip vs R₀ (size–current)", "Ip_MA", "R0_m"),
+    ("Ip vs P_aux (heating)", "Ip_MA", "Paux_MW"),
+    ("R₀ vs B₀ (size–field)", "R0_m", "Bt_T"),
+    ("f_G vs P_aux (density–power)", "fG", "Paux_MW"),
+]
+
+ROBUSTNESS_GLOSSARY = (
+    "**Robustness verdict** (banner KPI) = fraction of cells blocking-feasible → Robust / Balanced / "
+    "Brittle / Knife-edge. **Cell robustness label** = local neighborhood p-feasible proxy. "
+    "**Robustness map** = heatmap of that proxy — not the KPI band."
+)
+
 
 def normalize_scan_tab(step: str) -> str:
     s = str(step or DEFAULT_TAB).strip()

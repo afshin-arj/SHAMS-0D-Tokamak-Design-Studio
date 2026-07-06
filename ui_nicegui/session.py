@@ -180,7 +180,7 @@ class DesignSession:
     scan_signature_atlas_title: str = "SHAMS — Scan Lab Signature Atlas"
     scan_workflow_step: str = "1 · Setup & Run"
     scan_decision_state: str = "Map my limits (2D slice)"
-    scan_teaching_mode: bool = False
+    scan_teaching_mode: bool = True
     scan_expert_view: bool = False
     scan_import_errors: list[str] = field(default_factory=list)
     scan_local_insight: str = "Causality trace"
@@ -198,6 +198,8 @@ class DesignSession:
     scan_path_follow_last: Optional[dict[str, Any]] = None
     scan_lib_tag: str = "interesting"
     scan_lib_note: str = ""
+    scan_benchmark_learned: bool = False
+    scan_benchmark_note: str = ""
     scan_view_mode: str = ""
     scan_promote_note: str = "Probed scan cell"
     scan_iso_constraint: str = ""

@@ -326,6 +326,11 @@ def probe_cell_summary(grid: Dict[Tuple[int, int], dict], rep: dict, intent: str
             except (TypeError, ValueError):
                 pass
         margin_rows.sort(key=lambda r: r["margin_frac"])
+    outs = cell.get("outputs") if isinstance(cell.get("outputs"), dict) else {}
+    perf = {}
+    for k in ("Q_DT_eqv", "Q", "H98", "Pfus_DT_adj_MW", "P_e_net_MW", "q95", "q_div_MW_m2"):
+        if k in outs and outs[k] is not None:
+            perf[k] = outs[k]
     return {
         "x": cell.get("x"),
         "y": cell.get("y"),
@@ -340,6 +345,7 @@ def probe_cell_summary(grid: Dict[Tuple[int, int], dict], rep: dict, intent: str
         "failed_blocking": list(s.get("failed_blocking") or [])[:15],
         "margin_rows": margin_rows[:25],
         "failure_order": list(cell.get("failure_order_any") or [])[:15],
+        "performance": perf,
     }
 
 

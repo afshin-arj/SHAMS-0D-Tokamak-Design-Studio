@@ -422,7 +422,23 @@ def build_cartography_report(
                 row["margins_hard"] = mh
             if include_outputs:
                 # keep it compact; avoid giant exports by default
-                keep = {k: out.get(k) for k in ["Q", "Q_DT_eqv", "P_fus_MW", "P_e_net_MW", "q_div_MW_m2", "B_peak_T", "q95", "betaN", "fG"] if k in out}
+                keep = {
+                    k: out.get(k)
+                    for k in [
+                        "Q",
+                        "Q_DT_eqv",
+                        "H98",
+                        "P_fus_MW",
+                        "Pfus_DT_adj_MW",
+                        "P_e_net_MW",
+                        "q_div_MW_m2",
+                        "B_peak_T",
+                        "q95",
+                        "betaN",
+                        "fG",
+                    ]
+                    if k in out
+                }
                 row["outputs"] = keep
             pts.append(row)
 

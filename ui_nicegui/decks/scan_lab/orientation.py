@@ -31,6 +31,22 @@ def render_orientation_panel(session: DesignSession, *, default_open: bool = Fal
             "**One-scan benchmark** (Streamlit legacy self-check) is not in NiceGUI — use golden scans + freeze QA on Export."
         ).classes("text-caption text-grey q-mt-xs")
 
+        with ui.expansion("One-scan learning check", icon="psychology_alt").classes("w-full"):
+            ui.label(
+                "After your first map: did you learn what fundamentally limits this slice? "
+                "Capture it here for your design journal."
+            ).classes("text-caption q-mb-sm")
+            ui.checkbox(
+                "I learned something fundamental about what limits this design space",
+                value=bool(session.scan_benchmark_learned),
+                on_change=lambda e: setattr(session, "scan_benchmark_learned", bool(e.value)),
+            )
+            ui.textarea(
+                "What did you learn? (optional)",
+                value=session.scan_benchmark_note or "",
+                on_change=lambda e: setattr(session, "scan_benchmark_note", str(e.value or "")),
+            ).classes("w-full")
+
         with ui.expansion("How to think with Scan Lab", icon="psychology").classes("w-full"):
             ui.markdown(
                 "Scan Lab is a **microscope**, not an engine.\n\n"
