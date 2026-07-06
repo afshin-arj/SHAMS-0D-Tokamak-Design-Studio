@@ -16,6 +16,11 @@ from ui_nicegui.lib.control_room_labels import (
 )
 from ui_nicegui.session import DesignSession
 
+from ui_nicegui.lib.control_room_helpers import CR_SECTIONS
+
+# Legacy section names ported from Streamlit (see test_nicegui_phase18).
+_PORTED = frozenset(CR_SECTIONS)
+
 _SECTION_RENDERERS = {
     "1 · Orient": orientation.render_orientation,
     "2 · Constitution": constitution.render_constitution,

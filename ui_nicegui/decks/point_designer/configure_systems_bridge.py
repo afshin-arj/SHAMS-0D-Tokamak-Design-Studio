@@ -19,7 +19,7 @@ def render_systems_precheck_bridge(session: DesignSession) -> None:
         session.pd_pending_systems_action = "precheck"
         session.systems_workflow_step = "2 · Check & Solve"
         switch_deck("Systems Mode")
-        ui.notify("Opened Systems Mode → Check & Solve.", type="info")
+        ui.notify("Point Designer handoff — run Step ① precheck on Check & Solve.", type="info")
 
     ui.button(
         "Run Systems precheck (Systems Mode)",

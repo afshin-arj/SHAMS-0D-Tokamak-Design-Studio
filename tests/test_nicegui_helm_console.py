@@ -120,13 +120,19 @@ def test_dsg_session_bootstrap() -> None:
 
 
 def test_dsg_edge_kind_normalizes_deck_tokens() -> None:
-    from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, normalize_edge_kind
+    from ui_nicegui.lib.deck_dsg_hooks import (
+        apply_deck_dsg_context,
+        deck_edge_kind_for,
+        normalize_edge_kind,
+    )
 
     s = DesignSession()
     apply_deck_dsg_context(s, "point")
     assert s.dsg_context_edge_kind == "derived"
     assert normalize_edge_kind("bench") == "derived"
     assert normalize_edge_kind("scan") == "scan"
+    apply_deck_dsg_context(s, deck_edge_kind_for("Systems Mode"))
+    assert s.dsg_context_edge_kind == "systems_eval"
 
 
 def test_helm_drawer_session_fields() -> None:

@@ -699,9 +699,9 @@ def solve_for_targets_multistart(
             best, best_norm = res, norm
 
     if best.ok:
-        best.msg = "converged (multistart)"
+        best.message = "converged (multistart)"
     else:
-        best.msg = f"{best.msg} (best of multistart, norm={best_norm:.3g})"
+        best.message = f"{best.message} (best of multistart, norm={best_norm:.3g})"
     return best
 
 
@@ -756,7 +756,7 @@ def solve_for_targets_continuation(
                 "damping": float(st_damp),
                 "trust_delta": float(st_trust) if st_trust is not None else None,
                 "ok": bool(res.ok),
-                "msg": str(res.msg),
+                "msg": str(res.message),
             })
         except Exception:
             pass
@@ -778,9 +778,9 @@ def solve_for_targets_continuation(
 
     assert last is not None
     if last.ok:
-        last.msg = "converged (continuation)"
+        last.message = "converged (continuation)"
     else:
-        last.msg = f"{last.msg} (continuation)"
+        last.message = f"{last.message} (continuation)"
     return last
 
 

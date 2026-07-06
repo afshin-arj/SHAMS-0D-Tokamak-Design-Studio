@@ -179,14 +179,17 @@ def render_solve_panel(
             blocking = result.get("blocking_failed") or []
             if converged and not feasible:
                 ui.notify(
-                    f"Targets matched but intent-blocking constraints failed: {', '.join(blocking[:3])}",
+                    f"Target floors met (≥) but intent-blocking constraints failed: {', '.join(blocking[:3])}",
                     type="warning",
                 )
             elif converged and feasible:
-                ui.notify(f"Converged and intent-feasible ({result.get('iters')} iter)", type="positive")
+                ui.notify(
+                    f"Target floors met (≥) and intent-feasible ({result.get('iters')} iter)",
+                    type="positive",
+                )
             else:
                 ui.notify(
-                    f"{'Finished without target convergence' if not converged else 'Target hit, not intent-feasible'} "
+                    f"{'Finished without meeting target floors (≥)' if not converged else 'Floors met, not intent-feasible'} "
                     f"({result.get('iters')} iter)",
                     type="warning",
                 )
@@ -210,7 +213,7 @@ def _solve_result(session: DesignSession) -> None:
     converged = bool(result.get("target_converged", result.get("ok")))
     feasible = bool(result.get("intent_feasible", result.get("ok")))
     ui.label(
-        f"Last solve: targets_matched={converged} | intent_feasible={feasible} | "
+        f"Last solve: target_floors_met(≥)={converged} | intent_feasible={feasible} | "
         f"iters={result.get('iters', '-')} | {float(result.get('wall_s', 0)):.2f}s"
     ).classes("text-body2 q-mt-sm")
     blocking = result.get("blocking_failed") or []

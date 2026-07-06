@@ -16,6 +16,24 @@ _DECK_TO_EDGE_KIND: dict[str, str] = {
     "repair": "repair",
 }
 
+# NiceGUI deck display name → DSG edge kind token (normalized on apply).
+DECK_NAME_EDGE_KIND: dict[str, str] = {
+    "Point Designer": "derived",
+    "Scan Lab": "scan",
+    "Systems Mode": "systems_eval",
+    "Compare": "derived",
+    "Pareto Lab": "pareto",
+    "Trade Study Studio": "trade",
+    "Reactor Design Forge": "derived",
+    "Publication Benchmarks": "derived",
+    "System Suite": "derived",
+    "Control Room": "derived",
+}
+
+
+def deck_edge_kind_for(deck_name: str) -> str:
+    return DECK_NAME_EDGE_KIND.get(str(deck_name), "derived")
+
 
 def normalize_edge_kind(kind: str) -> str:
     k = str(kind)

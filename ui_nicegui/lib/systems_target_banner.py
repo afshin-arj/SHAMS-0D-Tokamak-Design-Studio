@@ -51,9 +51,15 @@ def systems_target_rows(session: DesignSession, out: Optional[Dict[str, Any]] = 
             "P_e_net_MW": "P_e_net [MW]",
             "Pfus_DT_adj_MW": "Pfus_DT_adj [MW]",
         }.get(tgt_key, tgt_key)
+        if sense == "min" and t == t:
+            target_disp = f"≥{t:.4g}"
+        elif t == t:
+            target_disp = f"{t:.4g}"
+        else:
+            target_disp = "—"
         rows.append({
             "quantity": label,
-            "target": f"{t:.4g}" if t == t else "—",
+            "target": target_disp,
             "achieved": f"{a:.4g}" if a == a else "n/a",
             "status": flag,
         })

@@ -203,9 +203,7 @@ class DefaultTargetSolverBackend:
                 tol=req.tol,
                 damping=req.damping,
                 trust_delta=trust_delta,
-                        solver_backend=solver_backend,
-                        cache_enabled=cache_enabled,
-                        cache_max=cache_max,
+                solver_backend=solver_backend,
                 restarts=int(req.options.get("restarts", 8)),
                 target_senses=target_senses,
             )

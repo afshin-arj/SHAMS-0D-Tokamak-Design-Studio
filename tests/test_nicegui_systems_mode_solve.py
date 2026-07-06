@@ -58,6 +58,31 @@ def test_systems_solve_smoke() -> None:
         assert "tightest_hard_constraints" in rs
 
 
+def test_systems_solve_multistart_fallback() -> None:
+    """Regression: multistart ladder must not pass unsupported cache kwargs."""
+    from ui_nicegui.lib.helm_helpers import apply_legacy_reference_machine_to_session
+
+    s = DesignSession()
+    apply_legacy_reference_machine_to_session(s, "SPARC-class (compact HTS)")
+    s.systems_use_q = True
+    s.systems_q_target = 2.0
+    s.systems_use_h = True
+    s.systems_h_target = 1.15
+    s.systems_solve_ip = True
+    s.systems_solve_fg = True
+    base = s.build_point_inputs()
+    targets, variables = build_targets_and_variables(s, base)
+    result = run_systems_solve(
+        base,
+        targets,
+        variables,
+        max_iter=20,
+        design_intent=s.design_intent,
+    )
+    assert isinstance(result, dict)
+    assert "target_converged" in result
+
+
 def test_systems_target_rows_after_solve() -> None:
     from ui_nicegui.lib.systems_target_banner import systems_target_rows
 

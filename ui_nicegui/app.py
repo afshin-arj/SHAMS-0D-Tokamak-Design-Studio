@@ -43,6 +43,9 @@ _CONTENT: ui.column | None = None
 
 def _switch_deck(name: str) -> None:
     _SESSION.active_deck = name
+    from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
+
+    apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
     _render_deck.refresh()
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
