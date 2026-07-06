@@ -42,6 +42,8 @@ from ui_nicegui.lib.pd_panel_labels import (
 
 from ui_nicegui.lib.pd_parity_helpers import load_industrial_template, template_names
 
+from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
+from ui_nicegui.lib.pd_solver_banner import solver_target_rows
 from ui_nicegui.lib.pd_solver_helpers import inputs_stale
 
 from ui_nicegui.lib.session_store import apply_template_overrides, clear_point_designer
@@ -114,10 +116,32 @@ def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) ->
     render_design_governance(session)
 
     if str(session.pd_eval_mode) in ("solver", "envelope") and session.pd_last_outputs:
+        paux = finite_ui_number(inp.get("Paux_MW"), unset=0)
         ui.label(
             f"Last solve operating point: Ip = {finite_ui_number(inp.get('Ip_MA'), unset=0):.4g} MA, "
-            f"fG = {finite_ui_number(inp.get('fG'), unset=0):.4g}"
+            f"fG = {finite_ui_number(inp.get('fG'), unset=0):.4g}, Paux = {paux:.4g} MW"
         ).classes("text-caption text-info q-mb-sm")
+        tgt_rows = solver_target_rows(session)
+        if tgt_rows:
+            ui.table(
+                columns=[
+                    {"name": "quantity", "label": "Quantity", "field": "quantity", "align": "left"},
+                    {"name": "target", "label": "Target", "field": "target"},
+                    {"name": "achieved", "label": "Achieved", "field": "achieved"},
+                    {"name": "status", "label": "Status", "field": "status"},
+                ],
+                rows=tgt_rows,
+                row_key="quantity",
+            ).classes("w-full q-mb-sm")
+
+    try:
+        guardrails = unrealistic_point_input_warnings(session.build_point_inputs())
+    except Exception:
+        guardrails = []
+    if guardrails:
+        with ui.expansion("Input guardrails (review before evaluate)", icon="warning").classes("w-full q-mb-sm"):
+            for line in guardrails[:6]:
+                ui.label(line).classes("text-caption text-orange")
 
     for section_id in CONFIGURE_SECTION_ORDER:
 

@@ -18,6 +18,13 @@ _CONFINEMENT_LABELS = {
 }
 _CONFINEMENT_REVERSE = {v: k for k, v in _CONFINEMENT_LABELS.items()}
 
+_PARTITION_DEFAULTS = {
+    "impurity_partition_core": 0.50,
+    "impurity_partition_edge": 0.20,
+    "impurity_partition_sol": 0.20,
+    "impurity_partition_div": 0.10,
+}
+
 _PROFILE_FAMILIES = [
     "CORE_FLAT",
     "CORE_PEAKED",
@@ -71,27 +78,31 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
         with ui.expansion("Transport feasibility contracts", icon="route").classes("w-full"):
             en = _overlay(session, "include_transport_contracts_v371", False)
             ui.checkbox(
-                "Enable transport contract diagnostics",
+                "Enable transport contract diagnostics (v371)",
                 value=en,
                 on_change=lambda e: _set_overlay(session, "include_transport_contracts_v371", e.value),
             )
-            with ui.grid(columns=2).classes("w-full gap-2"):
-                ui.number(
-                    "H_required max (optimistic)",
-                    value=float(_knob(session, "H_required_max_optimistic", 2.0)),
-                    min=0.5, max=5.0, step=0.05,
-                    on_change=lambda e: session.knobs.__setitem__("H_required_max_optimistic", e.value),
+            if en:
+                ui.label("H_required caps (enable overlay numeric panel for advanced tuning).").classes(
+                    "text-caption"
                 )
-                ui.number(
-                    "H_required max (robust)",
-                    value=float(_knob(session, "H_required_max_robust", 1.5)),
-                    min=0.5, max=5.0, step=0.05,
-                    on_change=lambda e: session.knobs.__setitem__("H_required_max_robust", e.value),
-                )
+                with ui.grid(columns=2).classes("w-full gap-2"):
+                    ui.number(
+                        "H_required max (optimistic)",
+                        value=float(_knob(session, "H_required_max_optimistic", 2.0)),
+                        min=0.5, max=5.0, step=0.05,
+                        on_change=lambda e: session.knobs.__setitem__("H_required_max_optimistic", e.value),
+                    )
+                    ui.number(
+                        "H_required max (robust)",
+                        value=float(_knob(session, "H_required_max_robust", 1.5)),
+                        min=0.5, max=5.0, step=0.05,
+                        on_change=lambda e: session.knobs.__setitem__("H_required_max_robust", e.value),
+                    )
 
         # transport envelope — toggle only; numeric caps live in Authority overlay panels below
         with ui.expansion("Multi-scaling confinement envelope", icon="stacked_line_chart").classes("w-full"):
-            en396 = _overlay(session, "include_transport_envelope_v396", False)
+            en396 = _overlay(session, "include_transport_envelope_v396", True)
             ui.checkbox(
                 "Enable transport envelope diagnostics (v396)",
                 value=en396,
@@ -218,6 +229,8 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
                 ("profile_family_peaking_p", "Pressure peaking", 0.7, 2.0, 1.0),
                 ("profile_family_peaking_j", "Current peaking", 0.7, 2.0, 1.0),
                 ("profile_family_confinement_mult", "Confinement multiplier", 0.5, 1.8, 1.0),
+                ("profile_family_shear_shape", "Shear shape", 0.0, 1.0, 0.5),
+                ("profile_family_bootstrap_mult", "Bootstrap multiplier", 0.5, 1.8, 1.0),
             ):
                 ui.slider(
                     min=lo, max=hi, step=0.01,
@@ -348,6 +361,12 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 value=str(_inp(session, "impurity_mix", "") or ""),
                 on_change=lambda e: inp.__setitem__("impurity_mix", str(e.value or "")),
             ).classes("w-full")
+            ui.number(
+                "Impurity fraction (rough)",
+                value=float(_inp(session, "impurity_frac", 0.0)),
+                min=0.0, max=0.05, step=0.001,
+                on_change=lambda e: inp.__setitem__("impurity_frac", e.value),
+            )
             session.overlay.setdefault("include_synchrotron", True)
             ui.checkbox(
                 "Include synchrotron radiation",
@@ -377,21 +396,47 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 ):
                     ui.slider(
                         min=0.0, max=1.0, step=0.01,
-                        value=float(_inp(session, key, 0.25)),
+                        value=float(_inp(session, key, _PARTITION_DEFAULTS[key])),
                         on_change=lambda e, k=key: inp.__setitem__(k, e.value),
                     ).props('label color="primary"').classes("w-full")
                     ui.label(label).classes("text-caption")
+                ui.number(
+                    "Impurity fraction (line radiation)",
+                    value=float(_inp(session, "impurity_frac", 0.0)),
+                    min=0.0, max=0.05, step=0.001,
+                    on_change=lambda e: inp.__setitem__("impurity_frac", e.value),
+                )
                 ui.checkbox(
                     "Enable q_div target inversion",
                     value=bool(_inp(session, "include_sol_radiation_control", False)),
                     on_change=lambda e: inp.__setitem__("include_sol_radiation_control", bool(e.value)),
                 )
-                ui.number(
-                    "q_div target (MW/m²)",
-                    value=float(_knob(session, "q_div_target_MW_m2", 10.0)),
-                    min=0.1, step=0.5,
-                    on_change=lambda e: session.knobs.__setitem__("q_div_target_MW_m2", e.value),
-                )
+                if bool(inp.get("include_sol_radiation_control", False)):
+                    ui.number(
+                        "q_div target (MW/m²)",
+                        value=float(_knob(session, "q_div_target_MW_m2", 10.0)),
+                        min=0.1, step=0.5,
+                        on_change=lambda e: session.knobs.__setitem__("q_div_target_MW_m2", e.value),
+                    )
+                    with ui.grid(columns=2).classes("w-full gap-2"):
+                        ui.number(
+                            "T_SOL (keV)",
+                            value=float(_inp(session, "T_sol_keV", 0.08)),
+                            min=0.01, max=1.0, step=0.01,
+                            on_change=lambda e: inp.__setitem__("T_sol_keV", e.value),
+                        )
+                        ui.number(
+                            "f_V SOL→div",
+                            value=float(_inp(session, "f_V_sol_div", 0.12)),
+                            min=0.0, max=1.0, step=0.01,
+                            on_change=lambda e: inp.__setitem__("f_V_sol_div", e.value),
+                        )
+                    ui.number(
+                        "Max detachment f_z (optional)",
+                        value=finite_ui_number(_inp(session, "detachment_fz_max", float("nan"))),
+                        min=0.0, step=1e-4,
+                        on_change=lambda e: inp.__setitem__("detachment_fz_max", e.value),
+                    )
 
             with ui.expansion("Edge–core coupled exhaust", icon="sync_alt").classes("w-full"):
                 ui.checkbox(
@@ -405,6 +450,12 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                     on_change=lambda e: inp.__setitem__("edge_core_coupling_chi_core", e.value),
                 ).props('label color="primary"').classes("w-full")
                 ui.label("Coupling coefficient χ_core").classes("text-caption")
+                ui.number(
+                    "Max coupled core radiative fraction (optional)",
+                    value=finite_ui_number(_inp(session, "f_rad_core_edge_core_max", float("nan"))),
+                    min=0.0, max=2.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("f_rad_core_edge_core_max", e.value),
+                )
 
         if bool(session.overlay.get("include_alpha_loss", True)):
             ui.number(
@@ -465,6 +516,17 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                     value=float(_inp(session, "PLH_margin", 0.0)),
                     min=0.0, max=5.0, step=0.05,
                     on_change=lambda e: inp.__setitem__("PLH_margin", e.value),
+                )
+                ui.checkbox(
+                    "Couple confinement regime to H/L scaling (H_regime diagnostic)",
+                    value=bool(_inp(session, "couple_regime_to_confinement", False)),
+                    on_change=lambda e: inp.__setitem__("couple_regime_to_confinement", bool(e.value)),
+                )
+                ui.number(
+                    "L–H access factor f_LH",
+                    value=float(_inp(session, "f_LH_access", 1.0)),
+                    min=0.5, max=2.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("f_LH_access", e.value),
                 )
 
         with ui.expansion("Power-channel bookkeeping", icon="bolt").classes("w-full"):
@@ -537,6 +599,12 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 value=finite_ui_number(_knob(session, "disruption_risk_max", float("nan"))),
                 min=0.0, step=0.1,
                 on_change=lambda e: session.knobs.__setitem__("disruption_risk_max", e.value),
+            )
+            ui.number(
+                "Max core radiative fraction Prad/Ploss (optional)",
+                value=finite_ui_number(_inp(session, "f_rad_core_max", float("nan"))),
+                min=0.0, max=2.0, step=0.05,
+                on_change=lambda e: inp.__setitem__("f_rad_core_max", e.value),
             )
 
     if embedded:

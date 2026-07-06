@@ -57,6 +57,20 @@ def test_authority_toggle_defaults_reactor() -> None:
     assert "tritium" in reactor_intent_hint(s.design_intent).lower()
 
 
+def test_overlay_gating_clears_v371_when_off() -> None:
+    from ui_nicegui.lib.point_inputs_builder import build_point_inputs
+
+    import math
+
+    s = DesignSession()
+    s.knobs["H_required_max_optimistic"] = 2.0
+    s.knobs["H_required_max_robust"] = 1.5
+    s.overlay["include_transport_contracts_v371"] = False
+    inp = build_point_inputs(s)
+    assert math.isnan(float(inp.H_required_max_optimistic))
+    assert math.isnan(float(inp.H_required_max_robust))
+
+
 def test_envelope_targets_matched_dof() -> None:
     from ui_nicegui.lib.pd_solver_helpers import _envelope_targets
 
@@ -102,6 +116,37 @@ def test_build_point_inputs_physics_parity_fields() -> None:
     assert str(inp.ash_dilution_mode) == "fixed_fraction"
     assert bool(inp.include_particle_balance) is True
     assert bool(inp.pedestal_enabled) is True
+
+
+def test_unrealistic_input_warnings_geometry() -> None:
+    from types import SimpleNamespace
+
+    from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
+
+    pi = SimpleNamespace(R0_m=0.3, a_m=0.5, kappa=1.8, delta=0.0, Bt_T=10.0, Ip_MA=8.0,
+                         Ti_keV=10.0, fG=0.8, Paux_MW=50.0, t_shield_m=0.8)
+    warns = unrealistic_point_input_warnings(pi)
+    assert any("aspect" in w.lower() or "R₀" in w for w in warns)
+
+
+def test_solver_target_rows_direct_empty() -> None:
+    from ui_nicegui.lib.pd_solver_banner import solver_target_rows
+
+    s = DesignSession()
+    s.pd_eval_mode = "direct"
+    assert solver_target_rows(s) == []
+
+
+def test_solver_target_rows_solver() -> None:
+    from ui_nicegui.lib.pd_solver_banner import solver_target_rows
+
+    s = DesignSession()
+    s.pd_eval_mode = "solver"
+    s.pd_q_target = 2.0
+    s.pd_h98_target = 1.15
+    rows = solver_target_rows(s, {"Q_DT_eqv": 1.8, "H98": 1.1})
+    assert len(rows) == 2
+    assert rows[0]["quantity"] == "Q_DT_eqv"
 
 
 def test_subsystem_enabled_stamped_on_eval() -> None:

@@ -155,6 +155,42 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
                     on_change=lambda e: session.knobs.__setitem__("q_div_max_MW_m2", e.value),
                 )
 
+        with ui.expansion("Exhaust & performance screening caps", icon="filter_alt").classes("w-full"):
+            ui.label(
+                "Optional hard/diagnostic caps on PointInputs — leave blank to disable."
+            ).classes("text-caption q-mb-sm")
+            with ui.grid(columns=2).classes("w-full gap-2"):
+                ui.number(
+                    "Detachment index min",
+                    value=finite_ui_number(inp.get("detachment_index_min", float("nan"))),
+                    step=0.05,
+                    on_change=lambda e: inp.__setitem__("detachment_index_min", e.value),
+                )
+                ui.number(
+                    "Detachment index max",
+                    value=finite_ui_number(inp.get("detachment_index_max", float("nan"))),
+                    step=0.05,
+                    on_change=lambda e: inp.__setitem__("detachment_index_max", e.value),
+                )
+                ui.number(
+                    "Max total radiative fraction",
+                    value=finite_ui_number(inp.get("f_rad_total_max", float("nan"))),
+                    min=0.0, max=2.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("f_rad_total_max", e.value),
+                )
+                ui.number(
+                    "Min fuel-ion fraction",
+                    value=finite_ui_number(inp.get("fuel_ion_fraction_min", float("nan"))),
+                    min=0.0, max=1.0, step=0.01,
+                    on_change=lambda e: inp.__setitem__("fuel_ion_fraction_min", e.value),
+                )
+                ui.number(
+                    "Min Q_effective",
+                    value=finite_ui_number(inp.get("Q_effective_min", float("nan"))),
+                    min=0.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("Q_effective_min", e.value),
+                )
+
         if _subsystem(session, "neutronics"):
             with ui.expansion("Neutronics screening", icon="shield").classes("w-full"):
                 preset = _CONFIDENCE_PRESETS.get(confidence, _CONFIDENCE_PRESETS["Nominal"])

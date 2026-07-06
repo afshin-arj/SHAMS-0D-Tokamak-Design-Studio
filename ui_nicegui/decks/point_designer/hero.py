@@ -54,6 +54,23 @@ def render_hero(session: DesignSession) -> None:
             "text-caption text-grey"
         )
 
+    mode = str(getattr(session, "pd_eval_mode", "direct"))
+    if mode in ("solver", "envelope") and isinstance(out, dict):
+        h98_t = session.pd_h98_target
+        q_t = session.pd_q_target
+        h98_a = out.get("H98")
+        q_a = out.get("Q_DT_eqv", out.get("Q"))
+        clamped = bool(out.get("_solver_clamped")) or bool(out.get("_solver_clamped_Q"))
+        if clamped:
+            ui.label(
+                "Solver clamped to bounds — targets may not be fully met. See Configure target table."
+            ).classes("text-caption text-orange q-mt-xs")
+        elif h98_a is not None and q_a is not None:
+            ui.label(
+                f"Solver targets: H98={_fmt_num(h98_t)} → {_fmt_num(h98_a)}, "
+                f"Q={_fmt_num(q_t)} → {_fmt_num(q_a)}"
+            ).classes("text-caption text-grey q-mt-xs")
+
     subs = summary.get("subsystems") or {}
     with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
         for name in ("magnets", "exhaust", "neutronics", "control", "transport", "plant"):
