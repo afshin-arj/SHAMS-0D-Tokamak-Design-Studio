@@ -62,6 +62,32 @@ def test_format_causality_trace() -> None:
     assert "q95" in txt
 
 
+def test_cartography_uses_evaluated_constraints() -> None:
+    from ui_nicegui.lib.helm_helpers import apply_legacy_reference_machine_to_session
+
+    s = DesignSession()
+    apply_legacy_reference_machine_to_session(s, "SPARC-class (compact HTS)")
+    base = s.build_point_inputs()
+    x_lo, x_hi, y_lo, y_hi = default_scan_bounds(base, "Ip_MA", "R0_m")
+    rep = run_cartography_scan(
+        base,
+        x_key="Ip_MA",
+        y_key="R0_m",
+        x_lo=x_lo,
+        x_hi=x_hi,
+        y_lo=y_lo,
+        y_hi=y_hi,
+        nx=11,
+        ny=11,
+        intents=["Reactor"],
+    )
+    from ui_nicegui.lib.scan_helpers import summarize_scan_report
+
+    sm = summarize_scan_report(rep, intent="Reactor")
+    assert sm["feasible_rate"] < 1.0
+    assert str(sm["dominant"]) not in ("PASS", "(none)")
+
+
 def test_restore_scan_artifact_roundtrip() -> None:
     s = DesignSession()
     base = s.build_point_inputs()

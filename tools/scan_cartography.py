@@ -24,6 +24,33 @@ import math
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
+def _point_inputs_dict(inp: Any) -> Optional[dict]:
+    try:
+        if hasattr(inp, "to_dict"):
+            return dict(inp.to_dict())
+        if hasattr(inp, "__dataclass_fields__"):
+            return dict(asdict(inp))
+    except Exception:
+        pass
+    return None
+
+
+def _constraints_for_scan(out: dict, inp: Any) -> List[Dict[str, Any]]:
+    """Constraint rows for cartography — evaluate when not embedded in L0 outputs."""
+    raw = out.get("constraints") if isinstance(out, dict) else None
+    if isinstance(raw, list) and raw:
+        return [c if isinstance(c, dict) else (c.as_dict() if hasattr(c, "as_dict") else {}) for c in raw]
+    try:
+        try:
+            from constraints.constraints import evaluate_constraints
+        except ImportError:
+            from src.constraints.constraints import evaluate_constraints  # type: ignore
+        rows = evaluate_constraints(out or {}, point_inputs=_point_inputs_dict(inp))
+        return [c.as_dict() if hasattr(c, "as_dict") else dict(c) for c in rows]
+    except Exception:
+        return []
+
+
 def _finite(x: Any) -> bool:
     return isinstance(x, (int, float)) and math.isfinite(float(x))
 
@@ -385,7 +412,7 @@ def build_cartography_report(
 
             res = evaluator.evaluate(inp)
             out = dict(res.out or {})
-            cons = out.get("constraints") or []
+            cons = _constraints_for_scan(out, inp)
 
             # Per-intent feasibility
             intent_summ = {}
