@@ -159,3 +159,29 @@ def test_pareto_import_get_point_artifact_triple() -> None:
     s = DesignSession()
     _, _, out = get_point_artifact_triple(s)
     assert out is None or isinstance(out, dict)
+
+
+def test_interpret_tab_uses_json_view_not_ui_json() -> None:
+    import inspect
+
+    from ui_nicegui.decks.pareto_lab import interpret as interpret_mod
+
+    src = inspect.getsource(interpret_mod)
+    assert "render_json_blob" in src
+    assert "ui.json" not in src
+
+
+def test_external_router_refreshes_deck_body_on_category_change() -> None:
+    import inspect
+
+    from ui_nicegui.decks import pareto_lab as pl_mod
+
+    src = inspect.getsource(pl_mod._render_external_router)
+    assert "_deck_body.refresh" in src
+    assert "on_change=_on_tool_change" in src
+
+
+def test_render_json_blob_helper() -> None:
+    from ui_nicegui.components.json_view import render_json_blob
+
+    assert callable(render_json_blob)

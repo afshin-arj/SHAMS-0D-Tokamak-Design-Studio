@@ -5,6 +5,7 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
+from ui_nicegui.components.json_view import render_json_blob
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.pareto_helpers import FOCUS_METRIC_KEYS, metric_label
 from ui_nicegui.lib.pareto_interpret_helpers import (
@@ -77,7 +78,7 @@ def render_interpret_tab(
     with ui.expansion("Sampling honesty (coverage / density)", icon="analytics", value=bool(honesty.get("incompleteness_flags"))).classes("w-full"):
         for flag in honesty.get("incompleteness_flags") or []:
             ui.label(flag).classes("text-caption text-orange")
-        ui.json(honesty)
+        render_json_blob(honesty)
 
     with ui.expansion("Governance parity (Pareto vs Point Designer)", icon="verified", value=session.pareto_teaching_mode).classes("w-full"):
         ui.label(
@@ -124,7 +125,7 @@ def render_interpret_tab(
                 y_key=y_key,
             )
             with ui.expansion("Empty-region diagnostics (slice bins)", icon="grid_off").classes("w-full"):
-                ui.json(empty_rep)
+                render_json_blob(empty_rep)
         except Exception:
             pass
 
@@ -281,7 +282,7 @@ def render_interpret_tab(
 
     ui.separator().classes("q-my-sm")
     ui.label("Run metadata").classes("text-subtitle2")
-    ui.json({
+    render_json_blob({
         "intent_mode": pareto_last.get("intent_mode"),
         "n_samples": pareto_last.get("n_samples"),
         "seed": pareto_last.get("seed"),

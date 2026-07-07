@@ -8,6 +8,7 @@ from typing import Callable, Optional
 from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.json_view import render_json_blob
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.proposal_banner import render_proposal_banner
 from ui_nicegui.lib.external_optimizer_helpers import (
@@ -230,7 +231,7 @@ def _atlas_view(session: DesignSession) -> None:
     if not isinstance(atlas, dict):
         return
     with ui.expansion("Atlas summary", icon="analytics").classes("w-full"):
-        ui.json({k: atlas.get(k) for k in ["schema", "fingerprint_sha256", "config"] if k in atlas})
+        render_json_blob({k: atlas.get(k) for k in ["schema", "fingerprint_sha256", "config"] if k in atlas})
     ui.button(
         "Download Atlas Evidence Pack ZIP",
         icon="download",
@@ -267,7 +268,7 @@ def _fam_view(session: DesignSession) -> None:
     if isinstance(fams, list):
         ui.label(f"Families: {len(fams)}").classes("text-caption")
         with ui.expansion("Families JSON", icon="data_object").classes("w-full"):
-            ui.json(fams[:20] if len(fams) > 20 else fams)
+            render_json_blob(fams[:20] if len(fams) > 20 else fams)
 
 
 def _render_extopt_workbench(session: DesignSession) -> None:
@@ -436,7 +437,7 @@ def _interp_view(session: DesignSession) -> None:
     rep = session.extopt_interpret_last
     if isinstance(rep, dict):
         with ui.expansion("Interpretation report", icon="description").classes("w-full"):
-            ui.json(rep)
+            render_json_blob(rep)
 
 
 def _render_certified_orchestrator(session: DesignSession) -> None:
@@ -481,7 +482,7 @@ def _cert_view(session: DesignSession) -> None:
     rep = session.certified_opt_last
     if isinstance(rep, dict):
         with ui.expansion("Job report", icon="assignment").classes("w-full"):
-            ui.json(rep)
+            render_json_blob(rep)
 
 
 def _render_concept_cockpit(session: DesignSession) -> None:
@@ -605,7 +606,7 @@ def _render_evidence_packs(session: DesignSession) -> None:
         ])
         session.optimizer_evidence_sel = str(run_dir)
         with ui.expansion("Summary JSON", icon="description").classes("w-full"):
-            ui.json(summary)
+            render_json_blob(summary)
 
     sel.on("update:model-value", lambda: _show())
     _show()

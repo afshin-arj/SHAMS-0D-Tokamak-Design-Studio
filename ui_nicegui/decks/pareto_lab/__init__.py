@@ -167,7 +167,26 @@ def _render_external_router(session: DesignSession) -> None:
     if session.pareto_external_tool not in tools:
         session.pareto_external_tool = tools[0] if tools else ""
 
-    grp = ui.select(
+    @ui.refreshable
+    def _deck_body() -> None:
+        deck = str(session.pareto_external_tool or "")
+        if deck:
+            external.render_external_deck(session, deck)
+        else:
+            empty_state("Select an external tool.", kind="info")
+
+    def _on_group_change(sess: DesignSession, g: str) -> None:
+        sess.pareto_external_group = g
+        tlist = EXTERNAL_GROUPS.get(g, [])
+        sess.pareto_external_tool = tlist[0] if tlist else ""
+        tool.set_options(tlist, value=sess.pareto_external_tool)
+        _deck_body.refresh()
+
+    def _on_tool_change(e) -> None:
+        session.pareto_external_tool = str(e.value)
+        _deck_body.refresh()
+
+    ui.select(
         groups,
         label="Tool category",
         value=session.pareto_external_group,
@@ -177,17 +196,7 @@ def _render_external_router(session: DesignSession) -> None:
         tools,
         label="External deck",
         value=session.pareto_external_tool,
-        on_change=lambda e: setattr(session, "pareto_external_tool", str(e.value)),
+        on_change=_on_tool_change,
     ).classes("w-full q-mb-md")
 
-    def _on_group_change(sess: DesignSession, g: str) -> None:
-        sess.pareto_external_group = g
-        tlist = EXTERNAL_GROUPS.get(g, [])
-        sess.pareto_external_tool = tlist[0] if tlist else ""
-        tool.set_options(tlist, value=sess.pareto_external_tool)
-
-    deck = str(session.pareto_external_tool or tool.value)
-    if deck:
-        external.render_external_deck(session, deck)
-    else:
-        empty_state("Select an external tool.", kind="info")
+    _deck_body()
