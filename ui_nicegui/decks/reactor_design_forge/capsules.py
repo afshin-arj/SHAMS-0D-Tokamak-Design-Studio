@@ -12,6 +12,7 @@ from ui_nicegui.lib.forge_machine_finder_helpers import (
     restore_workbench_from_capsule,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_capsules(
@@ -92,7 +93,7 @@ async def _handle_diff_upload(session: DesignSession, e, *, slot: str) -> None:
 def _diff_view(session: DesignSession) -> None:
     d = session.forge_capsule_diff
     if isinstance(d, dict):
-        ui.json(d)
+        render_json_blob(d)
 
 
 def _render_export(session: DesignSession) -> None:

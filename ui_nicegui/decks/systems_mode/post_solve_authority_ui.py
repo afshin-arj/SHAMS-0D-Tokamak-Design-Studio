@@ -16,6 +16,7 @@ from ui_nicegui.lib.systems_plant_authority import (
     warm_post_solve_cert_cache,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 _PLANT_CERT_KEYS = ("impurity_detachment", "plant_economics", "industrial_cost")
 
@@ -77,7 +78,7 @@ def _authority_body(
                         row_key=cols[0] if cols else "name",
                     ).classes("w-full")
                 else:
-                    ui.json(cert)
+                    render_json_blob(cert)
             else:
                 ui.label("Bundle unavailable for this artifact.").classes("text-caption text-grey")
 

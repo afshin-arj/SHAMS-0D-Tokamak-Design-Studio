@@ -12,6 +12,7 @@ from ui_nicegui.lib.forge_helpers import (
     merge_candidate_to_session_inputs,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_intent_compiler(
@@ -91,7 +92,7 @@ def render_intent_compiler(
     cand = last.get("candidate_inputs")
     if isinstance(cand, dict):
         with ui.expansion("Candidate inputs", icon="data_object").classes("w-full"):
-            ui.json(cand)
+            render_json_blob(cand)
         ui.button(
             "Download candidate JSON",
             icon="download",

@@ -21,6 +21,7 @@ from ui_nicegui.lib.cr_chronicle_helpers import (
     sensitivity_table_rows,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_chronicle(session: DesignSession) -> None:
@@ -192,7 +193,7 @@ def _map_view(session: DesignSession) -> None:
         ("Y", ycol),
     ])
     with ui.expansion("Feasibility grid JSON", icon="grid_on").classes("w-full"):
-        ui.json(grid)
+        render_json_blob(grid)
 
 
 def _interval_narrowing(session: DesignSession) -> None:
@@ -227,7 +228,7 @@ def _narrow_view(session: DesignSession) -> None:
     ev = session.v343_interval_narrowing_evidence
     if isinstance(ev, dict):
         with ui.expansion("Narrowing evidence", icon="description").classes("w-full"):
-            ui.json(ev)
+            render_json_blob(ev)
 
 
 def _local_forensics(session: DesignSession) -> None:
@@ -256,7 +257,7 @@ def _forensics_view(session: DesignSession) -> None:
     rep = session.cr_forensics_last
     if isinstance(rep, dict):
         with ui.expansion("Forensics report", icon="bug_report").classes("w-full"):
-            ui.json(rep)
+            render_json_blob(rep)
 
 
 def _study_dashboard(session: DesignSession) -> None:

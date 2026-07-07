@@ -21,6 +21,7 @@ from ui_nicegui.lib.pd_outer_loop_helpers import (
     phase_table_rows,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 try:
     from src.phase_envelopes import run_phase_envelope_for_point
@@ -182,7 +183,7 @@ def _results(session: DesignSession) -> None:
     ])
 
     with ui.expansion("Envelope summary (JSON)").classes("w-full"):
-        ui.json(summ)
+        render_json_blob(summ)
 
     rows = phase_table_rows(env)
     if rows:

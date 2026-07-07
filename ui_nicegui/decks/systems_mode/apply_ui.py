@@ -12,6 +12,7 @@ from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_ranking_helpers import rank_candidates
 from ui_nicegui.lib.systems_workflow_helpers import apply_x_to_session, collect_candidates
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def _push_apply_undo(session: DesignSession) -> None:
@@ -64,7 +65,7 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
     sel = _selected(cands, session.systems_selected_candidate_id)
     if sel and isinstance(sel.get("x"), dict) and session.systems_expert_view:
         with ui.expansion("Candidate variables (expert)"):
-            ui.json(sel["x"])
+            render_json_blob(sel["x"])
 
     async def _apply_evaluate() -> None:
         sel_now = _selected(cands, session.systems_selected_candidate_id)

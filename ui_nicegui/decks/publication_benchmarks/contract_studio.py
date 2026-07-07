@@ -13,6 +13,7 @@ from ui_nicegui.lib.pub_benchmark_extended_helpers import (
     validate_contracts,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_contract_studio_panel(session: DesignSession) -> None:
@@ -70,13 +71,13 @@ def _detail(session: DesignSession, recs) -> None:
         return
     if obj_a is not None:
         with ui.expansion(f"{session.pub_contract_sel_a}", icon="description").classes("w-full"):
-            ui.json(obj_a)
+            render_json_blob(obj_a)
     sel_b = session.pub_contract_sel_b or "(none)"
     if sel_b != "(none)":
         obj_b, errs_b = load_contract(sel_b)
         if obj_b is not None and obj_a is not None:
             with ui.expansion("Structural diff (keys)", icon="difference").classes("w-full"):
-                ui.json(contract_structural_diff(obj_a, obj_b))
+                render_json_blob(contract_structural_diff(obj_a, obj_b))
         elif errs_b:
             ui.label(f"Failed to load B: {errs_b}").classes("text-negative")
 

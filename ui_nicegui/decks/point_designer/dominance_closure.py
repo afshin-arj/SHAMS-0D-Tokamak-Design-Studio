@@ -7,6 +7,7 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_dominance_closure(session: DesignSession) -> None:
@@ -129,7 +130,7 @@ def _render_closure_trace(solver0: dict) -> None:
                 cols.append({"name": kk, "label": kk, "field": kk, "align": "left"})
         ui.table(columns=cols, rows=rows, row_key="iter").classes("w-full")
     else:
-        ui.json(tr[:20])
+        render_json_blob(tr[:20])
 
     ui.label(
         f"backend={solver0.get('backend')} • ok={solver0.get('ok')} • "

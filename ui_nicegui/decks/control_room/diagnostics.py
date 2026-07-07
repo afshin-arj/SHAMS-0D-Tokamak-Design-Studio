@@ -14,6 +14,7 @@ from ui_nicegui.lib.control_room_helpers import (
     session_snapshot,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_diagnostics(session: DesignSession) -> None:
@@ -78,7 +79,7 @@ This panel performs a lightweight hygiene scan of the working tree.
                     "Interoperability check: OK" if ir.get("ok") else "Interoperability check: issues detected"
                 ).classes("text-body2")
                 with ui.expansion("Interoperability report").classes("w-full"):
-                    ui.json(ir)
+                    render_json_blob(ir)
 
             cr = session.cr_contract_report
             if isinstance(cr, dict):
@@ -86,7 +87,7 @@ This panel performs a lightweight hygiene scan of the working tree.
                     "Contract validator: OK" if cr.get("ok") else "Contract validator: issues detected"
                 ).classes("text-body2 q-mt-sm")
                 with ui.expansion("Contract validator report").classes("w-full"):
-                    ui.json(cr)
+                    render_json_blob(cr)
                 ui.download_button(
                     "Download contract report JSON",
                     report_to_json_bytes(cr),
@@ -132,4 +133,4 @@ def _nf_view(session: DesignSession) -> None:
     rep = session.cr_forensics_last
     if isinstance(rep, dict):
         with ui.expansion("Forensics JSON", icon="description").classes("w-full"):
-            ui.json(rep)
+            render_json_blob(rep)

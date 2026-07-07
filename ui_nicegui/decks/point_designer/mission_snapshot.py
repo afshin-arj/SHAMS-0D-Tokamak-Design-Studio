@@ -27,6 +27,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
 )
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_mission_snapshot(session: DesignSession) -> None:
@@ -116,11 +117,11 @@ def render_mission_snapshot(session: DesignSession) -> None:
             "**Proxy** = approximate model · **Diagnostic** = non-blocking checks"
         ).classes("text-caption")
         ui.label("Assumptions snapshot (UI-level):").classes("text-subtitle2")
-        ui.json(assumptions_snapshot(session))
+        render_json_blob(assumptions_snapshot(session))
         mc = out.get("model_cards")
         if isinstance(mc, dict) and mc:
             ui.label("Model cards (provenance):").classes("text-subtitle2 q-mt-sm")
-            ui.json(mc)
+            render_json_blob(mc)
 
     _magnet_card(out)
     v400 = magnet_v400_summary(out)
@@ -134,9 +135,9 @@ def render_mission_snapshot(session: DesignSession) -> None:
                 ("Dominant margin", fmt_num(v400["dominant_margin"])),
             ])
             ui.label("Per-aspect margins").classes("text-subtitle2")
-            ui.json(v400["per_aspect_margins"])
+            render_json_blob(v400["per_aspect_margins"])
             ui.label("Per-aspect tiers").classes("text-subtitle2 q-mt-sm")
-            ui.json(v400["per_aspect_tiers"])
+            render_json_blob(v400["per_aspect_tiers"])
 
     with ui.expansion("Regime compass (sanity checks)", icon="explore").classes("w-full"):
         ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(
@@ -209,7 +210,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
                     @ui.refreshable
                     def _prov() -> None:
                         rec = next((r for r in rows_c if r["constraint"] == pick.value), {})
-                        ui.json({
+                        render_json_blob({
                             "sense": rec.get("sense"),
                             "value": rec.get("value"),
                             "limit": rec.get("limit"),
@@ -219,7 +220,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
                         })
                         prov = constraint_provenance(str(pick.value or ""))
                         if prov:
-                            ui.json(prov)
+                            render_json_blob(prov)
                         else:
                             ui.label("No additional provenance notes registered.").classes("text-caption")
 

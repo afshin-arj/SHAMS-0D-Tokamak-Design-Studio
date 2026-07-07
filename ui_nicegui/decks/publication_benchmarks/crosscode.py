@@ -13,6 +13,7 @@ from ui_nicegui.lib.pub_benchmark_extended_helpers import (
     list_crosscode_items,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_crosscode_constitutions(session: DesignSession) -> None:
@@ -89,7 +90,7 @@ def _results(session: DesignSession) -> None:
             row_key="clause",
         ).classes("w-full")
     with ui.expansion("Constitution diff JSON", icon="data_object").classes("w-full"):
-        ui.json(comp.get("diff") or {})
+        render_json_blob(comp.get("diff") or {})
     ui.button(
         "Download comparison JSON",
         icon="download",

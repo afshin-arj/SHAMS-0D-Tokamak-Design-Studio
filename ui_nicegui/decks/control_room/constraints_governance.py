@@ -11,6 +11,7 @@ from ui_nicegui.lib.cr_governance_helpers import (
     pick_session_artifact,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_constraints_governance(session: DesignSession) -> None:
@@ -100,4 +101,4 @@ def _inspector(session: DesignSession, art: dict) -> None:
             ui.label(f"{key}: {detail[key]}").classes("text-body2")
 
     with ui.expansion("Full constraint record", icon="data_object").classes("w-full"):
-        ui.json(detail)
+        render_json_blob(detail)

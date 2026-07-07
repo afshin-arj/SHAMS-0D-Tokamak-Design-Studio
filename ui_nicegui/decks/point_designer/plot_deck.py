@@ -17,6 +17,7 @@ from ui_nicegui.lib.pd_plot_helpers import (
     plot_tight_constraints,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def _show_png(data: bytes | None, *, caption: str) -> None:
@@ -93,7 +94,7 @@ def render_plot_deck(session: DesignSession) -> None:
                 v397 = v397_profile_summary(out)
                 if v397:
                     ui.label("Deterministic 1.5D proxy diagnostics (no solvers).").classes("text-caption")
-                    ui.json({k: v for k, v in v397.items() if k != "sample"})
+                    render_json_blob({k: v for k, v in v397.items() if k != "sample"})
                     samp = v397.get("sample")
                     if isinstance(samp, dict) and samp:
                         if isinstance(next(iter(samp.values()), None), list):
@@ -102,7 +103,7 @@ def render_plot_deck(session: DesignSession) -> None:
                             rows = [{c: samp[c][i] for c in samp} for i in range(min(n, 80))]
                             ui.table(columns=cols, rows=rows, row_key=cols[0]["field"]).classes("w-full")
                         else:
-                            ui.json(samp)
+                            render_json_blob(samp)
                 else:
                     ui.label("Profile peaking proxy disabled (enable in Configure).").classes("text-caption")
             with ui.expansion("Notes", icon="info").classes("w-full"):

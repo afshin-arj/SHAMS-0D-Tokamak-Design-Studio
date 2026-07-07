@@ -16,6 +16,7 @@ from ui_nicegui.lib.benchmark_helpers import (
     summarize_atlas_result,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_constitutional_atlas(
@@ -161,7 +162,7 @@ def _render_atlas_detail(session: DesignSession) -> None:
                 row_key="clause",
             ).classes("w-full")
         with ui.expansion("Constitution JSON", icon="code").classes("w-full"):
-            ui.json(res.get("constitution_selected") or {})
+            render_json_blob(res.get("constitution_selected") or {})
 
     def _fragility_block() -> None:
         ui.label("Local fragility scan").classes("text-subtitle2 q-mt-md")
@@ -179,7 +180,7 @@ def _render_atlas_detail(session: DesignSession) -> None:
             if isinstance(wm, (int, float)):
                 ui.markdown(f"**Worst margin (min):** {float(wm):.3f}")
             if expert:
-                ui.json(scan)
+                render_json_blob(scan)
 
     def _evidence_block() -> None:
         ui.label("Evidence export").classes("text-subtitle2 q-mt-md")

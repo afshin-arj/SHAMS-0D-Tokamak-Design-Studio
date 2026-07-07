@@ -15,6 +15,7 @@ from ui_nicegui.lib.cr_governance_helpers import (
     pick_session_artifact,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_run_audit(session: DesignSession) -> None:
@@ -80,11 +81,11 @@ def _audit_body(session: DesignSession, art: dict) -> None:
                 ui.label(f"Dominant authority: {dom['dominant_authority']}").classes("text-subtitle2")
             ranking = dom.get("ranking") or []
             if ranking:
-                ui.json(ranking)
+                render_json_blob(ranking)
             top = dom.get("top_limiting") or []
             if top:
                 ui.label("Top limiting").classes("text-caption")
-                ui.json(top)
+                render_json_blob(top)
         else:
             ui.label("No authority_dominance block.").classes("text-grey")
 

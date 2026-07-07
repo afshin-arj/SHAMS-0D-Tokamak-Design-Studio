@@ -13,6 +13,7 @@ from ui_nicegui.lib.compare_helpers import (
 from ui_nicegui.lib.cr_artifacts_helpers import load_json_bytes
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_scenario_delta(session: DesignSession) -> None:
@@ -94,7 +95,7 @@ def _delta(session: DesignSession) -> None:
     sd = scen.get("scenario_delta")
     with ui.expansion("Embedded scenario_delta", icon="difference").classes("w-full"):
         if sd:
-            ui.json(sd)
+            render_json_blob(sd)
         else:
             ui.label("No embedded scenario_delta — computed diffs below.").classes("text-caption")
 
@@ -139,6 +140,6 @@ def _delta(session: DesignSession) -> None:
             f"/ meta Δ{len(cchg.get('changed_meta') or [])}"
         ).classes("text-caption")
         with ui.expansion("Full structural diff", icon="account_tree").classes("w-full"):
-            ui.json(struct)
+            render_json_blob(struct)
     else:
         ui.label("Structural diff unavailable.").classes("text-grey")

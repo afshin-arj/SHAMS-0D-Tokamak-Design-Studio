@@ -23,6 +23,7 @@ from ui_nicegui.lib.cr_provenance_helpers import (
 )
 from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 PROVENANCE_TABS = [
     "Studies & Protocol",
@@ -229,7 +230,7 @@ def _replay_view(session: DesignSession) -> None:
     rep = session.cr_replay_report_last
     if isinstance(rep, dict):
         with ui.expansion("Replay report", icon="fact_check").classes("w-full"):
-            ui.json((rep.get("payload") or {}).get("checks") or rep)
+            render_json_blob((rep.get("payload") or {}).get("checks") or rep)
 
 
 def _render_authority_citation(session: DesignSession) -> None:
@@ -464,4 +465,4 @@ def _repo_reg(session: DesignSession) -> None:
     rep = session.cr_repo_regression_last
     if isinstance(rep, dict):
         with ui.expansion("Repo regression report", icon="bug_report").classes("w-full"):
-            ui.json(rep)
+            render_json_blob(rep)

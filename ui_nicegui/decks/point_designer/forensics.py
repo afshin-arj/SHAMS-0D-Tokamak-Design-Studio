@@ -7,6 +7,7 @@ from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.pd_forensics_helpers import run_local_forensics
 from ui_nicegui.lib.pd_parity_helpers import lever_recipe_tables
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_forensics(session: DesignSession, *, on_complete=None) -> None:
@@ -128,7 +129,7 @@ def _panel(session: DesignSession) -> None:
                     ui.label("No negative-slope levers at current probe set.").classes("text-caption")
 
     with ui.expansion("Raw forensics JSON").classes("w-full q-mt-sm"):
-        ui.json(ff)
+        render_json_blob(ff)
 
 
 def _tornado_table(tornado: dict, pick_select) -> None:

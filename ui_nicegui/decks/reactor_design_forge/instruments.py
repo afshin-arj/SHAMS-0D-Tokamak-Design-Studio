@@ -16,6 +16,7 @@ from ui_nicegui.lib.forge_instrument_engine import (
     filter_archive,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_instruments_tab(
@@ -126,7 +127,7 @@ def _render_body(session: DesignSession, *, review_mode: bool = False) -> None:
         ).classes("w-full q-mb-sm")
     if view.json_blob is not None:
         with ui.expansion("Structured data", icon="data_object", value=bool(view.json_expanded)).classes("w-full"):
-            ui.json(view.json_blob)
+            render_json_blob(view.json_blob)
     if view.download:
         data, fname, mime = view.download
         ui.download_button(f"Download {fname}", data=data, file_name=fname).props(f'mime-type="{mime}"')

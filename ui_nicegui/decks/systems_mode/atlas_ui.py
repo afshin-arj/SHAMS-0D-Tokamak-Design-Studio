@@ -9,6 +9,7 @@ from nicegui import run, ui
 from ui_nicegui.lib.systems_atlas_plot import atlas_heatmap_png
 from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_atlas_panel(session: DesignSession) -> None:
@@ -165,7 +166,7 @@ def _atlas_view(session: DesignSession) -> None:
                 ).classes("w-full")
 
     with ui.expansion("Raw grid coordinates", icon="data_object").classes("w-full"):
-        ui.json({
+        render_json_blob({
             "var_x": atlas.get("var_x"),
             "var_y": atlas.get("var_y"),
             "xs": atlas.get("xs"),

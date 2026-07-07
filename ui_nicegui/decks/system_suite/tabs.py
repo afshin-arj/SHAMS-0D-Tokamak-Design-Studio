@@ -14,6 +14,7 @@ from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.suite_labels import ENVELOPE_ROUTER
 from ui_nicegui.lib.suite_overlay_helpers import stamp_label
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 @dataclass
@@ -180,7 +181,7 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
                     else "No thermal limits configured — pass is not asserted."
                 ).classes("text-caption")
             with ui.expansion("Thermal metadata", icon="info").classes("w-full"):
-                ui.json(getattr(tr, "meta", {}) or {})
+                render_json_blob(getattr(tr, "meta", {}) or {})
 
     with ui.expansion(
         "Pulse power trajectory",
@@ -252,7 +253,7 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
             ])
             stamp_label(lr.stamp_sha256)
             with ui.expansion("Overlay JSON", icon="data_object").classes("w-full"):
-                ui.json({
+                render_json_blob({
                     "fw": {
                         "dpa_per_year": lr.fw_dpa_per_year,
                         "dpa_max": lr.fw_dpa_max_per_year,
@@ -311,7 +312,7 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
             with ui.expansion("Near-boundary flags", icon="warning").classes("w-full"):
                 ui.code(json.dumps(rt.get("near_boundaries", []), indent=2), language="json")
             with ui.expansion("Detector context", icon="info").classes("w-full"):
-                ui.json(rt.get("context", {}) or {})
+                render_json_blob(rt.get("context", {}) or {})
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +381,7 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
         fp = str(rep_d.get("run_fingerprint_sha256", ""))
         ui.label(f"Contract fingerprint: {sha[:12]}… | Run: {fp[:12]}…").classes("text-caption")
         with ui.expansion("Summary", icon="summarize").classes("w-full"):
-            ui.json(rep_d.get("summary", {}))
+            render_json_blob(rep_d.get("summary", {}))
         rows = []
         for c in rep_d.get("corners", []) or []:
             if not isinstance(c, dict):
@@ -403,7 +404,7 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
                     row_key="corner",
                 ).classes("w-full")
         with ui.expansion("Full report JSON", icon="data_object").classes("w-full"):
-            ui.json(rep_d)
+            render_json_blob(rep_d)
 
         async def _export_zip() -> None:
             try:
@@ -591,7 +592,7 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             ("Pass rate", f"{100.0 * float(summary.get('pass_rate', 0.0)):.1f}%"),
         ])
         with ui.expansion("Summary JSON", icon="summarize").classes("w-full"):
-            ui.json(summary)
+            render_json_blob(summary)
         preview = ctx.session.suite_campaign_results_preview
         if isinstance(preview, list) and preview:
             cols = list(preview[0].keys())[:10] if isinstance(preview[0], dict) else []
@@ -731,7 +732,7 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
                 row_key=cols[0] if cols else "case",
             ).classes("w-full")
         with ui.expansion("Artifacts JSON", icon="description").classes("w-full"):
-            ui.json(rep.get("cases") or {})
+            render_json_blob(rep.get("cases") or {})
         ui.button(
             "Download reviewer pack ZIP",
             icon="download",

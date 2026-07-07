@@ -17,6 +17,7 @@ from ui_nicegui.lib.pd_outer_loop_helpers import (
     numeric_point_fields,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 try:
     from src.uq_contracts import run_uncertainty_contract_for_point
@@ -179,7 +180,7 @@ def _results(session: DesignSession) -> None:
         ("Feasible", str(summ.get("n_feasible", ""))),
     ])
     with ui.expansion("Contract summary (JSON)").classes("w-full"):
-        ui.json(summ)
+        render_json_blob(summ)
 
     async def _export_zip() -> None:
         try:

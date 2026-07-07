@@ -20,6 +20,7 @@ from ui_nicegui.lib.cr_artifacts_helpers import (
     load_json_path,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_artifacts(session: DesignSession) -> None:
@@ -108,7 +109,7 @@ def _artifact_view(art: dict) -> None:
             row_key=cols[0],
         ).classes("w-full")
     with ui.expansion("Full artifact JSON", icon="data_object").classes("w-full"):
-        ui.json(art)
+        render_json_blob(art)
 
 
 def _run_library(session: DesignSession) -> None:

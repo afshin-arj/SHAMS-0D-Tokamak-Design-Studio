@@ -21,6 +21,7 @@ from ui_nicegui.lib.systems_workflow_helpers import (
     systems_run_payload,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 _SEED_MODES = ["Point Designer baseline", "Midpoint of bounds", "Manual seed editor"]
 
@@ -249,7 +250,7 @@ def _results(session: DesignSession) -> None:
     ).classes("text-body2 q-mt-sm")
     if isinstance(rep.get("best_point"), dict):
         with ui.expansion("Best point (recovery variables)", icon="place"):
-            ui.json(rep["best_point"])
+            render_json_blob(rep["best_point"])
 
     trace = rep.get("trace")
     if isinstance(trace, list) and trace:

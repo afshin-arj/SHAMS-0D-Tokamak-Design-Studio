@@ -12,6 +12,7 @@ from ui_nicegui.lib.pub_benchmark_extended_helpers import (
     run_publication_benchmark_pack,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_benchmark_pack(session: DesignSession) -> None:
@@ -31,7 +32,7 @@ def render_benchmark_pack(session: DesignSession) -> None:
         else:
             ok = bool(topo.get("ok"))
             ui.label(f"Result: {'PASS' if ok else 'FAIL'}").classes("text-subtitle2")
-            ui.json(topo)
+            render_json_blob(topo)
 
     ack = ui.checkbox(
         "I understand this is a non-interactive, audit-grade run.",
@@ -98,7 +99,7 @@ def _pack_view(session: DesignSession) -> None:
             ("Fail frac", f"{float(fr.get('fail', 0.0)):.2f}"),
         ])
         with ui.expansion("Dominant mechanism histogram", icon="bar_chart").classes("w-full"):
-            ui.json(topo.get("dominant_mechanism_hist") or {})
+            render_json_blob(topo.get("dominant_mechanism_hist") or {})
 
     ui.label("Explain delta vs baseline").classes("text-subtitle2 q-mt-md")
     baselines = list_baseline_packs()

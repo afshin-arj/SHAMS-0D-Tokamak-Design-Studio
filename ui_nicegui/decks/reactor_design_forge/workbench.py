@@ -26,6 +26,7 @@ from ui_nicegui.lib.forge_machine_finder_helpers import (
     summarize_workbench_run,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_forge_workbench(
@@ -94,7 +95,7 @@ def _render_view_body(
         if v.kpis:
             kpi_row(v.kpis)
         if v.json_blob is not None:
-            ui.json(v.json_blob)
+            render_json_blob(v.json_blob)
     elif view == "Resistance & conflicts":
         _render_resistance(session, run_rep)
     elif view == "Review bench":
@@ -105,7 +106,7 @@ def _render_view_body(
         if v.kpis:
             kpi_row(v.kpis)
         if v.json_blob is not None:
-            ui.json(v.json_blob)
+            render_json_blob(v.json_blob)
     else:
         _render_ladder(session, archive)
 
@@ -238,19 +239,19 @@ def _render_candidate_inspector(session: DesignSession, archive: list, intent: s
 
     with ui.expansion("Closure console", icon="fact_check").classes("w-full"):
         cb = instruments.get("closure_bundle")
-        ui.json(cb if isinstance(cb, dict) else {"note": "No closure bundle"})
+        render_json_blob(cb if isinstance(cb, dict) else {"note": "No closure bundle"})
 
     with ui.expansion("Margin budget", icon="account_balance").classes("w-full"):
         mb = instruments.get("margin_budget")
-        ui.json(mb if isinstance(mb, (dict, list)) else {"note": "No margin budget"})
+        render_json_blob(mb if isinstance(mb, (dict, list)) else {"note": "No margin budget"})
 
     with ui.expansion("Reality gates", icon="gavel").classes("w-full"):
         rg = instruments.get("reality_gates")
-        ui.json(rg if isinstance(rg, (dict, list)) else {"note": "No gates"})
+        render_json_blob(rg if isinstance(rg, (dict, list)) else {"note": "No gates"})
 
     with ui.expansion("Why-not report", icon="help_outline").classes("w-full"):
         wn = why_not_for_candidate(cand, intent)
-        ui.json(wn if isinstance(wn, dict) else {"note": "Unavailable"})
+        render_json_blob(wn if isinstance(wn, dict) else {"note": "Unavailable"})
 
     card_md = design_card_markdown(cand, intent)
     if card_md.strip():
@@ -260,7 +261,7 @@ def _render_candidate_inspector(session: DesignSession, archive: list, intent: s
     rp = instruments.get("report_pack")
     if isinstance(rp, dict):
         with ui.expansion("Report pack", icon="description").classes("w-full"):
-            ui.json(rp)
+            render_json_blob(rp)
 
 
 def _render_resistance(session: DesignSession, run_rep: dict) -> None:
@@ -291,7 +292,7 @@ def _render_resistance(session: DesignSession, run_rep: dict) -> None:
         ).classes("w-full")
     elif isinstance(run_rep.get("resistance_report"), dict):
         with ui.expansion("Resistance report (raw)", icon="description").classes("w-full"):
-            ui.json(run_rep["resistance_report"])
+            render_json_blob(run_rep["resistance_report"])
     else:
         ui.label("No resistance report in this run.").classes("text-caption")
 

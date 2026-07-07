@@ -14,6 +14,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     v398_control_ledger,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def _dict_table_row(d: dict) -> None:
@@ -53,7 +54,7 @@ def render_control_contracts(session: DesignSession) -> None:
         with ui.column().classes("flex-1"):
             ui.label("Authority tags").classes("text-subtitle2")
             if isinstance(auth, dict) and auth:
-                ui.json(auth)
+                render_json_blob(auth)
             else:
                 ui.label("Authority tags not available.").classes("text-caption")
         with ui.column().classes("flex-2"):
@@ -119,7 +120,7 @@ def render_control_contracts(session: DesignSession) -> None:
                         ("RWM proximity idx", fmt_num(v398.get("rwm_index"))),
                     ])
                     ui.label("Tiers").classes("text-subtitle2")
-                    ui.json({
+                    render_json_blob({
                         "vde_headroom_tier": v398.get("vde_headroom_tier"),
                         "rwm_proximity_tier": v398.get("rwm_proximity_tier"),
                     })
@@ -208,8 +209,8 @@ def render_control_contracts(session: DesignSession) -> None:
                 ("Dominant margin", fmt_num(v400["dominant_margin"])),
             ])
             ui.label("Per-aspect margins").classes("text-subtitle2")
-            ui.json(v400["per_aspect_margins"])
+            render_json_blob(v400["per_aspect_margins"])
             ui.label("Per-aspect tiers").classes("text-subtitle2 q-mt-sm")
-            ui.json(v400["per_aspect_tiers"])
+            render_json_blob(v400["per_aspect_tiers"])
         else:
             ui.label("Magnet technology ledger is disabled or unavailable for this run.").classes("text-caption")

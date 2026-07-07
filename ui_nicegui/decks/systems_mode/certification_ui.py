@@ -10,6 +10,7 @@ from ui_nicegui.lib.systems_artifact import fetch_systems_artifact
 from ui_nicegui.lib.systems_cert_registry import CERT_REGISTRY, cert_tab_label, cert_to_table, run_certify
 from ui_nicegui.lib.systems_plant_authority import warm_post_solve_cert_cache
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_certification_panels(session: DesignSession) -> None:
@@ -64,7 +65,7 @@ def render_certification_panels(session: DesignSession) -> None:
                             row_key=cols[0] if cols else "name",
                         ).classes("w-full")
                     else:
-                        ui.json(cert)
+                        render_json_blob(cert)
                     ui.button(
                         "Download JSON",
                         on_click=lambda c=cert, k=key: ui.download(
@@ -73,6 +74,6 @@ def render_certification_panels(session: DesignSession) -> None:
                         ),
                     ).props("flat dense")
                 elif cert is not None:
-                    ui.json(cert if isinstance(cert, dict) else str(cert))
+                    render_json_blob(cert if isinstance(cert, dict) else str(cert))
                 else:
                     ui.label("Not computed — click Compute (cache).").classes("text-caption text-grey")

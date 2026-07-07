@@ -5,6 +5,7 @@ from nicegui import run, ui
 
 from ui_nicegui.lib.cr_governance_helpers import run_case_deck_file
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_case_deck_runner(session: DesignSession) -> None:
@@ -52,7 +53,7 @@ def _result(session: DesignSession) -> None:
             ui.code(result["stderr"])
     if isinstance(result.get("resolved_config"), dict):
         with ui.expansion("Resolved config", icon="settings").classes("w-full"):
-            ui.json(result["resolved_config"])
+            render_json_blob(result["resolved_config"])
     if isinstance(result.get("artifact"), dict):
         with ui.expansion("Run artifact preview", icon="data_object").classes("w-full"):
-            ui.json(result["artifact"])
+            render_json_blob(result["artifact"])

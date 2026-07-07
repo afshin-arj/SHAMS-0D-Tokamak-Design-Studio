@@ -9,6 +9,7 @@ from nicegui import run, ui
 from ui_nicegui.bootstrap import repo_root
 from ui_nicegui.lib.pub_benchmark_extended_helpers import build_evidence_pack_v387, session_cache_sources
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_evidence_pack_v387(session: DesignSession) -> None:
@@ -78,7 +79,7 @@ def _dl(session: DesignSession) -> None:
     data = session.pub_v387_last_bytes
     if isinstance(idx, dict):
         with ui.expansion("Pack index", icon="list_alt").classes("w-full q-mt-sm"):
-            ui.json(idx)
+            render_json_blob(idx)
     if isinstance(data, (bytes, bytearray)) and len(data) > 100:
         ui.button(
             "Download Evidence Pack (ZIP)",

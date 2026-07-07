@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.json_view import render_json_blob
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.pd_intent_policy import classify_failed_constraints, design_intent_key
 from ui_nicegui.lib.systems_artifact import (
@@ -134,14 +135,14 @@ def render_causal_chain(art: dict, *, expert: bool = False, inline: bool = False
                 ui.markdown(line)
             if expert and isinstance(dom_entry, dict):
                 ui.label("Raw dominant entry (expert):").classes("text-caption")
-                ui.json(dom_entry)
+                render_json_blob(dom_entry)
     else:
         with ui.expansion("Why-chain (dominant cause)", icon="account_tree").classes("w-full"):
             for line in chain:
                 ui.markdown(line)
             if expert and isinstance(dom_entry, dict):
                 ui.label("Raw dominant entry (expert):").classes("text-caption")
-                ui.json(dom_entry)
+                render_json_blob(dom_entry)
 
 
 def render_constraint_cards(art: dict, *, design_intent: str = "", expert: bool = False) -> None:

@@ -11,6 +11,7 @@ from ui_nicegui.lib.pub_benchmark_extended_helpers import (
     validate_regulatory_pack_bytes,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.components.json_view import render_json_blob
 
 PACK_CONTENTS = (
     "- `artifact.json`: full run artifact\n"
@@ -38,7 +39,7 @@ def render_regulatory_reviewer_pack(session: DesignSession) -> None:
         return
 
     ui.label("Run snapshot").classes("text-caption")
-    ui.json(artifact_snapshot(art))
+    render_json_blob(artifact_snapshot(art))
 
     async def _gen() -> None:
         try:
