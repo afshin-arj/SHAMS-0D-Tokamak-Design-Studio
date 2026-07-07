@@ -50,8 +50,31 @@ def objectives_catalog() -> Tuple[List[str], Dict[str, str]]:
 
 def default_objectives() -> List[str]:
     obj_names, _ = objectives_catalog()
-    preferred = ["min_R0", "min_Bpeak", "max_Pnet"]
+    preferred = ["min_R0", "min_Bpeak", "max_Pnet", "max_Q"]
     return [o for o in preferred if o in obj_names] or obj_names[:3]
+
+
+_KNOB_OBJECTIVE_HINTS: Dict[str, List[str]] = {
+    "geometry": ["min_R0", "min_Bpeak", "max_Q"],
+    "plasma": ["max_Q", "max_H98", "min_precirc"],
+    "exhaust": ["min_q_div", "max_Pnet", "min_COE"],
+    "magnet": ["min_Bpeak", "min_sigma_vm", "max_Pnet"],
+}
+
+
+def suggested_objectives_for_knob_set(knob_name: str) -> List[str]:
+    obj_names, _ = objectives_catalog()
+    n = str(knob_name or "").lower()
+    if "exhaust" in n or "radiation" in n:
+        key = "exhaust"
+    elif "plasma" in n or "heating" in n:
+        key = "plasma"
+    elif "magnet" in n or "build" in n:
+        key = "magnet"
+    else:
+        key = "geometry"
+    hinted = _KNOB_OBJECTIVE_HINTS.get(key, [])
+    return [o for o in hinted if o in obj_names] or default_objectives()
 
 
 def run_studio_trade_study(
@@ -62,6 +85,7 @@ def run_studio_trade_study(
     objective_senses: Dict[str, str],
     n_samples: int,
     seed: int,
+    design_intent: str = "Power Reactor (net-electric)",
     include_outputs: bool = False,
 ) -> dict:
     ev = Evaluator(label="NiceGUI:TradeStudy", cache_enabled=True, cache_max=4096)
@@ -73,6 +97,7 @@ def run_studio_trade_study(
         objective_senses=dict(objective_senses),
         n_samples=int(n_samples),
         seed=int(seed),
+        design_intent=str(design_intent),
         include_outputs=include_outputs,
     )
     rep["records"] = attach_families(rep.get("records") or [])
@@ -80,6 +105,8 @@ def run_studio_trade_study(
     rep["pareto"] = attach_families(rep.get("pareto") or [])
     rep["family_summary"] = family_summary(rep.get("records") or [])
     rep["knob_set_name"] = knob_set.name
+    rep["design_intent"] = str(design_intent)
+    rep["feasibility_mode"] = "governance+intent"
     rep["summary"] = summarize_trade_study(rep)
     return rep
 
@@ -107,6 +134,8 @@ def summarize_trade_study(rep: dict) -> Dict[str, Any]:
         "objectives": meta.get("objectives") or [],
         "knob_set": rep.get("knob_set_name") or meta.get("knob_set"),
         "seed": meta.get("seed"),
+        "design_intent": rep.get("design_intent") or meta.get("design_intent"),
+        "feasibility_mode": rep.get("feasibility_mode") or meta.get("feasibility_mode", "governance+intent"),
     }
 
 
@@ -128,6 +157,8 @@ def build_study_capsule(rep: dict, base, knob_set: KnobSet, *, lane_mode: str) -
         "feasible": rep.get("feasible") or [],
         "pareto": rep.get("pareto") or [],
         "lane_mode": str(lane_mode),
+        "design_intent": str(rep.get("design_intent") or (rep.get("meta") or {}).get("design_intent") or ""),
+        "feasibility_mode": str(rep.get("feasibility_mode") or "governance+intent"),
     }
     h = hashlib.sha256(
         json.dumps(

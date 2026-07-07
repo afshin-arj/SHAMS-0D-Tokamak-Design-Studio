@@ -5,6 +5,7 @@ import json
 
 from nicegui import ui
 
+from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.compare_helpers import artifact_from_point, normalize_compare_artifact, slot_meta
 from ui_nicegui.session import DesignSession
 
@@ -19,6 +20,16 @@ def render_setup_panel(session: DesignSession, *, on_change) -> None:
     ui.label(
         "Slot A is typically baseline; Slot B is the scenario or design change you want to diagnose."
     ).classes("text-caption text-grey q-mb-sm")
+
+    _, _, pd_out = get_point_artifact_triple(session)
+    if isinstance(pd_out, dict) and pd_out:
+        ui.label("Point Designer evaluation available — use Load buttons below.").classes(
+            "text-caption text-positive q-mb-xs"
+        )
+    else:
+        ui.label("No Point Designer evaluation yet — upload JSON or evaluate in Point Designer first.").classes(
+            "text-caption text-grey q-mb-xs"
+        )
 
     with ui.row().classes("w-full gap-4 items-start"):
         _slot_column(session, "A", meta_a, have_a, on_change)

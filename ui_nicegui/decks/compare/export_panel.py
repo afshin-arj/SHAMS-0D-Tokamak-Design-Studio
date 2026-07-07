@@ -1,14 +1,19 @@
-"""Compare deck — export markdown and JSON bundles."""
+"""Compare deck — export markdown and JSON bundles + outbound handoffs."""
 from __future__ import annotations
 
 import json
 
 from nicegui import ui
 
-from ui_nicegui.lib.compare_helpers import comparison_json_bundle, comparison_markdown
+from ui_nicegui.lib.compare_helpers import (
+    apply_artifact_inputs,
+    comparison_json_bundle,
+    comparison_markdown,
+)
+from ui_nicegui.session import DesignSession
 
 
-def render_export_panel(art_a: dict, art_b: dict) -> None:
+def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> None:
     ui.label("Export comparison").classes("text-subtitle2")
     ui.label(
         "Markdown for human review; JSON bundle for CI, Control Room, or archival replay."
@@ -28,3 +33,22 @@ def render_export_panel(art_a: dict, art_b: dict) -> None:
             icon="download",
             on_click=lambda: ui.download(bundle, "artifact_comparison.json"),
         ).props("outline color=primary")
+
+    ui.separator().classes("q-my-sm")
+    ui.label("Outbound handoffs").classes("text-subtitle2")
+    ui.label(
+        "Apply variant (B) or baseline (A) inputs to Point Designer for re-evaluation with frozen truth."
+    ).classes("text-caption text-grey q-mb-sm")
+
+    def _apply(slot_art: dict, label: str) -> None:
+        n = apply_artifact_inputs(session, slot_art)
+        if n:
+            ui.notify(f"Applied {n} input fields from slot {label} to Point Designer — evaluate there.", type="positive")
+        else:
+            ui.notify(f"No overlapping inputs copied from slot {label}.", type="warning")
+
+    with ui.row().classes("gap-2"):
+        ui.button("Apply slot A → Point Designer", icon="input", on_click=lambda: _apply(art_a, "A")).props("outline")
+        ui.button("Apply slot B → Point Designer", icon="input", on_click=lambda: _apply(art_b, "B")).props(
+            "outline color=primary"
+        )

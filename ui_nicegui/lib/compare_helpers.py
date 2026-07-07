@@ -11,13 +11,21 @@ COMPARE_METRICS: List[str] = [
     "Q_DT_eqv",
     "Pfus_total_MW",
     "P_fus_MW",
+    "Pfus_DT_adj_MW",
     "P_e_net_MW",
+    "P_recirc_MW",
     "betaN",
+    "beta_N",
     "q95",
+    "H98",
+    "tauE_eff_s",
+    "fG",
+    "TBR",
     "Bpeak_TF_T",
     "B_peak_T",
     "q_div_MW_m2",
     "neutron_wall_load_MW_m2",
+    "sigma_vm_MPa",
     "COE_proxy_USD_per_MWh",
 ]
 
@@ -32,6 +40,8 @@ def _pick_output(out: dict, key: str) -> Any:
         "P_fus_MW": ["Pfus_total_MW"],
         "Bpeak_TF_T": ["B_peak_T"],
         "B_peak_T": ["Bpeak_TF_T"],
+        "beta_N": ["betaN"],
+        "betaN": ["beta_N"],
     }
     for alt in aliases.get(key, []):
         if alt in out:
@@ -131,6 +141,57 @@ def constraint_rows(art: dict, *, limit: int = 20) -> List[Dict[str, Any]]:
     return rows[:limit]
 
 
+def subsystem_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
+    from ui_nicegui.lib.verdict_core import subsystem_status
+
+    sa = subsystem_status(normalize_compare_artifact(art_a).get("outputs") or {})
+    sb = subsystem_status(normalize_compare_artifact(art_b).get("outputs") or {})
+    groups = sorted(set(sa.keys()) | set(sb.keys()))
+    rows: List[Dict[str, Any]] = []
+    for g in groups:
+        a = str(sa.get(g, "pass"))
+        b = str(sb.get(g, "pass"))
+        changed = a != b
+        rows.append({"subsystem": g, "A": a, "B": b, "changed": changed})
+    rows.sort(key=lambda r: (0 if r.get("changed") else 1, str(r.get("subsystem"))))
+    return rows
+
+
+def apply_artifact_inputs(session, art: dict) -> int:
+    """Copy PointInputs from a compare artifact into session.inputs."""
+    inp = normalize_compare_artifact(art).get("inputs") or {}
+    n = 0
+    for k, v in inp.items():
+        if k not in session.inputs:
+            continue
+        try:
+            session.inputs[k] = float(v)
+            n += 1
+        except (TypeError, ValueError):
+            pass
+    return n
+
+
+def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
+    """Evaluate inputs_patch through frozen truth and return a compare artifact."""
+    from dataclasses import asdict
+
+    from ui_nicegui.evaluate import ui_evaluate
+
+    saved = dict(session.inputs)
+    for k, v in inputs_patch.items():
+        if k in session.inputs and v is not None:
+            try:
+                session.inputs[k] = float(v)
+            except (TypeError, ValueError):
+                pass
+    inp = session.build_point_inputs()
+    out = ui_evaluate(inp, origin=f"NiceGUI:{label}")
+    art = normalize_compare_artifact({"inputs": asdict(inp), "outputs": out, "label": label})
+    session.inputs = saved
+    return art
+
+
 def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
     from ui_nicegui.lib.verdict_core import verdict_summary
 
@@ -151,8 +212,13 @@ def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
         "loaded": True,
         "verdict_a": sa.get("verdict", "n/a"),
         "verdict_b": sb.get("verdict", "n/a"),
+        "feasible_a": bool(sa.get("feasible")),
+        "feasible_b": bool(sb.get("feasible")),
         "dominant_a": sa.get("dominant", "-"),
         "dominant_b": sb.get("dominant", "-"),
+        "subsystems_a": sa.get("subsystems") or {},
+        "subsystems_b": sb.get("subsystems") or {},
+        "subsystem_diff": subsystem_diff_rows(art_a, art_b),
         "top_delta": top_delta,
         "n_metrics": len(diffs),
     }
@@ -306,6 +372,7 @@ def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
         "key_metrics": metric_diff_rows(art_a, art_b),
         "all_output_deltas": numeric_output_diff_rows(art_a, art_b, limit=200),
         "constraint_margins": constraint_margin_diff_rows(art_a, art_b),
+        "subsystem_diff": subsystem_diff_rows(art_a, art_b),
         "input_changes": input_diff_rows(art_a, art_b),
         "kpi_diff": kpi_diff_rows(art_a, art_b),
         "scenario_delta": embedded_scenario_delta(art_b),

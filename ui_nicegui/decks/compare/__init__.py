@@ -120,7 +120,7 @@ def _render_verdict(session: DesignSession) -> None:
                 "Slot B is selected but empty — load from Point Designer or upload JSON.",
                 kind="warn",
             )
-    verdict.render_compare_verdict(summary)
+    verdict.render_compare_verdict(summary, session=session)
 
 
 @ui.refreshable
@@ -147,4 +147,4 @@ def _render_tab_body(session: DesignSession) -> None:
     elif step == "4 · Inputs & Structure":
         inputs_structure.render_inputs_structure_panel(art_a, art_b)
     elif step == "5 · Export":
-        export_panel.render_export_panel(art_a, art_b)
+        export_panel.render_export_panel(session, art_a, art_b)

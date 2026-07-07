@@ -528,9 +528,8 @@ def build_v351_atlas(session, *, objectives: List[str], senses: dict) -> dict:
     cap = getattr(session, "active_study_capsule", None)
     records = (cap or rep).get("records") or rep.get("records") or []
     feas = [r for r in records if isinstance(r, dict) and bool(r.get("is_feasible"))]
-    if not feas and records:
-        feas = [r for r in records if isinstance(r, dict)]
-    pareto_rows = pareto_front(feas, objectives=list(objectives), senses=senses)
+    all_infeasible = bool(records) and not feas
+    pareto_rows = pareto_front(feas, objectives=list(objectives), senses=senses) if feas else []
     return {
         "schema": "shams.frontier_atlas.v351",
         "objectives": list(objectives),
@@ -538,6 +537,7 @@ def build_v351_atlas(session, *, objectives: List[str], senses: dict) -> dict:
         "n_feasible": len(feas),
         "n_pareto": len(pareto_rows),
         "pareto": pareto_rows,
+        "all_infeasible": all_infeasible,
     }
 
 

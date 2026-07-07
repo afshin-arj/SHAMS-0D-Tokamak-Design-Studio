@@ -104,6 +104,7 @@ def run_trade_study(
     n_samples: int,
     seed: int,
     policy: Optional[Dict[str, Any]] = None,
+    design_intent: str = "Power Reactor (net-electric)",
     include_outputs: bool = False,
 ) -> Dict[str, Any]:
     """Run a deterministic trade study.
@@ -131,17 +132,20 @@ def run_trade_study(
         out = dict(res.out or {})
         cons = evaluate_constraints(out, policy=policy)
         summ = summarize_constraints(cons).to_dict()
-        feas = bool(summ.get("feasible", False))
-        mmin = summ.get("worst_hard_margin_frac", None)
         try:
-            mmin_f = float(mmin) if mmin is not None else float("nan")
-        except Exception:
-            mmin_f = float("nan")
+            from solvers.pareto_feasibility import annotate_pareto_feasibility
+        except ImportError:
+            from src.solvers.pareto_feasibility import annotate_pareto_feasibility
+        ann = annotate_pareto_feasibility(out, design_intent)
+        feas = bool(ann.get("is_feasible", False))
+        mmin_f = float(ann.get("min_constraint_margin", float("nan")))
 
         row: Dict[str, Any] = {
             "i": int(i),
             "is_feasible": bool(feas),
+            "governance_feasible": bool(ann.get("governance_feasible", summ.get("feasible", False))),
             "min_margin_frac": float(mmin_f),
+            "first_failure": str(ann.get("first_failure") or ""),
         }
         row.update({k: float(v) for k, v in s.items()})
 
@@ -150,7 +154,7 @@ def run_trade_study(
 
         # Minimal diagnosis fields
         row["dominant_mechanism"] = str(summ.get("dominant_mechanism", ""))
-        row["dominant_constraint"] = str(summ.get("dominant_constraint", ""))
+        row["dominant_constraint"] = str(ann.get("dominant_constraint") or summ.get("dominant_constraint", ""))
 
         if include_outputs:
             row["outputs"] = out
@@ -181,6 +185,8 @@ def run_trade_study(
         "bounds": {k: [float(v[0]), float(v[1])] for k, v in bounds.items()},
         "objectives": list(objectives),
         "objective_senses": dict(objective_senses),
+        "design_intent": str(design_intent),
+        "feasibility_mode": "governance+intent",
     }
     return {
         "meta": meta,

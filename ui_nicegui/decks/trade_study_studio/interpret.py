@@ -35,6 +35,20 @@ def render_interpret_tab(session: DesignSession, rep: dict) -> None:
         for name, n in blockers:
             ui.label(f"{name}: {n}").classes("text-caption")
 
+    n_gov_gap = sum(
+        1 for r in records
+        if isinstance(r, dict) and r.get("is_feasible") and not r.get("governance_feasible")
+    )
+    if n_gov_gap:
+        ui.label(
+            f"{n_gov_gap} samples are intent-feasible but governance-infeasible — expected under Research intent."
+        ).classes("text-caption text-orange q-mt-sm")
+
+    feas_mode = rep.get("feasibility_mode") or (rep.get("meta") or {}).get("feasibility_mode", "governance+intent")
+    ui.label(
+        f"Feasibility mode: {feas_mode} · Intent: {rep.get('design_intent') or summary.get('design_intent', session.design_intent)}"
+    ).classes("text-caption text-grey")
+
     fam_rows = fam.get("rows") if isinstance(fam, dict) else None
     if isinstance(fam_rows, list) and fam_rows:
         ui.label("Design family mix").classes("text-subtitle2 q-mt-md")

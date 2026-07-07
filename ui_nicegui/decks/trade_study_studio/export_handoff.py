@@ -13,6 +13,7 @@ from ui_nicegui.lib.trade_interpret_helpers import (
     study_narrative,
 )
 from ui_nicegui.lib.trade_study_helpers import report_to_json_bytes
+from ui_nicegui.lib.compare_helpers import build_compare_artifact, slot_meta
 from ui_nicegui.session import DesignSession
 
 
@@ -88,3 +89,30 @@ def render_export_tab(
         ui.notify("Copied to Point Designer inputs.", type="positive")
 
     ui.button("Promote to Point Designer", icon="upload", on_click=_promote).props("outline")
+
+    def _send_compare(slot: str) -> None:
+        i = int(idx.value or 0)
+        row = next((r for r in pareto if int(r.get("i", -1)) == i), None)
+        if row is None and 0 <= i < len(pareto):
+            row = pareto[i]
+        if row is None:
+            ui.notify("Invalid row", type="warning")
+            return
+        try:
+            art = build_compare_artifact(session, dict(row), label="Trade Study Pareto")
+            meta = slot_meta(art, label="Trade Study")
+            if slot == "A":
+                session.cmp_slot_a = art
+                session.cmp_slot_a_meta = meta
+                session.cmp_use_slot_a = True
+            else:
+                session.cmp_slot_b = art
+                session.cmp_slot_b_meta = meta
+                session.cmp_use_slot_b = True
+            ui.notify(f"Sent Pareto row to Compare slot {slot}", type="positive")
+        except Exception as exc:
+            ui.notify(f"Compare handoff failed: {exc}", type="negative")
+
+    with ui.row().classes("gap-2 q-mt-sm"):
+        ui.button("Send row → Compare A", icon="compare", on_click=lambda: _send_compare("A")).props("flat outline")
+        ui.button("Send row → Compare B", icon="compare", on_click=lambda: _send_compare("B")).props("flat outline")

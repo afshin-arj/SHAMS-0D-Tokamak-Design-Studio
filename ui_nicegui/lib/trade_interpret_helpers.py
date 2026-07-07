@@ -28,6 +28,8 @@ def study_narrative(rep: dict) -> str:
         f"- Knob set: {summary.get('knob_set', rep.get('knob_set_name', '-'))}",
         f"- Objectives: {', '.join(objs) if objs else '-'}",
         f"- Seed: {summary.get('seed', meta.get('seed', '-'))}",
+        f"- Design intent: {summary.get('design_intent', rep.get('design_intent', '-'))}",
+        f"- Feasibility mode: {summary.get('feasibility_mode', rep.get('feasibility_mode', '-'))}",
         "",
         "Budgeted LHS over declared knobs — descriptive trade-off slice, not a design recommendation.",
     ]

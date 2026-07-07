@@ -21,6 +21,10 @@ def render_setup_panel(*, default_open: bool = True) -> None:
             "- Claim a globally optimal machine\n"
             "- Smooth or relax constraints"
         )
+        ui.markdown(
+            "**Feasibility gate:** unified **governance** + **intent-aware blocking** "
+            "(same policy as Point Designer). Pareto membership uses intent-feasible samples only."
+        ).classes("text-caption q-mt-sm")
         ui.label("Knob sets (sampling domains)").classes("text-subtitle2 q-mt-sm")
         for ks in default_knob_sets()[:6]:
             ui.label(f"**{ks.name}** — {ks.notes}").classes("text-caption")

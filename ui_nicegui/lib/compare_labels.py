@@ -34,7 +34,8 @@ TAB_HELP = {
         "and structural diffs (constraints added/removed, model cards)."
     ),
     "5 · Export": (
-        "Download markdown or JSON comparison bundles for audit, review, or handoff."
+        "Download markdown or JSON comparison bundles for audit, review, or handoff. "
+        "Apply slot A/B inputs back to Point Designer for frozen-truth re-evaluation."
     ),
 }
 
@@ -96,6 +97,14 @@ METRIC_DISPLAY = {
     "q_div_MW_m2": "Divertor heat flux (MW/m²)",
     "neutron_wall_load_MW_m2": "Neutron wall load (MW/m²)",
     "COE_proxy_USD_per_MWh": "COE proxy (USD/MWh)",
+    "H98": "H-mode factor H98",
+    "tauE_eff_s": "Energy confinement τ_E (s)",
+    "TBR": "Tritium breeding ratio",
+    "P_recirc_MW": "Recirculating power (MW)",
+    "Pfus_DT_adj_MW": "Adjusted DT fusion power (MW)",
+    "sigma_vm_MPa": "Von Mises stress (MPa)",
+    "fG": "Greenwald fraction",
+    "beta_N": "Normalized beta",
 }
 
 

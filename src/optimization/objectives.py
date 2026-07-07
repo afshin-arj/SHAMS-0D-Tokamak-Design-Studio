@@ -76,6 +76,36 @@ def register_default_objectives() -> None:
         fn=lambda out: _safe(out, "P_recirc_MW", 1e9),
         description="Minimize recirculating power",
     ))
+    register_objective(ObjectiveSpec(
+        name="max_Q",
+        sense="max",
+        fn=lambda out: _safe(out, "Q_DT_eqv", _safe(out, "Q", -1e9)),
+        description="Maximize DT-equivalent gain",
+    ))
+    register_objective(ObjectiveSpec(
+        name="max_H98",
+        sense="max",
+        fn=lambda out: _safe(out, "H98", -1e9),
+        description="Maximize H-mode confinement factor",
+    ))
+    register_objective(ObjectiveSpec(
+        name="min_q_div",
+        sense="min",
+        fn=lambda out: _safe(out, "q_div_MW_m2", 1e9),
+        description="Minimize divertor heat-flux proxy",
+    ))
+    register_objective(ObjectiveSpec(
+        name="max_TBR",
+        sense="max",
+        fn=lambda out: _safe(out, "TBR", -1e9),
+        description="Maximize tritium breeding ratio",
+    ))
+    register_objective(ObjectiveSpec(
+        name="min_sigma_vm",
+        sense="min",
+        fn=lambda out: _safe(out, "sigma_vm_MPa", 1e9),
+        description="Minimize von Mises structural stress proxy",
+    ))
 
 
 # register defaults at import time (safe: pure functions)

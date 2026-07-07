@@ -142,6 +142,10 @@ def _v351_view(session: DesignSession) -> None:
         ("Feasible", str(atlas.get("n_feasible", "-"))),
         ("Pareto", str(atlas.get("n_pareto", "-"))),
     ])
+    if atlas.get("all_infeasible"):
+        ui.label(
+            "No intent-feasible samples in this study — frontier atlas is empty (NO-SOLUTION is valid)."
+        ).classes("text-caption text-orange")
     lanes = session.v351_lane_rows
     if isinstance(lanes, list) and lanes:
         nrob = sum(1 for r in lanes if r.get("is_robust"))

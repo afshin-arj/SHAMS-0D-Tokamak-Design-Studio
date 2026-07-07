@@ -10,6 +10,7 @@ from ui_nicegui.lib.trade_study_helpers import (
     default_objectives,
     objectives_catalog,
     run_studio_trade_study,
+    suggested_objectives_for_knob_set,
 )
 from ui_nicegui.session import DesignSession
 
@@ -33,10 +34,16 @@ def render_study_controls(
         names,
         label="Knob set",
         value=session.trade_knob_set or names[0],
-        on_change=lambda e: setattr(session, "trade_knob_set", str(e.value)),
+        on_change=lambda e: _on_knob_set(session, str(e.value), knob_sets),
     ).classes("w-full")
     ksel = next((k for k in knob_sets if k.name == (session.trade_knob_set or names[0])), knob_sets[0])
     ui.label(ksel.notes).classes("text-caption text-grey q-mb-sm")
+
+    ui.label(f"Design intent (feasibility lens): {session.design_intent}").classes("text-caption")
+    ui.label(
+        "Research: only q95 blocks Pareto membership; TBR ignored; engineering limits diagnostic. "
+        "Reactor: full governance hard set blocks."
+    ).classes("text-caption text-grey q-mb-sm")
 
     obj_names, obj_senses = objectives_catalog()
     if not session.trade_objectives:
@@ -69,6 +76,16 @@ def render_study_controls(
             list(e.value) if e.value else [],
         ),
     ).classes("w-full")
+
+    ui.button(
+        "Suggest objectives for knob set",
+        icon="lightbulb",
+        on_click=lambda: setattr(
+            session,
+            "trade_objectives",
+            suggested_objectives_for_knob_set(session.trade_knob_set or names[0]),
+        ),
+    ).props("flat dense")
 
     ui.toggle(
         ["Nominal only", "Optimistic vs Robust"],
@@ -107,6 +124,7 @@ def render_study_controls(
                 objective_senses=senses,
                 n_samples=session.trade_n_samples,
                 seed=session.trade_seed,
+                design_intent=session.design_intent,
             )
             session.trade_last = rep
             session.trade_last_lane = session.trade_lane_mode
@@ -130,3 +148,9 @@ def render_study_controls(
     btn = ui.button("Run trade study", icon="play_arrow", on_click=_run).props("color=primary")
     if session.trade_running or not session.trade_objectives:
         btn.props("disable")
+
+
+def _on_knob_set(session: DesignSession, name: str, knob_sets) -> None:
+    session.trade_knob_set = name
+    if not session.trade_objectives:
+        session.trade_objectives = suggested_objectives_for_knob_set(name)
