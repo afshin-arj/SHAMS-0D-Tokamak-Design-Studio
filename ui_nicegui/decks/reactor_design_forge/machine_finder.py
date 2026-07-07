@@ -134,6 +134,16 @@ def render_machine_finder(
             value=session.forge_adv_staged,
             on_change=lambda e: setattr(session, "forge_adv_staged", bool(e.value)),
         )
+        ui.checkbox(
+            "Active learning (knowledge store across runs)",
+            value=session.forge_adv_memory,
+            on_change=lambda e: setattr(session, "forge_adv_memory", bool(e.value)),
+        )
+        ui.checkbox(
+            "Track distance to other intent (Research ↔ Reactor)",
+            value=session.forge_adv_multi_intent,
+            on_change=lambda e: setattr(session, "forge_adv_multi_intent", bool(e.value)),
+        )
         ui.number(
             "Min signed margin guard (optional)",
             value=session.forge_min_margin_guard,
@@ -228,6 +238,9 @@ def render_machine_finder(
                     "archive_topk": int(session.forge_mf_archive_topk),
                     "resistance_window": 250,
                     "surf_steps": 80,
+                    "enable_surface_surf": bool(session.forge_adv_surface),
+                    "enable_skeleton": bool(session.forge_adv_skeleton),
+                    "use_knowledge_store": bool(session.forge_adv_memory),
                 },
                 "all_points": [],
                 "trace": [],
@@ -256,6 +269,11 @@ def render_machine_finder(
                 archive_topk=int(session.forge_mf_archive_topk),
                 require_feasible_only=bool(session.forge_mf_require_feasible_only),
                 seed=int(session.forge_mf_seed),
+                enable_surface_surf=bool(session.forge_adv_surface),
+                enable_skeleton=bool(session.forge_adv_skeleton),
+                min_margin=float(session.forge_min_margin_guard or 0),
+                use_knowledge_store=bool(session.forge_adv_memory),
+                track_other_intent=bool(session.forge_adv_multi_intent),
             )
             session.forge_workbench_run = run_rep
             session.forge_mf_last_bounds = {k: list(v) for k, v in bounds.items()}
@@ -308,7 +326,7 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
             ui.button("Run Surrogate", on_click=lambda: _phase("surrogate", _staged_surrogate, session)).props("outline")
         if done.get("global") and not done.get("local"):
             ui.button("Run Local", on_click=lambda: _phase("local", _staged_local, session)).props("outline")
-        if done.get("local") and not done.get("surf"):
+        if done.get("local") and not done.get("surf") and session.forge_adv_surface:
             ui.button("Run Surf", on_click=lambda: _phase("surf", _staged_surf, session)).props("outline")
     ui.label(f"Done: {', '.join(k for k, v in done.items() if v) or 'none'}").classes("text-caption")
 
@@ -396,7 +414,12 @@ def _staged_eval_fn(session: DesignSession):
     stg = session.forge_stage_state or {}
     intent = str(stg.get("intent") or "Reactor")
     objectives = objectives_for_pack(intent, session.forge_mf_pack_name)
-    return make_evaluate_fn(intent, objectives, min_margin=float(session.forge_min_margin_guard or 0))
+    return make_evaluate_fn(
+        intent,
+        objectives,
+        min_margin=float(session.forge_min_margin_guard or 0),
+        track_other_intent=bool(session.forge_adv_multi_intent),
+    )
 
 
 def _finalize_staged_run(session: DesignSession) -> None:

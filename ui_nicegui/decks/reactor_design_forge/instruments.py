@@ -163,6 +163,17 @@ def _render_archive_filters(session: DesignSession) -> None:
                 float(e.value) if e.value is not None else float("-inf"),
             ),
         ).classes("w-full")
+        ui.number(
+            "Max COE proxy (USD/MWh, optional)",
+            value=session.forge_filter_max_coe,
+            min=0.0,
+            step=10.0,
+            on_change=lambda e: setattr(
+                session,
+                "forge_filter_max_coe",
+                float(e.value) if e.value is not None else None,
+            ),
+        ).classes("w-full")
 
 
 def _needs_candidate_picker(tool: str) -> bool:

@@ -21,7 +21,10 @@ TAB_HELP = {
     "2 · Setup & Search": "Intent, lens, bounds, advanced engine options, hybrid Machine Finder run (or staged phases).",
     "3 · Workbench": "Archive scatter/table, candidate inspector, conflict atlas, review bench.",
     "4 · Instruments": "Full expert cockpit — all legacy Forge views grouped by task (60+ instruments).",
-    "5 · Capsules & Export": "Restore, diff, and export run capsules for replay.",
+    "5 · Capsules & Export": (
+        "Restore/diff/export run capsules, cross-deck handoffs (Compare, Scan Lab, Systems Mode), "
+        "and design-card markdown download."
+    ),
 }
 
 DECK_SUBTITLE = (
@@ -51,7 +54,10 @@ TEACHING_HINTS = {
     DECISION_STATES[1]: "Start with 3–5 variables and Medium bounds; use **Staged run** to execute phases one-by-one.",
     DECISION_STATES[2]: "Archive scores are **non-authoritative** — feasibility is from frozen truth.",
     DECISION_STATES[3]: "Pick a **category** then instrument — Review Trinity, dossier, DOI export, etc.",
-    DECISION_STATES[4]: "Capsules replay metadata; re-audit any promoted candidate in Point Designer.",
+    DECISION_STATES[4]: (
+        "Capsules replay metadata; use **handoffs** here to send archive rows to Compare or Scan Lab; "
+        "re-audit any promoted candidate in Point Designer."
+    ),
 }
 
 WORKBENCH_VIEWS = [

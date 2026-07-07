@@ -167,6 +167,11 @@ def evaluate_forge_candidate(inp: dict, intent: str, *, origin: str = "NiceGUI:F
     record_dicts = _records_as_dicts(records)
     feas = feasibility_flag(records, design_intent=intent)
     fm = failure_mode(records, design_intent=intent)
+    try:
+        from solvers.pareto_feasibility import annotate_pareto_feasibility
+    except ImportError:
+        from src.solvers.pareto_feasibility import annotate_pareto_feasibility
+    ann = annotate_pareto_feasibility(outputs, intent)
     min_sm = None
     for r in records:
         try:
@@ -181,6 +186,9 @@ def evaluate_forge_candidate(inp: dict, intent: str, *, origin: str = "NiceGUI:F
         "outputs": dict(outputs),
         "constraints": record_dicts,
         "feasible": bool(feas),
+        "governance_feasible": bool(ann.get("governance_feasible", feas)),
+        "intent_feasible": bool(ann.get("is_feasible", feas)),
+        "blocking_failures": list(ann.get("blocking_failures") or []),
         "active_constraints": active_constraints(records, design_intent=intent),
         "failure_mode": fm,
         "min_signed_margin": float(min_sm) if min_sm is not None else float("nan"),
@@ -200,7 +208,15 @@ def evaluate_forge_candidate(inp: dict, intent: str, *, origin: str = "NiceGUI:F
     return res
 
 
-def make_evaluate_fn(intent: str, objectives, *, min_margin: float = 0.0) -> Callable[[dict], dict]:
+def make_evaluate_fn(
+    intent: str,
+    objectives,
+    *,
+    min_margin: float = 0.0,
+    track_other_intent: bool = False,
+) -> Callable[[dict], dict]:
+    other_intent = "Research" if str(intent) == "Reactor" else "Reactor"
+
     def _fn(cand_inputs: dict) -> dict:
         res = evaluate_forge_candidate(cand_inputs, intent)
         try:
@@ -216,6 +232,19 @@ def make_evaluate_fn(intent: str, objectives, *, min_margin: float = 0.0) -> Cal
                     res["feasible"] = False
                     res["failure_mode"] = res.get("failure_mode") or "min_margin_guardrail"
             except (TypeError, ValueError):
+                pass
+        if track_other_intent:
+            try:
+                oth = evaluate_forge_candidate(
+                    cand_inputs,
+                    other_intent,
+                    origin="NiceGUI:Forge other-intent",
+                )
+                res["other_intent"] = other_intent
+                res["other_feasible"] = bool(oth.get("feasible"))
+                res["other_failure_mode"] = oth.get("failure_mode")
+                res["other_governance_feasible"] = oth.get("governance_feasible")
+            except Exception:
                 pass
         return res
 
@@ -236,6 +265,12 @@ def run_machine_finder(
     archive_topk: int = 60,
     require_feasible_only: bool = True,
     seed: int = 1,
+    enable_surface_surf: bool = True,
+    enable_skeleton: bool = True,
+    min_margin: float = 0.0,
+    surf_steps: int = 80,
+    use_knowledge_store: bool = False,
+    track_other_intent: bool = False,
 ) -> dict:
     try:
         from tools.sandbox.hybrid_engine import VarSpec, run_hybrid_machine_finder, build_archive
@@ -245,7 +280,12 @@ def run_machine_finder(
         raise RuntimeError("Machine Finder engine unavailable") from exc
 
     var_specs = [VarSpec(key=k, lo=float(bounds[k][0]), hi=float(bounds[k][1])) for k in var_keys]
-    eval_fn = make_evaluate_fn(intent, objectives)
+    eval_fn = make_evaluate_fn(
+        intent,
+        objectives,
+        min_margin=float(min_margin),
+        track_other_intent=bool(track_other_intent),
+    )
     budgets = {
         "pop_size": int(pop_size),
         "generations": int(generations),
@@ -254,9 +294,10 @@ def run_machine_finder(
         "local_steps": int(local_steps),
         "archive_topk": int(archive_topk),
         "resistance_window": 250,
-        "enable_surface_surf": True,
-        "enable_skeleton": True,
-        "use_knowledge_store": False,
+        "enable_surface_surf": bool(enable_surface_surf),
+        "enable_skeleton": bool(enable_skeleton),
+        "use_knowledge_store": bool(use_knowledge_store),
+        "surf_steps": int(surf_steps),
     }
     run = run_hybrid_machine_finder(
         evaluate_fn=eval_fn,

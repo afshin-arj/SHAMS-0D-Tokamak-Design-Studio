@@ -7,6 +7,7 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.decks.reactor_design_forge.handoff_panel import render_archive_handoffs
 from ui_nicegui.lib.forge_interpret_helpers import (
     archive_point,
     design_card_markdown,
@@ -21,7 +22,6 @@ from ui_nicegui.lib.forge_instrument_engine import compute_instrument, build_con
 from ui_nicegui.lib.forge_labels import WORKBENCH_VIEWS
 from ui_nicegui.lib.forge_machine_finder_helpers import (
     archive_table_rows,
-    promote_archive_row,
     resistance_atlas_rows,
     summarize_workbench_run,
 )
@@ -368,18 +368,14 @@ def _render_review_bench(
         ui.label("Review Mode: promotion disabled.").classes("text-orange q-mt-sm")
         return
 
-    promote_idx = ui.number("Promote pinned row #", value=bench[0], min=0, max=max(len(archive) - 1, 0))
-
-    def _promote() -> None:
-        try:
-            session.inputs = promote_archive_row(session.inputs, run_rep, int(promote_idx.value or 0))
-            ui.notify("Promoted to Point Designer inputs.", type="positive")
-            if on_complete:
-                on_complete()
-        except Exception as exc:
-            ui.notify(f"Promote failed: {exc}", type="negative")
-
-    ui.button("Promote to Point Designer", icon="upload", on_click=_promote).props("color=primary outline")
+    ui.separator().classes("q-my-sm")
+    render_archive_handoffs(
+        session,
+        run_rep,
+        review_mode=review_mode,
+        on_complete=on_complete,
+        default_row=int(bench[0]),
+    )
 
 
 def _render_ladder(session: DesignSession, archive: list) -> None:

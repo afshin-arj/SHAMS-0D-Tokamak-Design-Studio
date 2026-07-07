@@ -5,6 +5,8 @@ from typing import Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.decks.reactor_design_forge.handoff_panel import render_archive_handoffs
+from ui_nicegui.lib.forge_interpret_helpers import design_card_markdown
 from ui_nicegui.lib.forge_machine_finder_helpers import (
     build_capsule_zip_bytes,
     diff_capsule_json,
@@ -57,6 +59,28 @@ def render_capsules(
         _diff_view(session)
 
     _render_export(session)
+
+    ui.separator().classes("q-my-sm")
+    run_rep = session.forge_workbench_run
+    if isinstance(run_rep, dict):
+        render_archive_handoffs(session, run_rep, on_complete=on_complete)
+
+        archive = run_rep.get("archive") or []
+        if archive:
+            ui.label("Design card (markdown)").classes("text-subtitle2 q-mt-md")
+            row_n = ui.number("Row for design card", value=0, min=0, max=max(len(archive) - 1, 0), step=1)
+            intent = str(run_rep.get("intent") or session.forge_mf_intent_label)
+
+            def _dl_card() -> None:
+                i = int(row_n.value or 0)
+                cand = archive[i] if 0 <= i < len(archive) else {}
+                md = design_card_markdown(cand if isinstance(cand, dict) else {}, intent)
+                if md:
+                    ui.download(md.encode("utf-8"), f"forge_design_card_{i}.md")
+                else:
+                    ui.notify("Design card unavailable for this row", type="warning")
+
+            ui.button("Download design card", icon="description", on_click=_dl_card).props("flat outline")
 
 
 async def _handle_restore(session: DesignSession, e, on_complete: Optional[Callable[[], None]]) -> None:

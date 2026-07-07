@@ -17,6 +17,10 @@ def render_setup_panel(*, default_open: bool = True) -> None:
             "- Guarantee feasibility — NO-SOLUTION is valid"
         )
         ui.markdown(
+            "**Feasibility lens:** Machine Finder uses **intent-aware** constraint policy "
+            "(same as Point Designer) — Research ignores TBR as blocking; Reactor uses full governance hard set."
+        ).classes("text-caption q-mt-sm")
+        ui.markdown(
             "**Expert workflow:** Compile → Search → Workbench inspect → Export capsule → "
             "Promote to Point Designer → Re-evaluate with frozen truth."
         ).classes("text-caption q-mt-sm")
