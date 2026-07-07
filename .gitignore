@@ -38,6 +38,7 @@ graphify-out/
 .cursor/
 .shams_probe/
 out_product_qa_self_test/
+scripts/debug_buttons.py
 
 # Local benchmark / verification snapshots (regenerate locally)
 benchmarks/last_diff_report.json
