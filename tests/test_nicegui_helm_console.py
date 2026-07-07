@@ -131,8 +131,11 @@ def test_dsg_edge_kind_normalizes_deck_tokens() -> None:
     assert s.dsg_context_edge_kind == "derived"
     assert normalize_edge_kind("bench") == "derived"
     assert normalize_edge_kind("scan") == "scan"
+    assert normalize_edge_kind("forge") == "forge"
     apply_deck_dsg_context(s, deck_edge_kind_for("Systems Mode"))
     assert s.dsg_context_edge_kind == "systems_eval"
+    apply_deck_dsg_context(s, deck_edge_kind_for("Reactor Design Forge"))
+    assert s.dsg_context_edge_kind == "forge"
 
 
 def test_helm_drawer_session_fields() -> None:

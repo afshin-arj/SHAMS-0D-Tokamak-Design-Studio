@@ -19,6 +19,9 @@ from ui_nicegui.lib.forge_machine_finder_helpers import (
     run_machine_finder,
     summarize_workbench_run,
 )
+from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
+from ui_nicegui.lib.helm_helpers import log_ui_event
+from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
 from ui_nicegui.session import DesignSession
 
 
@@ -252,8 +255,27 @@ def render_machine_finder(
                 on_complete()
             return
 
+        locked, task, is_owner = runlock_status(FORGE_RUNLOCK_OWNER)
+        if locked and not is_owner:
+            ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+            return
+        if not runlock_acquire("Reactor Design Forge: Machine Finder", FORGE_RUNLOCK_OWNER):
+            ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+            return
+
         session.forge_mf_running = True
         ui.notify("Machine Finder started…", type="info")
+        log_ui_event(
+            session,
+            FORGE_RUNLOCK_OWNER,
+            "MachineFinderStart",
+            {
+                "intent": intent_local,
+                "n_vars": len(var_keys),
+                "pop_size": int(session.forge_mf_pop_size),
+                "generations": int(session.forge_mf_generations),
+            },
+        )
         try:
             run_rep = await run.io_bound(
                 run_machine_finder,
@@ -278,6 +300,12 @@ def render_machine_finder(
             session.forge_workbench_run = run_rep
             session.forge_mf_last_bounds = {k: list(v) for k, v in bounds.items()}
             n = len(run_rep.get("archive") or [])
+            log_ui_event(
+                session,
+                FORGE_RUNLOCK_OWNER,
+                "MachineFinderComplete",
+                {"n_archive": n, "intent": intent_local},
+            )
             ui.notify(
                 f"Run complete — {n} archive candidates. Open **Workbench** tab to inspect.",
                 type="positive",
@@ -289,6 +317,11 @@ def render_machine_finder(
             ui.notify(f"Machine Finder failed: {exc}", type="negative")
         finally:
             session.forge_mf_running = False
+            runlock_release(FORGE_RUNLOCK_OWNER)
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+            refresh_status()
+            refresh_helm()
 
     btn = ui.button("Run machine finder", icon="play_arrow", on_click=_run_finder).props("color=primary")
     if session.forge_mf_running:
@@ -305,6 +338,18 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
     done = stg.get("done") or {}
 
     async def _phase(name: str, fn, *args) -> None:
+        if session.forge_mf_running:
+            ui.notify("Machine Finder phase already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status(FORGE_RUNLOCK_OWNER)
+        if locked and not is_owner:
+            ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+            return
+        if not runlock_acquire(f"Reactor Design Forge: {name.title()} phase", FORGE_RUNLOCK_OWNER):
+            ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+            return
+        session.forge_mf_running = True
+        log_ui_event(session, FORGE_RUNLOCK_OWNER, "MachineFinderPhaseStart", {"phase": name})
         try:
             pts, tr = await run.io_bound(fn, *args)
             stg["all_points"] = (stg.get("all_points") or []) + list(pts)
@@ -313,11 +358,24 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
             stg["done"] = done
             session.forge_stage_state = stg
             _finalize_staged_run(session)
+            log_ui_event(
+                session,
+                FORGE_RUNLOCK_OWNER,
+                "MachineFinderPhaseComplete",
+                {"phase": name, "n_points": len(pts)},
+            )
             ui.notify(f"{name.title()} phase complete", type="positive")
             if on_complete:
                 on_complete()
         except Exception as exc:
             ui.notify(f"Phase failed: {exc}", type="negative")
+        finally:
+            session.forge_mf_running = False
+            runlock_release(FORGE_RUNLOCK_OWNER)
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+            refresh_status()
+            refresh_helm()
 
     with ui.row().classes("gap-2 flex-wrap"):
         if not done.get("global"):

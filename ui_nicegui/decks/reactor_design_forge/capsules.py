@@ -9,6 +9,7 @@ from ui_nicegui.decks.reactor_design_forge.handoff_panel import render_archive_h
 from ui_nicegui.lib.forge_interpret_helpers import design_card_markdown
 from ui_nicegui.lib.forge_machine_finder_helpers import (
     build_capsule_zip_bytes,
+    build_forge_audit_pack_zip,
     diff_capsule_json,
     parse_capsule_upload,
     restore_workbench_from_capsule,
@@ -149,6 +150,61 @@ def _render_export(session: DesignSession) -> None:
 
         ui.button("Build capsule zip", icon="archive", on_click=_build_zip).props("outline")
         _export_btn(session)
+
+    archive = run_rep.get("archive") or []
+    with ui.expansion("Audit Pack (narrative + reviewer + capsule)", icon="folder_zip").classes("w-full q-mt-sm"):
+        ui.label(
+            "Single ZIP: report narrative, design card, nested reviewer packet, and run capsule — "
+            "reviewer-room ready."
+        ).classes("text-caption q-mb-sm")
+        row_ap = ui.number(
+            "Archive row #",
+            value=0,
+            min=0,
+            max=max(len(archive) - 1, 0) if archive else 0,
+            step=1,
+        )
+
+        async def _build_audit_pack() -> None:
+            if not archive:
+                ui.notify("No archive rows available", type="warning")
+                return
+            ui.notify("Building Forge Audit Pack…", type="info")
+            try:
+                bounds = session.forge_mf_last_bounds or {}
+                lens = session.forge_lens_contract or {}
+                intent = str(run_rep.get("intent") or session.forge_mf_intent_label)
+                data, name = await run.io_bound(
+                    build_forge_audit_pack_zip,
+                    run_rep,
+                    row_idx=int(row_ap.value or 0),
+                    lens_contract=lens,
+                    bounds=bounds,
+                    intent=intent,
+                )
+                session.forge_audit_pack_bytes = data
+                session.forge_audit_pack_name = name
+                ui.notify("Audit Pack ready", type="positive")
+                _audit_pack_btn.refresh()
+            except Exception as exc:
+                ui.notify(f"Audit Pack failed: {exc}", type="negative")
+
+        ui.button("Build Audit Pack", icon="inventory_2", on_click=_build_audit_pack).props("outline color=primary")
+        _audit_pack_btn(session)
+
+
+@ui.refreshable
+def _audit_pack_btn(session: DesignSession) -> None:
+    data = getattr(session, "forge_audit_pack_bytes", None)
+    if isinstance(data, (bytes, bytearray)) and len(data) > 100:
+        ui.button(
+            "Download Audit Pack",
+            icon="download",
+            on_click=lambda: ui.download(
+                bytes(data),
+                getattr(session, "forge_audit_pack_name", None) or "shams_forge_audit_pack.zip",
+            ),
+        ).props("color=primary flat q-mt-sm")
 
 
 @ui.refreshable

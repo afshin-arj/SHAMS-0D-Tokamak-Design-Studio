@@ -5,7 +5,7 @@ from ui_nicegui.session import DesignSession
 
 # Must match ui/dsg_panel.py and ui_nicegui/components/dsg_sidebar.py options.
 _VALID_EDGE_KINDS = frozenset(
-    {"derived", "systems_eval", "scan", "pareto", "trade", "extopt", "repair"}
+    {"derived", "systems_eval", "scan", "pareto", "trade", "extopt", "repair", "forge"}
 )
 _DECK_TO_EDGE_KIND: dict[str, str] = {
     "scan": "scan",
@@ -14,6 +14,7 @@ _DECK_TO_EDGE_KIND: dict[str, str] = {
     "systems_eval": "systems_eval",
     "extopt": "extopt",
     "repair": "repair",
+    "forge": "forge",
 }
 
 # NiceGUI deck display name → DSG edge kind token (normalized on apply).
@@ -24,7 +25,7 @@ DECK_NAME_EDGE_KIND: dict[str, str] = {
     "Compare": "derived",
     "Pareto Lab": "pareto",
     "Trade Study Studio": "trade",
-    "Reactor Design Forge": "derived",
+    "Reactor Design Forge": "forge",
     "Publication Benchmarks": "derived",
     "System Suite": "derived",
     "Control Room": "derived",

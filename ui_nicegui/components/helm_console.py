@@ -32,7 +32,7 @@ from ui_nicegui.lib.helm_labels import (
     helm_section_label,
 )
 from ui_nicegui.lib.pd_intent_policy import constraint_policy_snapshot, policy_caption
-from ui_nicegui.lib.run_lock import status as runlock_status
+from ui_nicegui.lib.run_lock import status as runlock_status, global_status as runlock_global_status
 from ui_nicegui.session import DesignSession
 
 _TRL_TIERS = ["TRL3", "TRL5", "TRL7", "TRL9"]
@@ -138,17 +138,22 @@ def _helm_body(session: DesignSession, *, on_deck_change: Callable[[str], None])
 
 
 def _render_run_lock_banner(session: DesignSession) -> None:
-    locked, task, is_owner = runlock_status("PointDesigner")
-    if not (session.evaluating or locked):
+    locked, task, holder = runlock_global_status()
+    busy = bool(session.evaluating or session.forge_mf_running or locked)
+    if not busy:
         return
-    if locked and task and task not in _RUN_START:
+    if task and task not in _RUN_START:
         _RUN_START[task] = time.time()
     age = 0
     if task and task in _RUN_START:
         age = int(time.time() - _RUN_START[task])
+    is_owner = False
+    if holder:
+        _, _, is_owner = runlock_status(holder)
     badge = "Running sequence" if is_owner else "Shot in progress"
+    owner_hint = f" [{holder}]" if holder else ""
     ui.html(
-        f'<div class="helm-info-banner"><strong>{badge}</strong>: {task or "evaluation"} · t+{age}s</div>'
+        f'<div class="helm-info-banner"><strong>{badge}</strong>: {task or "evaluation"}{owner_hint} · t+{age}s</div>'
     ).classes("w-full q-mb-sm")
 
 
@@ -159,11 +164,13 @@ def _render_posture(session: DesignSession) -> None:
         "q-mb-xs"
     )
 
-    locked, task, is_owner = runlock_status("PointDesigner")
-    if session.evaluating or locked:
-        label = task or "Evaluating…"
-        if not is_owner and locked:
-            label = f"Busy: {label}"
+    locked, task, holder = runlock_global_status()
+    if session.evaluating or session.forge_mf_running or locked:
+        label = task or ("Machine Finder…" if session.forge_mf_running else "Evaluating…")
+        if holder:
+            _, _, is_owner = runlock_status(holder)
+            if not is_owner:
+                label = f"Busy: {label} ({holder})"
         ui.label(f"Run status: {label}").classes("text-caption text-orange")
     else:
         ui.label("Run status: Ready — frozen evaluator armed.").classes("text-caption")

@@ -12,7 +12,7 @@ from ui_nicegui.lib.dsg_session import ensure_dsg, save_dsg_best_effort
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.session import DesignSession
 
-_EDGE_KINDS = ["derived", "systems_eval", "scan", "pareto", "trade", "extopt", "repair"]
+_EDGE_KINDS = ["derived", "systems_eval", "scan", "pareto", "trade", "extopt", "repair", "forge"]
 
 
 def render_dsg_sidebar(session: DesignSession) -> None:

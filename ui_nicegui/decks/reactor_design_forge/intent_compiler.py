@@ -6,11 +6,14 @@ from typing import Callable, Optional
 from nicegui import run, ui
 
 from ui_nicegui.lib.forge_helpers import (
+    FORGE_RUNLOCK_OWNER,
     audit_candidate_inputs,
     candidate_to_json_bytes,
     compile_forge_candidate,
     merge_candidate_to_session_inputs,
 )
+from ui_nicegui.lib.helm_helpers import log_ui_event
+from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
 
@@ -102,11 +105,28 @@ def render_intent_compiler(
         async def _audit() -> None:
             if session.forge_auditing:
                 return
+            locked, task, is_owner = runlock_status(FORGE_RUNLOCK_OWNER)
+            if locked and not is_owner:
+                ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+                return
+            if not runlock_acquire("Reactor Design Forge: Intent audit", FORGE_RUNLOCK_OWNER):
+                ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+                return
             session.forge_auditing = True
             ui.notify("Auditing candidate via frozen evaluator…", type="info")
+            log_ui_event(session, FORGE_RUNLOCK_OWNER, "IntentAuditStart", {})
             try:
                 audit = await run.io_bound(audit_candidate_inputs, dict(cand))
                 session.forge_last_audit = audit
+                log_ui_event(
+                    session,
+                    FORGE_RUNLOCK_OWNER,
+                    "IntentAuditResult",
+                    {
+                        "feasible": bool(audit.get("feasible")),
+                        "verdict": (audit.get("verdict") or {}).get("verdict"),
+                    },
+                )
                 ui.notify(
                     f"Audit: {audit.get('verdict', {}).get('verdict', 'done')}",
                     type="positive" if audit.get("feasible") else "warning",
@@ -117,6 +137,11 @@ def render_intent_compiler(
                 ui.notify(f"Audit failed: {exc}", type="negative")
             finally:
                 session.forge_auditing = False
+                runlock_release(FORGE_RUNLOCK_OWNER)
+                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+                refresh_status()
+                refresh_helm()
 
         ui.button("Audit candidate (frozen evaluator)", icon="verified", on_click=_audit).props("outline")
 

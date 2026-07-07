@@ -22,8 +22,8 @@ TAB_HELP = {
     "3 · Workbench": "Archive scatter/table, candidate inspector, conflict atlas, review bench.",
     "4 · Instruments": "Full expert cockpit — all legacy Forge views grouped by task (60+ instruments).",
     "5 · Capsules & Export": (
-        "Restore/diff/export run capsules, cross-deck handoffs (Compare, Scan Lab, Systems Mode), "
-        "and design-card markdown download."
+        "Restore/diff/export run capsules, **Audit Pack** ZIP (narrative + reviewer + capsule), "
+        "and cross-deck handoffs."
     ),
 }
 

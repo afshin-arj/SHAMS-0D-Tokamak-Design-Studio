@@ -32,3 +32,11 @@ def status(owner: str) -> Tuple[bool, Optional[str], bool]:
         if _holder is None:
             return False, None, False
         return True, _task, _holder == owner
+
+
+def global_status() -> Tuple[bool, Optional[str], Optional[str]]:
+    """Return (locked, task_label, holder_owner_id)."""
+    with _lock:
+        if _holder is None:
+            return False, None, None
+        return True, _task, _holder

@@ -121,7 +121,7 @@ def render_dsg_sidebar(g: Any) -> None:
         )
         edge_kind = st.selectbox(
             "Lineage edge kind for new evaluations",
-            options=["derived", "systems_eval", "scan", "pareto", "trade", "extopt", "repair"],
+            options=["derived", "systems_eval", "scan", "pareto", "trade", "extopt", "repair", "forge"],
             index=0,
             disabled=auto_kind,
             key="dsg_context_edge_kind_manual",

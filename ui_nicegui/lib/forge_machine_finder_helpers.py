@@ -516,3 +516,90 @@ def diff_capsule_json(a: dict, b: dict) -> dict:
     except ImportError as exc:
         raise RuntimeError("Capsule diff unavailable") from exc
     return diff_capsules(a, b)
+
+
+def build_forge_audit_pack_zip(
+    run: dict,
+    *,
+    row_idx: int,
+    lens_contract: dict,
+    bounds: dict,
+    intent: str = "Reactor",
+) -> Tuple[bytes, str]:
+    """Bundle narrative, reviewer packet, and run capsule for reviewer-room export."""
+    import io
+    import zipfile
+
+    from tools.sandbox.report_pack import build_report_pack
+    from tools.sandbox.reviewer_packet_builder import ReviewerPacketOptions, build_reviewer_packet_zip
+
+    from ui_nicegui.lib.forge_interpret_helpers import design_card_markdown
+
+    archive = run.get("archive") or []
+    if row_idx < 0 or row_idx >= len(archive):
+        raise IndexError("Invalid archive row for audit pack")
+    cand = archive[row_idx]
+    if not isinstance(cand, dict):
+        raise ValueError("Invalid archive candidate")
+
+    run_capsule = run.get("capsule_v2")
+    if not isinstance(run_capsule, dict):
+        run_capsule = {
+            "schema": "shams.opt_sandbox.run_capsule.v2",
+            "intent": run.get("intent"),
+            "seed": run.get("seed"),
+            "archive": archive,
+            "trace": run.get("trace") or [],
+            "lens": lens_contract,
+            "bounds": bounds,
+            "resistance_report": run.get("resistance_report"),
+        }
+
+    reviewer_bytes, reviewer_summary = build_reviewer_packet_zip(
+        candidate=cand,
+        run_capsule=run_capsule,
+        options=ReviewerPacketOptions(),
+    )
+    capsule_bytes, capsule_name = build_capsule_zip_bytes(
+        run,
+        lens_contract=lens_contract,
+        bounds=bounds,
+    )
+    rp = build_report_pack(candidate=cand)
+    narrative_md = str(rp.get("markdown") or "")
+    design_md = design_card_markdown(cand, intent)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("narrative/report_pack.md", narrative_md.encode("utf-8"))
+        if design_md:
+            zf.writestr("narrative/design_card.md", design_md.encode("utf-8"))
+        zf.writestr("reviewer_packet/shams_reviewer_packet.zip", reviewer_bytes)
+        zf.writestr(
+            "reviewer_packet/summary.json",
+            json.dumps(reviewer_summary, indent=2, sort_keys=True, default=str).encode("utf-8"),
+        )
+        zf.writestr(f"run_capsule/{capsule_name}", capsule_bytes)
+        manifest = {
+            "schema": "shams.forge.audit_pack.v1",
+            "intent": str(intent),
+            "row_idx": int(row_idx),
+            "n_archive": len(archive),
+            "capsule_file": capsule_name,
+            "reviewer_packet_schema": reviewer_summary.get("schema"),
+        }
+        zf.writestr(
+            "manifest.json",
+            json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8"),
+        )
+        zf.writestr(
+            "README.txt",
+            (
+                "SHAMS Reactor Design Forge — Audit Pack\n"
+                "Contains narrative (report + design card), reviewer packet ZIP, and run capsule ZIP.\n"
+                "Descriptive only — re-audit promoted candidates in Point Designer.\n"
+            ).encode("utf-8"),
+        )
+
+    name = f"shams_forge_audit_pack_row{int(row_idx)}.zip"
+    return buf.getvalue(), name

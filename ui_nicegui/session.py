@@ -382,6 +382,8 @@ class DesignSession:
     forge_lens_contract: Optional[dict[str, Any]] = None
     forge_capsule_zip_bytes: Optional[bytes] = None
     forge_capsule_zip_name: str = "opt_capsule.zip"
+    forge_audit_pack_bytes: Optional[bytes] = None
+    forge_audit_pack_name: str = "shams_forge_audit_pack.zip"
     forge_capsule_diff_a: Optional[dict[str, Any]] = None
     forge_capsule_diff_b: Optional[dict[str, Any]] = None
     forge_capsule_diff: Optional[dict[str, Any]] = None

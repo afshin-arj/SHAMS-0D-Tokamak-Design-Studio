@@ -15,6 +15,7 @@ from ui_nicegui.evaluate import ui_evaluate
 from ui_nicegui.lib.verdict_core import constraint_table_rows, verdict_summary
 
 FORGE_DECKS = ["Intent Compiler", "Machine Finder", "Capsules"]
+FORGE_RUNLOCK_OWNER = "ReactorDesignForge"
 
 
 def compile_forge_candidate(
