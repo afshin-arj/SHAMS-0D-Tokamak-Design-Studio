@@ -13,7 +13,7 @@ from ui_nicegui.lib.trade_interpret_helpers import (
     study_narrative,
 )
 from ui_nicegui.lib.trade_study_helpers import report_to_json_bytes
-from ui_nicegui.lib.compare_helpers import build_compare_artifact, slot_meta
+from ui_nicegui.lib.compare_helpers import send_row_to_compare_slot
 from ui_nicegui.session import DesignSession
 
 
@@ -99,16 +99,7 @@ def render_export_tab(
             ui.notify("Invalid row", type="warning")
             return
         try:
-            art = build_compare_artifact(session, dict(row), label="Trade Study Pareto")
-            meta = slot_meta(art, label="Trade Study")
-            if slot == "A":
-                session.cmp_slot_a = art
-                session.cmp_slot_a_meta = meta
-                session.cmp_use_slot_a = True
-            else:
-                session.cmp_slot_b = art
-                session.cmp_slot_b_meta = meta
-                session.cmp_use_slot_b = True
+            send_row_to_compare_slot(session, dict(row), slot, label="Trade Study Pareto")
             ui.notify(f"Sent Pareto row to Compare slot {slot}", type="positive")
         except Exception as exc:
             ui.notify(f"Compare handoff failed: {exc}", type="negative")

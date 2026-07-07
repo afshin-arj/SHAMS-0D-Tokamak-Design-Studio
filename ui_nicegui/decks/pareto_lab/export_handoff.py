@@ -7,6 +7,7 @@ from typing import Callable, Optional
 from nicegui import ui
 
 from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.compare_helpers import send_row_to_compare_slot
 from ui_nicegui.lib.pareto_helpers import artifact_to_json_bytes, build_pareto_artifact
 from ui_nicegui.lib.pareto_interpret_helpers import (
     promote_point_inputs,
@@ -115,3 +116,18 @@ def render_export_tab(
         ui.notify("Opened Systems Mode with queued inputs.", type="info")
 
     ui.button("Queue for Systems Mode", icon="hub", on_click=_handoff_systems).props("flat outline")
+
+    def _send_compare(slot: str) -> None:
+        i = int(idx.value or 0)
+        if i < 0 or i >= len(pareto):
+            ui.notify("Invalid row", type="warning")
+            return
+        try:
+            send_row_to_compare_slot(session, dict(pareto[i]), slot, label="Pareto Lab frontier")
+            ui.notify(f"Sent frontier point to Compare slot {slot}", type="positive")
+        except Exception as exc:
+            ui.notify(f"Compare handoff failed: {exc}", type="negative")
+
+    with ui.row().classes("gap-2 q-mt-sm"):
+        ui.button("Send row → Compare A", icon="compare", on_click=lambda: _send_compare("A")).props("flat outline")
+        ui.button("Send row → Compare B", icon="compare", on_click=lambda: _send_compare("B")).props("flat outline")

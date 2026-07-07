@@ -111,6 +111,70 @@ def slot_meta(art: dict, *, label: str) -> dict:
     }
 
 
+def store_compare_slot(session, art: dict, slot: str, *, label: str) -> None:
+    """Store a normalized artifact in Compare slot A or B."""
+    norm = normalize_compare_artifact(art)
+    meta = slot_meta(norm, label=label)
+    if str(slot).upper() == "A":
+        session.cmp_slot_a = norm
+        session.cmp_slot_a_meta = meta
+        session.cmp_use_slot_a = True
+    else:
+        session.cmp_slot_b = norm
+        session.cmp_slot_b_meta = meta
+        session.cmp_use_slot_b = True
+
+
+def send_row_to_compare_slot(session, row: dict, slot: str, *, label: str) -> dict:
+    """Evaluate a study row through frozen truth and store in a Compare slot."""
+    art = build_compare_artifact(session, dict(row), label=label)
+    store_compare_slot(session, art, slot, label=label)
+    return art
+
+
+def send_scan_probe_to_compare(
+    session,
+    rep: dict,
+    cell: dict,
+    slot: str,
+    *,
+    label: str = "Scan Lab probe",
+) -> dict:
+    """Build a Compare artifact from a Scan Lab probed cell."""
+    from ui_nicegui.lib.scan_workbench_helpers import probe_promote_inputs
+
+    cand = probe_promote_inputs(rep, cell)
+    art = build_compare_artifact(session, cand, label=label)
+    store_compare_slot(session, art, slot, label=label)
+    return art
+
+
+def bridge_cr_to_compare_slots(session) -> tuple[bool, bool]:
+    """Copy Control Room scenario artifacts into Compare slots A (baseline) / B (variant)."""
+    ok_a = ok_b = False
+    base = getattr(session, "cr_scenario_base", None)
+    var = getattr(session, "cr_scenario_variant", None)
+    if isinstance(base, dict):
+        store_compare_slot(session, base, "A", label="Control Room baseline")
+        ok_a = True
+    if isinstance(var, dict):
+        store_compare_slot(session, var, "B", label="Control Room scenario")
+        ok_b = True
+    return ok_a, ok_b
+
+
+def bridge_compare_slots_to_cr(session) -> tuple[bool, bool]:
+    """Load Compare slots into Control Room scenario delta upload state."""
+    ok_a = ok_b = False
+    if isinstance(getattr(session, "cmp_slot_a", None), dict):
+        session.cr_scenario_base = normalize_compare_artifact(session.cmp_slot_a)
+        ok_a = True
+    if isinstance(getattr(session, "cmp_slot_b", None), dict):
+        session.cr_scenario_variant = normalize_compare_artifact(session.cmp_slot_b)
+        ok_b = True
+    return ok_a, ok_b
+
+
 def metric_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
     out_a = normalize_compare_artifact(art_a).get("outputs") or {}
     out_b = normalize_compare_artifact(art_b).get("outputs") or {}

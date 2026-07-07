@@ -3,8 +3,15 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from ui_nicegui.lib.compare_helpers import input_diff_rows, numeric_output_diff_rows, structural_diff_report
+from ui_nicegui.lib.compare_helpers import (
+    bridge_compare_slots_to_cr,
+    bridge_cr_to_compare_slots,
+    input_diff_rows,
+    numeric_output_diff_rows,
+    structural_diff_report,
+)
 from ui_nicegui.lib.cr_artifacts_helpers import load_json_bytes
+from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.session import DesignSession
 
 
@@ -36,6 +43,42 @@ def render_scenario_delta(session: DesignSession) -> None:
             ui.upload(on_upload=_base).props('accept=".json" auto-upload label="Baseline artifact"')
         with ui.column().classes("flex-1"):
             ui.upload(on_upload=_variant).props('accept=".json" auto-upload label="Scenario artifact"')
+
+    with ui.expansion("Compare deck bridge", icon="compare", value=False).classes("w-full q-mt-sm"):
+        ui.label(
+            "Bidirectional handoff with the **Compare** deck — baseline → slot A, scenario → slot B."
+        ).classes("text-caption text-grey q-mb-sm")
+
+        def _to_compare() -> None:
+            ok_a, ok_b = bridge_cr_to_compare_slots(session)
+            if ok_a or ok_b:
+                parts = []
+                if ok_a:
+                    parts.append("A")
+                if ok_b:
+                    parts.append("B")
+                ui.notify(f"Loaded Control Room artifacts into Compare slot(s) {'/'.join(parts)}", type="positive")
+            else:
+                ui.notify("Upload baseline and/or scenario artifacts first.", type="warning")
+
+        def _from_compare() -> None:
+            ok_a, ok_b = bridge_compare_slots_to_cr(session)
+            if ok_a or ok_b:
+                _delta.refresh(session)
+                ui.notify("Loaded Compare slots into Scenario Delta.", type="positive")
+            else:
+                ui.notify("Compare slots A/B are empty.", type="warning")
+
+        def _open_compare() -> None:
+            bridge_cr_to_compare_slots(session)
+            session.cmp_workflow_step = "1 · Load A & B"
+            switch_deck("Compare")
+            ui.notify("Opened Compare with scenario pair.", type="info")
+
+        with ui.row().classes("gap-2 flex-wrap"):
+            ui.button("Send to Compare slots", icon="compare", on_click=_to_compare).props("outline")
+            ui.button("Load from Compare slots", icon="download", on_click=_from_compare).props("flat outline")
+            ui.button("Open full Compare deck", icon="open_in_new", on_click=_open_compare).props("flat")
 
     _delta(session)
 

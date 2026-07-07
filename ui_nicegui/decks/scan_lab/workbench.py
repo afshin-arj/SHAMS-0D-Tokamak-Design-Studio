@@ -6,6 +6,7 @@ from typing import Callable, Optional
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.lib.compare_helpers import send_scan_probe_to_compare
 from ui_nicegui.lib.scan_labels import WB_VIEW_KEYS, WB_VIEW_LABELS
 from ui_nicegui.lib.scan_workbench_helpers import (
     SCAN_WB_VIEWS,
@@ -226,6 +227,17 @@ def _render_inspector(
             ui.notify("Promoted to Point Designer — switch deck to evaluate.", type="positive")
 
         ui.button("Promote to Point Designer", on_click=_promote).props("outline")
+
+    def _send_compare(slot: str) -> None:
+        try:
+            send_scan_probe_to_compare(session, rep, cell, slot, label="Scan Lab probe")
+            ui.notify(f"Sent probed cell to Compare slot {slot}", type="positive")
+        except Exception as exc:
+            ui.notify(f"Compare handoff failed: {exc}", type="negative")
+
+    with ui.row().classes("gap-2 q-mt-sm"):
+        ui.button("Send probe → Compare A", icon="compare", on_click=lambda: _send_compare("A")).props("flat outline")
+        ui.button("Send probe → Compare B", icon="compare", on_click=lambda: _send_compare("B")).props("flat outline")
 
     ui.label("For causality / UQ tools, use the **Interpret** tab.").classes(
         "text-caption text-grey q-mt-sm"

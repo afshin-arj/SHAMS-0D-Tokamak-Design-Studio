@@ -77,7 +77,7 @@ def build_ui_wiring_index_markdown(repo_root: Path) -> str:
     add("Systems Mode tab block", "with tab_systems:", "with tab_systems")
     add("Scan Lab tab block", "with tab_scan:", "with tab_scan")
     add("Pareto Lab tab block", "with tab_pareto:", "with tab_pareto")
-    add("Trade Study Studio import", "from ui.trade_study_studio import render_trade_study_studio", "render_trade_study_studio")
+    add("Trade Study Studio (NiceGUI)", "Trade Study Studio is fully available", "Trade Study Studio is fully available")
     add("External Optimization Workbench deck", 'External Optimization Workbench', "External Optimization Workbench")
     add("PROCESS parity benchmarks view", "view == 'PROCESS parity benchmarks'", "PROCESS parity benchmarks")
     add("Reviewer Packet view", "view == 'Reviewer Packet'", "Reviewer Packet")
