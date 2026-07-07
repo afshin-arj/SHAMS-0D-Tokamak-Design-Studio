@@ -50,12 +50,11 @@ def render_metrics_panel(session: DesignSession, art_a: dict, art_b: dict) -> No
         ).classes("w-full")
 
     ui.separator().classes("q-my-sm")
-    ui.switch(
-        "Show all numeric output deltas (sorted by |Δ|)",
-        value=session.cmp_show_all_outputs,
-        on_change=lambda e: setattr(session, "cmp_show_all_outputs", bool(e.value)),
-    )
-    if session.cmp_show_all_outputs:
+
+    @ui.refreshable
+    def _all_outputs_section() -> None:
+        if not session.cmp_show_all_outputs:
+            return
         all_rows = numeric_output_diff_rows(art_a, art_b)
         if all_rows:
             ui.table(
@@ -71,3 +70,13 @@ def render_metrics_panel(session: DesignSession, art_a: dict, art_b: dict) -> No
             ).classes("w-full")
         else:
             ui.label("No numeric output differences detected.").classes("text-caption text-grey")
+
+    ui.switch(
+        "Show all numeric output deltas (sorted by |Δ|)",
+        value=session.cmp_show_all_outputs,
+        on_change=lambda e: (
+            setattr(session, "cmp_show_all_outputs", bool(e.value)),
+            _all_outputs_section.refresh(),
+        ),
+    )
+    _all_outputs_section()

@@ -6,6 +6,7 @@ import json
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.json_view import render_json_blob
 from ui_nicegui.lib.compare_helpers import (
     embedded_scenario_delta,
     input_diff_rows,
@@ -32,7 +33,7 @@ def render_inputs_structure_panel(art_a: dict, art_b: dict) -> None:
     sd = embedded_scenario_delta(art_b)
     ui.label("Embedded scenario_delta (artifact B)").classes("text-subtitle2 q-mt-md")
     if sd:
-        ui.json(sd)
+        render_json_blob(sd)
     else:
         ui.label(
             "No embedded scenario_delta on B — diffs are computed from inputs/outputs above."
@@ -64,12 +65,12 @@ def render_inputs_structure_panel(art_a: dict, art_b: dict) -> None:
             ui.markdown("\n".join(f"- `{x}`" for x in removed))
     if changed:
         with ui.expansion("Changed constraint metadata", icon="edit").classes("w-full"):
-            ui.json(changed)
+            render_json_blob(changed)
 
     mc = struct.get("model_cards") or {}
     if any(mc.get(k) for k in ("added", "removed", "changed")):
         with ui.expansion("Model card diffs", icon="layers").classes("w-full"):
-            ui.json(mc)
+            render_json_blob(mc)
 
     with ui.expansion("Raw structural diff (audit JSON)", icon="code").classes("w-full q-mt-sm"):
         ui.code(json.dumps(struct, indent=2, default=str), language="json")

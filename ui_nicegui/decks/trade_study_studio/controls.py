@@ -25,6 +25,7 @@ def render_study_controls(
     *,
     flat: bool = False,
     on_complete: Optional[Callable[[], None]] = None,
+    on_change: Optional[Callable[[], None]] = None,
 ) -> None:
     knob_sets = default_knob_sets()
     names = [k.name for k in knob_sets]
@@ -34,7 +35,7 @@ def render_study_controls(
         names,
         label="Knob set",
         value=session.trade_knob_set or names[0],
-        on_change=lambda e: _on_knob_set(session, str(e.value), knob_sets),
+        on_change=lambda e: _on_knob_set(session, str(e.value), knob_sets, on_change),
     ).classes("w-full")
     ksel = next((k for k in knob_sets if k.name == (session.trade_knob_set or names[0])), knob_sets[0])
     ui.label(ksel.notes).classes("text-caption text-grey q-mb-sm")
@@ -80,11 +81,7 @@ def render_study_controls(
     ui.button(
         "Suggest objectives for knob set",
         icon="lightbulb",
-        on_click=lambda: setattr(
-            session,
-            "trade_objectives",
-            suggested_objectives_for_knob_set(session.trade_knob_set or names[0]),
-        ),
+        on_click=lambda: _apply_suggested_objectives(session, names, on_change),
     ).props("flat dense")
 
     ui.toggle(
@@ -150,7 +147,26 @@ def render_study_controls(
         btn.props("disable")
 
 
-def _on_knob_set(session: DesignSession, name: str, knob_sets) -> None:
+def _apply_suggested_objectives(
+    session: DesignSession,
+    knob_names: list[str],
+    on_change: Optional[Callable[[], None]] = None,
+) -> None:
+    session.trade_objectives = suggested_objectives_for_knob_set(
+        session.trade_knob_set or (knob_names[0] if knob_names else "")
+    )
+    if on_change:
+        on_change()
+
+
+def _on_knob_set(
+    session: DesignSession,
+    name: str,
+    knob_sets,
+    on_change: Optional[Callable[[], None]] = None,
+) -> None:
     session.trade_knob_set = name
     if not session.trade_objectives:
         session.trade_objectives = suggested_objectives_for_knob_set(name)
+    if on_change:
+        on_change()

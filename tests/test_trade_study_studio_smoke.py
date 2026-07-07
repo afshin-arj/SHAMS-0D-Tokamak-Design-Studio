@@ -31,6 +31,28 @@ def test_trade_study_runner_smoke() -> None:
     assert isinstance(summ, dict) and "rows" in summ
 
 
+def test_trade_study_skips_invalid_geometry_samples() -> None:
+    from evaluator.core import Evaluator
+    from models.inputs import PointInputs
+    from trade_studies.runner import run_trade_study
+
+    ev = Evaluator(cache_enabled=False)
+    base = PointInputs(R0_m=2.55, a_m=0.57, kappa=1.8, Bt_T=5.0, Ip_MA=7.5, Ti_keV=4.0, fG=0.85, Paux_MW=50.0)
+    # Deliberately conflicting bounds: sampled major radius always below minor radius.
+    bounds = {"R0_m": (2.5, 2.55), "a_m": (2.6, 3.0)}
+    rep = run_trade_study(
+        evaluator=ev,
+        base_inputs=base,
+        bounds=bounds,
+        objectives=["min_R0"],
+        objective_senses={"min_R0": "min"},
+        n_samples=12,
+        seed=11,
+    )
+    assert len(rep["records"]) == 12
+    assert all(r.get("first_failure") == "SCHEMA_INVALID" for r in rep["records"])
+
+
 def test_mirage_pathfinding_scan_smoke() -> None:
     from evaluator.core import Evaluator
     from models.inputs import PointInputs

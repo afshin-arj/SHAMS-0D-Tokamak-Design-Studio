@@ -38,6 +38,18 @@ MODE_SCOPE: dict[str, dict[str, list[str]]] = {
             "Does not claim exhaustive coverage of continuous design space.",
         ],
     },
+    "compare": {
+        "does": [
+            "Side-by-side diff of two frozen-evaluator artifacts (performance, constraints, inputs).",
+            "Reports margin regressions, new failures, and structural/schema changes.",
+            "Exports markdown/JSON comparison bundles and applies inputs to Point Designer explicitly.",
+        ],
+        "does_not": [
+            "Does not rank designs or recommend a winner.",
+            "Does not re-solve or relax constraints during diff tables.",
+            "Does not auto-evaluate after apply-to-Point-Designer handoff.",
+        ],
+    },
     "trade": {
         "does": [
             "Runs budgeted LHS trade studies over explicit knob sets.",

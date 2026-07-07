@@ -127,7 +127,24 @@ def run_trade_study(
         for k, v in s.items():
             if k in dd:
                 dd[k] = float(v)
-        inp = PointInputs(**dd)
+        try:
+            inp = PointInputs(**dd)
+        except ValueError as exc:
+            row: Dict[str, Any] = {
+                "i": int(i),
+                "is_feasible": False,
+                "governance_feasible": False,
+                "min_margin_frac": float("nan"),
+                "first_failure": "SCHEMA_INVALID",
+                "dominant_mechanism": "",
+                "dominant_constraint": "SCHEMA_INVALID",
+                "schema_error": str(exc),
+            }
+            row.update({k: float(v) for k, v in s.items()})
+            for obj in objectives:
+                row[obj] = float("nan")
+            records.append(row)
+            continue
         res = evaluator.evaluate(inp)
         out = dict(res.out or {})
         cons = evaluate_constraints(out, policy=policy)

@@ -70,3 +70,23 @@ def test_advanced_deck_list_matches_handlers() -> None:
     assert len(ADVANCED_DECKS) == 8
     assert DECK_FRONTIER_ATLAS in ADVANCED_DECKS
     assert "Mirage Pathfinding" in ADVANCED_DECKS
+
+
+def test_advanced_router_refreshes_deck_body_on_category_change() -> None:
+    import inspect
+
+    from ui_nicegui.decks import trade_study_studio as ts_mod
+
+    src = inspect.getsource(ts_mod._render_advanced_router)
+    assert "_deck_body.refresh" in src
+    assert "on_change=_on_deck_change" in src
+
+
+def test_advanced_tab_uses_json_view_not_ui_json() -> None:
+    import inspect
+
+    from ui_nicegui.decks.trade_study_studio import advanced as adv_mod
+
+    src = inspect.getsource(adv_mod)
+    assert "render_json_blob" in src
+    assert "ui.json" not in src

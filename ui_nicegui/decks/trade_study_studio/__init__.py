@@ -50,6 +50,10 @@ def render_trade_study_studio(session: DesignSession) -> None:
 
     _, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
+        ui.badge(
+            "No Point Designer evaluation — run Point Designer first",
+            color="orange",
+        ).props("outline").classes("q-mb-sm")
         empty_state(
             "Run **Point Designer → Evaluate Point** first — Trade Study uses that baseline.",
             kind="info",
@@ -131,7 +135,12 @@ def _render_tab_body(session: DesignSession) -> None:
     if step == "1 · Setup & Run":
         setup_panel.render_setup_panel(default_open=open_setup)
         ui.separator().classes("q-my-sm")
-        controls.render_study_controls(session, flat=open_setup, on_complete=_refresh_all)
+        controls.render_study_controls(
+            session,
+            flat=open_setup,
+            on_complete=_refresh_all,
+            on_change=_render_tab_body.refresh,
+        )
     elif step == "2 · Explore Results":
         if not isinstance(session.trade_last, dict):
             empty_state("Run a trade study on **Setup & Run** first.", kind="info")
@@ -162,7 +171,26 @@ def _render_advanced_router(session: DesignSession) -> None:
         if session.trade_advanced_deck not in decks:
             session.trade_advanced_deck = decks[0] if decks else ""
 
-    grp = ui.select(
+    @ui.refreshable
+    def _deck_body() -> None:
+        deck = str(session.trade_advanced_deck or "")
+        if deck:
+            advanced.render_advanced_deck(session, deck)
+        else:
+            empty_state("Select an advanced tool.", kind="info")
+
+    def _on_group_change(sess: DesignSession, g: str) -> None:
+        sess.trade_advanced_group = g
+        dlist = ADVANCED_GROUPS.get(g, [])
+        sess.trade_advanced_deck = dlist[0] if dlist else ""
+        deck_sel.set_options(dlist, value=sess.trade_advanced_deck)
+        _deck_body.refresh()
+
+    def _on_deck_change(e) -> None:
+        session.trade_advanced_deck = str(e.value)
+        _deck_body.refresh()
+
+    ui.select(
         groups,
         label="Tool category",
         value=session.trade_advanced_group,
@@ -172,17 +200,7 @@ def _render_advanced_router(session: DesignSession) -> None:
         decks,
         label="Advanced deck",
         value=session.trade_advanced_deck,
-        on_change=lambda e: setattr(session, "trade_advanced_deck", str(e.value)),
+        on_change=_on_deck_change,
     ).classes("w-full q-mb-md")
 
-    def _on_group_change(sess: DesignSession, g: str) -> None:
-        sess.trade_advanced_group = g
-        dlist = ADVANCED_GROUPS.get(g, [])
-        sess.trade_advanced_deck = dlist[0] if dlist else ""
-        deck_sel.set_options(dlist, value=sess.trade_advanced_deck)
-
-    deck = str(session.trade_advanced_deck or deck_sel.value)
-    if deck:
-        advanced.render_advanced_deck(session, deck)
-    else:
-        empty_state("Select an advanced tool.", kind="info")
+    _deck_body()

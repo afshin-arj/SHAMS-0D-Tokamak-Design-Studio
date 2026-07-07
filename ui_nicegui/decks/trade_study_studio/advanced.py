@@ -6,6 +6,7 @@ import json
 from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.json_view import render_json_blob
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.proposal_banner import render_proposal_banner
 from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
@@ -182,11 +183,17 @@ def _v351_view(session: DesignSession) -> None:
                 lane_rows=lanes if isinstance(lanes, list) else None,
             )
             session.v351_empty_region = er
-            ui.json(er)
+            render_json_blob(er)
+            _empty_region_view.refresh()
 
         ui.button("Compute empty-region report", icon="grid_on", on_click=_empty_report).props("flat outline")
-        if isinstance(session.v351_empty_region, dict):
-            ui.json(session.v351_empty_region)
+
+        @ui.refreshable
+        def _empty_region_view() -> None:
+            if isinstance(session.v351_empty_region, dict):
+                render_json_blob(session.v351_empty_region)
+
+        _empty_region_view()
     payload = dict(atlas)
     if isinstance(session.v351_empty_region, dict):
         payload["empty_region"] = session.v351_empty_region
@@ -258,7 +265,7 @@ def _v352_view(session: DesignSession) -> None:
     if isinstance(cert, dict):
         rep0 = cert.get("report") or {}
         with ui.expansion("Certification report", icon="description").classes("w-full"):
-            ui.json(rep0)
+            render_json_blob(rep0)
         rows = rep0.get("rows") or []
         if rows:
             show = ["index", "verdict", "tier", "worst_hard_margin_frac", "n_corners", "n_feasible"]

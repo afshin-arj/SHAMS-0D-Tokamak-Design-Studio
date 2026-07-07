@@ -91,3 +91,49 @@ def test_resolve_artifacts_session() -> None:
     s.cmp_slot_b = {"outputs": {"Q": 2.0}}
     a, b = resolve_artifacts(s)
     assert a and b
+
+
+def test_inputs_structure_uses_json_view_not_ui_json() -> None:
+    import inspect
+
+    from ui_nicegui.decks.compare import inputs_structure as is_mod
+
+    src = inspect.getsource(is_mod)
+    assert "render_json_blob" in src
+    assert "ui.json" not in src
+
+
+def test_metrics_panel_refreshes_all_outputs_toggle() -> None:
+    import inspect
+
+    from ui_nicegui.decks.compare import metrics as metrics_mod
+
+    src = inspect.getsource(metrics_mod)
+    assert "_all_outputs_section.refresh" in src
+
+
+def test_compare_mode_scope_registered() -> None:
+    from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
+
+    assert "compare" in MODE_SCOPE
+    assert any("rank" in line.lower() for line in MODE_SCOPE["compare"]["does_not"])
+
+
+def test_trade_study_controls_refresh_on_suggest() -> None:
+    import inspect
+
+    from ui_nicegui.decks.trade_study_studio import controls as ctrl_mod
+
+    src = inspect.getsource(ctrl_mod)
+    assert "on_change" in src
+    assert "_apply_suggested_objectives" in src
+
+
+def test_trade_study_pd_prerequisite_badge() -> None:
+    import inspect
+
+    from ui_nicegui.decks import trade_study_studio as ts_mod
+
+    src = inspect.getsource(ts_mod.render_trade_study_studio)
+    assert "ui.badge" in src
+    assert "No Point Designer evaluation" in src

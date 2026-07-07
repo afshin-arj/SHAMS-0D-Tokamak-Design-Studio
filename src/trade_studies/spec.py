@@ -37,12 +37,12 @@ def default_knob_sets() -> List[KnobSet]:
             name="Geometry + Field (R0,a,kappa,delta,Bt)",
             bounds={
                 "R0_m": (2.5, 9.0),
-                "a_m": (0.8, 3.0),
+                "a_m": (0.8, 2.4),
                 "kappa": (1.5, 2.4),
                 "delta": (0.2, 0.6),
                 "Bt_T": (3.0, 12.0),
             },
-            notes="Geometry/field exploration: shifts all subsystem margins; good for family discovery.",
+            notes="Geometry/field exploration: a_m upper bound kept below min R0 to reduce schema-invalid LHS samples.",
         ),
         KnobSet(
             name="Plasma + Heating (Ip,fG,Paux)",
