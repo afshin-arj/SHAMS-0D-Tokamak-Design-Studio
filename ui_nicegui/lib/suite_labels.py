@@ -21,7 +21,7 @@ _LEGACY_TAB_MAP = {
 
 TAB_HELP = {
     "1 · Plant & Power": "Net-electric closure and recirculation ledger from the evaluated point.",
-    "2 · Operations & Thermal": "Duty-cycle delivery, thermal trace, and pulse power envelope on frozen L0.",
+    "2 · Operations & Thermal": "Duty-cycle delivery, thermal/pulse traces, and impurity & radiation (SOL/prad/detachment) on frozen L0.",
     "3 · Lifetime & Regimes": "First-wall dose, cycle budgets, tritium margins, and operating regime labels.",
     "4 · Envelope Robustness": "Outer-loop screening: time phases, profile corners, or input intervals — pick the question first.",
     "5 · Scenarios & Exports": "Scenario libraries, campaign bundles, and benchmark parity packs.",
@@ -52,7 +52,7 @@ DECISION_TO_TAB = {
 
 TEACHING_HINTS = {
     DECISION_STATES[0]: "Start here for **net electric** and recirculation — confirms plant closure at the evaluated point.",
-    DECISION_STATES[1]: "Use **availability sensitivity** to scale duty; thermal and trajectory panels are diagnostic traces only.",
+    DECISION_STATES[1]: "Use **availability sensitivity** to scale duty; check **Impurity & Radiation** (SOL/prad/detachment) alongside thermal/trajectory traces.",
     DECISION_STATES[2]: "Check **first-wall dpa**, **pulse cycles**, and **TBR** before envelope or export work.",
     DECISION_STATES[3]: "**Phase envelope** = ramp/flat-top phases; **profile corners** = transport/profile library; **UQ intervals** = input uncertainty corners.",
     DECISION_STATES[4]: "Scenario presets, optimizer campaign packs, and benchmark parity — all stamped and external to L0 truth.",

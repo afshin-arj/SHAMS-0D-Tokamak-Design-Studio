@@ -403,6 +403,7 @@ class DesignSession:
     suite_teaching_mode: bool = False
     suite_expert_view: bool = False
     suite_running: bool = False
+    suite_pareto_bridge_meta: Optional[dict[str, Any]] = None
     # Control Room Provenance Phase 15
     cr_provenance_tab: str = "Studies & Protocol"
     cr_selected_run_id: str = ""

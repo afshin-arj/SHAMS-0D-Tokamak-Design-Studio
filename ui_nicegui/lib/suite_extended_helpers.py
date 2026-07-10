@@ -76,14 +76,26 @@ def export_campaign_zip(spec) -> bytes:
 
 def evaluate_campaign_batch(spec, candidates: list) -> Tuple[dict, list, bytes]:
     try:
-        from src.campaign.eval import evaluate_campaign_candidates
+        from src.campaign.eval import evaluate_campaign_candidates, write_results_jsonl
     except ImportError:
-        from campaign.eval import evaluate_campaign_candidates  # type: ignore
+        from campaign.eval import evaluate_campaign_candidates, write_results_jsonl  # type: ignore
     td = Path(tempfile.gettempdir()) / "shams_campaigns"
     td.mkdir(parents=True, exist_ok=True)
     out_jsonl = td / f"{spec.name}_results_v363.jsonl"
-    summary, rows = evaluate_campaign_candidates(spec, candidates=candidates, out_jsonl=out_jsonl)
-    return summary, rows, out_jsonl.read_bytes()
+    rows, summary = evaluate_campaign_candidates(spec, candidates)
+    write_results_jsonl(rows, out_jsonl, include_artifact=bool(getattr(spec, "include_full_artifact", False)))
+    preview: List[dict] = []
+    for r in rows:
+        preview.append({
+            "cid": r.cid,
+            "inputs": dict(r.inputs or {}),
+            "feasible_hard": bool(r.feasible_hard),
+            "verdict": str(r.verdict),
+            "dominant_mechanism": str(r.dominant_mechanism),
+            "worst_hard_margin": r.worst_hard_margin,
+            **{k: v for k, v in (r.inputs or {}).items()},
+        })
+    return summary, preview, out_jsonl.read_bytes()
 
 
 def list_parity_cases(suite: str) -> List[Tuple[str, Path]]:

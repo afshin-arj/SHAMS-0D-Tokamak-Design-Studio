@@ -20,6 +20,7 @@ from ui_nicegui.lib.suite_helpers import (
     release_suite_lock,
     render_authority_ledger,
     render_export_bar,
+    render_impurity_radiation_panel,
     render_suite_handoffs,
     render_tab_summary_strip,
     try_acquire_suite_lock,
@@ -72,6 +73,7 @@ def _expansion_defaults(session: DesignSession, *, panel_id: str, default_open: 
         "ops_duty": session.suite_workflow_step == "2 · Operations & Thermal",
         "ops_thermal": session.suite_workflow_step == "2 · Operations & Thermal",
         "ops_traj": session.suite_workflow_step == "2 · Operations & Thermal",
+        "ops_impurity": session.suite_workflow_step == "2 · Operations & Thermal",
         "life_budgets": session.suite_workflow_step == "3 · Lifetime & Regimes",
         "life_regime": session.suite_workflow_step == "3 · Lifetime & Regimes",
         "env_phase": session.suite_workflow_step == "4 · Envelope Robustness",
@@ -285,6 +287,13 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
             ui.label(
                 "Recirc peak proxies P_aux wallplug when split unavailable — diagnostic only."
             ).classes("text-caption text-grey q-mt-xs")
+
+    with ui.expansion(
+        "Impurity & Radiation (SOL / prad / detachment)",
+        icon="opacity",
+        value=_expansion_defaults(ctx.session, panel_id="ops_impurity", default_open=False),
+    ).classes("w-full q-mt-sm"):
+        render_impurity_radiation_panel(ctx.point_out, expert=ctx.session.suite_expert_view)
 
 
 # ---------------------------------------------------------------------------

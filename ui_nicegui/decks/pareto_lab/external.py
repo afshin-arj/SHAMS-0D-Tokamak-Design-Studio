@@ -182,6 +182,13 @@ def _robust_view(session: DesignSession) -> None:
 def _render_regime_atlas(session: DesignSession) -> None:
     blob: dict = {"records": []}
 
+    meta = getattr(session, "suite_pareto_bridge_meta", None)
+    if isinstance(meta, dict) and meta and (session.regime_atlas_records or []):
+        ui.badge(
+            f"Loaded from System Suite campaign ({meta.get('n_records', len(session.regime_atlas_records))} records)",
+            color="blue",
+        ).props("outline q-mb-sm")
+
     async def _upload(e) -> None:
         recs = load_records_from_upload(e.name, e.content.read())
         blob["records"] = recs
@@ -192,7 +199,9 @@ def _render_regime_atlas(session: DesignSession) -> None:
 
     recs = session.regime_atlas_records or blob.get("records") or []
     if not recs:
-        ui.label("Upload records or run a campaign first.").classes("text-caption")
+        ui.label("Upload records or bridge a System Suite campaign (Tab 5 → Campaign → Pareto Lab).").classes(
+            "text-caption"
+        )
         return
 
     gate = ui.select(
@@ -315,6 +324,14 @@ def _wb_dl(session: DesignSession) -> None:
 
 def _render_extopt_suite(session: DesignSession) -> None:
     ui.label("Orchestrator 2.0 — import concept family YAML and re-verify through frozen truth.").classes("text-caption")
+
+    meta = getattr(session, "suite_pareto_bridge_meta", None)
+    if isinstance(session.extopt_suite_upload_bytes, (bytes, bytearray)) and session.extopt_suite_upload_bytes:
+        src = (meta or {}).get("source") or "session"
+        ui.badge(
+            f"YAML ready: {session.extopt_suite_upload_name or 'family.yaml'} ({src})",
+            color="blue",
+        ).props("outline q-mb-xs")
 
     async def _upload(e) -> None:
         session.extopt_suite_upload_name = e.name

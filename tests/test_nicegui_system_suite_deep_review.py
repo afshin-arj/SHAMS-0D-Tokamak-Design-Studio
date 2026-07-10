@@ -8,7 +8,11 @@ from tools.system_suite import lifetime_and_fuel_overlay, trajectory_diagnostics
 from ui_nicegui.lib.suite_helpers import (
     SUITE_RUNLOCK_OWNER,
     authority_version_badges,
+    bridge_campaign_to_pareto,
+    campaign_results_to_atlas_records,
+    campaign_to_concept_family_yaml,
     envelope_posture_summary,
+    impurity_radiation_summary,
     lifetime_binding_summary,
 )
 from ui_nicegui.lib.verdict_core import subsystem_status
@@ -62,3 +66,68 @@ def test_lifetime_overlay_finite_margins() -> None:
     )
     assert math.isfinite(rep.fw_dpa_margin)
     assert math.isfinite(rep.tbr_margin)
+
+
+def test_impurity_radiation_summary_binding() -> None:
+    s = impurity_radiation_summary({
+        "Prad_core_MW": 20.0,
+        "P_SOL_MW": 50.0,
+        "q_div_MW_m2": 12.0,
+        "q_div_max_MW_m2": 10.0,
+        "detachment_f_z_required": 1e-2,
+        "detachment_fz_max": 5e-3,
+        "include_radiation": True,
+        "impurity_partition_core": 0.2,
+        "impurity_partition_sol": 0.3,
+    })
+    assert s["posture"] == "EXHAUST BINDING"
+    assert "q_div" in s["binding"]
+    assert "f_z" in s["binding"]
+    assert s["radiation_enabled"] is True
+
+
+def test_campaign_to_concept_family_yaml() -> None:
+    ybytes, name = campaign_to_concept_family_yaml(
+        {"R0_m": 6.0, "Bt_T": 5.0},
+        [{"cid": "c0", "R0_m": 6.2}, {"cid": "c1", "Bt_T": 5.5}],
+        name="test_family",
+    )
+    assert name == "test_family.yaml"
+    text = ybytes.decode("utf-8")
+    assert "concept_family.v1" in text
+    assert "c0" in text
+
+
+def test_campaign_results_to_atlas_and_bridge() -> None:
+    rows = [
+        {
+            "cid": "a",
+            "inputs": {"R0_m": 6.0},
+            "feasible_hard": True,
+            "dominant_mechanism": "exhaust",
+            "artifact": {"outputs": {"P_e_net_MW": 100.0, "plasma_regime": "H"}, "kpis": {}},
+        }
+    ]
+    recs = campaign_results_to_atlas_records(None, rows)
+    assert len(recs) == 1
+    assert recs[0]["robustness_class"] == "robust"
+    assert recs[0].get("P_e_net_MW") == 100.0
+
+    s = DesignSession()
+    s.suite_campaign_results_preview = rows
+    s.suite_campaign_candidates = [{"cid": "a", "R0_m": 6.1}]
+    s.pd_last_artifact = {"inputs": {"R0_m": 6.0, "Bt_T": 5.0}, "outputs": {"Q": 1.0}}
+    meta = bridge_campaign_to_pareto(s)
+    assert meta["n_records"] == 1
+    assert meta["n_candidates"] == 1
+    assert isinstance(s.extopt_suite_upload_bytes, (bytes, bytearray))
+    assert len(s.regime_atlas_records or []) == 1
+    assert "System Suite" in str(meta.get("source", ""))
+
+
+def test_legacy_streamlit_system_suite_removed() -> None:
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    assert not (root / "ui" / "decks" / "system_suite.py").exists()
+    assert not (root / "ui" / "decks" / "system_suite_hooks.py").exists()

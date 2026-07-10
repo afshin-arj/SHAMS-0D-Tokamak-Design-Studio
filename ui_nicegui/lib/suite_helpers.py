@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from nicegui import ui
 
@@ -104,6 +104,280 @@ def render_tab_summary_strip(posture: str, *, detail: str = "", kpis: Optional[L
         kpi_row(kpis)
 
 
+def impurity_radiation_summary(point_out: dict) -> Dict[str, Any]:
+    """Read-only SOL / radiation / detachment snapshot from frozen L0 outputs."""
+    o = point_out if isinstance(point_out, dict) else {}
+
+    def _sf(key: str, default: float = float("nan")) -> float:
+        try:
+            v = float(o.get(key, default))
+            return v if math.isfinite(v) else default
+        except (TypeError, ValueError):
+            return default
+
+    q_div = _sf("q_div_MW_m2")
+    q_max = _sf("q_div_max_MW_m2")
+    q_margin = (q_max - q_div) if math.isfinite(q_div) and math.isfinite(q_max) else float("nan")
+    binding: List[str] = []
+    if math.isfinite(q_margin) and q_margin < 0:
+        binding.append("q_div")
+    fz_req = _sf("detachment_f_z_required")
+    fz_max = _sf("detachment_fz_max")
+    if math.isfinite(fz_req) and math.isfinite(fz_max) and fz_req > fz_max:
+        binding.append("f_z")
+    return {
+        "radiation_enabled": bool(o.get("include_radiation", False)),
+        "prad_core_MW": _sf("Prad_core_MW"),
+        "p_sol_MW": _sf("P_SOL_MW"),
+        "f_rad_div": _sf("f_rad_div"),
+        "zeff": _sf("zeff"),
+        "radiation_model": str(o.get("radiation_model", "-") or "-"),
+        "impurity_regime": str(o.get("impurity_regime", "") or ""),
+        "impurity_species": str(o.get("impurity_species", "") or ""),
+        "impurity_fragility": str(o.get("impurity_fragility_class", "") or ""),
+        "impurity_min_margin": _sf("impurity_min_margin_frac"),
+        "q_div_MW_m2": q_div,
+        "q_div_max_MW_m2": q_max,
+        "q_div_margin": q_margin,
+        "div_regime": str(o.get("div_regime", "") or ""),
+        "exhaust_regime": str(o.get("exhaust_regime", "") or ""),
+        "exhaust_fragility": str(o.get("exhaust_fragility_class", "") or ""),
+        "exhaust_min_margin": _sf("exhaust_min_margin_frac"),
+        "exhaust_rad_dom": _sf("exhaust_radiation_dominated") >= 0.5,
+        "q_div_target": _sf("q_div_target_MW_m2"),
+        "detachment_f_sol_div": _sf("detachment_f_sol_div_required"),
+        "detachment_prad_req_MW": _sf("detachment_prad_sol_div_required_MW"),
+        "detachment_f_z": fz_req,
+        "partition": {
+            "core": _sf("impurity_partition_core"),
+            "edge": _sf("impurity_partition_edge"),
+            "sol": _sf("impurity_partition_sol"),
+            "div": _sf("impurity_partition_div"),
+        },
+        "binding": binding,
+        "posture": "EXHAUST BINDING" if binding else "IMPURITY / RADIATION",
+    }
+
+
+def render_impurity_radiation_panel(point_out: dict, *, expert: bool = False) -> None:
+    s = impurity_radiation_summary(point_out)
+    render_tab_summary_strip(
+        s["posture"],
+        detail=(
+            f"Binding: {', '.join(s['binding'])}"
+            if s["binding"]
+            else "SOL / divertor / core radiation snapshot from last Point Designer evaluation."
+        ),
+        kpis=[
+            ("Prad_core (MW)", _fin(s["prad_core_MW"], ".1f")),
+            ("P_SOL (MW)", _fin(s["p_sol_MW"], ".1f")),
+            ("q_div (MW/m²)", _fin(s["q_div_MW_m2"], ".1f")),
+            ("q_div margin", _fin(s["q_div_margin"], ".2f")),
+        ],
+    )
+    ui.label(
+        "Read-only impurity & radiation ledger — algebraic detachment / SOL fields from L0; not a radiation solver."
+    ).classes("text-caption q-mb-sm")
+    kpi_row([
+        ("Radiation enabled", "YES" if s["radiation_enabled"] else "NO"),
+        ("Radiation model", s["radiation_model"]),
+        ("Zeff", _fin(s["zeff"])),
+        ("f_rad_div", _fin(s["f_rad_div"])),
+    ])
+    if s["impurity_regime"] or s["impurity_species"]:
+        kpi_row([
+            ("Impurity regime", s["impurity_regime"] or "-"),
+            ("Species", s["impurity_species"] or "-"),
+            ("Fragility", s["impurity_fragility"] or "-"),
+            ("Min margin (frac)", _fin(s["impurity_min_margin"], ".3f")),
+        ])
+    if s["exhaust_regime"] or s["div_regime"]:
+        kpi_row([
+            ("Divertor regime", s["div_regime"] or "-"),
+            ("Exhaust regime", s["exhaust_regime"] or "-"),
+            ("Exhaust fragility", s["exhaust_fragility"] or "-"),
+            ("Radiation-dom", "YES" if s["exhaust_rad_dom"] else "NO"),
+        ])
+    if math.isfinite(s["q_div_target"]) or math.isfinite(s["detachment_f_sol_div"]):
+        kpi_row([
+            ("q_div target", _fin(s["q_div_target"], ".1f")),
+            ("f_SOL+div req", _fin(s["detachment_f_sol_div"])),
+            ("Prad_SOL+div req (MW)", _fin(s["detachment_prad_req_MW"], ".1f")),
+            ("f_z required", f"{s['detachment_f_z']:.1e}" if math.isfinite(s["detachment_f_z"]) else "-"),
+        ])
+        ui.label(
+            "Detachment authority is algebraic: q_div_target → required SOL+div radiation → implied impurity fraction."
+        ).classes("text-caption text-grey")
+    part = s["partition"]
+    if any(math.isfinite(float(v)) for v in part.values()):
+        with ui.expansion("Impurity partition (core / edge / SOL / divertor)", icon="pie_chart").classes("w-full"):
+            kpi_row([
+                ("Core", _fin(part["core"])),
+                ("Edge", _fin(part["edge"])),
+                ("SOL", _fin(part["sol"])),
+                ("Divertor", _fin(part["div"])),
+            ])
+    if expert:
+        from ui_nicegui.components.json_view import render_json_blob
+
+        with ui.expansion("Impurity / radiation raw fields", icon="data_object").classes("w-full"):
+            keys = [
+                "Prad_core_MW", "P_SOL_MW", "P_SOL_over_R_MW_m", "f_rad_div", "f_rad_core",
+                "q_div_MW_m2", "q_div_max_MW_m2", "q_div_target_MW_m2",
+                "detachment_f_sol_div_required", "detachment_prad_sol_div_required_MW",
+                "detachment_f_z_required", "impurity_regime", "exhaust_regime",
+                "exhaust_authority_contract_sha256",
+            ]
+            render_json_blob({k: point_out.get(k) for k in keys if k in point_out})
+
+
+def campaign_results_to_atlas_records(
+    jsonl_bytes: Optional[bytes] = None,
+    preview_rows: Optional[list] = None,
+) -> List[dict]:
+    """Normalize campaign batch results into Pareto Lab regime-atlas records."""
+    from ui_nicegui.lib.external_optimizer_helpers import load_records_from_upload
+
+    records: List[dict] = []
+    if isinstance(jsonl_bytes, (bytes, bytearray)) and jsonl_bytes:
+        records = load_records_from_upload("campaign_results.jsonl", bytes(jsonl_bytes))
+    elif isinstance(preview_rows, list):
+        for r in preview_rows:
+            if isinstance(r, dict):
+                records.append(dict(r))
+            else:
+                # CampaignEvalRow dataclass
+                try:
+                    records.append({
+                        "cid": getattr(r, "cid", ""),
+                        "inputs": dict(getattr(r, "inputs", {}) or {}),
+                        "feasible_hard": bool(getattr(r, "feasible_hard", False)),
+                        "verdict": str(getattr(r, "verdict", "")),
+                        "dominant_mechanism": str(getattr(r, "dominant_mechanism", "")),
+                        "worst_hard_margin": getattr(r, "worst_hard_margin", None),
+                    })
+                except Exception:
+                    continue
+    out: List[dict] = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        flat = dict(rec)
+        art = rec.get("artifact") if isinstance(rec.get("artifact"), dict) else None
+        if art:
+            outs = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+            for k, v in outs.items():
+                flat.setdefault(k, v)
+            kpis = art.get("kpis") if isinstance(art.get("kpis"), dict) else {}
+            for k, v in kpis.items():
+                flat.setdefault(k, v)
+            flat.setdefault("plasma_regime", outs.get("plasma_regime"))
+            flat.setdefault("exhaust_regime", outs.get("exhaust_regime") or art.get("dominant_mechanism"))
+            flat.setdefault("dominance_label", art.get("dominant_mechanism") or rec.get("dominant_mechanism"))
+        else:
+            flat.setdefault("dominance_label", rec.get("dominant_mechanism"))
+        inputs = rec.get("inputs") if isinstance(rec.get("inputs"), dict) else {}
+        for k, v in inputs.items():
+            flat.setdefault(k, v)
+        # Robustness class proxy for atlas gates
+        if "robustness_class" not in flat:
+            flat["robustness_class"] = "robust" if bool(rec.get("feasible_hard")) else "infeasible"
+        out.append(flat)
+    return out
+
+
+def campaign_to_concept_family_yaml(
+    point_inp: Optional[dict],
+    candidates: list,
+    *,
+    name: str = "suite_campaign_family",
+    intent: str = "reactor",
+) -> Tuple[bytes, str]:
+    """Build concept_family.v1 YAML bytes from System Suite campaign candidates."""
+    import yaml
+
+    base = dict(point_inp or {})
+    cands_out: List[dict] = []
+    for i, c in enumerate(candidates or []):
+        if not isinstance(c, dict):
+            continue
+        cid = str(c.get("cid") or c.get("id") or f"cand_{i:04d}")
+        ov = {
+            k: v
+            for k, v in c.items()
+            if k not in ("cid", "id") and (k not in base or base.get(k) != v)
+        }
+        cands_out.append({"id": cid, "overrides": ov})
+    if not cands_out:
+        raise ValueError("No campaign candidates to bridge — generate or run batch first.")
+    if not base:
+        # Fall back: first candidate absolute inputs as base, empty overrides for that row
+        first = dict(candidates[0]) if isinstance(candidates[0], dict) else {}
+        first.pop("cid", None)
+        first.pop("id", None)
+        base = first
+        cands_out[0]["overrides"] = {}
+    doc = {
+        "schema_version": "concept_family.v1",
+        "name": str(name),
+        "intent": str(intent or "reactor"),
+        "notes": "Bridged from System Suite campaign (session handoff — no re-upload).",
+        "base_inputs": base,
+        "candidates": cands_out,
+    }
+    fname = f"{name}.yaml"
+    return yaml.safe_dump(doc, sort_keys=False, allow_unicode=True).encode("utf-8"), fname
+
+
+def bridge_campaign_to_pareto(session: DesignSession) -> Dict[str, Any]:
+    """Push campaign results into Pareto Lab extopt / regime-atlas session slots."""
+    records = campaign_results_to_atlas_records(
+        session.suite_campaign_jsonl_bytes,
+        session.suite_campaign_results_preview,
+    )
+    cands = session.suite_campaign_candidates
+    if not records and not (isinstance(cands, list) and cands):
+        raise ValueError("No campaign results or candidates — run Generate / batch first.")
+
+    n_records = 0
+    if records:
+        session.regime_atlas_records = records
+        n_records = len(records)
+
+    yaml_name = ""
+    if isinstance(cands, list) and cands:
+        from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+
+        _, point_inp, _ = get_point_artifact_triple(session)
+        summary = session.suite_campaign_summary if isinstance(session.suite_campaign_summary, dict) else {}
+        intent = str(summary.get("intent") or "reactor")
+        name = str(summary.get("campaign") or "suite_campaign_family")
+        ybytes, yaml_name = campaign_to_concept_family_yaml(
+            point_inp if isinstance(point_inp, dict) else dict(session.inputs),
+            cands,
+            name=name,
+            intent=intent,
+        )
+        session.extopt_suite_upload_bytes = ybytes
+        session.extopt_suite_upload_name = yaml_name
+        session.extopt_copilot_yaml_bytes = ybytes
+        session.extopt_copilot_yaml_name = yaml_name
+        session.suite_pareto_bridge_meta = {
+            "n_records": n_records,
+            "n_candidates": len(cands),
+            "yaml_name": yaml_name,
+            "source": "System Suite campaign",
+        }
+    elif n_records:
+        session.suite_pareto_bridge_meta = {
+            "n_records": n_records,
+            "n_candidates": 0,
+            "yaml_name": "",
+            "source": "System Suite campaign results",
+        }
+    return dict(session.suite_pareto_bridge_meta or {})
+
+
 def render_authority_ledger(point_out: dict, *, expert: bool = False) -> None:
     from ui_nicegui.lib.pd_parity_helpers import magnet_v400_summary, power_ledger_badged_rows
 
@@ -181,6 +455,21 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         switch_deck("Point Designer")
         ui.notify("Opened Point Designer — re-evaluate after input changes.", type="info")
 
+    def _to_pareto() -> None:
+        try:
+            from ui_nicegui.lib.suite_helpers import bridge_campaign_to_pareto
+
+            meta = bridge_campaign_to_pareto(session)
+            switch_deck("Pareto Lab")
+            ui.notify(
+                f"Bridged to Pareto Lab: {meta.get('n_records', 0)} atlas records, "
+                f"{meta.get('n_candidates', 0)} candidates → {meta.get('yaml_name') or 'results only'}.",
+                type="positive",
+            )
+            log_ui_event(session, SUITE_RUNLOCK_OWNER, "HandoffParetoExtopt", meta)
+        except Exception as exc:
+            ui.notify(f"Pareto bridge failed: {exc}", type="negative")
+
     row_idx = ui.number("Campaign row # (for Compare)", value=0, min=0, step=1).classes("w-48")
 
     def _campaign_compare(slot: str) -> None:
@@ -192,10 +481,17 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         ix = max(0, min(ix, len(preview) - 1))
         row = preview[ix]
         if not isinstance(row, dict):
-            ui.notify("Invalid campaign row.", type="negative")
-            return
+            # CampaignEvalRow → inputs dict for Compare re-eval
+            try:
+                row = dict(getattr(row, "inputs", {}) or {})
+                row.setdefault("cid", getattr(preview[ix], "cid", ix))
+            except Exception:
+                ui.notify("Invalid campaign row.", type="negative")
+                return
         try:
-            send_row_to_compare_slot(session, dict(row), slot, label="System Suite campaign")
+            # Prefer inputs sub-dict when present (JSONL result shape)
+            payload = dict(row.get("inputs") or row)
+            send_row_to_compare_slot(session, payload, slot, label="System Suite campaign")
             ui.notify(f"Campaign row {ix} → Compare slot {slot} (re-evaluated)", type="positive")
             log_ui_event(session, SUITE_RUNLOCK_OWNER, "HandoffCompare", {"slot": slot, "source": "campaign", "row": ix})
         except Exception as exc:
@@ -206,8 +502,16 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         ui.button("Point → Compare B", icon="compare", on_click=lambda: _point_compare("B")).props("outline")
         ui.button("Campaign row → Compare A", icon="compare", on_click=lambda: _campaign_compare("A")).props("flat outline")
         ui.button("Campaign row → Compare B", icon="compare", on_click=lambda: _campaign_compare("B")).props("flat outline")
+        ui.button("Campaign → Pareto Lab (extopt)", icon="hub", on_click=_to_pareto).props("color=primary outline")
         ui.button("Open Control Room", icon="gavel", on_click=_open_cr).props("flat outline")
         ui.button("Open Point Designer", icon="design_services", on_click=_open_pd).props("flat outline")
+
+    meta = getattr(session, "suite_pareto_bridge_meta", None)
+    if isinstance(meta, dict) and meta:
+        ui.label(
+            f"Last Pareto bridge: {meta.get('n_records', 0)} records · "
+            f"{meta.get('n_candidates', 0)} candidates · {meta.get('yaml_name') or '—'}"
+        ).classes("text-caption text-grey q-mt-xs")
 
 
 def render_export_bar(session: DesignSession) -> None:

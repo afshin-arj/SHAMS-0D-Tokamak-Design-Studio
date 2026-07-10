@@ -57,7 +57,7 @@ def get_panel_contracts() -> Dict[str, PanelContract]:
 
     # Deck contracts (UI Phase B)
     add("render_point_designer_hero", "Point Designer Hero Strip", requires=["pd_last_outputs"], optional=["pd_last_artifact"])
-    add("render_system_suite_header", "System Suite Feasibility Strip", requires=["pd_last_outputs"])
+    # System Suite header lives in NiceGUI (ui_nicegui/decks/system_suite) — Streamlit deck archived.
     add("render_overlay_authority_dashboard", "Authority Overlay Dashboard", requires=[], optional=["last_point_inp"])
     add("render_point_designer_export", "Point Export Bundle", requires=["pd_last_outputs", "pd_last_artifact"])
 

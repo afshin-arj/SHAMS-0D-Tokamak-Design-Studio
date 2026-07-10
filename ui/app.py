@@ -2840,8 +2840,9 @@ if _deck == "System Suite":
         "Run `run_ui_nicegui.cmd` and open **System Suite** for the complete workflow."
     )
     st.markdown(
-        "Plant closure, thermal/ops traces, lifetime budgets, envelope robustness "
-        "(phase cockpit, profile corners, UQ absolute bounds), and campaign/parity exports are on NiceGUI."
+        "Plant closure, thermal/ops traces, impurity & radiation (SOL/prad/detachment), "
+        "lifetime budgets, envelope robustness, and campaign/parity exports — including "
+        "Pareto Lab extopt handoff — are on NiceGUI."
     )
     st.stop()
 
