@@ -45,7 +45,7 @@ import os
 import re
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 # Make src importable when run from repo root
 import sys
@@ -339,93 +339,153 @@ def run_one(case_id: str, inp: PointInputs, *, design_intent: str) -> Dict[str, 
 
 
 def load_cases(path: Path) -> List[Dict[str, Any]]:
+    """Load cases from JSON.
+
+    Supported shapes:
+    - ``{"include": ["sibling.json", ...]}`` — merge cases from sibling files
+    - ``{"cases": [...]}`` — list under ``cases``
+    - a bare list of case dicts
+    - a mapping of ``case_id -> case`` (optional README key ignored)
+    """
     data = json.loads(path.read_text(encoding="utf-8"))
-    if isinstance(data, dict) and "cases" in data:
-        return list(data["cases"])
+    if isinstance(data, dict):
+        includes = data.get("include") or []
+        if includes:
+            cases: List[Dict[str, Any]] = []
+            seen: set[str] = set()
+            for rel in includes:
+                child = (path.parent / str(rel)).resolve()
+                for c in load_cases(child):
+                    cid = str(c.get("case_id") or c.get("id") or c.get("name") or "")
+                    if cid and cid in seen:
+                        continue
+                    if cid:
+                        seen.add(cid)
+                    cases.append(c)
+            return cases
+        if "cases" in data:
+            return list(data["cases"])
     if isinstance(data, list):
         return data
-    # Also accept a mapping of case_id -> case (common for hand-edited JSON),
+    # Mapping of case_id -> case (common for hand-edited JSON),
     # ignoring an optional README key.
     if isinstance(data, dict):
         cases = []
         for k, v in data.items():
             if str(k).strip().upper() == "README":
                 continue
+            if str(k).strip().lower() == "include":
+                continue
             if isinstance(v, dict):
                 vv = dict(v)
                 vv.setdefault("case_id", str(k))
                 # Allow authors to ship templates without running them by default.
-                # This keeps the benchmark pack rich without forcing incomplete cases.
                 vv.setdefault("enabled", True)
                 cases.append(vv)
         if cases:
             return cases
 
-    raise ValueError("Cases file must be a list, a dict with key 'cases', or a mapping of case_id -> case.")
+    raise ValueError(
+        "Cases file must be a list, a dict with key 'cases' or 'include', "
+        "or a mapping of case_id -> case."
+    )
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cases", type=str, default=str(Path(__file__).with_name("cases_point_designer.json")))
-    ap.add_argument("--outdir", type=str, default=str(Path(__file__).with_name("out")))
-    ap.add_argument("--use-reference-presets", action="store_true", help="Use src.models.reference_machines.reference_presets()")
-    ap.add_argument("--also-run-opposite-intent", action="store_true", help="Run each case under both Research and Reactor intents")
-    args = ap.parse_args()
+def run_publication_pack(
+    *,
+    cases: List[Dict[str, Any]],
+    outdir: Path,
+    also_run_opposite_intent: bool = False,
+    progress_cb: Optional[Callable[[str, int, int], None]] = None,
+) -> Dict[str, Any]:
+    """Run the publication pack in-process; write CSV, artifacts, topology, summary.
 
-    outdir = Path(args.outdir)
+    ``progress_cb(case_id, index_1based, n_enabled)`` is invoked before each enabled case.
+    Returns a summary dict (also written to ``summary.json``).
+    """
+    outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     artdir = outdir / "artifacts"
     artdir.mkdir(parents=True, exist_ok=True)
 
-    cases: List[Dict[str, Any]] = []
-    if args.use_reference_presets:
-        presets = reference_presets()
-        for key, pi in presets.items():
-            # Infer intent from canonical key REF|RESEARCH|... vs REF|REACTOR|...
-            intent = "Experimental Device (research)" if "|RESEARCH|" in key else "Power Reactor (net-electric)"
-            cases.append({"case_id": key, "design_intent": intent, "inputs": pi.__dict__})
-    else:
-        cases = load_cases(Path(args.cases))
-
+    enabled = [c for c in cases if bool(c.get("enabled", True))]
     rows: List[Dict[str, Any]] = []
     preset_map = reference_presets()
+    n_case_ok = 0
+    n_case_fail = 0
+    total = len(enabled)
 
-    for c in cases:
-        if not bool(c.get("enabled", True)):
-            continue
+    for i, c in enumerate(enabled, start=1):
         case_id = str(c.get("case_id") or c.get("name") or "case")
+        if progress_cb is not None:
+            progress_cb(case_id, i, total)
         title = str(c.get("title") or "")
         design_intent = str(c.get("design_intent") or "Power Reactor (net-electric)")
         source = str(c.get("source") or "")
         preset_key = c.get("preset_key")
-        base_pi = None
-        if preset_key:
-            base_pi = preset_map.get(str(preset_key))
-            if base_pi is None:
-                raise KeyError(f"Unknown preset_key: {preset_key}")
-        inp = _build_inputs(dict(c.get("inputs") or {}), base=base_pi)
+        try:
+            base_pi = None
+            if preset_key:
+                base_pi = preset_map.get(str(preset_key))
+                if base_pi is None:
+                    raise KeyError(f"Unknown preset_key: {preset_key}")
+            inp = _build_inputs(dict(c.get("inputs") or {}), base=base_pi)
 
-        # Run declared intent
-        res = run_one(case_id, inp, design_intent=design_intent)
-        # Attach optional metadata for publication traceability.
-        if title:
-            res["row"]["title"] = title
-            res["artifact"]["title"] = title
-        if source:
-            res["row"]["source"] = source
-            res["artifact"]["source"] = source
-        rows.append(res["row"])
-        (artdir / f"{_safe_filename(case_id)}.{_intent_key(design_intent)}.json").write_text(
-            json.dumps(res["artifact"], indent=2, sort_keys=True), encoding="utf-8"
-        )
+            # Run declared intent
+            res = run_one(case_id, inp, design_intent=design_intent)
+            # Attach optional metadata for publication traceability.
+            if title:
+                res["row"]["title"] = title
+                res["artifact"]["title"] = title
+            if source:
+                res["row"]["source"] = source
+                res["artifact"]["source"] = source
+            tier = str(c.get("tier") or "")
+            if tier:
+                res["row"]["tier"] = tier
+                res["artifact"]["tier"] = tier
+            rows.append(res["row"])
+            (artdir / f"{_safe_filename(case_id)}.{_intent_key(design_intent)}.json").write_text(
+                json.dumps(res["artifact"], indent=2, sort_keys=True), encoding="utf-8"
+            )
 
-        # Optionally run the opposite intent (to show policy difference)
-        if args.also_run_opposite_intent:
-            opp = "Experimental Device (research)" if _intent_key(design_intent) == "reactor" else "Power Reactor (net-electric)"
-            res2 = run_one(case_id, inp, design_intent=opp)
-            rows.append(res2["row"])
-            (artdir / f"{_safe_filename(case_id)}.{_intent_key(opp)}.json").write_text(
-                json.dumps(res2["artifact"], indent=2, sort_keys=True), encoding="utf-8"
+            # Optionally run the opposite intent (to show policy difference)
+            if also_run_opposite_intent:
+                opp = (
+                    "Experimental Device (research)"
+                    if _intent_key(design_intent) == "reactor"
+                    else "Power Reactor (net-electric)"
+                )
+                res2 = run_one(case_id, inp, design_intent=opp)
+                if title:
+                    res2["row"]["title"] = title
+                    res2["artifact"]["title"] = title
+                if source:
+                    res2["row"]["source"] = source
+                    res2["artifact"]["source"] = source
+                if tier:
+                    res2["row"]["tier"] = tier
+                    res2["artifact"]["tier"] = tier
+                rows.append(res2["row"])
+                (artdir / f"{_safe_filename(case_id)}.{_intent_key(opp)}.json").write_text(
+                    json.dumps(res2["artifact"], indent=2, sort_keys=True), encoding="utf-8"
+                )
+            n_case_ok += 1
+        except Exception as e:
+            n_case_fail += 1
+            rows.append(
+                {
+                    "case_id": case_id,
+                    "title": title,
+                    "source": source,
+                    "design_intent": design_intent,
+                    "intent_key": _intent_key(design_intent),
+                    "error": f"{type(e).__name__}: {e}",
+                    "ok_blocking": False,
+                    "failed_blocking": "runner_error",
+                    "failed_diagnostic": "",
+                    "failed_ignored": "",
+                }
             )
 
     # Optional: compare to a baseline benchmark table (same schema) and append delta columns.
@@ -436,10 +496,9 @@ def main() -> int:
                 br = csv.DictReader(f)
                 base_map: Dict[str, Dict[str, Any]] = {}
                 for rr in br:
-                    key = f"{rr.get('case_id','')}.{rr.get('intent_key','')}" 
+                    key = f"{rr.get('case_id','')}.{rr.get('intent_key','')}"
                     base_map[key] = dict(rr)
 
-            # Define a small set of numeric channels worth tracking as deltas.
             delta_cols = [
                 "H98", "Q_DT_eqv", "P_fus_MW", "P_e_net_MW",
                 "Prad_core_MW", "Prad_line_MW", "Prad_brem_MW", "Prad_sync_MW",
@@ -459,22 +518,19 @@ def main() -> int:
                     return None
 
             for r in rows:
-                key = f"{r.get('case_id','')}.{r.get('intent_key','')}" 
+                key = f"{r.get('case_id','')}.{r.get('intent_key','')}"
                 b = base_map.get(key)
                 if not b:
                     continue
-                # Verdict delta
                 r["baseline_ok_blocking"] = b.get("ok_blocking", "")
-                # Numeric deltas
-                for c in delta_cols:
-                    if c in r and c in b:
-                        rv = _to_float(r.get(c))
-                        bv = _to_float(b.get(c))
+                for col in delta_cols:
+                    if col in r and col in b:
+                        rv = _to_float(r.get(col))
+                        bv = _to_float(b.get(col))
                         if rv is None or bv is None:
                             continue
-                        r[f"d_{c}"] = rv - bv
+                        r[f"d_{col}"] = rv - bv
 
-            # Record baseline provenance in summary.json later via an extra row key.
             for r in rows:
                 r.setdefault("baseline_table", baseline_path.name)
         except Exception:
@@ -484,10 +540,8 @@ def main() -> int:
     # Write CSV table
     csv_path = outdir / "point_designer_benchmark_table.csv"
     if rows:
-        # Union of keys across rows (some cases include extra metadata such as `source`).
-        # Keep a stable, publication-friendly ordering.
         preferred = [
-            "case_id", "title", "source",
+            "case_id", "title", "source", "tier",
             "design_intent", "intent_key", "inputs_hash",
             "design_confidence",
             "ok_blocking", "failed_blocking", "failed_diagnostic", "failed_ignored",
@@ -498,16 +552,18 @@ def main() -> int:
             "magnet_technology", "tf_sc_flag", "Tcoil_K", "hts_margin", "P_tf_ohmic_MW",
             "TBR",
             "tightest_hard",
+            "error",
         ]
         keys = []
         seen = set()
         for k in preferred:
             if any(k in r for r in rows) and k not in seen:
-                keys.append(k); seen.add(k)
-        # Append any remaining keys deterministically
+                keys.append(k)
+                seen.add(k)
         for k in sorted({kk for r in rows for kk in r.keys()}):
             if k not in seen:
-                keys.append(k); seen.add(k)
+                keys.append(k)
+                seen.add(k)
         fieldnames = keys
         with csv_path.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
@@ -529,13 +585,26 @@ def main() -> int:
         "fractions": {
             "pass": float(n_pass) / float(n_total),
             "fail": float(n_fail) / float(n_total),
-            "robust": float(sum(1 for r in rows if bool(r.get("ok_blocking")) and not str(r.get("failed_diagnostic") or "").strip())) / float(n_total),
-            "fragile": float(sum(1 for r in rows if bool(r.get("ok_blocking")) and str(r.get("failed_diagnostic") or "").strip())) / float(n_total),
+            "robust": float(
+                sum(
+                    1
+                    for r in rows
+                    if bool(r.get("ok_blocking")) and not str(r.get("failed_diagnostic") or "").strip()
+                )
+            )
+            / float(n_total),
+            "fragile": float(
+                sum(
+                    1
+                    for r in rows
+                    if bool(r.get("ok_blocking")) and str(r.get("failed_diagnostic") or "").strip()
+                )
+            )
+            / float(n_total),
         },
         "dominant_mechanism_hist": {},
     }
     for r in rows:
-        # Best-effort: first blocking name as mechanism proxy
         fb = str(r.get("failed_blocking") or "").split(";")[0].strip()
         if fb:
             topology["dominant_mechanism_hist"][fb] = int(topology["dominant_mechanism_hist"].get(fb, 0)) + 1
@@ -550,21 +619,54 @@ def main() -> int:
         "n_rows": len(rows),
         "n_pass_blocking": n_pass,
         "n_fail_blocking": n_fail,
+        "n_cases_ok": n_case_ok,
+        "n_cases_fail": n_case_fail,
+        "n_cases": total,
         "outdir": str(outdir),
         "csv": str(csv_path),
         "topology": str(outdir / "topology.json"),
         "shams_version": version,
         "notes": (
-            "Replace inspired presets with cited parameter tables for publication. "
+            "Prefer cases_literature.json / cases_for_paper.json for cited geometry claims; "
+            "cases_inspired.json is qualitative screening only. "
             "ok_blocking uses GovernanceConstraint.passed under intent hard-set policy. "
             "Constitutional Atlas clause maps are documentation semantics — not this classification."
         ),
     }
     (outdir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+    summary["rows"] = rows
+    return summary
 
-    print(f"Wrote: {csv_path}")
-    print(f"Artifacts: {artdir}")
-    return 0
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--cases", type=str, default=str(Path(__file__).with_name("cases_point_designer.json")))
+    ap.add_argument("--outdir", type=str, default=str(Path(__file__).with_name("out")))
+    ap.add_argument("--use-reference-presets", action="store_true", help="Use src.models.reference_machines.reference_presets()")
+    ap.add_argument("--also-run-opposite-intent", action="store_true", help="Run each case under both Research and Reactor intents")
+    args = ap.parse_args()
+
+    if args.use_reference_presets:
+        presets = reference_presets()
+        cases = []
+        for key, pi in presets.items():
+            intent = "Experimental Device (research)" if "|RESEARCH|" in key else "Power Reactor (net-electric)"
+            cases.append({"case_id": key, "design_intent": intent, "inputs": pi.__dict__})
+    else:
+        cases = load_cases(Path(args.cases))
+
+    def _cli_progress(case_id: str, i: int, total: int) -> None:
+        print(f"[{i}/{total}] {case_id}", flush=True)
+
+    summary = run_publication_pack(
+        cases=cases,
+        outdir=Path(args.outdir),
+        also_run_opposite_intent=bool(args.also_run_opposite_intent),
+        progress_cb=_cli_progress,
+    )
+    print(f"Wrote: {summary['csv']}")
+    print(f"Artifacts: {Path(summary['outdir']) / 'artifacts'}")
+    return 0 if int(summary.get("n_cases_fail") or 0) == 0 else 2
 
 
 if __name__ == "__main__":

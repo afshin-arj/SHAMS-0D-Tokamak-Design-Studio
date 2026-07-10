@@ -1,0 +1,94 @@
+{
+  "README": {
+    "purpose": "Literature-oriented publication cases. Geometry/control fields follow cited tables in reference_machines; remaining 0-D placeholders (Ti, fG, Paux, …) are documented there and must not be over-claimed as full paper reproduction.",
+    "tier": "literature",
+    "schema": {
+      "<case_id>": {
+        "title": "Human readable title",
+        "design_intent": "Reactor|Research",
+        "tier": "literature",
+        "source": "Citation string",
+        "preset_key": "REF|… key",
+        "inputs": "Optional overrides"
+      }
+    }
+  },
+  "PD|REACTOR|SPARC_CLASS": {
+    "title": "SPARC-class compact HTS",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "SPARC-class public parameters via SHAMS REFERENCE_MACHINES (compact HTS class); replace with paper table for formal claims.",
+    "preset_key": "REF|REACTOR|SPARC",
+    "inputs": {}
+  },
+  "PD|REACTOR|ARC_CLASS": {
+    "title": "ARC-class HTS reactor",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "ARC-class public parameters via SHAMS REFERENCE_MACHINES; replace with paper table for formal claims.",
+    "preset_key": "REF|REACTOR|ARC",
+    "inputs": {}
+  },
+  "PD|REACTOR|STEP_BASELINE": {
+    "title": "STEP Prototype Plant baseline (literature table)",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "Hudoba et al., Fusion Engineering and Design 191 (2023) 113704, Table 1 (Ip, R0, a, Bt, kappa, delta, q95, betaN). Ti/fG/Paux are SHAMS placeholders.",
+    "preset_key": "REF|REACTOR|STEP",
+    "inputs": {}
+  },
+  "PD|REACTOR|EUDEMO_A26": {
+    "title": "EU DEMO low-A size point (A=2.6, literature table)",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "Bachmann et al., Fusion Engineering and Design 204 (2024) 114518, Table 8 size point A=2.6. Non-table fields are placeholders.",
+    "preset_key": "REF|REACTOR|EUDEMO_A26",
+    "inputs": {}
+  },
+  "PD|REACTOR|EUDEMO_A31": {
+    "title": "EU DEMO low-A size point (A=3.1, literature table)",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "Bachmann et al., Fusion Engineering and Design 204 (2024) 114518, Table 8 size point A=3.1. Non-table fields are placeholders.",
+    "preset_key": "REF|REACTOR|EUDEMO_A31",
+    "inputs": {}
+  },
+  "PD|REACTOR|EUDEMO_A33": {
+    "title": "EU DEMO low-A size point (A=3.3, literature table)",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "Bachmann et al., Fusion Engineering and Design 204 (2024) 114518, Table 8 size point A=3.3. Non-table fields are placeholders.",
+    "preset_key": "REF|REACTOR|EUDEMO_A33",
+    "inputs": {}
+  },
+  "PD|REACTOR|HH170": {
+    "title": "HH170 (Energy Singularity) — public slide values",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "Public slide / brochure values via SHAMS REFERENCE_MACHINES REF|REACTOR|HH170 — verify against primary citation before publication.",
+    "preset_key": "REF|REACTOR|HH170",
+    "inputs": {}
+  },
+  "TEMPLATE|RESEARCH|HIGH_POLOIDAL_BETA_PILOT": {
+    "enabled": false,
+    "title": "Template: high poloidal-beta pilot-plant scenario (fill from paper table)",
+    "design_intent": "Research",
+    "tier": "literature",
+    "source": "Progress in the development and understanding of a high poloidal-beta tokamak operating scenario for an attractive fusion pilot plant.pdf",
+    "preset_key": "REF|REACTOR|ITER",
+    "inputs": {
+      "_note": "Fill from cited parameter table; skipped until enabled=true."
+    }
+  },
+  "TEMPLATE|REACTOR|EUDEMO_LOW_A_REDESIGN": {
+    "enabled": false,
+    "title": "Template: EU DEMO low aspect ratio redesign (fill from paper table)",
+    "design_intent": "Reactor",
+    "tier": "literature",
+    "source": "Re-design of EU DEMO with a low aspect ratio.pdf",
+    "preset_key": "REF|REACTOR|EUDEMO_A31",
+    "inputs": {
+      "_note": "Fill exact target set (Q/Pfus/H/Ip) from the paper; skipped until enabled=true."
+    }
+  }
+}

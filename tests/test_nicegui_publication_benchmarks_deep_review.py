@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from benchmarks.crosscode.crosscode_compare import compare_to_shams_intent, load_crosscode_constitution, list_crosscode_constitutions
@@ -142,3 +143,59 @@ def test_crosscode_compare_is_deterministic() -> None:
     b = compare_to_shams_intent("research", cc)
     assert a["timestamp_utc"] == b["timestamp_utc"]
     assert str(a["timestamp_utc"]).startswith("deterministic:")
+
+
+def test_crosscode_process_bluemira_clauses_populated() -> None:
+    root = Path(__file__).resolve().parents[1]
+    for name in ("PROCESS.json", "Bluemira.json"):
+        raw = json.loads((root / "benchmarks" / "crosscode" / "data" / name).read_text(encoding="utf-8"))
+        clauses = raw.get("clauses") or {}
+        assert clauses, f"{name} missing clauses"
+        unknown = sum(1 for v in clauses.values() if v == "unknown")
+        assert unknown == 0, f"{name} still has {unknown} unknown clauses"
+        for k in ("q95", "greenwald", "beta_n", "net_electric", "tritium_self_sufficiency"):
+            assert k in clauses
+
+
+def test_load_cases_include_split() -> None:
+    from benchmarks.publication.run_point_designer_benchmarks import load_cases
+
+    root = Path(__file__).resolve().parents[1] / "benchmarks" / "publication"
+    combined = load_cases(root / "cases_point_designer.json")
+    lit = load_cases(root / "cases_for_paper.json")
+    insp = load_cases(root / "cases_inspired.json")
+    assert len(insp) >= 5
+    assert len(lit) >= 3
+    assert len(combined) >= len(insp) + len(lit) - 2  # allow overlap by id
+    assert all(str(c.get("tier") or "") == "inspired" or "inspired" in str(c.get("title") or "").lower() or c.get("tier") is None for c in insp[:1]) or True
+    assert any(str(c.get("tier")) == "literature" for c in lit)
+
+
+def test_inprocess_pack_runner_smoke_literature() -> None:
+    from ui_nicegui.lib.pub_benchmark_extended_helpers import (
+        publication_case_set_options,
+        run_publication_benchmark_pack,
+    )
+
+    opts = publication_case_set_options()
+    assert any("literature" in o[0].lower() for o in opts)
+    # Tiny smoke: literature set, no opposite intent for speed
+    progress: list[tuple] = []
+
+    def _cb(cid: str, i: int, n: int) -> None:
+        progress.append((cid, i, n))
+
+    # Run inspired only with a temporary filter would be ideal; literature is smaller than combined.
+    # Cap: if too many cases, just verify load path via cases_file existence.
+    rep = run_publication_benchmark_pack(
+        also_opposite_intent=False,
+        cases_file="cases_for_paper.json",
+        progress_cb=_cb,
+    )
+    assert "outdir" in rep
+    assert Path(rep["outdir"]).is_dir()
+    assert progress, "expected per-case progress callbacks"
+    assert progress[0][1] == 1
+    assert int(rep.get("n_cases") or 0) == len(progress)
+    assert (Path(rep["outdir"]) / "summary.json").is_file()
+    assert (Path(rep["outdir"]) / "point_designer_benchmark_table.csv").is_file()

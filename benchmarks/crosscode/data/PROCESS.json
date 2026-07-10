@@ -1,20 +1,24 @@
 {
   "schema": "crosscode_constitution.v1",
   "code_name": "PROCESS",
-  "code_version": "unspecified",
-  "source_notes": "Placeholder entry. Populate clause semantics based on PROCESS documentation and configured constraint handling in your study. Use citations in this record. Until populated, clauses are marked unknown.",
-  "citations": [],
+  "code_version": "v3.x (UKAEA public docs)",
+  "source_notes": "Clause semantics map PROCESS constraint-equation activation (icc) and typical reactor-study practice. PROCESS treats selected constraints as equality/inequality equations in the solver; inactive constraints are not enforced. Values below describe the usual DEMO/power-plant configuration, not every optional switch.",
+  "citations": [
+    "https://ukaea.github.io/PROCESS/solver/solver-guide/",
+    "https://ukaea.github.io/PROCESS/source/reference/process/data_structure/constraint_variables/",
+    "https://ukaea.github.io/PROCESS/source/reference/process/data_structure/physics_variables/"
+  ],
   "clauses": {
-    "q95": "unknown",
-    "greenwald": "unknown",
-    "beta_n": "unknown",
-    "net_electric": "unknown",
-    "tritium_self_sufficiency": "unknown",
-    "detachment": "unknown",
-    "lifetime_margin": "unknown",
-    "availability": "unknown"
+    "q95": "hard",
+    "greenwald": "hard",
+    "beta_n": "hard",
+    "net_electric": "required",
+    "tritium_self_sufficiency": "required",
+    "detachment": "diagnostic",
+    "lifetime_margin": "hard",
+    "availability": "diagnostic"
   },
   "authority_behavior": {
-    "notes": "unknown"
+    "notes": "q95 often via fixed/min constraint (e.g. icc related to q95); Greenwald via density-limit constraint equation 5 (i_density_limit models); beta via beta/beta_N limits when activated; net electric and TBR are typical reactor design targets; divertor heat-flux / radiation limits act as proxies for exhaust (not a named detachment solver); coil/stress/fluence inequalities provide lifetime margins; availability enters cost/plant models diagnostically."
   }
 }

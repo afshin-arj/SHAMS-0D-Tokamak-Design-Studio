@@ -1,20 +1,23 @@
 {
   "schema": "crosscode_constitution.v1",
   "code_name": "Bluemira",
-  "code_version": "unspecified",
-  "source_notes": "Placeholder entry. Populate clause semantics based on Bluemira documentation and workflow configuration. Until populated, clauses are marked unknown.",
-  "citations": [],
+  "code_version": "design-framework (EUROfusion / UKAEA ecosystem)",
+  "source_notes": "Bluemira is a modular reactor design framework (CAD + systems interfaces). Clause semantics below reflect typical plasma/reactor design workflows where plasma limits are designer-enforced hard gates and plant closures are required for power-plant studies. Exact enforcement depends on the configured design problem — treat as documentation semantics, not a numeric PROCESS parity claim.",
+  "citations": [
+    "https://bluemira.readthedocs.io/",
+    "https://github.com/Fusion-Power-Plant-Framework/bluemira"
+  ],
   "clauses": {
-    "q95": "unknown",
-    "greenwald": "unknown",
-    "beta_n": "unknown",
-    "net_electric": "unknown",
-    "tritium_self_sufficiency": "unknown",
-    "detachment": "unknown",
-    "lifetime_margin": "unknown",
-    "availability": "unknown"
+    "q95": "hard",
+    "greenwald": "hard",
+    "beta_n": "hard",
+    "net_electric": "required",
+    "tritium_self_sufficiency": "required",
+    "detachment": "diagnostic",
+    "lifetime_margin": "diagnostic",
+    "availability": "ignored"
   },
   "authority_behavior": {
-    "notes": "unknown"
+    "notes": "Plasma equilibrium / 0-D modules typically gate q95, Greenwald fraction, and beta_N as design hard limits. Net electric and TBR are required for DEMO-class plant studies when plant modules are enabled. Detachment and component lifetime are usually screening/diagnostic until coupled to dedicated divertor/structural tools. Availability is generally outside the core Bluemira physics loop."
   }
 }

@@ -450,6 +450,8 @@ class DesignSession:
     pub_crosscode_last: Optional[dict[str, Any]] = None
     pub_bench_ack: bool = False
     pub_bench_running: bool = False
+    pub_bench_cases_file: str = "cases_point_designer.json"
+    pub_bench_progress: str = ""
     pub_bench_last_outdir: Optional[str] = None
     pub_bench_last_rc: Optional[int] = None
     pub_bench_last_log: str = ""

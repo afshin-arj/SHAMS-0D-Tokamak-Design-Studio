@@ -91,23 +91,77 @@ def read_topology_regression_report() -> Optional[dict]:
         return None
 
 
-def run_publication_benchmark_pack(*, also_opposite_intent: bool = True) -> dict:
+def publication_case_set_options() -> List[Tuple[str, str]]:
+    """(label, relative filename under benchmarks/publication/)."""
+    return [
+        ("Combined (inspired + literature)", "cases_point_designer.json"),
+        ("Literature only (paper claims)", "cases_for_paper.json"),
+        ("Inspired only (screening)", "cases_inspired.json"),
+    ]
+
+
+def run_publication_benchmark_pack(
+    *,
+    also_opposite_intent: bool = True,
+    cases_file: str = "cases_point_designer.json",
+    progress_cb=None,
+) -> dict:
+    """In-process publication pack (no subprocess). ``progress_cb(case_id, i, n)`` optional."""
+    from benchmarks.publication.run_point_designer_benchmarks import load_cases, run_publication_pack
+
     root = Path(repo_root())
     ts = time.strftime("%Y%m%d_%H%M%S")
     outdir = root / "benchmarks" / "publication" / "out_ui" / ts
     outdir.mkdir(parents=True, exist_ok=True)
-    cases = root / "benchmarks" / "publication" / "cases_point_designer.json"
-    runner = root / "benchmarks" / "publication" / "run_point_designer_benchmarks.py"
-    cmd = [sys.executable, str(runner), "--cases", str(cases), "--outdir", str(outdir)]
-    if also_opposite_intent:
-        cmd.append("--also-run-opposite-intent")
-    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(root))
-    return {
-        "returncode": int(proc.returncode),
-        "outdir": str(outdir),
-        "stdout": (proc.stdout or "")[:8000],
-        "stderr": (proc.stderr or "")[:8000],
-    }
+    cases_path = root / "benchmarks" / "publication" / str(cases_file or "cases_point_designer.json")
+    if not cases_path.is_file():
+        raise FileNotFoundError(f"Cases file not found: {cases_path}")
+
+    progress_lines: List[str] = []
+
+    def _cb(case_id: str, i: int, n: int) -> None:
+        line = f"[{i}/{n}] {case_id}"
+        progress_lines.append(line)
+        if progress_cb is not None:
+            try:
+                progress_cb(case_id, i, n)
+            except Exception:
+                pass
+
+    try:
+        summary = run_publication_pack(
+            cases=load_cases(cases_path),
+            outdir=outdir,
+            also_run_opposite_intent=bool(also_opposite_intent),
+            progress_cb=_cb,
+        )
+        n_fail = int(summary.get("n_cases_fail") or 0)
+        rc = 0 if n_fail == 0 else 2
+        log = "\n".join(progress_lines)
+        log += f"\nWrote: {summary.get('csv')}\nArtifacts: {outdir / 'artifacts'}"
+        if n_fail:
+            log += f"\n{n_fail} case(s) failed during evaluation."
+        return {
+            "returncode": rc,
+            "outdir": str(outdir),
+            "stdout": log[:8000],
+            "stderr": "",
+            "summary": {k: v for k, v in summary.items() if k != "rows"},
+            "cases_file": str(cases_path.name),
+            "n_cases": int(summary.get("n_cases") or 0),
+            "n_cases_fail": n_fail,
+        }
+    except Exception as exc:
+        return {
+            "returncode": 1,
+            "outdir": str(outdir),
+            "stdout": "\n".join(progress_lines)[:4000],
+            "stderr": f"{type(exc).__name__}: {exc}",
+            "summary": {},
+            "cases_file": str(cases_path.name),
+            "n_cases": 0,
+            "n_cases_fail": 0,
+        }
 
 
 def read_pack_topology(outdir: str) -> Optional[dict]:

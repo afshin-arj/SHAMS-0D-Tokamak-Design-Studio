@@ -33,7 +33,8 @@ TAB_HELP = {
     ),
     "3 · Cross-Code Parity": (
         "Documentation-level clause semantics vs SHAMS intent (does not run PROCESS). "
-        "For numeric PROCESS parity, use System Suite → Tab 5 · Scenarios & Exports (Benchmark parity)."
+        "For numeric PROCESS parity, use System Suite → Tab 5 · Scenarios & Exports (Benchmark parity). "
+        "PROCESS/Bluemira clause maps are documentation semantics (populated; not numeric parity)."
     ),
     "4 · Governance & Contracts": (
         "Validate governance contracts, export contract bundles, and build "

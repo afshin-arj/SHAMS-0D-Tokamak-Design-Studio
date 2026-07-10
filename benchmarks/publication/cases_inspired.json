@@ -1,0 +1,92 @@
+{
+  "README": {
+    "purpose": "Inspired / qualitative reference presets for screening — NOT literature-cited parameter tables. Do not claim paper reproduction from this file alone.",
+    "tier": "inspired",
+    "schema": {
+      "<case_id>": {
+        "title": "Human readable title",
+        "design_intent": "Reactor|Research",
+        "tier": "inspired",
+        "preset_key": "REF|… key from reference_machines",
+        "inputs": "Optional PointInputs overrides"
+      }
+    }
+  },
+  "PD|RESEARCH|ITER_INSPIRED": {
+    "title": "ITER-inspired (research intent policy)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|REACTOR|ITER",
+    "inputs": {}
+  },
+  "PD|RESEARCH|JET_INSPIRED": {
+    "title": "JET-inspired",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|JET",
+    "inputs": {}
+  },
+  "PD|RESEARCH|DIII-D_INSPIRED": {
+    "title": "DIII-D-inspired",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|DIII-D",
+    "inputs": {}
+  },
+  "PD|RESEARCH|MASTU_INSPIRED": {
+    "title": "MAST-U-inspired (spherical tokamak research)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|MAST-U",
+    "inputs": {}
+  },
+  "PD|RESEARCH|NSTXU_INSPIRED": {
+    "title": "NSTX-U-inspired (spherical tokamak research)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|NSTX-U",
+    "inputs": {}
+  },
+  "PD|RESEARCH|EAST_INSPIRED": {
+    "title": "EAST-inspired (long-pulse research)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|EAST",
+    "inputs": {}
+  },
+  "PD|RESEARCH|KSTAR_INSPIRED": {
+    "title": "KSTAR-inspired (superconducting research)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|KSTAR",
+    "inputs": {}
+  },
+  "PD|RESEARCH|JT60SA_INSPIRED": {
+    "title": "JT-60SA-inspired (superconducting research)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|JT-60SA",
+    "inputs": {}
+  },
+  "PD|RESEARCH|ASDEXU_INSPIRED": {
+    "title": "ASDEX Upgrade-inspired (H-mode workhorse)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|ASDEX-U",
+    "inputs": {}
+  },
+  "PD|RESEARCH|TCV_INSPIRED": {
+    "title": "TCV-inspired (shaping laboratory)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|TCV",
+    "inputs": {}
+  },
+  "PD|RESEARCH|CMOD_INSPIRED": {
+    "title": "Alcator C-Mod-inspired (compact high-field research)",
+    "design_intent": "Research",
+    "tier": "inspired",
+    "preset_key": "REF|RESEARCH|C-MOD",
+    "inputs": {}
+  }
+}

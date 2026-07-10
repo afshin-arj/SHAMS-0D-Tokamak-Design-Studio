@@ -11,6 +11,7 @@ from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pub_benchmark_extended_helpers import (
     explain_benchmark_delta,
     list_baseline_packs,
+    publication_case_set_options,
     read_pack_topology,
     read_topology_regression_report,
     run_publication_benchmark_pack,
@@ -38,8 +39,8 @@ def render_benchmark_pack(
 
     ui.label("Generate pack").classes("text-subtitle2 q-mt-sm")
     ui.label(
-        "Batch-runs frozen Point Designer cases → CSV/JSON under benchmarks/publication/out_ui/. "
-        "Blocking pass/fail uses GovernanceConstraint.passed under intent hard-set policy."
+        "In-process batch over frozen Point Designer cases → CSV/JSON under benchmarks/publication/out_ui/. "
+        "Use **Literature only** for paper claims; **Inspired only** for qualitative screening."
     ).classes("text-caption text-grey q-mb-sm")
 
     if session.pub_expert_view:
@@ -53,6 +54,24 @@ def render_benchmark_pack(
                 ok = bool(topo.get("ok"))
                 ui.label(f"Result: {'PASS' if ok else 'FAIL'}").classes("text-subtitle2")
                 render_json_blob(topo)
+
+    opts = publication_case_set_options()
+    labels = [o[0] for o in opts]
+    file_by_label = {o[0]: o[1] for o in opts}
+    label_by_file = {o[1]: o[0] for o in opts}
+    cur_file = session.pub_bench_cases_file or "cases_point_designer.json"
+    if cur_file not in label_by_file:
+        cur_file = "cases_point_designer.json"
+        session.pub_bench_cases_file = cur_file
+    case_sel = ui.select(
+        labels,
+        label="Case set",
+        value=label_by_file[cur_file],
+    ).classes("w-full")
+    ui.label(
+        "Literature = cited geometry tables (STEP/DEMO/…). Inspired = qualitative envelopes (ITER/JET/…). "
+        "Combined = both."
+    ).classes("text-caption text-grey q-mb-sm")
 
     ack = ui.checkbox(
         "I understand this is a non-interactive, audit-grade run.",
@@ -72,28 +91,52 @@ def render_benchmark_pack(
         if not try_acquire_pub_lock(session, "Publication Benchmarks: Pack generate"):
             return
         session.pub_bench_running = True
+        session.pub_bench_cases_file = file_by_label.get(str(case_sel.value), "cases_point_designer.json")
+        session.pub_bench_progress = "Starting…"
         _pack_busy.refresh()
-        log_ui_event(session, PUB_RUNLOCK_OWNER, "PackGenerateStart", {})
-        ui.notify("Benchmark pack run started…", type="info")
+        log_ui_event(
+            session,
+            PUB_RUNLOCK_OWNER,
+            "PackGenerateStart",
+            {"cases_file": session.pub_bench_cases_file},
+        )
+        ui.notify("Benchmark pack run started (in-process)…", type="info")
         from ui_nicegui.lib.navigation import refresh_helm
 
         refresh_helm()
+
+        def _progress(case_id: str, i: int, n: int) -> None:
+            session.pub_bench_progress = f"{i}/{n} {case_id}"
+
+        timer = ui.timer(0.4, lambda: _pack_busy.refresh(), active=True)
         try:
-            rep = await run.io_bound(run_publication_benchmark_pack)
+            rep = await run.io_bound(
+                run_publication_benchmark_pack,
+                also_opposite_intent=True,
+                cases_file=session.pub_bench_cases_file,
+                progress_cb=_progress,
+            )
             session.pub_bench_last_outdir = rep.get("outdir")
             session.pub_bench_last_rc = rep.get("returncode")
             session.pub_bench_last_log = (rep.get("stdout") or "") + "\n" + (rep.get("stderr") or "")
+            session.pub_bench_progress = ""
             rc = int(rep.get("returncode") or 1)
             summ = pack_summary_from_outdir(session.pub_bench_last_outdir)
             log_ui_event(
                 session,
                 PUB_RUNLOCK_OWNER,
                 "PackGenerateComplete",
-                {"rc": rc, "n_pass": summ.get("n_pass"), "n_fail": summ.get("n_fail")},
+                {
+                    "rc": rc,
+                    "n_pass": summ.get("n_pass"),
+                    "n_fail": summ.get("n_fail"),
+                    "cases_file": session.pub_bench_cases_file,
+                    "n_cases": rep.get("n_cases"),
+                },
             )
             ui.notify(
-                "Benchmark pack complete" if rc == 0 else f"Benchmark run failed (rc={rc})",
-                type="positive" if rc == 0 else "negative",
+                "Benchmark pack complete" if rc == 0 else f"Benchmark run finished with failures (rc={rc})",
+                type="positive" if rc == 0 else "warning",
             )
             _pack_view.refresh()
             if on_complete:
@@ -102,13 +145,17 @@ def render_benchmark_pack(
         except Exception as exc:
             ui.notify(f"Benchmark run failed: {exc}", type="negative")
         finally:
+            timer.deactivate()
             release_pub_lock(session)
+            session.pub_bench_progress = ""
             _pack_busy.refresh()
 
     @ui.refreshable
     def _pack_busy() -> None:
         if session.pub_bench_running or session.pub_running:
             ui.linear_progress(show_value=False).props("indeterminate").classes("w-full q-my-sm")
+            prog = session.pub_bench_progress or "Running cases…"
+            ui.label(f"Progress: {prog}").classes("text-caption text-orange")
 
     _pack_busy()
     gen_btn = ui.button(
@@ -129,22 +176,24 @@ def _pack_view(session: DesignSession) -> None:
     rc = session.pub_bench_last_rc
     if not outdir:
         empty_state(
-            "Acknowledge → **Generate pack** → inspect blocking pass/fail fractions → download CSV/ZIP.",
+            "Pick a case set → Acknowledge → **Generate pack** → inspect blocking pass/fail → download CSV/ZIP.",
             kind="info",
         )
         return
-    ui.label(f"Last output: {outdir} (rc={rc})").classes("text-caption q-mt-sm")
+    ui.label(f"Last output: {outdir} (rc={rc}) · cases={session.pub_bench_cases_file}").classes(
+        "text-caption q-mt-sm"
+    )
     log = session.pub_bench_last_log or ""
     if log.strip():
-        with ui.expansion("Runner log", icon="terminal").classes("w-full"):
+        with ui.expansion("Runner log (per-case progress)", icon="terminal").classes("w-full"):
             ui.code(log.strip()[:8000])
     if int(rc or 1) != 0:
         empty_state(
-            f"Pack runner failed (rc={rc}). Open the runner log above, then retry or check Integrity / Control Room.",
-            kind="error",
+            f"Pack runner reported failures (rc={rc}). Open the runner log above; "
+            "blocking fails are valid NO-SOLUTION outcomes — check case errors vs intent policy.",
+            kind="warn",
         )
-        return
-
+        # Still show KPIs if summary exists
     summ = pack_summary_from_outdir(outdir)
     if summ.get("loaded"):
         kpi_row([
@@ -153,6 +202,9 @@ def _pack_view(session: DesignSession) -> None:
             ("Fragile frac", f"{100.0 * summ['fragile_frac']:.0f}%"),
             ("Fail frac", f"{100.0 * summ['fail_frac']:.0f}%"),
         ])
+
+    if int(rc or 1) != 0 and not summ.get("loaded"):
+        return
 
     topo = read_pack_topology(outdir)
     if isinstance(topo, dict):
