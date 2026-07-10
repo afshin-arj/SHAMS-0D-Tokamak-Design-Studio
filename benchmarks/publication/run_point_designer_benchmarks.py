@@ -54,6 +54,14 @@ SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
 from models.inputs import PointInputs
+try:
+    from evaluator.core import Evaluator
+except Exception:
+    from src.evaluator.core import Evaluator  # type: ignore
+try:
+    from ui_nicegui.lib.pd_intent_policy import classify_failed_constraints as _ui_classify
+except Exception:
+    _ui_classify = None  # type: ignore
 from physics.hot_ion import hot_ion_point
 from constraints.constraints import evaluate_constraints
 from models.reference_machines import reference_presets
@@ -159,12 +167,56 @@ def _safe_float(x: Any) -> float:
     return float("nan")
 
 
+def _constraint_passed(c: Any) -> bool:
+    """True if constraint passed (GovernanceConstraint uses `.passed`, not `.ok`)."""
+    if hasattr(c, "passed"):
+        return bool(getattr(c, "passed"))
+    if isinstance(c, dict):
+        if "passed" in c:
+            return bool(c.get("passed"))
+        if "failed" in c:
+            return not bool(c.get("failed"))
+        if "ok" in c:
+            return bool(c.get("ok"))
+    return True
+
+
+def _constraint_as_dict(c: Any) -> Dict[str, Any]:
+    if hasattr(c, "as_dict") and callable(getattr(c, "as_dict")):
+        return dict(c.as_dict())
+    if isinstance(c, dict):
+        return dict(c)
+    try:
+        d = asdict(c)
+        d.setdefault("passed", _constraint_passed(c))
+        d.setdefault("failed", not _constraint_passed(c))
+        if hasattr(c, "margin"):
+            d.setdefault("margin", getattr(c, "margin"))
+        return d
+    except Exception:
+        return {"name": str(getattr(c, "name", "")), "passed": _constraint_passed(c)}
+
+
 def _classify_failures(failed_names: List[str], *, intent: str) -> Dict[str, List[str]]:
+    """Match Point Designer / ui_nicegui intent policy (Reactor: any non-ignored fail is blocking)."""
+    if _ui_classify is not None:
+        return _ui_classify(failed_names, design_intent=intent)
     hard = set(_INTENT_HARD.get(intent, set()))
+    soft = set(_INTENT_SOFT.get(intent, set()))
     ign = set(_INTENT_IGNORE.get(intent, set()))
-    blocking = [c for c in failed_names if c in hard]
-    ignored = [c for c in failed_names if c in ign]
-    diagnostic = [c for c in failed_names if (c not in blocking and c not in ignored)]
+    blocking: List[str] = []
+    diagnostic: List[str] = []
+    ignored: List[str] = []
+    for name in failed_names or []:
+        nm = str(name)
+        if nm in ign:
+            ignored.append(nm)
+        elif nm in soft:
+            diagnostic.append(nm)
+        elif nm in hard or intent == "reactor":
+            blocking.append(nm)
+        else:
+            diagnostic.append(nm)
     return {"blocking": blocking, "diagnostic": diagnostic, "ignored": ignored}
 
 
@@ -172,9 +224,9 @@ def _tightest(constraints, *, hard_set: set[str], n: int = 3) -> List[Tuple[str,
     rows = []
     for c in constraints:
         try:
-            name = str(getattr(c, "name", ""))
-            margin = _safe_float(getattr(c, "margin", None))
-            ok = bool(getattr(c, "ok", True))
+            name = str(getattr(c, "name", "") if not isinstance(c, dict) else c.get("name", ""))
+            margin = _safe_float(getattr(c, "margin", None) if not isinstance(c, dict) else c.get("margin"))
+            ok = _constraint_passed(c)
         except Exception:
             continue
         if name in hard_set:
@@ -202,10 +254,18 @@ def _build_inputs(d: Dict[str, Any], *, base: PointInputs | None = None) -> Poin
 def run_one(case_id: str, inp: PointInputs, *, design_intent: str) -> Dict[str, Any]:
     intent = _intent_key(design_intent)
 
-    out = hot_ion_point(inp)
+    # Prefer Evaluator choke point (calibration + model cards); fall back to hot_ion_point.
+    try:
+        evr = Evaluator(label="publication_benchmark", cache_enabled=False).evaluate(inp)
+        if not evr.ok or not isinstance(evr.out, dict):
+            out = hot_ion_point(inp)
+        else:
+            out = evr.out
+    except Exception:
+        out = hot_ion_point(inp)
     cons = evaluate_constraints(out)
 
-    failed = [str(getattr(c, "name", "")) for c in cons if not bool(getattr(c, "ok", True))]
+    failed = [str(getattr(c, "name", "")) for c in cons if not _constraint_passed(c)]
     classified = _classify_failures(failed, intent=intent)
 
     hard_set = set(_INTENT_HARD.get(intent, set()))
@@ -251,7 +311,7 @@ def run_one(case_id: str, inp: PointInputs, *, design_intent: str) -> Dict[str, 
         "intent_key": intent,
         "inputs": inp.__dict__,
         "outputs": out,
-        "constraints": [asdict(c) for c in cons],
+        "constraints": [_constraint_as_dict(c) for c in cons],
         "classification": classified,
         "tightest_hard": [{"name": nm, "margin": m} for (nm, m) in tight],
     }
@@ -455,12 +515,50 @@ def main() -> int:
             for r in rows:
                 w.writerow(r)
 
-    # Write summary JSON
+    # Write summary JSON + topology fractions for NiceGUI pack view
+    n_pass = sum(1 for r in rows if bool(r.get("ok_blocking")))
+    n_fail = len(rows) - n_pass
+    n_diag = sum(1 for r in rows if str(r.get("failed_diagnostic") or "").strip())
+    n_total = max(len(rows), 1)
+    topology = {
+        "schema": "publication_pack_topology.v1",
+        "n_rows": len(rows),
+        "n_pass_blocking": n_pass,
+        "n_fail_blocking": n_fail,
+        "n_with_diagnostics": n_diag,
+        "fractions": {
+            "pass": float(n_pass) / float(n_total),
+            "fail": float(n_fail) / float(n_total),
+            "robust": float(sum(1 for r in rows if bool(r.get("ok_blocking")) and not str(r.get("failed_diagnostic") or "").strip())) / float(n_total),
+            "fragile": float(sum(1 for r in rows if bool(r.get("ok_blocking")) and str(r.get("failed_diagnostic") or "").strip())) / float(n_total),
+        },
+        "dominant_mechanism_hist": {},
+    }
+    for r in rows:
+        # Best-effort: first blocking name as mechanism proxy
+        fb = str(r.get("failed_blocking") or "").split(";")[0].strip()
+        if fb:
+            topology["dominant_mechanism_hist"][fb] = int(topology["dominant_mechanism_hist"].get(fb, 0)) + 1
+    (outdir / "topology.json").write_text(json.dumps(topology, indent=2, sort_keys=True), encoding="utf-8")
+
+    version = "unknown"
+    try:
+        version = (Path(__file__).resolve().parents[2] / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0]
+    except Exception:
+        pass
     summary = {
         "n_rows": len(rows),
+        "n_pass_blocking": n_pass,
+        "n_fail_blocking": n_fail,
         "outdir": str(outdir),
         "csv": str(csv_path),
-        "notes": "Replace inspired presets with cited parameter tables for publication.",
+        "topology": str(outdir / "topology.json"),
+        "shams_version": version,
+        "notes": (
+            "Replace inspired presets with cited parameter tables for publication. "
+            "ok_blocking uses GovernanceConstraint.passed under intent hard-set policy. "
+            "Constitutional Atlas clause maps are documentation semantics — not this classification."
+        ),
     }
     (outdir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
 

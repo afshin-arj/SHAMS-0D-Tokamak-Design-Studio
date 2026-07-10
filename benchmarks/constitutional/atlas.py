@@ -42,14 +42,24 @@ def evaluate_atlas_case(preset_key: str, selected_intent: str) -> AtlasResult:
     diff = constitution_diff(const_sel, const_nat)
 
     case_id = f"ATLAS|{_design_intent_label(selected_intent).upper()}|{preset_key}"
-    # Build PointInputs deterministically from preset + overrides (none)
-    case_dict = {
-        "title": case_id,
-        "design_intent": _design_intent_label(selected_intent),
-        "preset_key": preset_key,
-        "inputs": {},
-    }
-    inp = _pdbench._build_inputs(case_dict)
+    # Load reference preset PointInputs (not DEFAULT_BASE) — overrides empty.
+    try:
+        from src.models.reference_machines import reference_presets
+    except ImportError:
+        from models.reference_machines import reference_presets  # type: ignore
+    presets = reference_presets()
+    base_pi = presets.get(preset_key)
+    if base_pi is None:
+        # Fallback: catalog entry may store inputs object
+        raw = ent.get("inputs")
+        if hasattr(raw, "to_dict"):
+            inp = _pdbench._build_inputs(dict(raw.to_dict()))
+        elif isinstance(raw, dict):
+            inp = _pdbench._build_inputs(dict(raw))
+        else:
+            raise KeyError(f"No PointInputs for preset_key: {preset_key}")
+    else:
+        inp = _pdbench._build_inputs({}, base=base_pi)
     res = _pdbench.run_one(case_id, inp, design_intent=_design_intent_label(selected_intent))
 
     # Normalize runner output into an atlas-friendly run dict.
@@ -89,7 +99,8 @@ def evaluate_atlas_case(preset_key: str, selected_intent: str) -> AtlasResult:
             "severity": sev,
             "margin": margin,
             "units": c.get("units", ""),
-            "ok": bool(c.get("ok", True)),
+            "ok": bool(c.get("passed", c.get("ok", True))),
+            "passed": bool(c.get("passed", c.get("ok", True))),
             "mechanism_group": c.get("mechanism_group", c.get("mechanism", "")),
         }
         if nm == dom_candidate and not dom_constraint:
@@ -177,13 +188,7 @@ def local_fragility_scan(preset_key: str, intent: str, knobs: Dict[str, Tuple[fl
                 inputs[k2]=float(b)
 
             case_id = f"FRAG|{_design_intent_label(intent).upper()}|{preset_key}|{k1}"
-            case_dict = {
-                "title": case_id,
-                "design_intent": _design_intent_label(intent),
-                "preset_key": preset_key,
-                "inputs": inputs,
-            }
-            inp = _pdbench._build_inputs(case_dict)
+            inp = _pdbench._build_inputs(inputs)
             res = _pdbench.run_one(case_id, inp, design_intent=_design_intent_label(intent))
             art = (res.get("artifact") or {}) if isinstance(res, dict) else {}
             classified = (art.get("classification") or {}) if isinstance(art, dict) else {}

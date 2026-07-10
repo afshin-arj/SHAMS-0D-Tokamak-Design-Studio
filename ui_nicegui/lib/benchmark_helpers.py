@@ -95,6 +95,8 @@ def summarize_atlas_result(res_dict: dict) -> Dict[str, Any]:
     dc = art.get("decision_consequences") or {} if isinstance(art, dict) else {}
     ft = art.get("fidelity_tiers") or {} if isinstance(art, dict) else {}
     ef = art.get("epoch_feasibility") or {} if isinstance(art, dict) else {}
+    classified = art.get("classification") or {} if isinstance(art, dict) else {}
+    diag = list(classified.get("diagnostic") or [])
 
     epoch_rows: List[Dict[str, str]] = []
     for e in ef.get("epochs") or []:
@@ -120,6 +122,7 @@ def summarize_atlas_result(res_dict: dict) -> Dict[str, Any]:
         "primary_risk_driver": str(dc.get("primary_risk_driver") or ""),
         "epoch_overall": str(ef.get("overall") or ""),
         "epoch_rows": epoch_rows,
+        "failed_diagnostic": diag,
     }
 
 

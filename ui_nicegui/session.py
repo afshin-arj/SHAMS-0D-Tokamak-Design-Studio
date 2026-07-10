@@ -463,6 +463,7 @@ class DesignSession:
     pub_workflow_step: str = "1 · Constitutional Atlas"
     pub_teaching_mode: bool = True
     pub_expert_view: bool = False
+    pub_running: bool = False
     pub_decision_state: str = "Benchmark a tokamak preset (ITER, SPARC, …)"
     pub_regulatory_zip_bytes: Optional[bytes] = None
     pub_regulatory_validate: Optional[dict[str, Any]] = None

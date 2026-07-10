@@ -139,7 +139,16 @@ def _helm_body(session: DesignSession, *, on_deck_change: Callable[[str], None])
 
 def _render_run_lock_banner(session: DesignSession) -> None:
     locked, task, holder = runlock_global_status()
-    busy = bool(session.evaluating or session.forge_mf_running or session.suite_running or locked)
+    busy = bool(
+        session.evaluating
+        or session.forge_mf_running
+        or session.suite_running
+        or session.pub_running
+        or session.pub_atlas_running
+        or session.pub_atlas_fragility_running
+        or session.pub_bench_running
+        or locked
+    )
     if not busy:
         return
     if task and task not in _RUN_START:
@@ -165,7 +174,16 @@ def _render_posture(session: DesignSession) -> None:
     )
 
     locked, task, holder = runlock_global_status()
-    if session.evaluating or session.forge_mf_running or session.suite_running or locked:
+    if (
+        session.evaluating
+        or session.forge_mf_running
+        or session.suite_running
+        or session.pub_running
+        or session.pub_atlas_running
+        or session.pub_atlas_fragility_running
+        or session.pub_bench_running
+        or locked
+    ):
         label = task or ("Machine Finder…" if session.forge_mf_running else "Evaluating…")
         if holder:
             _, _, is_owner = runlock_status(holder)

@@ -59,9 +59,23 @@ def compare_to_shams_intent(intent: str, cc: CrossCodeConstitution) -> Dict[str,
     clause_map = {k: {"state": v, "citations": cc.citations} for k,v in cc.clauses.items()}
     citation_issues = validate_clause_citations(clause_map, state_key="state", citations_key="citations")
     citation_completeness = summarize_citation_completeness(citation_issues)
+    # Deterministic stamp (no wall-clock) so same compare → same JSON hash.
+    stamp_payload = {
+        "schema": "crosscode_comparison.v1",
+        "intent": intent,
+        "code": cc.code_name,
+        "version": cc.code_version,
+        "clauses": cc.clauses,
+        "baseline": baseline,
+    }
+    import hashlib
+
+    stamp = hashlib.sha256(
+        json.dumps(stamp_payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:16]
     return {
         "schema":"crosscode_comparison.v1",
-        "timestamp_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "timestamp_utc": f"deterministic:{stamp}",
         "intent": intent,
         "baseline_constitution": baseline,
         "crosscode_constitution": {

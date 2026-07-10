@@ -59,9 +59,10 @@ DECK_NOW_ACTIONS: dict[str, list[str]] = {
         "Open machine dossier for review-room narrative.",
     ],
     "Publication Benchmarks": [
-        "Run constitutional atlas on a reference preset.",
-        "Generate publication / regulatory / licensing packs.",
-        "Check cross-code parity before release.",
+        "Evaluate a reference preset on the Constitutional Atlas (Tab 1).",
+        "Generate publication CSV/ZIP pack and inspect blocking pass/fail (Tab 2).",
+        "Compare cross-code semantics or open System Suite for numeric PROCESS parity (Tab 3).",
+        "Export reviewer/licensing packs or session evidence (Tabs 4–5).",
     ],
     "System Suite": [
         "Review plant closure and net-electric ledger (Tab 1).",

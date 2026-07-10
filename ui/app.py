@@ -2852,8 +2852,8 @@ if _deck == "Publication Benchmarks":
         "Run `run_ui_nicegui.cmd` and open **Publication Benchmarks** for the complete workflow."
     )
     st.markdown(
-        "5-tab workflow: Atlas · Publication Pack · Cross-Code · Governance · Evidence Export. "
-        "Constitutional atlas, reviewer packs, and licensing ZIPs are on NiceGUI."
+        "5-tab workflow: Atlas · Publication Pack · Cross-Code Semantics · Governance · Evidence Export. "
+        "Constitutional atlas, publication CSV/ZIP packs, reviewer/licensing packs, and session evidence are on NiceGUI."
     )
     st.stop()
 

@@ -34,6 +34,19 @@ def render_licensing_tier2_pack(session: DesignSession) -> None:
             "No session run artifact — evaluate in **Point Designer** or **Systems Mode** first.",
             kind="warn",
         )
+        from ui_nicegui.lib.navigation import switch_deck
+
+        with ui.row().classes("gap-2 q-mt-sm"):
+            ui.button(
+                "Open Point Designer",
+                icon="design_services",
+                on_click=lambda: switch_deck("Point Designer"),
+            ).props("outline color=primary")
+            ui.button(
+                "Open Systems Mode",
+                icon="hub",
+                on_click=lambda: switch_deck("Systems Mode"),
+            ).props("flat outline")
         return
 
     render_json_blob(artifact_snapshot(art))
@@ -75,7 +88,7 @@ def _actions(session: DesignSession) -> None:
             ui.button(
                 "Download Tier 2 pack",
                 icon="download",
-                on_click=lambda: ui.download(bytes(data), "licensing_pack_tier2_v355.zip"),
+                on_click=lambda: ui.download(bytes(data), "licensing_pack_tier2.zip"),
             ).props("outline")
             ui.button("Validate ZIP", icon="verified", on_click=_validate).props("flat")
 

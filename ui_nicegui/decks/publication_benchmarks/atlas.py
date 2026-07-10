@@ -5,7 +5,6 @@ from typing import Callable, Optional
 
 from nicegui import run, ui
 
-from ui_nicegui.decks.publication_benchmarks import verdict
 from ui_nicegui.lib.benchmark_helpers import (
     atlas_evidence_json,
     atlas_result_to_dict,
@@ -13,8 +12,15 @@ from ui_nicegui.lib.benchmark_helpers import (
     constitution_diff_rows,
     evaluate_atlas,
     run_fragility_scan,
-    summarize_atlas_result,
 )
+from ui_nicegui.lib.helm_helpers import log_ui_event
+from ui_nicegui.lib.pub_helpers import (
+    PUB_RUNLOCK_OWNER,
+    promote_atlas_inputs_to_point_designer,
+    release_pub_lock,
+    try_acquire_pub_lock,
+)
+from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
 
@@ -43,22 +49,12 @@ def render_constitutional_atlas(
                 bucket_names,
                 label="Category",
                 value=session.pub_atlas_bucket,
-                on_change=lambda e: _on_bucket_change(session, buckets, str(e.value)),
+                on_change=lambda e: (
+                    _on_bucket_change(session, buckets, str(e.value)),
+                    _preset_column.refresh(),
+                ),
             ).classes("w-full")
-            labels = [o[1] for o in opts]
-            keys = [o[0] for o in opts]
-            if labels:
-                cur = session.pub_atlas_preset_key if session.pub_atlas_preset_key in keys else keys[0]
-                ui.select(
-                    labels,
-                    label="Tokamak",
-                    value=labels[keys.index(cur)] if cur in keys else labels[0],
-                    on_change=lambda e: setattr(
-                        session,
-                        "pub_atlas_preset_key",
-                        keys[labels.index(str(e.value))],
-                    ),
-                ).classes("w-full")
+            _preset_column(session, buckets)
             ui.toggle(
                 ["Research", "Reactor"],
                 value=session.pub_atlas_intent,
@@ -66,9 +62,30 @@ def render_constitutional_atlas(
             ).classes("q-mt-sm")
             ui.label(f"Preset key: {session.pub_atlas_preset_key}").classes("text-caption text-grey")
         with ui.column().classes("flex-[2]"):
-            _render_atlas_verdict_section(session)
             _render_atlas_actions(session, on_complete=on_complete)
             _render_atlas_detail(session)
+
+
+@ui.refreshable
+def _preset_column(session: DesignSession, buckets: dict) -> None:
+    opts = buckets.get(session.pub_atlas_bucket) or []
+    labels = [o[1] for o in opts]
+    keys = [o[0] for o in opts]
+    if not labels:
+        ui.label("No presets in this category.").classes("text-caption text-grey")
+        return
+    cur = session.pub_atlas_preset_key if session.pub_atlas_preset_key in keys else keys[0]
+    session.pub_atlas_preset_key = cur
+    ui.select(
+        labels,
+        label="Tokamak",
+        value=labels[keys.index(cur)],
+        on_change=lambda e: setattr(
+            session,
+            "pub_atlas_preset_key",
+            keys[labels.index(str(e.value))],
+        ),
+    ).classes("w-full")
 
 
 def _on_bucket_change(session: DesignSession, buckets: dict, bucket: str) -> None:
@@ -79,16 +96,10 @@ def _on_bucket_change(session: DesignSession, buckets: dict, bucket: str) -> Non
 
 
 @ui.refreshable
-def _render_atlas_verdict_section(session: DesignSession) -> None:
-    summary = None
-    if isinstance(session.pub_atlas_last, dict):
-        summary = summarize_atlas_result(session.pub_atlas_last)
-    verdict.render_atlas_verdict(summary)
-
-
 def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Callable[[], None]] = None) -> None:
-    if session.pub_atlas_running:
+    if session.pub_atlas_running or session.pub_atlas_fragility_running or session.pub_running:
         ui.linear_progress(show_value=False).props("indeterminate").classes("w-full q-my-sm")
+        ui.label("Atlas job running — other evaluations locked.").classes("text-caption text-orange")
 
     async def _evaluate() -> None:
         if session.pub_atlas_running:
@@ -97,14 +108,19 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
         if not key:
             ui.notify("Select a preset", type="warning")
             return
+        if not try_acquire_pub_lock(session, "Publication Benchmarks: Atlas evaluate"):
+            return
         session.pub_atlas_running = True
+        _render_atlas_actions.refresh()
+        log_ui_event(session, PUB_RUNLOCK_OWNER, "AtlasEvaluateStart", {"preset": key, "intent": session.pub_atlas_intent})
         ui.notify("Evaluating preset…", type="info")
         try:
             res = await run.io_bound(evaluate_atlas, key, session.pub_atlas_intent)
             session.pub_atlas_last = atlas_result_to_dict(res)
             session.pub_atlas_fragility = None
-            ui.notify(f"Verdict: {(session.pub_atlas_last.get('run') or {}).get('verdict', 'done')}", type="positive")
-            _render_atlas_verdict_section.refresh()
+            verdict = (session.pub_atlas_last.get("run") or {}).get("verdict", "done")
+            log_ui_event(session, PUB_RUNLOCK_OWNER, "AtlasEvaluateComplete", {"verdict": verdict})
+            ui.notify(f"Verdict: {verdict}", type="positive" if verdict != "FAIL" else "warning")
             _render_atlas_detail.refresh()
             if on_complete:
                 on_complete()
@@ -112,7 +128,8 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
             session.last_error = str(exc)
             ui.notify(f"Atlas evaluation failed: {exc}", type="negative")
         finally:
-            session.pub_atlas_running = False
+            release_pub_lock(session)
+            _render_atlas_actions.refresh()
 
     async def _fragility() -> None:
         if session.pub_atlas_fragility_running:
@@ -120,7 +137,11 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
         key = session.pub_atlas_preset_key
         if not key:
             return
+        if not try_acquire_pub_lock(session, "Publication Benchmarks: Fragility scan"):
+            return
         session.pub_atlas_fragility_running = True
+        _render_atlas_actions.refresh()
+        log_ui_event(session, PUB_RUNLOCK_OWNER, "AtlasFragilityStart", {"preset": key})
         try:
             scan = await run.io_bound(run_fragility_scan, key, session.pub_atlas_intent)
             session.pub_atlas_fragility = scan
@@ -129,23 +150,43 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
         except Exception as exc:
             ui.notify(f"Fragility scan failed: {exc}", type="negative")
         finally:
-            session.pub_atlas_fragility_running = False
+            release_pub_lock(session)
+            _render_atlas_actions.refresh()
 
-    with ui.row().classes("gap-2 q-mt-sm"):
+    def _promote() -> None:
+        try:
+            n = promote_atlas_inputs_to_point_designer(session)
+            switch_deck("Point Designer")
+            ui.notify(f"Promoted {n} inputs → Point Designer — re-evaluate there.", type="positive")
+        except Exception as exc:
+            ui.notify(str(exc), type="warning")
+
+    with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
         ui.button("Evaluate preset", icon="play_arrow", on_click=_evaluate).props("color=primary")
         ui.button("Local fragility scan", icon="grid_on", on_click=_fragility).props("outline")
+        if isinstance(session.pub_atlas_last, dict):
+            ui.button("Load inputs → Point Designer", icon="upload", on_click=_promote).props("flat outline")
 
 
 @ui.refreshable
 def _render_atlas_detail(session: DesignSession) -> None:
     res = session.pub_atlas_last
     if not isinstance(res, dict):
+        from ui_nicegui.components.empty_state import empty_state
+
+        empty_state(
+            "Select category → tokamak → Research/Reactor → **Evaluate preset**.",
+            kind="info",
+        )
         return
 
     expert = bool(getattr(session, "pub_expert_view", False))
 
     def _constitution_block() -> None:
-        ui.label("Constitution diff").classes("text-subtitle2")
+        ui.label("Constitution diff (documentation semantics)").classes("text-subtitle2")
+        ui.label(
+            "Clause maps describe Research vs Reactor policy language — blocking feasibility uses the intent hard-set."
+        ).classes("text-caption text-grey q-mb-xs")
         diff_rows = constitution_diff_rows(res)
         if not diff_rows:
             ui.label("No constitutional differences (selected intent matches native semantics).").classes(

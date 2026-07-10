@@ -36,6 +36,19 @@ def render_regulatory_reviewer_pack(session: DesignSession) -> None:
             "No session run artifact — evaluate in **Point Designer** or **Systems Mode** first.",
             kind="warn",
         )
+        from ui_nicegui.lib.navigation import switch_deck
+
+        with ui.row().classes("gap-2 q-mt-sm"):
+            ui.button(
+                "Open Point Designer",
+                icon="design_services",
+                on_click=lambda: switch_deck("Point Designer"),
+            ).props("outline color=primary")
+            ui.button(
+                "Open Systems Mode",
+                icon="hub",
+                on_click=lambda: switch_deck("Systems Mode"),
+            ).props("flat outline")
         return
 
     ui.label("Run snapshot").classes("text-caption")
@@ -78,7 +91,7 @@ def _actions(session: DesignSession) -> None:
             ui.button(
                 "Download reviewer pack",
                 icon="download",
-                on_click=lambda: ui.download(bytes(data), "reviewer_pack_v334.zip"),
+                on_click=lambda: ui.download(bytes(data), "reviewer_pack.zip"),
             ).props("outline")
             ui.button("Validate ZIP", icon="verified", on_click=_validate).props("flat")
 

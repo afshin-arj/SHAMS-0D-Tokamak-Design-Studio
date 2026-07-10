@@ -32,16 +32,16 @@ TAB_HELP = {
         "Audit-grade; uses frozen Point Designer only."
     ),
     "3 · Cross-Code Parity": (
-        "Map external system-code clause semantics against SHAMS intent constitutions. "
-        "Documentation-level; does not execute external codes."
+        "Documentation-level clause semantics vs SHAMS intent (does not run PROCESS). "
+        "For numeric PROCESS parity, use System Suite → Tab 5 · Scenarios & Exports (Benchmark parity)."
     ),
     "4 · Governance & Contracts": (
         "Validate governance contracts, export contract bundles, and build "
-        "reviewer / licensing ZIP packs from the current session artifact."
+        "reviewer / licensing ZIP packs from Point Designer, Systems Mode, or Atlas artifacts."
     ),
     "5 · Evidence Export": (
-        "Hash-locked session evidence ZIP from cached runs (Point Designer, Scan, Pareto, …). "
-        "Export-only — no physics recomputation."
+        "Session evidence ZIP from cached runs (Point Designer, Scan, Pareto, Atlas, …) — "
+        "not the same as Tab 4 reviewer/licensing packs. Export-only — no physics recomputation."
     ),
 }
 
@@ -70,15 +70,16 @@ DECISION_TO_TAB = {
 
 TEACHING_HINTS = {
     DECISION_STATES[0]: (
-        "**Research** vs **Reactor** changes which constraints are blocking. "
-        "Constitution diff shows semantic changes vs the preset's native intent."
+        "**Research** vs **Reactor** changes which constraints are *blocking* under the intent hard-set. "
+        "Constitution diff is documentation semantics — not the feasibility classifier."
     ),
     DECISION_STATES[1]: (
-        "Acknowledge the audit-grade run, then inspect topology fractions and "
-        "explain delta vs a baseline pack when the run succeeds."
+        "Acknowledge the audit-grade run, then inspect blocking pass/fail fractions and "
+        "download CSV/ZIP. Explain delta vs a baseline pack when the run succeeds."
     ),
     DECISION_STATES[2]: (
-        "Pick an external code record and SHAMS intent; clause table shows side-by-side semantics."
+        "Pick an external code record and SHAMS intent; clause table shows side-by-side semantics. "
+        "Numeric PROCESS parity lives in System Suite."
     ),
     DECISION_STATES[3]: (
         "Contract Studio validates `contracts/` JSON. Reviewer and licensing packs need a "
@@ -103,4 +104,7 @@ def teaching_banner(session) -> str:
     if not getattr(session, "pub_teaching_mode", True):
         return ""
     state = getattr(session, "pub_decision_state", "") or DECISION_STATES[0]
-    return TEACHING_HINTS.get(state, "")
+    hint = TEACHING_HINTS.get(state, "")
+    if not hint:
+        return ""
+    return f"**Guided mode — {state}:** {hint}"

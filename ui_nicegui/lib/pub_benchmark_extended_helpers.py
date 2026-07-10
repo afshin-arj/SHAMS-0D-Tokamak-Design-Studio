@@ -150,6 +150,13 @@ def explain_benchmark_delta(*, baseline: str, candidate: str) -> dict:
 
 
 def session_cache_sources(session) -> Dict[str, Any]:
+    atlas = getattr(session, "pub_atlas_last", None)
+    atlas_art = None
+    if isinstance(atlas, dict):
+        run = atlas.get("run") if isinstance(atlas.get("run"), dict) else {}
+        atlas_art = run.get("artifact") if isinstance(run.get("artifact"), dict) else atlas
+    outdir = getattr(session, "pub_bench_last_outdir", None)
+    pack_meta = {"outdir": outdir} if outdir else None
     return {
         "pd_last_outputs": getattr(session, "pd_last_artifact", None) or getattr(session, "last_eval", None),
         "systems_last_solution": getattr(session, "systems_last_solve_artifact", None),
@@ -157,6 +164,9 @@ def session_cache_sources(session) -> Dict[str, Any]:
         "pareto_last_front": getattr(session, "pareto_last_front", None),
         "extopt_last_run": getattr(session, "extopt_last_run", None),
         "surrogate_v386_last_screening_run": getattr(session, "surrogate_v386_last_screening_run", None),
+        "pub_atlas_last": atlas_art,
+        "pub_bench_last_outdir": pack_meta,
+        "pub_crosscode_last": getattr(session, "pub_crosscode_last", None),
     }
 
 
@@ -170,12 +180,45 @@ def pick_session_run_artifact(session) -> Optional[dict]:
         art = getattr(session, key, None)
         if isinstance(art, dict) and art:
             return art
+    atlas = getattr(session, "pub_atlas_last", None)
+    if isinstance(atlas, dict):
+        run = atlas.get("run") if isinstance(atlas.get("run"), dict) else {}
+        art = run.get("artifact") if isinstance(run.get("artifact"), dict) else None
+        if isinstance(art, dict) and art:
+            return art
     triple = session_cache_sources(session)
-    for key in ("pd_last_outputs", "systems_last_solution"):
+    for key in ("pd_last_outputs", "systems_last_solution", "pub_atlas_last"):
         art = triple.get(key)
         if isinstance(art, dict) and art:
             return art
     return None
+
+
+def pick_session_run_artifact_meta(session) -> Dict[str, Any]:
+    """Label which artifact pick_session_run_artifact would use."""
+    for key, label in (
+        ("pd_last_artifact", "Point Designer"),
+        ("systems_last_solve_artifact", "Systems Mode"),
+        ("last_eval", "last_eval"),
+    ):
+        art = getattr(session, key, None)
+        if isinstance(art, dict) and art:
+            return {
+                "loaded": True,
+                "source": label,
+                "verdict": art.get("verdict") or (art.get("outputs") or {}).get("verdict"),
+            }
+    atlas = getattr(session, "pub_atlas_last", None)
+    if isinstance(atlas, dict):
+        run = atlas.get("run") if isinstance(atlas.get("run"), dict) else {}
+        art = run.get("artifact") if isinstance(run.get("artifact"), dict) else None
+        if isinstance(art, dict) and art:
+            return {
+                "loaded": True,
+                "source": "Publication Atlas",
+                "verdict": run.get("verdict") or art.get("verdict"),
+            }
+    return {"loaded": False, "source": "", "verdict": ""}
 
 
 def artifact_snapshot(art: dict) -> dict:
