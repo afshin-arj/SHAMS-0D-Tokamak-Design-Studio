@@ -33,12 +33,13 @@ def subsystem_status(out: Dict[str, Any]) -> Dict[str, str]:
     status: Dict[str, str] = {k: "pass" for k in _SUBSYSTEM_GROUPS}
     status["other"] = "pass"
     for c in bundle.governance:
-        if not constraint_is_hard(c):
-            continue
         if bool(getattr(c, "passed", True)):
             continue
         sub = _classify_subsystem(str(getattr(c, "name", "")))
-        status[sub] = "fail"
+        if constraint_is_hard(c):
+            status[sub] = "fail"
+        elif status.get(sub) != "fail":
+            status[sub] = "warn"
     return status
 
 

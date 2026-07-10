@@ -623,7 +623,6 @@ from ui.decks.point_designer_hooks import (
     render_point_designer_constraint_diff,
     render_point_designer_no_solution_atlas,
 )
-from ui.decks.system_suite_hooks import render_system_suite_header
 from ui.authority_dashboard import render_overlay_authority_dashboard, merge_overlay_session_into_inputs
 from ui.session_api import set_point_evaluation
 

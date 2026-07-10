@@ -23,6 +23,10 @@ def render_overlay_status_panel(out: dict) -> None:
     errors, warnings = overlay_status_rows(out)
     if not errors and not warnings:
         return
+    if errors:
+        ui.badge(f"{len(errors)} overlay error(s)", color="red").props("outline q-mb-xs")
+    elif warnings:
+        ui.badge(f"{len(warnings)} authority warning(s)", color="orange").props("outline q-mb-xs")
     with ui.expansion("Overlay authority status", icon="warning").classes("w-full q-mb-sm"):
         if errors:
             ui.label("Overlay errors").classes("text-subtitle2 text-negative")

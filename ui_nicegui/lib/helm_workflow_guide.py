@@ -64,9 +64,9 @@ DECK_NOW_ACTIONS: dict[str, list[str]] = {
         "Check cross-code parity before release.",
     ],
     "System Suite": [
-        "Configure batch campaign or phase cockpit.",
-        "Run mode contracts and UQ absolute bounds.",
-        "Verify parity suite against golden baselines.",
+        "Review plant closure and net-electric ledger (Tab 1).",
+        "Check ops/thermal traces and lifetime/TBR budgets (Tabs 2–3).",
+        "Run envelope tools or export campaign/parity packs (Tabs 4–5).",
     ],
     "Control Room": [
         "Generate study protocol and repro lock from artifact.",
@@ -84,7 +84,7 @@ DECK_SHORT_VERBS: dict[str, str] = {
     "Trade Study Studio": "Certify trade study",
     "Reactor Design Forge": "Explore concepts",
     "Publication Benchmarks": "Benchmark constitution",
-    "System Suite": "Run campaign",
+    "System Suite": "Review system overlays",
     "Control Room": "Seal & export",
 }
 

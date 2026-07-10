@@ -8,9 +8,13 @@ from nicegui import ui
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.mode_scope import render_mode_scope
+from ui_nicegui.components.verdict_banner import verdict_banner
 from ui_nicegui.decks.system_suite import tabs as suite_tabs
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
+from ui_nicegui.lib.pd_hero_kpis import hero_kpi_cells
+from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
+from ui_nicegui.lib.suite_helpers import authority_version_badges
 from ui_nicegui.lib.suite_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -31,19 +35,36 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
     summary = verdict_summary(point_out)
     if not summary.get("loaded"):
         return
-    kpi_row([
-        ("Verdict", summary["verdict"]),
-        ("Dominant", summary["dominant"]),
-        (summary["q_label"], ""),
-        (summary["nt_label"], ""),
-    ])
+    detail = f"Dominant: {summary['dominant']}"
+    verdict_banner(summary["verdict"], detail=detail)
+
+    fuel = str((session.inputs or {}).get("fuel_mode", "DT"))
+    cells = hero_kpi_cells(
+        point_out,
+        summary,
+        design_intent=session.design_intent,
+        fuel_mode=fuel,
+    )
+    kpi_row([(c.label, c.display) for c in cells[:4]])
+
     subs = summary.get("subsystems") or {}
     with ui.row().classes("gap-2 q-mt-xs flex-wrap"):
         for name in ("magnets", "exhaust", "neutronics", "control", "transport", "plant"):
             status = subs.get(name, "pass")
-            color = {"pass": "green", "fail": "red"}.get(status, "grey")
+            color = {"pass": "green", "fail": "red", "warn": "orange"}.get(status, "grey")
             ui.badge(name.title(), color=color).props("outline")
+    badges = authority_version_badges(point_out)
+    if badges:
+        with ui.row().classes("gap-1 q-mt-xs flex-wrap"):
+            for b in badges:
+                ui.badge(b, color="blue-grey").props("outline dense")
     render_overlay_status_panel(point_out)
+    if not summary.get("feasible"):
+        atlas = no_solution_atlas_summary(point_out, design_intent=session.design_intent)
+        ui.label(
+            f"Mechanism: {atlas.get('dominant_mechanism', '-')} · "
+            f"Constraint: {atlas.get('dominant_constraint', '-')}"
+        ).classes("text-caption text-orange q-mt-xs")
     if not summary.get("parity_aligned", True):
         ui.label(
             f"Constraint pipeline parity: {summary.get('parity_n_mismatch', 0)} pass mismatches "
@@ -107,7 +128,11 @@ def render_system_suite(session: DesignSession) -> None:
     )
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label("Point evaluation loaded").classes("text-caption text-positive")
+        ts = session.pd_last_run_ts
+        ts_label = f"eval t={int(ts)}" if isinstance(ts, (int, float)) and ts else "loaded"
+        ui.label(f"Point evaluation {ts_label}").classes("text-caption text-positive")
+        if session.suite_running:
+            ui.badge("Suite job running", color="orange").props("outline")
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",

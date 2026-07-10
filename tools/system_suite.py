@@ -149,6 +149,7 @@ def trajectory_diagnostics_client(
 
     Pe_net = _f(o.get("P_e_net_MW", o.get("P_net_e_MW", float("nan"))))
     Precirc = _f(o.get("P_recirc_MW", float("nan")))
+    power_incomplete = not math.isfinite(Pe_net)
     if not math.isfinite(Pe_net):
         Pe_net = 0.0
     if not math.isfinite(Precirc):
@@ -208,6 +209,7 @@ def trajectory_diagnostics_client(
         "Precirc_avg_MW": Prec_avg,
         "Enet_MJ": Enet_MJ,
         "Erecirc_MJ": Erec_MJ,
+        "power_incomplete": power_incomplete,
         "note": "Deterministic envelope trajectory diagnostic (non-authoritative).",
     }
 

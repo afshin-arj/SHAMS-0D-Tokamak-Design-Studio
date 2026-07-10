@@ -65,7 +65,7 @@ DECISION_TO_TAB = {
 TEACHING_HINTS = {
     DECISION_STATES[0]: (
         "**Slot A** is usually baseline; **Slot B** is the scenario or variant. "
-        "Send runs from Point Designer Export Bay or System Suite Apply without downloading JSON."
+        "Send runs from Point Designer Export Bay or use System Suite handoffs (Tab 5) to load Compare slots."
     ),
     DECISION_STATES[1]: (
         "Key metrics use canonical output names with aliases (Q ↔ Q_DT_eqv, Pfus ↔ P_fus). "

@@ -13,6 +13,18 @@ from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.suite_labels import ENVELOPE_ROUTER
 from ui_nicegui.lib.suite_overlay_helpers import stamp_label
+from ui_nicegui.lib.suite_helpers import (
+    SUITE_RUNLOCK_OWNER,
+    envelope_posture_summary,
+    lifetime_binding_summary,
+    release_suite_lock,
+    render_authority_ledger,
+    render_export_bar,
+    render_suite_handoffs,
+    render_tab_summary_strip,
+    try_acquire_suite_lock,
+)
+from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
 
@@ -78,15 +90,25 @@ def _expansion_defaults(session: DesignSession, *, panel_id: str, default_open: 
 
 
 def render_tab_plant_power(ctx: SuiteContext) -> None:
-    ui.label("Power closure ledger").classes("text-subtitle1")
+    fn = ctx.overlays.get("power_closure_overlay")
+    if fn is None:
+        empty_state("Power closure overlay unavailable.", kind="warn")
+        return
+    rep = fn(ctx.point_out, ctx.point_inp)
+    render_tab_summary_strip(
+        "PLANT CLOSURE",
+        detail="Gross, recirculating, and net electric from plant overlay.",
+        kpis=[
+            ("Gross electric (MW)", _fin(rep.Pe_gross_MW)),
+            ("Recirc (MW)", _fin(rep.Precirc_MW)),
+            ("Net electric (MW)", _fin(rep.Pe_net_MW)),
+            ("Recirc fraction", f"{100.0 * rep.recirc_frac:.1f}%" if math.isfinite(rep.recirc_frac) else "-"),
+        ],
+    )
+    ui.label("Power closure ledger").classes("text-subtitle1 q-mt-sm")
     ui.label("Gross, recirculating, and net electric power from the plant overlay.").classes(
         "text-caption q-mb-sm"
     )
-    fn = ctx.overlays.get("power_closure_overlay")
-    if fn is None:
-        empty_state("Power closure overlay unavailable.", kind="warning")
-        return
-    rep = fn(ctx.point_out, ctx.point_inp)
     kpi_row([
         ("Gross electric (MW)", _fin(rep.Pe_gross_MW)),
         ("Recirc (MW)", _fin(rep.Precirc_MW)),
@@ -96,6 +118,12 @@ def render_tab_plant_power(ctx: SuiteContext) -> None:
     stamp_label(rep.stamp_sha256)
     with ui.expansion("Breakdown (diagnostic)", icon="data_object").classes("w-full"):
         ui.code(json.dumps(rep.breakdown, indent=2, sort_keys=True), language="json")
+    with ui.expansion(
+        "Authority ledger",
+        icon="account_balance",
+        value=not ctx.session.suite_expert_view,
+    ).classes("w-full q-mt-sm"):
+        render_authority_ledger(ctx.point_out, expert=ctx.session.suite_expert_view)
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +132,28 @@ def render_tab_plant_power(ctx: SuiteContext) -> None:
 
 
 def render_tab_ops_thermal(ctx: SuiteContext) -> None:
+    fn_duty = ctx.overlays.get("ops_availability_overlay")
+    fn_thermal = ctx.overlays.get("thermal_network_diagnostics_client")
+    fn_traj = ctx.overlays.get("trajectory_diagnostics_client")
+    duty_rep = fn_duty(ctx.point_out, ctx.point_inp, availability=float(ctx.session.suite_availability)) if fn_duty else None
+    thermal_rep = fn_thermal(ctx.point_out, ctx.point_inp) if fn_thermal else None
+    traj_rep = fn_traj(ctx.point_out, ctx.point_inp) if fn_traj else None
+    n_therm_v = len(thermal_rep.violations) if thermal_rep and thermal_rep.violations else 0
+    n_traj_v = len(traj_rep.violations) if traj_rep and traj_rep.violations else 0
+    traj_incomplete = bool(getattr(traj_rep, "meta", {}) or {}).get("power_incomplete") if traj_rep else False
+    render_tab_summary_strip(
+        "THERMAL PASS" if n_therm_v == 0 and n_traj_v == 0 and not traj_incomplete else "OPS / THERMAL REVIEW",
+        detail=(
+            f"Thermal violations: {n_therm_v} · Trajectory violations: {n_traj_v}"
+            + (" · Net power incomplete on point" if traj_incomplete else "")
+        ),
+        kpis=[
+            ("Availability", f"{100.0 * ctx.session.suite_availability:.0f}%"),
+            ("Avg delivered (MW)", _fin(duty_rep.avg_delivered_MW) if duty_rep else "-"),
+            ("Annual energy (GWh)", _fin(duty_rep.annual_energy_GWh, ".1f") if duty_rep else "-"),
+        ] if duty_rep else None,
+    )
+
     open_duty = _expansion_defaults(ctx.session, panel_id="ops_duty", default_open=True)
 
     with ui.expansion("Plant availability sensitivity", icon="schedule", value=open_duty).classes("w-full"):
@@ -113,7 +163,7 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
         ).classes("text-caption q-mb-sm")
         fn = ctx.overlays.get("ops_availability_overlay")
         if fn is None:
-            empty_state("Operations overlay unavailable.", kind="warning")
+            empty_state("Operations overlay unavailable.", kind="warn")
         else:
 
             @ui.refreshable
@@ -143,7 +193,7 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
                 step=0.01,
                 value=ctx.session.suite_availability,
                 on_change=_on_av,
-            ).props('label="Availability (fraction)"')
+            ).props('label="Availability (0–1 fraction; KPIs show %)"')
             _duty_panel()
 
     with ui.expansion(
@@ -156,7 +206,7 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
         )
         fn = ctx.overlays.get("thermal_network_diagnostics_client")
         if fn is None:
-            empty_state("Thermal diagnostics unavailable.", kind="warning")
+            empty_state("Thermal diagnostics unavailable.", kind="warn")
         else:
             tr = fn(ctx.point_out, ctx.point_inp)
             stamp_label(tr.stamp_sha256)
@@ -174,10 +224,21 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
                     rows=tr.violations,
                 ).classes("w-full")
             else:
-                limits_ok = bool(getattr(tr, "meta", {}) or {})
+                inp = ctx.point_inp or {}
+                out = ctx.point_out or {}
+
+                def _has_limit(d: dict, key: str) -> bool:
+                    try:
+                        return math.isfinite(float(d.get(key)))
+                    except (TypeError, ValueError):
+                        return False
+
+                limits_configured = any(
+                    _has_limit(inp, k) or _has_limit(out, k) for k in ("T_fw_max_K", "T_div_max_K")
+                )
                 ui.label(
-                    "No thermal violations (within available limits)."
-                    if limits_ok
+                    "No thermal violations (within configured limits)."
+                    if limits_configured
                     else "No thermal limits configured — pass is not asserted."
                 ).classes("text-caption")
             with ui.expansion("Thermal metadata", icon="info").classes("w-full"):
@@ -191,30 +252,39 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
         ui.label("Deterministic pulse envelope — not a control solver.").classes("text-caption q-mb-sm")
         fn = ctx.overlays.get("trajectory_diagnostics_client")
         if fn is None:
-            empty_state("Trajectory diagnostics unavailable.", kind="warning")
+            empty_state("Trajectory diagnostics unavailable.", kind="warn")
         else:
             tr = fn(ctx.point_out, ctx.point_inp)
-            kpi_row([
-                ("Net peak (MW)", _fin(tr.meta.get("Pnet_peak_MW", 0.0))),
-                ("Net avg (MW)", _fin(tr.meta.get("Pnet_avg_MW", 0.0))),
-                ("Recirc peak (MW)", _fin(tr.meta.get("Precirc_peak_MW", 0.0))),
-                ("Recirc energy (MJ)", _fin(tr.meta.get("Erecirc_MJ", 0.0), ".1f")),
-            ])
-            stamp_label(tr.stamp_sha256)
-            _plot_lines(tr.t_s, {"P_net_MW": tr.Pe_net_MW, "P_recirc_MW": tr.Precirc_MW}, title="Pulse power")
-            if tr.violations:
-                ui.label("Trajectory violations detected.").classes("text-negative")
-                ui.table(
-                    columns=[
-                        {"name": k, "label": k, "field": k, "align": "left"}
-                        for k in tr.violations[0].keys()
-                    ]
-                    if tr.violations
-                    else [],
-                    rows=tr.violations,
-                ).classes("w-full")
+            if tr.meta.get("power_incomplete"):
+                empty_state(
+                    "Net electric power unavailable on this point — trajectory trace not meaningful.",
+                    kind="warn",
+                )
             else:
-                ui.label("No trajectory violations.").classes("text-positive text-caption")
+                kpi_row([
+                    ("Net peak (MW)", _fin(tr.meta.get("Pnet_peak_MW", 0.0))),
+                    ("Net avg (MW)", _fin(tr.meta.get("Pnet_avg_MW", 0.0))),
+                    ("Recirc peak (MW)", _fin(tr.meta.get("Precirc_peak_MW", 0.0))),
+                    ("Recirc energy (MJ)", _fin(tr.meta.get("Erecirc_MJ", 0.0), ".1f")),
+                ])
+                stamp_label(tr.stamp_sha256)
+                _plot_lines(tr.t_s, {"P_net_MW": tr.Pe_net_MW, "P_recirc_MW": tr.Precirc_MW}, title="Pulse power")
+                if tr.violations:
+                    ui.label("Trajectory violations detected.").classes("text-negative")
+                    ui.table(
+                        columns=[
+                            {"name": k, "label": k, "field": k, "align": "left"}
+                            for k in tr.violations[0].keys()
+                        ]
+                        if tr.violations
+                        else [],
+                        rows=tr.violations,
+                    ).classes("w-full")
+                else:
+                    ui.label("No trajectory violations.").classes("text-positive text-caption")
+            ui.label(
+                "Recirc peak proxies P_aux wallplug when split unavailable — diagnostic only."
+            ).classes("text-caption text-grey q-mt-xs")
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +293,24 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
 
 
 def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
+    fn = ctx.overlays.get("lifetime_and_fuel_overlay")
+    lr = fn(ctx.point_out, ctx.point_inp) if fn else None
+    if lr:
+        bind = lifetime_binding_summary(lr)
+        render_tab_summary_strip(
+            bind["posture"],
+            detail=(
+                f"Worst margin: {bind['worst_name']} ({bind['worst_margin']:.3f})"
+                if bind["binding"]
+                else "FW dpa, cycles, and TBR within configured budgets."
+            ),
+            kpis=[
+                ("FW dpa margin", _fin(lr.fw_dpa_margin)),
+                ("Cycle margin (yr proxy)", _fin(lr.cycles_margin)),
+                ("TBR margin", _fin(lr.tbr_margin, ".3f")),
+            ],
+        )
+
     with ui.expansion(
         "Lifetime & tritium budgets",
         icon="shield",
@@ -233,7 +321,7 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
         )
         fn = ctx.overlays.get("lifetime_and_fuel_overlay")
         if fn is None:
-            empty_state("Lifetime/fuel overlay unavailable.", kind="warning")
+            empty_state("Lifetime/fuel overlay unavailable.", kind="warn")
         else:
             lr = fn(ctx.point_out, ctx.point_inp)
             kpi_row([
@@ -244,13 +332,16 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
             kpi_row([
                 ("Cycles/yr", _fin(lr.cycles_per_year, ".0f")),
                 ("Cycles max", _fin(lr.cycles_max, ".0f")),
-                ("Cycle margin", _fin(lr.cycles_margin)),
+                ("Cycle margin (yr proxy)", _fin(lr.cycles_margin)),
             ])
             kpi_row([
                 ("TBR", _fin(lr.tbr, ".3f")),
                 ("TBR min", _fin(lr.tbr_min, ".3f")),
                 ("TBR margin", _fin(lr.tbr_margin, ".3f")),
             ])
+            bind = lifetime_binding_summary(lr)
+            if bind["binding"]:
+                ui.label(f"Binding: {', '.join(bind['binding'])}").classes("text-negative text-caption")
             stamp_label(lr.stamp_sha256)
             with ui.expansion("Overlay JSON", icon="data_object").classes("w-full"):
                 render_json_blob({
@@ -295,7 +386,7 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
             except Exception:
                 rt = None
         if not isinstance(rt, dict):
-            empty_state("Regime transition detector unavailable.", kind="warning")
+            empty_state("Regime transition detector unavailable.", kind="warn")
         else:
             ui.label(f"Source: {source}").classes("text-caption text-grey q-mb-xs")
             summary = str(rt.get("regime_summary", "") or "")
@@ -352,13 +443,27 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
         ).classes("text-caption text-grey q-mb-sm")
 
     def _run() -> None:
-        d = dict(ctx.point_inp or {})
-        if force_lib.value:
-            d["include_profile_family_v358"] = True
-        inp = PointInputs.from_dict(d)
-        rep = evaluate_profile_contracts_v362(inp, preset=str(preset.value), tier=str(tier.value))
-        ctx.session.profile_contracts_v362_last = rep.to_dict()
-        _pc_results.refresh()
+        if not try_acquire_suite_lock(ctx.session, "System Suite: Profile corners"):
+            return
+        log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ProfileCornersStart", {"preset": str(preset.value)})
+        try:
+            d = dict(ctx.point_inp or {})
+            if force_lib.value:
+                d["include_profile_family_v358"] = True
+            inp = PointInputs.from_dict(d)
+            rep = evaluate_profile_contracts_v362(inp, preset=str(preset.value), tier=str(tier.value))
+            ctx.session.profile_contracts_v362_last = rep.to_dict()
+            log_ui_event(
+                ctx.session,
+                SUITE_RUNLOCK_OWNER,
+                "ProfileCornersComplete",
+                {"robust": bool(rep.to_dict().get("robust_feasible"))},
+            )
+            _pc_results.refresh()
+        except Exception as exc:
+            ui.notify(f"Profile corners failed: {exc}", type="negative")
+        finally:
+            release_suite_lock(ctx.session)
 
     ui.button("Run profile corners", on_click=_run, color="primary").props("q-mb-sm")
 
@@ -366,7 +471,7 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
     def _pc_results() -> None:
         rep_d = ctx.session.profile_contracts_v362_last
         if not isinstance(rep_d, dict):
-            ui.label("Click Run profile corners to evaluate.").classes("text-caption")
+            empty_state("Run profile corners to evaluate C8/C16/C32 certification.", kind="info")
             return
         v_rob = bool(rep_d.get("robust_feasible"))
         v_opt = bool(rep_d.get("optimistic_feasible"))
@@ -430,18 +535,19 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
 
 
 def render_tab_envelope_robustness(ctx: SuiteContext) -> None:
-    if ctx.session.suite_teaching_mode:
-        ui.markdown(ENVELOPE_ROUTER).classes("text-caption q-mb-md")
+    render_tab_summary_strip(
+        "ENVELOPE ROBUSTNESS",
+        detail=envelope_posture_summary(ctx.session),
+    )
+    ui.markdown(ENVELOPE_ROUTER).classes("text-caption q-mb-md")
 
     with ui.expansion(
         "Quasi-static phase envelope",
         icon="timeline",
         value=_expansion_defaults(ctx.session, panel_id="env_phase", default_open=True),
     ).classes("w-full"):
-        from ui_nicegui.components.mode_scope import render_mode_scope
         from ui_nicegui.decks.point_designer.phase_envelopes import render_phase_envelopes
 
-        render_mode_scope("suite", default_open=False)
         render_phase_envelopes(ctx.session, ui_key_prefix="suite_phase_env", embedded=True)
 
     with ui.expansion(
@@ -545,7 +651,10 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             ui.notify(f"Export failed: {exc}", type="negative")
 
     async def _run_local() -> None:
+        if not try_acquire_suite_lock(ctx.session, "System Suite: Campaign batch"):
+            return
         _sync_spec()
+        log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "CampaignBatchStart", {})
         try:
             spec = await run.io_bound(parse_campaign_spec, ctx.session.suite_campaign_spec_json)
             cands = ctx.session.suite_campaign_candidates
@@ -555,6 +664,12 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             ctx.session.suite_campaign_summary = summary
             ctx.session.suite_campaign_results_preview = rows[:200]
             ctx.session.suite_campaign_jsonl_bytes = jsonl
+            log_ui_event(
+                ctx.session,
+                SUITE_RUNLOCK_OWNER,
+                "CampaignBatchComplete",
+                {"n_feasible": summary.get("n_feasible"), "n_total": summary.get("n_total")},
+            )
             ui.notify(
                 f"Batch complete: {summary.get('n_feasible', '?')}/{summary.get('n_total', '?')} feasible",
                 type="positive",
@@ -562,6 +677,8 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             _camp_results.refresh()
         except Exception as exc:
             ui.notify(f"Batch eval failed: {exc}", type="negative")
+        finally:
+            release_suite_lock(ctx.session)
 
     with ui.row().classes("gap-2 q-mb-sm"):
         ui.button("Generate candidates", icon="play_arrow", on_click=_generate).props("outline")
@@ -642,7 +759,7 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
 
     cases = list_parity_cases(suite_internal)
     if not cases:
-        empty_state("No benchmark cases found for this suite.", kind="warning")
+        empty_state("No benchmark cases found for this suite.", kind="warn")
         return
 
     case_ids = [c[0] for c in cases]
@@ -670,6 +787,8 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
     ui.upload(on_upload=_on_process_upload).props('accept=".json" auto-upload label="Optional PROCESS outputs JSON"')
 
     async def _run_one() -> None:
+        if not try_acquire_suite_lock(ctx.session, "System Suite: Parity case"):
+            return
         ctx.session.suite_parity_preset = str(preset.value)
         ctx.session.suite_parity_tier = str(tier.value)
         ctx.session.suite_parity_case = str(case_sel.value)
@@ -677,9 +796,11 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
         p = path_map.get(ctx.session.suite_parity_case)
         if not p:
             ui.notify("Case not found", type="negative")
+            release_suite_lock(ctx.session)
             return
         proc = {ctx.session.suite_parity_case: process_blob} if process_blob else {}
         ui.notify("Running benchmark case…", type="info")
+        log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ParityCaseStart", {"case": ctx.session.suite_parity_case})
         try:
             rep = await run.io_bound(
                 run_parity_suite,
@@ -690,16 +811,22 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
                 process_outputs_by_case=proc,
             )
             ctx.session.suite_parity_last_report = rep
+            log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ParityCaseComplete", {"n_cases": rep.get("n_cases", 1)})
             ui.notify("Case complete", type="positive")
             _parity_results.refresh()
         except Exception as exc:
             ui.notify(f"Parity run failed: {exc}", type="negative")
+        finally:
+            release_suite_lock(ctx.session)
 
     async def _run_all() -> None:
+        if not try_acquire_suite_lock(ctx.session, "System Suite: Parity suite"):
+            return
         ctx.session.suite_parity_preset = str(preset.value)
         ctx.session.suite_parity_tier = str(tier.value)
         paths = [c[1] for c in list_parity_cases(suite_internal)]
         ui.notify("Running full benchmark suite…", type="info")
+        log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ParitySuiteStart", {"suite": suite_internal, "n": len(paths)})
         try:
             rep = await run.io_bound(
                 run_parity_suite,
@@ -709,10 +836,13 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
                 tier=str(tier.value),
             )
             ctx.session.suite_parity_last_report = rep
+            log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ParitySuiteComplete", {"n_cases": rep.get("n_cases", len(paths))})
             ui.notify(f"Completed {rep.get('n_cases', len(paths))} case(s)", type="positive")
             _parity_results.refresh()
         except Exception as exc:
             ui.notify(f"Suite run failed: {exc}", type="negative")
+        finally:
+            release_suite_lock(ctx.session)
 
     with ui.row().classes("gap-2"):
         ui.button("Run selected case", icon="play_arrow", on_click=_run_one).props("color=primary")
@@ -724,6 +854,11 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
         if not isinstance(rep, dict):
             return
         rows = rep.get("summary_rows") or []
+        n_fail = sum(1 for r in rows if isinstance(r, dict) and str(r.get("status", "")).upper() in ("FAIL", "WARN"))
+        render_tab_summary_strip(
+            "PARITY PASS" if rows and n_fail == 0 else "PARITY REVIEW",
+            detail=f"{len(rows)} case(s) · {n_fail} need review",
+        )
         if rows:
             cols = list(rows[0].keys()) if isinstance(rows[0], dict) else []
             ui.table(
@@ -746,6 +881,19 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
 
 
 def render_tab_scenarios_exports(ctx: SuiteContext) -> None:
+    summary = ctx.session.suite_campaign_summary if isinstance(ctx.session.suite_campaign_summary, dict) else {}
+    render_tab_summary_strip(
+        "SCENARIOS & EXPORTS",
+        detail="Campaign packs, scenario presets, and benchmark parity for external optimizers.",
+        kpis=[
+            ("Campaign feasible", f"{summary.get('n_feasible', '-')}/{summary.get('n_total', '-')}"),
+            ("Pass rate", f"{100.0 * float(summary.get('pass_rate', 0.0)):.1f}%" if summary else "-"),
+        ] if summary else None,
+    )
+    render_export_bar(ctx.session)
+    with ui.expansion("Cross-deck handoffs", icon="share", value=True).classes("w-full q-mb-sm"):
+        render_suite_handoffs(ctx.session, ctx.point_out)
+
     with ui.expansion(
         "Scenario library",
         icon="library_books",
@@ -770,6 +918,22 @@ def render_tab_scenarios_exports(ctx: SuiteContext) -> None:
 
             sel.on("update:model-value", lambda: _preset_view.refresh())
             _preset_view()
+
+            def _copy_to_campaign() -> None:
+                if not sel.value or sel.value == "(select)":
+                    ui.notify("Select a scenario preset first.", type="warning")
+                    return
+                preset_d = get_preset(str(sel.value))
+                ctx.session.suite_campaign_spec_json = json.dumps(
+                    {"name": str(sel.value), "scenario_preset": preset_d},
+                    indent=2,
+                    sort_keys=True,
+                )
+                ui.notify("Preset copied to campaign spec — open Campaign bundle.", type="positive")
+
+            ui.button("Copy preset → campaign spec", icon="content_copy", on_click=_copy_to_campaign).props(
+                "flat outline q-mt-sm"
+            )
         except Exception as exc:
             ui.label(f"Scenario library unavailable: {exc}").classes("text-warning")
         with ui.expansion("Authority ladder (policy)", icon="policy").classes("w-full q-mt-sm"):

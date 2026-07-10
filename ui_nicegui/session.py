@@ -402,6 +402,7 @@ class DesignSession:
     suite_decision_state: str = "Plant closure & duty"
     suite_teaching_mode: bool = False
     suite_expert_view: bool = False
+    suite_running: bool = False
     # Control Room Provenance Phase 15
     cr_provenance_tab: str = "Studies & Protocol"
     cr_selected_run_id: str = ""

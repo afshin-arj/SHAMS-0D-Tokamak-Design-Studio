@@ -5,6 +5,8 @@ from nicegui import ui
 
 
 def empty_state(message: str, *, kind: str = "info") -> None:
+    if kind == "warning":
+        kind = "warn"
     color = {
         "info": "bg-blue-grey-1",
         "warn": "bg-orange-1",
