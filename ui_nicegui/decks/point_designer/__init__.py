@@ -33,7 +33,13 @@ from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.session import DesignSession
 
 
-def _refresh_all() -> None:
+def _pd_active(session: DesignSession) -> bool:
+    return session.active_deck == "Point Designer"
+
+
+def _refresh_all(session: DesignSession) -> None:
+    if not _pd_active(session):
+        return
     _render_hero.refresh()
     _render_workflow.refresh()
     _render_tab_body.refresh()
@@ -175,7 +181,7 @@ def render_point_designer(session: DesignSession) -> None:
                     ui.notify(f"Solver set Ip={ip:.4g} MA, fG={fg:.4g}", type="info")
                 except (TypeError, ValueError):
                     pass
-            _refresh_all()
+            _refresh_all(session)
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Evaluation failed: {exc}", type="negative")
@@ -192,6 +198,8 @@ def render_point_designer(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_workflow(session: DesignSession) -> None:
+    if not _pd_active(session):
+        return
     def _on_decision(e) -> None:
         state = str(e.value)
         session.pd_decision_state = state
@@ -229,6 +237,8 @@ def _render_workflow(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_hero(session: DesignSession) -> None:
+    if not _pd_active(session):
+        return
     from ui_nicegui.decks.point_designer.hero import render_hero
 
     ui.separator()
@@ -238,6 +248,8 @@ def _render_hero(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_tab_body(session: DesignSession, *, on_evaluate) -> None:
+    if not _pd_active(session):
+        return
     tab_key = normalize_pd_tab(session.pd_workflow_tab)
     if tab_key == "1 · Configure":
         render_configure(session, on_evaluate=on_evaluate, on_refresh=lambda: _render_tab_body.refresh())

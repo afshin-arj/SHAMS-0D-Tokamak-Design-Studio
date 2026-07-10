@@ -25,6 +25,26 @@ from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlo
 from ui_nicegui.session import DesignSession
 
 
+def _notify_mf_complete(n: int, *, require_feasible_only: bool) -> None:
+    if n > 0:
+        ui.notify(
+            f"Run complete — {n} archive candidates. Open **Workbench** tab to inspect.",
+            type="positive",
+        )
+        return
+    if require_feasible_only:
+        ui.notify(
+            "Run complete — no feasible candidates kept (0 archive rows). "
+            "Uncheck **Archive: keep feasible only** or widen bounds to inspect infeasible candidates.",
+            type="warning",
+        )
+        return
+    ui.notify(
+        "Run complete — 0 archive candidates. Try wider bounds or a different intent lens.",
+        type="warning",
+    )
+
+
 def render_machine_finder(
     session: DesignSession,
     *,
@@ -306,10 +326,7 @@ def render_machine_finder(
                 "MachineFinderComplete",
                 {"n_archive": n, "intent": intent_local},
             )
-            ui.notify(
-                f"Run complete — {n} archive candidates. Open **Workbench** tab to inspect.",
-                type="positive",
-            )
+            _notify_mf_complete(n, require_feasible_only=bool(session.forge_mf_require_feasible_only))
             if on_complete:
                 on_complete()
         except Exception as exc:
