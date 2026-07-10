@@ -29,10 +29,10 @@ def _fin(v: Any, fmt: str = ".2f") -> str:
 def try_acquire_suite_lock(session: DesignSession, task: str) -> bool:
     locked, existing, is_owner = runlock_status(SUITE_RUNLOCK_OWNER)
     if locked and not is_owner:
-        ui.notify(f"Blocked — {existing or 'another task'} is running.", type="warning")
+        ui.notify(f"Run lock busy: {existing or 'another task'}", type="warning")
         return False
     if not runlock_acquire(task, SUITE_RUNLOCK_OWNER):
-        ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+        ui.notify("Run lock busy (another deck is evaluating).", type="warning")
         return False
     session.suite_running = True
     return True

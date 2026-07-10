@@ -133,6 +133,28 @@ def render_tab_plant_power(ctx: SuiteContext) -> None:
 # ---------------------------------------------------------------------------
 
 
+@ui.refreshable
+def _render_duty_panel(ctx: SuiteContext) -> None:
+    fn = ctx.overlays.get("ops_availability_overlay")
+    if fn is None:
+        empty_state("Operations overlay unavailable.", kind="warn")
+        return
+    rep = fn(
+        ctx.point_out,
+        ctx.point_inp,
+        availability=float(ctx.session.suite_availability),
+    )
+    kpi_row([
+        ("Duty cycle", f"{100.0 * rep.duty_cycle:.1f}%"),
+        ("Availability", f"{100.0 * rep.availability:.1f}%"),
+        ("Avg delivered (MW)", _fin(rep.avg_delivered_MW)),
+        ("Annual energy (GWh)", _fin(rep.annual_energy_GWh, ".1f")),
+    ])
+    stamp_label(rep.stamp_sha256)
+    with ui.expansion("Breakdown (diagnostic)", icon="data_object").classes("w-full"):
+        ui.code(json.dumps(rep.breakdown, indent=2, sort_keys=True), language="json")
+
+
 def render_tab_ops_thermal(ctx: SuiteContext) -> None:
     fn_duty = ctx.overlays.get("ops_availability_overlay")
     fn_thermal = ctx.overlays.get("thermal_network_diagnostics_client")
@@ -143,11 +165,30 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
     n_therm_v = len(thermal_rep.violations) if thermal_rep and thermal_rep.violations else 0
     n_traj_v = len(traj_rep.violations) if traj_rep and traj_rep.violations else 0
     traj_incomplete = bool(getattr(traj_rep, "meta", {}) or {}).get("power_incomplete") if traj_rep else False
+
+    def _has_thermal_limit(d: dict, key: str) -> bool:
+        try:
+            return math.isfinite(float(d.get(key)))
+        except (TypeError, ValueError):
+            return False
+
+    _inp = ctx.point_inp or {}
+    _out = ctx.point_out or {}
+    thermal_limits_configured = any(
+        _has_thermal_limit(_inp, k) or _has_thermal_limit(_out, k) for k in ("T_fw_max_K", "T_div_max_K")
+    )
+    if traj_incomplete or n_therm_v > 0 or n_traj_v > 0:
+        thermal_posture = "OPS / THERMAL REVIEW"
+    elif not thermal_limits_configured:
+        thermal_posture = "THERMAL LIMITS N/A"
+    else:
+        thermal_posture = "THERMAL PASS"
     render_tab_summary_strip(
-        "THERMAL PASS" if n_therm_v == 0 and n_traj_v == 0 and not traj_incomplete else "OPS / THERMAL REVIEW",
+        thermal_posture,
         detail=(
             f"Thermal violations: {n_therm_v} · Trajectory violations: {n_traj_v}"
             + (" · Net power incomplete on point" if traj_incomplete else "")
+            + ("" if thermal_limits_configured else " · No T_fw/T_div limits configured")
         ),
         kpis=[
             ("Availability", f"{100.0 * ctx.session.suite_availability:.0f}%"),
@@ -163,40 +204,17 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
         ui.label(
             "Scales delivered energy from the frozen point — does not re-run plasma physics."
         ).classes("text-caption q-mb-sm")
-        fn = ctx.overlays.get("ops_availability_overlay")
-        if fn is None:
-            empty_state("Operations overlay unavailable.", kind="warn")
-        else:
-
-            @ui.refreshable
-            def _duty_panel() -> None:
-                rep = fn(
-                    ctx.point_out,
-                    ctx.point_inp,
-                    availability=float(ctx.session.suite_availability),
-                )
-                kpi_row([
-                    ("Duty cycle", f"{100.0 * rep.duty_cycle:.1f}%"),
-                    ("Availability", f"{100.0 * rep.availability:.1f}%"),
-                    ("Avg delivered (MW)", _fin(rep.avg_delivered_MW)),
-                    ("Annual energy (GWh)", _fin(rep.annual_energy_GWh, ".1f")),
-                ])
-                stamp_label(rep.stamp_sha256)
-                with ui.expansion("Breakdown (diagnostic)", icon="data_object").classes("w-full"):
-                    ui.code(json.dumps(rep.breakdown, indent=2, sort_keys=True), language="json")
-
-            def _on_av(e) -> None:
-                ctx.session.suite_availability = float(e.value)
-                _duty_panel.refresh()
-
-            ui.slider(
-                min=0.0,
-                max=1.0,
-                step=0.01,
-                value=ctx.session.suite_availability,
-                on_change=_on_av,
-            ).props('label="Availability (0–1 fraction; KPIs show %)"')
-            _duty_panel()
+        ui.slider(
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            value=ctx.session.suite_availability,
+            on_change=lambda e: (
+                setattr(ctx.session, "suite_availability", float(e.value)),
+                _render_duty_panel.refresh(),
+            ),
+        ).props('label="Availability (0–1 fraction; KPIs show %)"')
+        _render_duty_panel(ctx)
 
     with ui.expansion(
         "Thermal network trace",
@@ -632,6 +650,10 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
         "Campaign specification (JSON)",
         value=ctx.session.suite_campaign_spec_json,
     ).classes("w-full").props("rows=12")
+    ui.label(
+        "Default generator.n is 16 (QA-safe). Edit generator.n before **Run batch locally** "
+        "if you need a larger campaign — each candidate is re-evaluated by the frozen evaluator."
+    ).classes("text-caption text-grey q-mb-sm")
 
     def _sync_spec() -> None:
         ctx.session.suite_campaign_spec_json = str(spec_area.value or "")

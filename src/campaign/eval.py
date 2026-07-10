@@ -92,7 +92,34 @@ def evaluate_campaign_candidates(
                 continue
             merged[k] = v
 
-        pi = PointInputs(**merged)
+        try:
+            pi = PointInputs(**merged)
+        except (TypeError, ValueError) as ex:
+            art = {
+                "schema_version": "shams_run_artifact.v1",
+                "kind": "shams_run_artifact",
+                "inputs": merged,
+                "outputs": {},
+                "constraints": [],
+                "kpis": {"feasible_hard": False, "min_hard_margin": float("nan")},
+                "error": f"SCHEMA_INVALID: {ex}",
+                "first_failure": "SCHEMA_INVALID",
+            }
+            art = _annotate_summary_fields(art, intent=spec.intent)
+            rows.append(
+                CampaignEvalRow(
+                    cid=cid,
+                    inputs=merged,
+                    feasible_hard=False,
+                    verdict="FAIL",
+                    dominant_mechanism="SCHEMA_INVALID",
+                    worst_hard_margin=None,
+                    artifact=art if inc_full else None,
+                )
+            )
+            mech_hist["SCHEMA_INVALID"] = int(mech_hist.get("SCHEMA_INVALID", 0)) + 1
+            continue
+
         evr = ev.evaluate(pi)
         if not evr.ok:
             art: Dict[str, Any] = {

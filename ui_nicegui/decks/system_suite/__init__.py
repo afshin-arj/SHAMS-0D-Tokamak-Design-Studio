@@ -75,16 +75,22 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
 @ui.refreshable
 def _render_tab_content(session: DesignSession, ctx: suite_tabs.SuiteContext) -> None:
     step = normalize_suite_tab(session.suite_workflow_step)
-    if step == "1 · Plant & Power":
-        suite_tabs.render_tab_plant_power(ctx)
-    elif step == "2 · Operations & Thermal":
-        suite_tabs.render_tab_ops_thermal(ctx)
-    elif step == "3 · Lifetime & Regimes":
-        suite_tabs.render_tab_lifetime_regimes(ctx)
-    elif step == "4 · Envelope Robustness":
-        suite_tabs.render_tab_envelope_robustness(ctx)
-    elif step == "5 · Scenarios & Exports":
-        suite_tabs.render_tab_scenarios_exports(ctx)
+    try:
+        if step == "1 · Plant & Power":
+            suite_tabs.render_tab_plant_power(ctx)
+        elif step == "2 · Operations & Thermal":
+            suite_tabs.render_tab_ops_thermal(ctx)
+        elif step == "3 · Lifetime & Regimes":
+            suite_tabs.render_tab_lifetime_regimes(ctx)
+        elif step == "4 · Envelope Robustness":
+            suite_tabs.render_tab_envelope_robustness(ctx)
+        elif step == "5 · Scenarios & Exports":
+            suite_tabs.render_tab_scenarios_exports(ctx)
+        else:
+            empty_state(f"Unknown System Suite tab: {step}", kind="warn")
+    except Exception as exc:
+        empty_state(f"System Suite tab failed to render: {exc}", kind="error")
+        ui.label(str(exc)).classes("text-negative text-caption")
 
 
 def render_system_suite(session: DesignSession) -> None:
@@ -159,6 +165,7 @@ def render_system_suite(session: DesignSession) -> None:
         tab = DECISION_TO_TAB.get(state)
         if tab and session.suite_teaching_mode:
             session.suite_workflow_step = tab
+            _render_tab_help.refresh()
             _render_tab_content.refresh()
 
     ui.select(
@@ -175,18 +182,23 @@ def render_system_suite(session: DesignSession) -> None:
         ui.markdown(banner).classes("text-caption q-mb-sm")
 
     session.suite_workflow_step = normalize_suite_tab(session.suite_workflow_step)
-    step = session.suite_workflow_step
 
     ui.toggle(
         SUITE_TABS,
-        value=step,
+        value=session.suite_workflow_step,
         on_change=lambda e: (
             setattr(session, "suite_workflow_step", normalize_suite_tab(str(e.value))),
+            _render_tab_help.refresh(),
             _render_tab_content.refresh(),
         ),
     ).classes("w-full q-mb-xs")
+    _render_tab_help(session)
+
+    _render_tab_content(session, ctx)
+
+
+@ui.refreshable
+def _render_tab_help(session: DesignSession) -> None:
     ui.label(TAB_HELP.get(normalize_suite_tab(session.suite_workflow_step), "")).classes(
         "text-caption text-grey q-mb-md"
     )
-
-    _render_tab_content(session, ctx)
