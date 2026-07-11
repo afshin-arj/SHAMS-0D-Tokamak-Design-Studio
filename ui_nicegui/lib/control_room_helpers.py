@@ -18,13 +18,15 @@ CR_SECTIONS = [
 ]
 
 ORIENT_TABS = ["Launchpad", "Vocabulary", "Reference Gallery", "Scope"]
-CONST_TABS = ["Model Ledger", "Capability Matrix", "Assumptions", "Constraints", "Docs Library"]
-DIAG_TABS = ["Gatechecks", "Interoperability", "Session", "Non-Feasibility Guide"]
+CONST_TABS = ["Model Ledger", "Capability Matrix", "Assumptions", "Constraints", "Constraint Provenance", "Docs Library"]
+DIAG_TABS = ["Gatechecks", "Interoperability", "Validation Envelopes", "Session", "Non-Feasibility Guide"]
 
 CHRONICLE_TABS = [
     "Variable Registry",
     "Sensitivity Explorer",
     "Feasibility Map",
+    "Knob Trade-Space",
+    "Certified Search",
     "Interval Narrowing",
     "Local Forensics",
     "Study Dashboard",

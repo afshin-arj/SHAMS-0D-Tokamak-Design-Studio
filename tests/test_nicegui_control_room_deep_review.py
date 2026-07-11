@@ -80,3 +80,59 @@ def test_interop_check_cmp_slot_honest() -> None:
     rep = interop_check(s)
     cmp_check = next(c for c in rep["checks"] if c["name"] == "cmp_slot_a")
     assert cmp_check["ok"] is False
+
+
+def test_chronicle_and_diag_p2_tabs() -> None:
+    from ui_nicegui.lib.control_room_helpers import CHRONICLE_TABS, DIAG_TABS
+
+    assert "Knob Trade-Space" in CHRONICLE_TABS
+    assert "Certified Search" in CHRONICLE_TABS
+    assert "Validation Envelopes" in DIAG_TABS
+    assert len(CHRONICLE_TABS) >= 8
+
+
+def test_constraint_provenance_rows() -> None:
+    from ui_nicegui.lib.cr_chronicle_helpers import constraint_provenance_rows
+
+    art = {
+        "constraints": [
+            {
+                "name": "q95",
+                "group": "stability",
+                "failed": True,
+                "fingerprint": "abc123",
+                "maturity": "proxy",
+            }
+        ]
+    }
+    rows = constraint_provenance_rows(art)
+    assert rows[0]["name"] == "q95"
+    assert rows[0]["fingerprint"] == "abc123"
+
+
+def test_validation_envelope_report_smoke() -> None:
+    from ui_nicegui.lib.cr_chronicle_helpers import validation_envelope_report
+    from validation.envelopes import default_envelopes
+
+    env_name = next(iter(default_envelopes().keys()))
+    rep = validation_envelope_report(env_name, {"Q_DT_eqv": 1.0, "beta_N": 2.0})
+    assert "rows" in rep
+    assert isinstance(rep["rows"], list)
+
+
+def test_flatten_certified_search_table_rows() -> None:
+    from ui_nicegui.lib.cr_chronicle_helpers import flatten_certified_search_table_rows
+
+    art = {
+        "schema_version": "certified_search_orchestrator_evidence.v3",
+        "stages": [
+            {
+                "name": "stage1",
+                "records": [{"i": 0, "verdict": "PASS", "score": 1.0, "x": {"Ip_MA": 5.0}, "evidence": {}}],
+            }
+        ],
+    }
+    rows = flatten_certified_search_table_rows(art)
+    assert len(rows) == 1
+    assert rows[0]["verdict"] == "PASS"
+    assert rows[0]["Ip_MA"] == 5.0

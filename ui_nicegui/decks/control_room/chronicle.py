@@ -7,6 +7,7 @@ from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.decks.control_room import certified_search, knob_trade_space
 from ui_nicegui.lib.control_room_helpers import CHRONICLE_TABS, report_to_json_bytes
 from ui_nicegui.lib.cr_artifacts_helpers import collect_session_artifacts
 from ui_nicegui.lib.cr_chronicle_helpers import (
@@ -49,6 +50,10 @@ def _panel(session: DesignSession) -> None:
         _sensitivity(session)
     elif tab == "Feasibility Map":
         _feasibility_map(session)
+    elif tab == "Knob Trade-Space":
+        knob_trade_space.render_knob_trade_space(session)
+    elif tab == "Certified Search":
+        certified_search.render_certified_search(session)
     elif tab == "Interval Narrowing":
         _interval_narrowing(session)
     elif tab == "Local Forensics":
@@ -201,8 +206,7 @@ def _interval_narrowing(session: DesignSession) -> None:
     art = session.v340_cert_search_last
     if not isinstance(art, dict):
         empty_state(
-            "Requires a **Certified Search** artifact (`v340_cert_search_last`). "
-            "Import a certified-search JSON artifact or run certified search via the legacy Streamlit path.",
+            "Requires a **Certified Search** artifact. Run **Chronicle → Certified Search** or upload JSON.",
             kind="info",
         )
         return

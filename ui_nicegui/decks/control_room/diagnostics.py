@@ -4,6 +4,7 @@ from __future__ import annotations
 from nicegui import ui
 from nicegui import run
 
+from ui_nicegui.decks.control_room import validation_envelopes
 from ui_nicegui.lib.control_room_helpers import (
     DIAG_TABS,
     hygiene_scan,
@@ -110,6 +111,9 @@ This panel performs a lightweight hygiene scan of the working tree.
                 "shams_contract_validator.json",
             ).props("flat")
 
+    elif tab == "Validation Envelopes":
+        validation_envelopes.render_validation_envelopes(session)
+
     elif tab == "Session":
         ui.label("Session debug").classes("text-subtitle2")
         ui.label(f"Version: {read_version()}").classes("text-caption")
@@ -118,7 +122,7 @@ This panel performs a lightweight hygiene scan of the working tree.
             for k, v in snap.items():
                 ui.label(f"{k}: {v}").classes("text-caption")
 
-    else:
+    elif tab == "Non-Feasibility Guide":
         _non_feasibility_guide(session)
 
 

@@ -135,3 +135,292 @@ def list_variable_registry_keys() -> List[str]:
         except ImportError:
             return []
     return sorted({str(v.get("key", "")) for v in VARIABLES if v.get("key")})
+
+
+def evaluate_knob_trade_grid(
+    base,
+    *,
+    kx: str,
+    ky: str,
+    x_span: float,
+    y_span: float,
+    nx: int,
+    ny: int,
+    patch: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """Evaluate a 2-knob feasibility grid around the base point (frozen truth only)."""
+    from dataclasses import replace
+
+    from ui_nicegui.evaluate import ui_evaluate
+
+    try:
+        from constraints.constraints import evaluate_constraints
+    except ImportError:
+        from src.constraints.constraints import evaluate_constraints
+
+    pi = base
+    if patch:
+        pi = replace(base, **{k: float(v) for k, v in patch.items() if hasattr(base, k)})
+
+    def _getv(obj, key: str) -> float:
+        return float(getattr(obj, key))
+
+    def _setv(obj, key: str, val: float):
+        return replace(obj, **{key: float(val)})
+
+    x0 = _getv(pi, kx)
+    y0 = _getv(pi, ky)
+    nx = max(2, int(nx))
+    ny = max(2, int(ny))
+    xs = [x0 - x_span + (2 * x_span * i / (nx - 1)) for i in range(nx)]
+    ys = [y0 - y_span + (2 * y_span * j / (ny - 1)) for j in range(ny)]
+    rows: List[Dict[str, Any]] = []
+    for xv in xs:
+        for yv in ys:
+            cand = _setv(_setv(pi, kx, xv), ky, yv)
+            try:
+                out = ui_evaluate(cand, origin="control_room_knob_grid")
+                cons = evaluate_constraints(out, point_inputs=cand)
+                cons_json = [
+                    {
+                        "name": getattr(c, "name", ""),
+                        "failed": not bool(getattr(c, "passed", True)),
+                        "passed": bool(getattr(c, "passed", True)),
+                    }
+                    for c in cons
+                ]
+                ok = all(not bool(c.get("failed")) for c in cons_json)
+                top = next((c.get("name") for c in cons_json if c.get("failed")), None)
+                rows.append(
+                    {
+                        kx: float(xv),
+                        ky: float(yv),
+                        "feasible": bool(ok),
+                        "top_blocker": top,
+                        "Q": float(out.get("Q_DT_eqv", out.get("Q", float("nan")))),
+                        "Pfus_MW": float(out.get("P_fus_MW", out.get("Pfus_MW", float("nan")))),
+                    }
+                )
+            except Exception:
+                rows.append(
+                    {
+                        kx: float(xv),
+                        ky: float(yv),
+                        "feasible": False,
+                        "top_blocker": "eval_error",
+                        "Q": float("nan"),
+                        "Pfus_MW": float("nan"),
+                    }
+                )
+    return rows
+
+
+def flatten_certified_search_table_rows(art: dict) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for stg in art.get("stages") or []:
+        if not isinstance(stg, dict):
+            continue
+        for r in stg.get("records") or []:
+            if not isinstance(r, dict):
+                continue
+            row = {
+                "stage": stg.get("name"),
+                "i": r.get("i"),
+                "verdict": r.get("verdict"),
+                "score": r.get("score"),
+            }
+            x = r.get("x") or {}
+            if isinstance(x, dict):
+                row.update(x)
+            ev = r.get("evidence") or {}
+            if isinstance(ev, dict):
+                for k, v in ev.items():
+                    row[f"e_{k}"] = v
+            rows.append(row)
+    return rows
+
+
+def run_orchestrated_certified_search_nicegui(
+    base,
+    *,
+    variables: List[Dict[str, float]],
+    budget: int,
+    seed: int,
+    method: str,
+    objective: str,
+    two_stage: bool,
+    stage2_budget_frac: float,
+    stage2_shrink: float,
+    stage2_method: str,
+    insert_surr: bool,
+    surr_frac: float,
+    surr_pool_mult: int,
+    surr_kappa: float,
+    surr_ridge: float,
+    mode: str,
+    pareto_objectives: Optional[List[Dict[str, str]]] = None,
+    max_frontier: int = 30,
+    filter_mirage: bool = True,
+) -> dict:
+    """Run certified search orchestrator (external to frozen truth)."""
+    from dataclasses import replace
+
+    from solvers.budgeted_search import SearchVar
+    from solvers.certified_search_orchestrator import (
+        OrchestratorSpec,
+        ParetoObjective,
+        SearchStage,
+        run_orchestrated_certified_pareto_search,
+        run_orchestrated_certified_search,
+    )
+
+    from ui_nicegui.evaluate import ui_evaluate
+
+    try:
+        from constraints.constraints import evaluate_constraints
+    except ImportError:
+        from src.constraints.constraints import evaluate_constraints
+
+    vars_ = [
+        SearchVar(name=str(v["name"]), lo=float(v["lo"]), hi=float(v["hi"]))
+        for v in variables
+    ]
+
+    def _builder(b, overrides):
+        return replace(b, **{k: float(v) for k, v in overrides.items()})
+
+    def _verifier(inp_obj):
+        out = ui_evaluate(inp_obj, origin="certified_search_verifier")
+        cons = evaluate_constraints(out, point_inputs=inp_obj)
+        try:
+            from constraints.bookkeeping import summarize as _summarize_constraints
+
+            _cs = _summarize_constraints(cons)
+            _min_margin_frac = (
+                float(_cs.worst_hard_margin_frac) if _cs.worst_hard_margin_frac is not None else float("nan")
+            )
+            _worst_hard = str(_cs.worst_hard or "")
+        except Exception:
+            _min_margin_frac = float("nan")
+            _worst_hard = ""
+        ok = all(bool(getattr(c, "passed", True)) for c in cons)
+        score = float(out.get(objective, 0.0)) if ok else float("-inf")
+        evidence = {
+            "objective": objective,
+            "objective_value": float(out.get(objective, float("nan"))),
+            "min_margin_frac": _min_margin_frac,
+            "worst_hard": _worst_hard,
+            "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
+            "n_failed": int(sum(1 for c in cons if not bool(getattr(c, "passed", True)))),
+            "top_blocker": next((getattr(c, "name", None) for c in cons if not bool(getattr(c, "passed", True))), None),
+        }
+        return ("PASS" if ok else "FAIL"), score, evidence
+
+    b1 = int(max(1, round(float(budget) * (1.0 - float(stage2_budget_frac)))))
+    b2 = int(max(0, round(float(budget) * float(stage2_budget_frac))))
+    bs = int(max(0, round(float(budget) * float(surr_frac)))) if insert_surr else 0
+    b2 = int(min(int(b2), int(max(0, budget - 1))))
+    bs = int(min(int(bs), int(max(0, budget - 1 - b2))))
+    b1 = int(max(1, int(budget) - int(b2) - int(bs)))
+
+    stages = [SearchStage(name="stage1", method=str(method), budget=int(b1), seed=int(seed), local_refine=False)]
+    if insert_surr and bs > 0:
+        stages.append(
+            SearchStage(
+                name="surrogate",
+                method="surrogate",
+                budget=int(bs),
+                seed=int(seed + 1),
+                local_refine=False,
+                surrogate_pool_mult=int(surr_pool_mult),
+                surrogate_kappa=float(surr_kappa),
+                surrogate_ridge_alpha=float(surr_ridge),
+                surrogate_feas_margin_key="min_margin_frac",
+            )
+        )
+    if two_stage and b2 > 0:
+        stages.append(
+            SearchStage(
+                name="stage2",
+                method=str(stage2_method),
+                budget=int(b2),
+                seed=int(seed + (2 if (insert_surr and bs > 0) else 1)),
+                local_refine=True,
+                local_shrink=float(stage2_shrink),
+            )
+        )
+
+    spec = OrchestratorSpec(variables=tuple(vars_), stages=tuple(stages))
+    if mode == "pareto":
+        objs = [
+            ParetoObjective(key=str(o["key"]), sense=str(o["sense"]))
+            for o in (pareto_objectives or [{"key": "R0_m", "sense": "min"}])
+        ]
+
+        def _eval_fn(inp_obj):
+            return ui_evaluate(inp_obj, origin="pareto_frontier_v405")
+
+        def _cons_fn(out_obj, inp_obj):
+            return evaluate_constraints(out_obj, point_inputs=inp_obj)
+
+        return run_orchestrated_certified_pareto_search(
+            base_inputs=base,
+            spec=spec,
+            objectives=objs,
+            builder=_builder,
+            evaluator_fn=_eval_fn,
+            constraints_fn=_cons_fn,
+            max_frontier=int(max_frontier),
+            filter_mirage=bool(filter_mirage),
+        )
+
+    return run_orchestrated_certified_search(base, spec, verifier=_verifier, builder=_builder)
+
+
+def validation_envelope_report(envelope_name: str, outputs: dict) -> Dict[str, Any]:
+    from validation.envelopes import default_envelopes
+
+    envs = default_envelopes()
+    env = envs[envelope_name]
+    report = env.check(outputs)
+    rows = []
+    n_fail = 0
+    for k, r in report.items():
+        if not r.get("ok"):
+            n_fail += 1
+        rows.append(
+            {
+                "metric": k,
+                "value": r.get("value"),
+                "lo": r.get("lo"),
+                "hi": r.get("hi"),
+                "ok": bool(r.get("ok")),
+            }
+        )
+    return {"envelope": envelope_name, "notes": env.notes, "rows": rows, "n_fail": n_fail}
+
+
+def constraint_provenance_rows(art: dict) -> List[Dict[str, Any]]:
+    cons = art.get("constraints") if isinstance(art.get("constraints"), list) else []
+    rows: List[Dict[str, Any]] = []
+    for c in cons:
+        if not isinstance(c, dict):
+            continue
+        rows.append(
+            {
+                "group": c.get("group", c.get("mechanism_group")),
+                "name": c.get("name", c.get("id")),
+                "failed": c.get("failed"),
+                "soft_failed": c.get("soft_failed"),
+                "severity": c.get("severity"),
+                "value": c.get("value"),
+                "limit": c.get("limit"),
+                "margin": c.get("margin"),
+                "margin_frac": c.get("margin_frac"),
+                "units": c.get("units"),
+                "fingerprint": c.get("fingerprint"),
+                "provenance_fingerprint": c.get("provenance_fingerprint"),
+                "maturity": c.get("maturity"),
+            }
+        )
+    return rows

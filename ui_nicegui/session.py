@@ -510,6 +510,11 @@ class DesignSession:
     cr_sensitivity_knobs: list[str] = field(default_factory=list)
     cr_sensitivity_outputs: list[str] = field(default_factory=list)
     cr_forensics_last: Optional[dict[str, Any]] = None
+    cr_knob_grid_last: Optional[dict[str, Any]] = None
+    cr_cprov_sel: str = ""
+    cr_validation_env: str = ""
+    cr_validation_report: Optional[dict[str, Any]] = None
+    cr_invariants_report: Optional[dict[str, Any]] = None
     v340_cert_search_last: Optional[dict[str, Any]] = None
     v343_interval_narrowing_evidence: Optional[dict[str, Any]] = None
     # Control Room

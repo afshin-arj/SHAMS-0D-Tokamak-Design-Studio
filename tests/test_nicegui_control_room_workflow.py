@@ -27,6 +27,7 @@ def test_cr_workflow_tabs() -> None:
 def test_constitution_and_artifact_tabs_extended() -> None:
     assert "Assumptions" in CONST_TABS
     assert "Constraints" in CONST_TABS
+    assert "Constraint Provenance" in CONST_TABS
     assert "Benchmark Reference" in ARTIFACT_TABS
 
 

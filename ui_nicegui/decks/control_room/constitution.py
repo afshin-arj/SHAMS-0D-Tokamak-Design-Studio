@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from ui_nicegui.decks.control_room import assumptions_panel, constraints_governance
+from ui_nicegui.decks.control_room import assumptions_panel, constraint_provenance, constraints_governance
 from ui_nicegui.lib.control_room_helpers import CONST_TABS, list_docs, read_capability_matrix, read_doc
 from ui_nicegui.session import DesignSession
 
@@ -43,6 +43,8 @@ def _panel(session: DesignSession) -> None:
         assumptions_panel.render_assumptions_panel(session)
     elif tab == "Constraints":
         constraints_governance.render_constraints_governance(session)
+    elif tab == "Constraint Provenance":
+        constraint_provenance.render_constraint_provenance(session)
     else:
         ui.label("Documentation library").classes("text-subtitle2")
         docs = list_docs()
