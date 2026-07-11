@@ -100,14 +100,46 @@ def test_invalidate_mode_caches_clears_compare_slots() -> None:
 def test_helm_console_exports() -> None:
     from ui_nicegui.components.helm_console import helm_status_caption, render_helm_console
     from ui_nicegui.components.helm_theme import HELM_DRAWER_CLASS, inject_helm_drawer_theme
-    from ui_nicegui.components.helm_workflow_panel import render_workflow_compass
+    from ui_nicegui.components.helm_workflow_panel import (
+        render_deck_navigation,
+        render_workflow_compass,
+        _render_group_deck_buttons,
+    )
 
     assert callable(render_helm_console)
     assert callable(render_workflow_compass)
+    assert callable(render_deck_navigation)
+    assert callable(_render_group_deck_buttons)
     assert callable(inject_helm_drawer_theme)
     assert "helm-drawer" in HELM_DRAWER_CLASS
     s = DesignSession()
     assert "Ready" in helm_status_caption(s)
+
+
+def test_active_helm_group_is_pinned_not_expansion() -> None:
+    """D9-003: active nav group must not use collapsible expansion (re-click cannot hide decks)."""
+    import inspect
+
+    from ui_nicegui.components import helm_workflow_panel as hwp
+
+    src = inspect.getsource(hwp.render_deck_navigation)
+    assert "helm-nav-group-active" in src
+    assert "active_group" in src
+    assert "ui.column()" in src
+    # Inactive groups remain expansions; active path must not only use default-opened
+    assert "default-opened" not in src
+
+
+def test_pub_suite_handoff_shortcut_export() -> None:
+    from ui_nicegui.lib.pub_helpers import (
+        handoff_to_system_suite,
+        render_pub_handoffs,
+        render_pub_suite_handoff_shortcut,
+    )
+
+    assert callable(handoff_to_system_suite)
+    assert callable(render_pub_suite_handoff_shortcut)
+    assert callable(render_pub_handoffs)
 
 
 def test_dsg_session_bootstrap() -> None:

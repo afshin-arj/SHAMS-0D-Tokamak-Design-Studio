@@ -8,7 +8,6 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
-from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.pub_benchmark_extended_helpers import (
     compare_crosscode,
     crosscode_clause_rows,
@@ -29,11 +28,13 @@ def render_crosscode_constitutions(
         "against SHAMS intent constitutions. Does **not** execute PROCESS/Bluemira. "
         "For numeric PROCESS parity cases, use **System Suite → Tab 5 · Benchmark parity**."
     ).classes("text-caption q-mb-sm")
+    from ui_nicegui.lib.pub_helpers import handoff_to_system_suite
+
     ui.button(
         "Open System Suite (numeric parity)",
         icon="fact_check",
-        on_click=lambda: switch_deck("System Suite"),
-    ).props("flat outline q-mb-sm")
+        on_click=lambda: handoff_to_system_suite(session),
+    ).props("flat outline q-mb-sm data-testid=pb-crosscode-open-suite")
 
     items = list_crosscode_items()
     if not items:

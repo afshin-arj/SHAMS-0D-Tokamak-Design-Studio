@@ -83,17 +83,34 @@ def render_deck_navigation(
         refresh_status()
 
     for group_title, caption, decks in groups:
-        expanded = session.active_deck in decks
-        exp = ui.expansion(group_title, icon="chevron_right").classes("w-full helm-nav-group overflow-hidden")
-        if expanded:
-            exp.props("default-opened")
-        with exp:
-            ui.label(caption).classes("text-caption q-mb-xs")
-            for deck in decks:
-                active = deck == session.active_deck
-                label = deck_nav_short_label(deck)
-                btn = ui.button(label, on_click=lambda d=deck: _go(d)).props(
-                    "flat align=left dense no-caps"
-                ).classes("w-full helm-deck-btn")
-                if active:
-                    btn.classes(add="helm-deck-btn-active")
+        active_group = session.active_deck in decks
+        # Active phase stays pinned open — re-clicking the header must not collapse
+        # the deck list (QA harness / accidental toggle). Inactive phases stay expandable.
+        if active_group:
+            with ui.column().classes(
+                "w-full helm-nav-group helm-nav-group-active overflow-hidden q-mb-xs"
+            ).props("data-testid=helm-nav-group-active"):
+                ui.label(group_title).classes("text-body2 text-weight-medium")
+                ui.label(caption).classes("text-caption q-mb-xs")
+                _render_group_deck_buttons(decks, session, _go)
+        else:
+            with ui.expansion(group_title, icon="chevron_right", value=False).classes(
+                "w-full helm-nav-group overflow-hidden"
+            ).props("data-testid=helm-nav-group"):
+                ui.label(caption).classes("text-caption q-mb-xs")
+                _render_group_deck_buttons(decks, session, _go)
+
+
+def _render_group_deck_buttons(
+    decks: list[str],
+    session: DesignSession,
+    go: Callable[[str], None],
+) -> None:
+    for deck in decks:
+        active = deck == session.active_deck
+        label = deck_nav_short_label(deck)
+        btn = ui.button(label, on_click=lambda d=deck: go(d)).props(
+            "flat align=left dense no-caps"
+        ).classes("w-full helm-deck-btn")
+        if active:
+            btn.classes(add="helm-deck-btn-active")

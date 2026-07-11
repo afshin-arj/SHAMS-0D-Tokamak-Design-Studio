@@ -23,7 +23,11 @@ from ui_nicegui.lib.pub_benchmark_labels import (
     normalize_pub_tab,
     teaching_banner,
 )
-from ui_nicegui.lib.pub_helpers import pack_summary_from_outdir, render_pub_handoffs
+from ui_nicegui.lib.pub_helpers import (
+    pack_summary_from_outdir,
+    render_pub_handoffs,
+    render_pub_suite_handoff_shortcut,
+)
 from ui_nicegui.session import DesignSession
 
 
@@ -84,26 +88,71 @@ def render_publication_benchmarks(session: DesignSession) -> None:
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         _render_deck_status(session)
-        with ui.row().classes("gap-4"):
-            def _on_guided(e) -> None:
-                session.pub_teaching_mode = bool(e.value)
-                if session.pub_teaching_mode:
-                    session.pub_expert_view = False
-                _render_tab_body.refresh()
-                _render_deck_status.refresh()
-
-            def _on_expert(e) -> None:
-                session.pub_expert_view = bool(e.value)
-                if session.pub_expert_view:
-                    session.pub_teaching_mode = False
-                _render_tab_body.refresh()
-                _render_deck_status.refresh()
-
-            ui.switch("Guided mode", value=session.pub_teaching_mode, on_change=_on_guided)
-            ui.switch("Expert view", value=session.pub_expert_view, on_change=_on_expert)
+        _render_mode_switches(session)
 
     _render_deck_verdict(session)
+    _render_decision_chrome(session)
 
+    session.pub_workflow_step = normalize_pub_tab(session.pub_workflow_step or session.pub_bench_tab)
+    session.pub_bench_tab = session.pub_workflow_step
+    ui.toggle(
+        PUB_WORKFLOW_TABS,
+        value=session.pub_workflow_step,
+        on_change=lambda e: (
+            setattr(session, "pub_workflow_step", normalize_pub_tab(str(e.value))),
+            setattr(session, "pub_bench_tab", normalize_pub_tab(str(e.value))),
+            _render_deck_verdict.refresh(),
+            _render_deck_status.refresh(),
+            _render_tab_body.refresh(),
+        ),
+    ).classes("w-full")
+    help_text = TAB_HELP.get(normalize_pub_tab(session.pub_workflow_step), "")
+    if help_text:
+        ui.label(help_text).classes("text-caption text-grey q-mb-sm")
+
+    # Suite shortcut always visible (D9-005); full handoff set stays in expansion (B5).
+    on_crosscode = normalize_pub_tab(session.pub_workflow_step) == "3 · Cross-Code Parity"
+    with ui.row().classes("w-full items-center gap-2 q-mb-sm flex-wrap"):
+        with ui.expansion(
+            "Cross-deck handoffs",
+            icon="share",
+            value=on_crosscode,
+        ).classes("flex-1"):
+            render_pub_handoffs(session)
+        render_pub_suite_handoff_shortcut(session)
+
+    _render_tab_body(session)
+
+
+@ui.refreshable
+def _render_mode_switches(session: DesignSession) -> None:
+    """Guided and Expert are mutually exclusive — refresh widgets when either flips."""
+
+    def _on_guided(e) -> None:
+        session.pub_teaching_mode = bool(e.value)
+        if session.pub_teaching_mode:
+            session.pub_expert_view = False
+        _render_mode_switches.refresh()
+        _render_decision_chrome.refresh()
+        _render_tab_body.refresh()
+        _render_deck_status.refresh()
+
+    def _on_expert(e) -> None:
+        session.pub_expert_view = bool(e.value)
+        if session.pub_expert_view:
+            session.pub_teaching_mode = False
+        _render_mode_switches.refresh()
+        _render_decision_chrome.refresh()
+        _render_tab_body.refresh()
+        _render_deck_status.refresh()
+
+    with ui.row().classes("gap-4"):
+        ui.switch("Guided mode", value=bool(session.pub_teaching_mode), on_change=_on_guided)
+        ui.switch("Expert view", value=bool(session.pub_expert_view), on_change=_on_expert)
+
+
+@ui.refreshable
+def _render_decision_chrome(session: DesignSession) -> None:
     def _on_decision(e) -> None:
         state = str(e.value)
         session.pub_decision_state = state
@@ -113,6 +162,7 @@ def render_publication_benchmarks(session: DesignSession) -> None:
             session.pub_bench_tab = tab
             _render_tab_body.refresh()
             _render_deck_verdict.refresh()
+            _render_deck_status.refresh()
 
     if session.pub_teaching_mode or not session.pub_expert_view:
         ui.select(
@@ -127,27 +177,6 @@ def render_publication_benchmarks(session: DesignSession) -> None:
     banner = teaching_banner(session)
     if banner:
         ui.markdown(banner).classes("text-caption q-mb-sm")
-
-    session.pub_workflow_step = normalize_pub_tab(session.pub_workflow_step or session.pub_bench_tab)
-    session.pub_bench_tab = session.pub_workflow_step
-    ui.toggle(
-        PUB_WORKFLOW_TABS,
-        value=session.pub_workflow_step,
-        on_change=lambda e: (
-            setattr(session, "pub_workflow_step", normalize_pub_tab(str(e.value))),
-            setattr(session, "pub_bench_tab", normalize_pub_tab(str(e.value))),
-            _render_deck_verdict.refresh(),
-            _render_tab_body.refresh(),
-        ),
-    ).classes("w-full")
-    help_text = TAB_HELP.get(normalize_pub_tab(session.pub_workflow_step), "")
-    if help_text:
-        ui.label(help_text).classes("text-caption text-grey q-mb-sm")
-
-    with ui.expansion("Cross-deck handoffs", icon="share", value=False).classes("w-full q-mb-sm"):
-        render_pub_handoffs(session)
-
-    _render_tab_body(session)
 
 
 @ui.refreshable

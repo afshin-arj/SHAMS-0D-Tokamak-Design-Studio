@@ -97,7 +97,8 @@ def main_page() -> None:
             )
             ui.label("SHAMS").classes("text-h6 text-weight-bold")
             ui.label("Feasibility-authoritative tokamak design studio").classes("text-caption text-grey-4")
-            ui.badge(f"v{read_version()}").props("outline color=grey-5")
+            _ver = read_version()
+            ui.badge(_ver if _ver.startswith("v") else f"v{_ver}").props("outline color=grey-5")
         _render_status_header(_SESSION)
 
     _helm_drawer = ui.left_drawer(value=_SESSION.helm_drawer_open).classes(

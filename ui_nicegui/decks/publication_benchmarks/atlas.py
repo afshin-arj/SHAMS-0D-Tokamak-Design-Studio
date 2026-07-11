@@ -45,47 +45,65 @@ def render_constitutional_atlas(
     with ui.row().classes("w-full gap-4"):
         with ui.column().classes("flex-1"):
             ui.label("Preset").classes("text-subtitle2")
-            ui.select(
-                bucket_names,
-                label="Category",
-                value=session.pub_atlas_bucket,
-                on_change=lambda e: (
-                    _on_bucket_change(session, buckets, str(e.value)),
-                    _preset_column.refresh(),
-                ),
-            ).classes("w-full")
-            _preset_column(session, buckets)
+            _preset_controls(session, buckets)
             ui.toggle(
                 ["Research", "Reactor"],
                 value=session.pub_atlas_intent,
                 on_change=lambda e: setattr(session, "pub_atlas_intent", str(e.value)),
-            ).classes("q-mt-sm")
-            ui.label(f"Preset key: {session.pub_atlas_preset_key}").classes("text-caption text-grey")
+            ).props("data-testid=pb-atlas-intent").classes("q-mt-sm")
+            _preset_key_caption(session)
         with ui.column().classes("flex-[2]"):
             _render_atlas_actions(session, on_complete=on_complete)
             _render_atlas_detail(session)
 
 
 @ui.refreshable
-def _preset_column(session: DesignSession, buckets: dict) -> None:
+def _preset_controls(session: DesignSession, buckets: dict) -> None:
+    """Category + Tokamak selects — dict options + testids for stable automation."""
+    bucket_names = list(buckets.keys())
+    if not session.pub_atlas_bucket or session.pub_atlas_bucket not in bucket_names:
+        session.pub_atlas_bucket = bucket_names[0]
+
+    def _on_category(e) -> None:
+        _on_bucket_change(session, buckets, str(e.value))
+        _preset_controls.refresh()
+        _preset_key_caption.refresh()
+
+    cat = ui.select(
+        {name: name for name in bucket_names},
+        label="Category",
+        value=session.pub_atlas_bucket,
+        on_change=_on_category,
+    ).classes("w-full")
+    cat.props("dense options-dense data-testid=pb-atlas-category")
+
     opts = buckets.get(session.pub_atlas_bucket) or []
-    labels = [o[1] for o in opts]
-    keys = [o[0] for o in opts]
-    if not labels:
+    if not opts:
         ui.label("No presets in this category.").classes("text-caption text-grey")
         return
+
+    key_to_label = {o[0]: o[1] for o in opts}
+    keys = list(key_to_label.keys())
     cur = session.pub_atlas_preset_key if session.pub_atlas_preset_key in keys else keys[0]
     session.pub_atlas_preset_key = cur
-    ui.select(
-        labels,
+
+    def _on_tokamak(e) -> None:
+        session.pub_atlas_preset_key = str(e.value)
+        _preset_key_caption.refresh()
+
+    tok = ui.select(
+        key_to_label,
         label="Tokamak",
-        value=labels[keys.index(cur)],
-        on_change=lambda e: setattr(
-            session,
-            "pub_atlas_preset_key",
-            keys[labels.index(str(e.value))],
-        ),
+        value=cur,
+        on_change=_on_tokamak,
     ).classes("w-full")
+    # use-input: type-to-filter (ITER/SPARC); dict options bind preset key as value
+    tok.props("dense options-dense use-input data-testid=pb-atlas-tokamak")
+
+
+@ui.refreshable
+def _preset_key_caption(session: DesignSession) -> None:
+    ui.label(f"Preset key: {session.pub_atlas_preset_key}").classes("text-caption text-grey")
 
 
 def _on_bucket_change(session: DesignSession, buckets: dict, bucket: str) -> None:
@@ -162,10 +180,16 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
             ui.notify(str(exc), type="warning")
 
     with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
-        ui.button("Evaluate preset", icon="play_arrow", on_click=_evaluate).props("color=primary")
-        ui.button("Local fragility scan", icon="grid_on", on_click=_fragility).props("outline")
+        ui.button("Evaluate preset", icon="play_arrow", on_click=_evaluate).props(
+            "color=primary data-testid=pb-atlas-evaluate"
+        )
+        ui.button("Local fragility scan", icon="grid_on", on_click=_fragility).props(
+            "outline data-testid=pb-atlas-fragility"
+        )
         if isinstance(session.pub_atlas_last, dict):
-            ui.button("Load inputs → Point Designer", icon="upload", on_click=_promote).props("flat outline")
+            ui.button("Load inputs → Point Designer", icon="upload", on_click=_promote).props(
+                "flat outline data-testid=pb-atlas-promote"
+            )
 
 
 @ui.refreshable

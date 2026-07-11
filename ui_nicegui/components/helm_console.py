@@ -134,7 +134,8 @@ def _helm_body(session: DesignSession, *, on_deck_change: Callable[[str], None])
         _render_chronicle(session)
 
     ui.separator().classes("q-my-md")
-    ui.label(f"SHAMS v{read_version()}").classes("text-caption")
+    _ver = read_version()
+    ui.label(f"SHAMS {_ver}" if _ver.startswith("v") else f"SHAMS v{_ver}").classes("text-caption")
 
 
 def _render_run_lock_banner(session: DesignSession) -> None:

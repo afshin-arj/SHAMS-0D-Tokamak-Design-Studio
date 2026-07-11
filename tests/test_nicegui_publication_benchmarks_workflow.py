@@ -18,8 +18,23 @@ from ui_nicegui.lib.pub_benchmark_labels import (
 from ui_nicegui.session import DesignSession
 
 
-def test_publication_benchmarks_renderer_import() -> None:
-    assert callable(render_publication_benchmarks)
+def test_atlas_preset_controls_use_stable_keys() -> None:
+    """D9-002: Tokamak select binds preset keys (dict options), not display labels alone."""
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1].joinpath(
+        "ui_nicegui", "decks", "publication_benchmarks", "atlas.py"
+    ).read_text(encoding="utf-8")
+    assert "key_to_label" in src
+    assert "data-testid=pb-atlas-category" in src
+    assert "data-testid=pb-atlas-tokamak" in src
+    assert "use-input" in src
+    assert "def _preset_controls" in src
+    buckets = build_preset_buckets()
+    assert "Large-Scale & Program" in buckets or "Compact / HTS" in buckets
+    all_keys = [o[0] for opts in buckets.values() for o in opts]
+    assert any("ITER" in k for k in all_keys)
+    assert any("SPARC" in k for k in all_keys)
 
 
 def test_pub_workflow_tabs() -> None:

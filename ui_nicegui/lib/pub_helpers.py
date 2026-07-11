@@ -136,6 +136,24 @@ def promote_atlas_inputs_to_point_designer(session: DesignSession) -> int:
     return n
 
 
+def handoff_to_system_suite(session: DesignSession) -> None:
+    """Open System Suite for numeric PROCESS parity (documentation Cross-Code stays on this deck)."""
+    from ui_nicegui.lib.navigation import switch_deck
+
+    switch_deck("System Suite")
+    ui.notify("Opened System Suite — use Tab 5 Benchmark parity for numeric PROCESS cases.", type="info")
+    log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffSystemSuite", {})
+
+
+def render_pub_suite_handoff_shortcut(session: DesignSession) -> None:
+    """Always-visible Suite jump — works even when Cross-deck handoffs expansion is closed."""
+    ui.button(
+        "System Suite (numeric parity)",
+        icon="fact_check",
+        on_click=lambda: handoff_to_system_suite(session),
+    ).props("outline dense color=primary data-testid=pb-handoff-system-suite")
+
+
 def render_pub_handoffs(session: DesignSession) -> None:
     from ui_nicegui.lib.navigation import switch_deck
 
@@ -158,20 +176,25 @@ def render_pub_handoffs(session: DesignSession) -> None:
         ui.notify("Opened Systems Mode — evaluate or solve, then return for governance packs.", type="info")
         log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffSystemsMode", {})
 
-    def _to_suite() -> None:
-        switch_deck("System Suite")
-        ui.notify("Opened System Suite — use Tab 5 Benchmark parity for numeric PROCESS cases.", type="info")
-        log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffSystemSuite", {})
-
     def _to_cr() -> None:
         switch_deck("Control Room")
         ui.notify("Opened Control Room for study seal / evidence.", type="info")
 
     with ui.row().classes("gap-2 flex-wrap"):
-        ui.button("Atlas → Point Designer", icon="upload", on_click=_to_pd).props("outline color=primary")
-        ui.button("Open Systems Mode", icon="hub", on_click=_to_systems).props("flat outline")
-        ui.button("System Suite (numeric parity)", icon="fact_check", on_click=_to_suite).props("flat outline")
-        ui.button("Open Control Room", icon="gavel", on_click=_to_cr).props("flat outline")
+        ui.button("Atlas → Point Designer", icon="upload", on_click=_to_pd).props(
+            "outline color=primary data-testid=pb-handoff-point-designer"
+        )
+        ui.button("Open Systems Mode", icon="hub", on_click=_to_systems).props(
+            "flat outline data-testid=pb-handoff-systems"
+        )
+        ui.button(
+            "System Suite (numeric parity)",
+            icon="fact_check",
+            on_click=lambda: handoff_to_system_suite(session),
+        ).props("flat outline data-testid=pb-handoff-system-suite-expansion")
+        ui.button("Open Control Room", icon="gavel", on_click=_to_cr).props(
+            "flat outline data-testid=pb-handoff-control-room"
+        )
 
 
 def render_pack_verdict_strip(session: DesignSession) -> None:
