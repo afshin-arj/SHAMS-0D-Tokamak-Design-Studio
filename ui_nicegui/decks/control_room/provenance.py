@@ -88,8 +88,14 @@ def _run_artifact_picker(session: DesignSession):
     if session.cr_selected_run_id not in [r["id"] for r in runs]:
         session.cr_selected_run_id = runs[-1]["id"]
     idx = next((i for i, r in enumerate(runs) if r["id"] == session.cr_selected_run_id), len(runs) - 1)
-    sel = ui.select(labels, label="Run artifact", value=labels[idx]).classes("w-full")
-    pick = runs[labels.index(sel.value) if sel.value in labels else idx]
+
+    def _on_pick(e) -> None:
+        label = str(e.value)
+        pick = next((r for r in runs if r["label"] == label), runs[idx])
+        session.cr_selected_run_id = pick["id"]
+
+    sel = ui.select(labels, label="Run artifact", value=labels[idx], on_change=_on_pick).classes("w-full")
+    pick = next(r for r in runs if r["label"] == sel.value)
     session.cr_selected_run_id = pick["id"]
     return pick["artifact"], pick
 

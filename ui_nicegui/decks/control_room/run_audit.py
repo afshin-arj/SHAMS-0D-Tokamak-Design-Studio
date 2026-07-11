@@ -47,7 +47,13 @@ def render_run_audit(session: DesignSession) -> None:
 @ui.refreshable
 def _audit_body(session: DesignSession, art: dict) -> None:
     dc = design_confidence_class(art)
-    kpi_row([("Design confidence", dc)])
+    dc_sum = decision_consequences_summary(art)
+    kpi_row([
+        ("Design confidence", dc),
+        ("Decision posture", str(dc_sum.get("decision_posture") or "-")),
+        ("Dominant constraint", str(dc_sum.get("dominant_constraint") or "-")),
+        ("Primary risk", str(dc_sum.get("primary_risk_driver") or "-")),
+    ])
 
     ui.markdown(
         "**Legend:** A = authoritative/external · B = parametric · C = proxy · D = speculative · UNKNOWN = missing metadata"
@@ -106,3 +112,16 @@ def _audit_body(session: DesignSession, art: dict) -> None:
                 ).classes("w-full")
         else:
             ui.label("No epoch_feasibility block.").classes("text-grey")
+
+    if session.cr_expert_view:
+        for block, label in (
+            ("fidelity_tiers", "Fidelity tiers"),
+            ("regime_transitions", "Regime transitions"),
+            ("coupling_narratives", "Coupling narratives"),
+            ("nonfeasibility_certificate", "Non-feasibility certificate"),
+            ("verification_checks", "Verification checks"),
+        ):
+            payload = art.get(block)
+            if payload:
+                with ui.expansion(label, icon="science").classes("w-full"):
+                    render_json_blob(payload)

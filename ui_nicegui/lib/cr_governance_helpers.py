@@ -39,6 +39,8 @@ def authority_confidence_rows(art: dict) -> List[dict]:
             "authority_tier": v.get("authority_tier"),
             "maturity": v.get("maturity"),
             "involved": v.get("involved"),
+            "tier": v.get("tier"),
+            "rationale": str(v.get("rationale") or v.get("evidence") or "")[:120],
         })
     return rows
 
@@ -125,6 +127,50 @@ def constraint_detail(art: dict, name: str) -> dict:
         if isinstance(c, dict) and str(c.get("name")) == name:
             out.update({k: c.get(k) for k in c})
     return out
+
+
+def nonfeasibility_certificate_view(art: dict) -> Dict[str, Any]:
+    """Build or extract a non-feasibility certificate for review-room display."""
+    if not isinstance(art, dict):
+        return {}
+    cert = art.get("nonfeasibility_certificate")
+    if isinstance(cert, dict) and cert:
+        return cert
+    cons = art.get("constraints") if isinstance(art.get("constraints"), list) else []
+    hard_failed = [
+        c
+        for c in cons
+        if isinstance(c, dict)
+        and str(c.get("severity", "hard")).lower() == "hard"
+        and not bool(c.get("passed", True))
+    ]
+    hard_failed.sort(key=lambda c: float(c.get("margin", 0) or 0))
+    if not hard_failed:
+        kpis = art.get("kpis") if isinstance(art.get("kpis"), dict) else {}
+        if kpis.get("feasible_hard") is True:
+            return {"hard_feasible": True, "dominant_blockers": [], "recommendation": ""}
+        return {}
+    blockers = []
+    for c in hard_failed[:10]:
+        blockers.append(
+            {
+                "name": c.get("name", ""),
+                "group": c.get("group", c.get("mechanism_group", "")),
+                "value": c.get("value"),
+                "limit": c.get("limit"),
+                "sense": c.get("sense"),
+                "margin": c.get("margin", c.get("margin_frac")),
+                "meaning": c.get("meaning", ""),
+                "best_knobs": c.get("best_knobs", []),
+                "authority_tier": c.get("authority_tier"),
+                "validity_domain": c.get("validity_domain"),
+            }
+        )
+    return {
+        "hard_feasible": False,
+        "dominant_blockers": blockers,
+        "recommendation": "Adjust listed best_knobs or relax assumptions until all hard constraints pass.",
+    }
 
 
 def run_case_deck_file(deck_bytes: bytes, filename: str, out_name: str) -> dict:

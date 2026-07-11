@@ -88,7 +88,7 @@ def render_control_room(session: DesignSession) -> None:
     ).classes("w-full q-mb-xs")
 
     banner = teaching_banner(session)
-    if banner:
+    if banner and not session.cr_expert_view:
         ui.markdown(banner).classes("text-caption q-mb-sm")
 
     step = normalize_cr_tab(session.cr_workflow_step or session.cr_section)
@@ -106,7 +106,7 @@ def render_control_room(session: DesignSession) -> None:
     ).classes("w-full")
 
     help_text = TAB_HELP.get(session.cr_workflow_step, "")
-    if help_text:
+    if help_text and not session.cr_expert_view:
         ui.label(help_text).classes("text-caption text-grey q-mb-sm")
 
     _render_section(session)

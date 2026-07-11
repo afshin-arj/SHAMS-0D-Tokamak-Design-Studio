@@ -202,7 +202,7 @@ def _interval_narrowing(session: DesignSession) -> None:
     if not isinstance(art, dict):
         empty_state(
             "Requires a **Certified Search** artifact (`v340_cert_search_last`). "
-            "Run external certified search from Streamlit or import artifact JSON.",
+            "Import a certified-search JSON artifact or run certified search via the legacy Streamlit path.",
             kind="info",
         )
         return

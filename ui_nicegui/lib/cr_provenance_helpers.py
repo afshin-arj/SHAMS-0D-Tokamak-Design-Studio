@@ -12,14 +12,51 @@ from ui_nicegui.bootstrap import repo_root
 def list_session_run_artifacts(session) -> List[Dict[str, Any]]:
     """Collect shams_run_artifact dicts available on the NiceGUI session."""
     out: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _append(art: Any, *, label: str, rid: str) -> None:
+        if not isinstance(art, dict):
+            return
+        if not (art.get("outputs") or art.get("kind") == "shams_run_artifact"):
+            return
+        key = str(rid)
+        if key in seen:
+            return
+        seen.add(key)
+        out.append({"id": key, "label": label, "artifact": art})
+
     art = getattr(session, "pd_last_artifact", None)
-    if isinstance(art, dict) and art.get("outputs"):
+    if isinstance(art, dict):
         rid = str(art.get("run_id") or art.get("id") or "point_designer_last")
-        out.append({"id": rid, "label": f"Point Designer ({rid})", "artifact": art})
+        _append(art, label=f"Point Designer ({rid})", rid=rid)
+
     sys_art = getattr(session, "systems_last_solve_artifact", None)
-    if isinstance(sys_art, dict) and sys_art.get("outputs"):
+    if isinstance(sys_art, dict):
         rid = str(sys_art.get("run_id") or sys_art.get("id") or "systems_last")
-        out.append({"id": rid, "label": f"Systems Mode ({rid})", "artifact": sys_art})
+        _append(sys_art, label=f"Systems Mode ({rid})", rid=rid)
+
+    for key, deck_label in (
+        ("scan_cartography_report", "Scan Lab cartography"),
+        ("pareto_last", "Pareto Lab"),
+        ("trade_last", "Trade Study Studio"),
+        ("pub_atlas_last", "Publication Benchmarks"),
+    ):
+        payload = getattr(session, key, None)
+        if isinstance(payload, dict):
+            rid = str(payload.get("run_id") or payload.get("id") or key)
+            _append(payload, label=f"{deck_label} ({rid})", rid=rid)
+
+    for slot, label in (("cmp_slot_a", "Compare slot A"), ("cmp_slot_b", "Compare slot B")):
+        slot_art = getattr(session, slot, None)
+        if isinstance(slot_art, dict):
+            rid = str(slot_art.get("run_id") or slot_art.get("id") or slot)
+            _append(slot_art, label=f"{label} ({rid})", rid=rid)
+
+    if isinstance(getattr(session, "cr_selected_artifact", None), dict):
+        art_sel = session.cr_selected_artifact
+        rid = str(art_sel.get("run_id") or art_sel.get("id") or "cr_selected")
+        _append(art_sel, label=f"Selected artifact ({rid})", rid=rid)
+
     return out
 
 

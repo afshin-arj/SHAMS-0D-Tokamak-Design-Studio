@@ -8,10 +8,13 @@ from ui_nicegui.components.kpi_row import kpi_row
 
 def render_governance_verdict(summary: dict) -> None:
     ui.label("Governance posture").classes("text-subtitle1")
-    hygiene = "OK" if summary.get("hygiene_ok") else "Issues"
+    fh = summary.get("feasible_hard")
+    fh_label = "-" if fh is None else ("YES" if fh else "NO")
     kpi_row([
+        ("Verdict", summary.get("point_verdict", "-")),
+        ("Dominant", summary.get("dominant", "-")),
+        ("Q / nτE", summary.get("q_label", "-")),
+        ("Design class", summary.get("design_class", "-")),
+        ("Hard feasible", fh_label),
         ("Version", summary.get("version", "-")),
-        ("Active deck", summary.get("active_deck", "-")),
-        ("Point verdict", summary.get("point_verdict", "-")),
-        ("Hygiene", hygiene),
     ])

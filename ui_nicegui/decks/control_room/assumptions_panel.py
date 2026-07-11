@@ -1,12 +1,17 @@
 """Control Room — assumption toggles with re-evaluation."""
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.evaluate import ui_evaluate
 from ui_nicegui.lib.cr_chronicle_helpers import point_inputs_from_artifact
 from ui_nicegui.lib.cr_governance_helpers import pick_session_artifact
+from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.session_store import set_point_evaluation
+from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 
 
@@ -14,7 +19,7 @@ def render_assumptions_panel(session: DesignSession) -> None:
     ui.label("Assumption toggles").classes("text-subtitle2")
     ui.label(
         "Fast scenario exploration — toggle common assumptions and re-evaluate the point "
-        "(feasibility-first; no optimization)."
+        "(feasibility-first; no optimization). Refreshes the full governance artifact."
     ).classes("text-caption q-mb-sm")
 
     art = pick_session_artifact(session)
@@ -27,6 +32,9 @@ def render_assumptions_panel(session: DesignSession) -> None:
 
     if base is None:
         empty_state("Load an artifact or run **Point Designer** to use assumption toggles.", kind="info")
+        ui.button("Open Point Designer", icon="open_in_new", on_click=lambda: switch_deck("Point Designer")).props(
+            "flat outline q-mt-sm"
+        )
         return
 
     fuel = ui.select(["DT", "DD"], label="Fuel mode", value=str(getattr(base, "fuel_mode", "DT") or "DT"))
@@ -42,9 +50,9 @@ def render_assumptions_panel(session: DesignSession) -> None:
             pi.Paux_MW = float(paux.value or 50.0)
             pi.Ti_over_Te = float(tite.value or 2.0)
             out = await run.io_bound(ui_evaluate, pi, origin="control_room_assumptions")
-            session.pd_last_outputs = out
-            ui.notify("Re-evaluated with toggled assumptions", type="positive")
-            _result.refresh(out)
+            set_point_evaluation(session, outputs=out, inputs=asdict(pi))
+            ui.notify("Re-evaluated with toggled assumptions (full artifact updated)", type="positive")
+            _result.refresh(session)
         except Exception as exc:
             ui.notify(f"Evaluate failed: {exc}", type="negative")
 
@@ -53,15 +61,27 @@ def render_assumptions_panel(session: DesignSession) -> None:
 
 
 @ui.refreshable
-def _result(session: DesignSession, out: dict | None = None) -> None:
-    payload = out if isinstance(out, dict) else session.pd_last_outputs
+def _result(session: DesignSession) -> None:
+    payload = session.pd_last_outputs
     if not isinstance(payload, dict):
         return
-    cons = payload.get("constraints") or []
-    ok = all(not bool(c.get("failed")) for c in cons if isinstance(c, dict))
-    ui.label(f"Feasible: {'YES' if ok else 'NO'}").classes("text-h6 " + ("text-positive" if ok else "text-negative"))
-    keys = ("Q_DT_eqv", "P_fus_MW", "P_e_net_MW", "tau_E_s", "betaN", "q95")
-    outs = payload.get("outputs") or payload
+    vs = verdict_summary(payload)
+    if not vs.get("loaded"):
+        return
+    feasible = bool(vs.get("feasible"))
+    ui.label(f"Verdict: {vs.get('verdict', 'n/a')}").classes(
+        "text-h6 " + ("text-positive" if feasible else "text-negative")
+    )
+    ui.label(f"Dominant: {vs.get('dominant', '-')}").classes("text-body2")
+    ui.label(f"{vs.get('q_label', '')} · {vs.get('nt_label', '')}").classes("text-caption")
+    art = session.pd_last_artifact if isinstance(session.pd_last_artifact, dict) else {}
+    kpis = art.get("kpis") if isinstance(art.get("kpis"), dict) else {}
+    if kpis.get("feasible_hard") is not None:
+        ui.label(f"Hard feasible (artifact KPI): {'YES' if kpis.get('feasible_hard') else 'NO'}").classes(
+            "text-caption"
+        )
+    keys = ("Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW", "tau_E_s", "betaN", "q95")
+    outs = payload.get("outputs") if isinstance(payload.get("outputs"), dict) else payload
     for k in keys:
         if k in outs:
             ui.label(f"{k}: {outs[k]}").classes("text-caption")

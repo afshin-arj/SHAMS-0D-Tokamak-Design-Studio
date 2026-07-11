@@ -54,7 +54,7 @@ DECISION_TO_TAB = {
 }
 
 TEACHING_HINTS = {
-    DECISION_STATES[0]: "Pick a launchpad path — each links to a primary NiceGUI deck (Scan, Forge, Compare).",
+    DECISION_STATES[0]: "Pick a launchpad path, then use **Open deck** to jump to Scan Lab, Forge, or Compare.",
     DECISION_STATES[1]: "Model Ledger and Capability Matrix are read-only frozen-truth documentation.",
     DECISION_STATES[2]: "Generate protocol + repro lock from a run artifact, then inspect authority overlays.",
     DECISION_STATES[3]: "Load session artifacts or browse `ui_runs/` — export bundles for reviewers.",

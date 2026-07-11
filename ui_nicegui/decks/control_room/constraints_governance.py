@@ -43,6 +43,16 @@ def _cockpit(session: DesignSession, art: dict) -> None:
         ui.label("No constraint ledger in this artifact.").classes("text-warning")
         return
 
+    failed = [r for r in rows if r.get("passed") is False or r.get("failed")]
+    if failed:
+        worst = failed[0]
+        ui.label(
+            f"{len(failed)} failed constraint(s) — worst: {worst.get('name', '?')} "
+            f"(margin {worst.get('margin_frac', worst.get('margin', '?'))})"
+        ).classes("text-body2 text-negative q-mb-xs")
+    else:
+        ui.label("All ledger constraints pass (or none marked failed).").classes("text-positive q-mb-xs")
+
     failed_only = ui.checkbox("Only failed constraints", value=True)
     ui.label(f"{len(rows)} ledger entries").classes("text-caption q-mb-xs")
 
@@ -51,7 +61,7 @@ def _cockpit(session: DesignSession, art: dict) -> None:
         view = rows
         if failed_only.value:
             view = [r for r in rows if r.get("passed") is False or r.get("failed")]
-        cols = [c for c in ("name", "severity", "group", "margin_frac", "margin", "passed", "failed") if any(c in r for r in view)]
+        cols = [c for c in ("name", "severity", "group", "margin_frac", "margin", "passed", "failed", "authority_tier", "validity_domain") if any(c in r for r in view)]
         if not cols:
             cols = list(view[0].keys())[:8] if view else ["name"]
         ui.table(
@@ -96,7 +106,10 @@ def _inspector(session: DesignSession, art: dict) -> None:
         ui.label("No detail available for this constraint.").classes("text-grey")
         return
 
-    for key in ("name", "severity", "group", "passed", "failed", "margin", "margin_frac", "residual", "meaning"):
+    for key in (
+        "name", "severity", "group", "passed", "failed", "margin", "margin_frac", "residual", "meaning",
+        "value", "limit", "sense", "units", "authority_tier", "validity_domain", "dominance_rank",
+    ):
         if key in detail and detail[key] is not None:
             ui.label(f"{key}: {detail[key]}").classes("text-body2")
 

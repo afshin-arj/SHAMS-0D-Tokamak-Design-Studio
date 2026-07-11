@@ -53,6 +53,13 @@ REFERENCE_GALLERY: List[Tuple[str, str]] = [
     ("DEMO-like", "Plant realism anchor; often recirculating power and availability assumptions dominate."),
 ]
 
+LAUNCHPAD_DECK: Dict[str, str] = {
+    "Understand feasibility limits (cartography)": "Scan Lab",
+    "Explore reactor concepts (Forge)": "Reactor Design Forge",
+    "Review a finished case (Review Room)": "Reactor Design Forge",
+    "Compare designs (Artifacts)": "Compare",
+}
+
 LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
     (
         "Understand feasibility limits (cartography)",
@@ -167,8 +174,11 @@ def interop_check(session: Any) -> Dict[str, Any]:
          "Point Designer artifact")
     _add("last_eval", isinstance(getattr(session, "last_eval", None), dict),
          "Last evaluate dict")
-    _add("cmp_slot_a", getattr(session, "cmp_slot_a", None) is not None or True,
-         "optional compare slot A")
+    _add(
+        "cmp_slot_a",
+        getattr(session, "cmp_slot_a", None) is not None,
+        "present" if getattr(session, "cmp_slot_a", None) is not None else "missing (optional)",
+    )
     _add("systems_targets", True, "NiceGUI Systems Mode uses session fields directly")
     for k in ("last_precheck_report", "scan_cartography_report", "pareto_last", "trade_last"):
         present = getattr(session, k, None) is not None
@@ -189,20 +199,26 @@ def run_contract_validator(session: Any) -> Dict[str, Any]:
 
 def governance_summary(session: Any) -> Dict[str, Any]:
     """Verdict-first governance KPIs for Control Room header."""
+    from ui_nicegui.lib.cr_governance_helpers import design_confidence_class
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
     ver = read_version()
     last = getattr(session, "pd_last_outputs", None) or getattr(session, "last_eval", None)
-    verdict = "-"
-    if isinstance(last, dict):
-        run = last.get("run") or {}
-        if isinstance(run, dict) and run.get("verdict"):
-            verdict = str(run["verdict"])
-        elif last.get("verdict"):
-            verdict = str(last["verdict"])
+    art = getattr(session, "pd_last_artifact", None)
+    vs = verdict_summary(last) if isinstance(last, dict) else {"loaded": False}
+    kpis = art.get("kpis") if isinstance(art, dict) else {}
+    if not isinstance(kpis, dict):
+        kpis = {}
+    verdict = str(vs.get("verdict", "-")) if vs.get("loaded") else "-"
     hygiene = hygiene_scan()
     return {
         "version": ver,
         "active_deck": str(getattr(session, "active_deck", "-")),
         "point_verdict": verdict,
+        "dominant": str(vs.get("dominant", "-")) if vs.get("loaded") else "-",
+        "q_label": str(vs.get("q_label", "-")) if vs.get("loaded") else "-",
+        "design_class": design_confidence_class(art) if isinstance(art, dict) else "-",
+        "feasible_hard": kpis.get("feasible_hard"),
         "hygiene_ok": bool(hygiene.get("ok")),
     }
 

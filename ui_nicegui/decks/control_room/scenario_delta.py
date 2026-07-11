@@ -3,12 +3,18 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.compare_helpers import (
     bridge_compare_slots_to_cr,
     bridge_cr_to_compare_slots,
+    constraint_margin_diff_rows,
     input_diff_rows,
+    kpi_diff_rows,
+    metric_diff_rows,
     numeric_output_diff_rows,
     structural_diff_report,
+    subsystem_diff_rows,
+    summarize_comparison,
 )
 from ui_nicegui.lib.cr_artifacts_helpers import load_json_bytes
 from ui_nicegui.lib.navigation import switch_deck
@@ -92,6 +98,15 @@ def _delta(session: DesignSession) -> None:
         ui.label("Upload both baseline and scenario artifacts.").classes("text-grey")
         return
 
+    summary = summarize_comparison(base, scen)
+    kpi_row([
+        ("Verdict A", summary.get("verdict_a", "-")),
+        ("Verdict B", summary.get("verdict_b", "-")),
+        ("Dominant A", summary.get("dominant_a", "-")),
+        ("Dominant B", summary.get("dominant_b", "-")),
+        ("Top Δ", summary.get("top_delta", "-")),
+    ])
+
     sd = scen.get("scenario_delta")
     with ui.expansion("Embedded scenario_delta", icon="difference").classes("w-full"):
         if sd:
@@ -114,7 +129,60 @@ def _delta(session: DesignSession) -> None:
     else:
         ui.label("No input differences.").classes("text-caption")
 
-    out_rows = numeric_output_diff_rows(base, scen)
+    cons_rows = constraint_margin_diff_rows(base, scen)
+    ui.label("Constraint margin shifts").classes("text-subtitle2 q-mt-sm")
+    if cons_rows:
+        show = [r for r in cons_rows if r.get("new_failure") or r.get("margin_delta") is not None][:40]
+        ui.table(
+            columns=[
+                {"name": c, "label": c, "field": c, "align": "left"}
+                for c in ("name", "failed_A", "failed_B", "margin_A", "margin_B", "margin_delta", "new_failure")
+            ],
+            rows=show,
+            row_key="name",
+        ).classes("w-full")
+    else:
+        ui.label("No constraint margin differences.").classes("text-caption")
+
+    sub_rows = subsystem_diff_rows(base, scen)
+    if sub_rows:
+        ui.label("Subsystem pass/fail changes").classes("text-subtitle2 q-mt-sm")
+        ui.table(
+            columns=[
+                {"name": c, "label": c, "field": c, "align": "left"}
+                for c in ("subsystem", "A", "B", "changed")
+            ],
+            rows=sub_rows,
+            row_key="subsystem",
+        ).classes("w-full")
+
+    kpi_rows = kpi_diff_rows(base, scen)
+    if kpi_rows:
+        ui.label("Artifact KPI deltas").classes("text-subtitle2 q-mt-sm")
+        ui.table(
+            columns=[
+                {"name": c, "label": c, "field": c, "align": "left"}
+                for c in ("kpi", "A", "B", "B-A")
+            ],
+            rows=kpi_rows[:20],
+            row_key="kpi",
+        ).classes("w-full")
+
+    met_rows = metric_diff_rows(base, scen)
+    ui.label("Curated physics metrics").classes("text-subtitle2 q-mt-sm")
+    if met_rows:
+        ui.table(
+            columns=[
+                {"name": c, "label": c, "field": c, "align": "left"}
+                for c in ("metric", "A", "B", "B-A")
+            ],
+            rows=met_rows[:25],
+            row_key="metric",
+        ).classes("w-full")
+    else:
+        ui.label("No curated metric differences.").classes("text-caption")
+
+    out_rows = numeric_output_diff_rows(base, scen, limit=30)
     ui.label("Numeric output deltas").classes("text-subtitle2 q-mt-sm")
     if out_rows:
         ui.table(
