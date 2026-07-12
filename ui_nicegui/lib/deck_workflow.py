@@ -7,13 +7,13 @@ from ui_nicegui.decks.labels import DECK_LABELS
 DECK_WORKFLOW_CAPTIONS: dict[str, str] = {
     "Point Designer": "Anchor one operating point — geometry, plasma, plant inputs, feasibility verdict.",
     "Scan Lab": "Map feasible regions in parameter space (cartography before commitment).",
-    "Systems Mode": "Close integrated plant and systems constraints on a candidate point.",
+    "Systems Mode": "Monte Carlo precheck and Newton target solve — proposes inputs; never changes L0 truth.",
     "Compare": "Diff baseline vs scenario artifacts — performance, constraints, structure.",
     "Pareto Lab": "Extract nondominated feasible frontiers under explicit objectives.",
     "Trade Study Studio": "Run certified trade studies, robust lanes, and surrogate exploration.",
     "Reactor Design Forge": "Compile design intent and explore reactor concept families.",
     "Publication Benchmarks": "Constitutional atlas, reviewer packs, cross-code parity.",
-    "System Suite": "Batch campaigns and orchestrated multi-run workflows.",
+    "System Suite": "Read-only L1 engineering overlays on your Point Designer artifact (not Systems Mode solver).",
     "Control Room": "Governance, provenance, exports, and review-room diagnostics.",
 }
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.systems_mode import (
     apply_ui,
     assistant_ui,
@@ -92,6 +93,11 @@ def render_systems_mode(session: DesignSession) -> None:
         )
 
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-xs")
+    ui.markdown(
+        "**Systems Mode** — Monte Carlo precheck + Newton solve (proposes inputs; never changes L0). "
+        "This is **not System Suite** (read-only L1 overlays on a Point Designer artifact)."
+    ).classes("text-caption q-mb-xs")
+    render_mode_scope("systems_eval", default_open=False)
     ui.label(policy_caption(session.design_intent)).classes("text-caption q-mb-sm")
 
     with ui.expansion("About this mode", icon="info").classes("w-full q-mb-sm"):

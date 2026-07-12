@@ -165,7 +165,7 @@ def phase_completion(phase: int, progress: dict[str, bool]) -> bool:
     if phase == 1:
         return progress.get("evaluated", False)
     if phase == 2:
-        return progress.get("scanned", False) or progress.get("evaluated", False)
+        return progress.get("scanned", False)
     if phase == 3:
         return progress.get("compared", False)
     if phase == 5:

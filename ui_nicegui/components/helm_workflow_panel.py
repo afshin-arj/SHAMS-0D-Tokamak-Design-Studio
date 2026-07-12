@@ -56,10 +56,6 @@ def render_workflow_compass(
 
         def _go_next() -> None:
             on_deck_change(nxt)
-            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-
-            refresh_helm()
-            refresh_status()
 
         ui.button(
             f"Next → {deck_nav_short_label(nxt)}",
@@ -77,10 +73,6 @@ def render_deck_navigation(
 
     def _go(deck: str) -> None:
         on_deck_change(deck)
-        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-
-        refresh_helm()
-        refresh_status()
 
     for group_title, caption, decks in groups:
         active_group = session.active_deck in decks

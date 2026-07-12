@@ -51,6 +51,15 @@ def render_hero(session: DesignSession) -> None:
     )
     kpi_row([(c.label, c.display) for c in cells])
 
+    beta = out.get("betaN", out.get("beta_N"))
+    fg = out.get("fG", out.get("greenwald_fraction"))
+    q95 = out.get("q95")
+    kpi_row([
+        ("β_N", _fmt_num(beta)),
+        ("f_G", _fmt_num(fg)),
+        ("q95", _fmt_num(q95)),
+    ])
+
     for note in hero_diagnostic_notes(
         out,
         summary,

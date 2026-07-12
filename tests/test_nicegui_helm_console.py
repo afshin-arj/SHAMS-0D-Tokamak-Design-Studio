@@ -184,3 +184,60 @@ def test_helm_drawer_session_fields() -> None:
     toggle_helm_drawer(s)
     assert s.helm_drawer_open is False
     assert HELM_DRAWER_WIDTH_MIN < HELM_DRAWER_WIDTH_MAX
+
+
+def test_helm_nav_does_not_double_refresh_on_click() -> None:
+    """Deck nav must not call refresh_helm/refresh_status — _switch_deck owns that."""
+    import inspect
+
+    from ui_nicegui.components import helm_workflow_panel as hwp
+
+    src = inspect.getsource(hwp.render_deck_navigation)
+    assert "refresh_helm" not in src
+    assert "refresh_status" not in src
+    go_src = inspect.getsource(hwp.render_workflow_compass)
+    assert "refresh_helm" not in go_src
+    assert "refresh_status" not in go_src
+
+
+def test_switch_deck_same_deck_is_noop() -> None:
+    import inspect
+
+    from ui_nicegui import app as ng_app
+
+    src = inspect.getsource(ng_app._switch_deck)
+    assert "active_deck" in src
+    assert "return" in src
+
+
+def test_mode_scope_keys_for_all_decks() -> None:
+    from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
+
+    required = {
+        "point",
+        "scan",
+        "systems_eval",
+        "compare",
+        "pareto",
+        "trade",
+        "forge",
+        "bench",
+        "suite",
+        "governance",
+    }
+    assert required <= set(MODE_SCOPE)
+
+
+def test_phase_two_requires_scan_artifact() -> None:
+    from ui_nicegui.lib.helm_workflow_guide import phase_completion, workflow_progress
+
+    s = DesignSession()
+    s.pd_last_outputs = {"Q": 1.0}
+    progress = workflow_progress(s)
+    assert progress["evaluated"] is True
+    assert progress["scanned"] is False
+    assert phase_completion(2, progress) is False
+    s.scan_cartography_report = {"ok": True}
+    progress2 = workflow_progress(s)
+    assert progress2["scanned"] is True
+    assert phase_completion(2, progress2) is True

@@ -70,11 +70,22 @@ def render_helm_console(
     *,
     on_deck_change: Callable[[str], None],
 ) -> None:
-    _helm_body(session, on_deck_change=on_deck_change)
+    _helm_nav_section(session, on_deck_change=on_deck_change)
+    _helm_settings_section(session, on_deck_change=on_deck_change)
+
+
+def refresh_helm_navigation() -> None:
+    """Refresh workflow compass + deck nav only (fast path for deck switches)."""
+    _helm_nav_section.refresh()
+
+
+def refresh_helm_settings_panel() -> None:
+    """Refresh session setup, DSG, and chronicle panels."""
+    _helm_settings_section.refresh()
 
 
 @ui.refreshable
-def _helm_body(session: DesignSession, *, on_deck_change: Callable[[str], None]) -> None:
+def _helm_nav_section(session: DesignSession, *, on_deck_change: Callable[[str], None]) -> None:
     ui.label(helm_section_label("Helm Console - Expert Navigation")).classes(
         "text-h6 text-weight-bold q-mb-xs"
     )
@@ -92,7 +103,9 @@ def _helm_body(session: DesignSession, *, on_deck_change: Callable[[str], None])
     render_workflow_compass(session, on_deck_change=on_deck_change)
     render_deck_navigation(session, groups=HELM_NAV_GROUPS, on_deck_change=on_deck_change)
 
-    ui.separator().classes("q-my-sm")
+
+@ui.refreshable
+def _helm_settings_section(session: DesignSession, *, on_deck_change: Callable[[str], None]) -> None:
     render_dsg_sidebar(session)
 
     with ui.expansion("Session setup", icon="settings").classes("w-full overflow-hidden").props("default-closed"):
@@ -213,7 +226,7 @@ def _render_mission_policy(session: DesignSession) -> None:
         new = str(e.value)
         if prev != new:
             on_design_intent_changed(session, prev, new)
-            _helm_body.refresh()
+            _helm_settings_section.refresh()
 
     ui.select(
         DESIGN_INTENT_OPTIONS,
@@ -316,7 +329,7 @@ def _render_calibration(session: DesignSession) -> None:
                 setattr(session, "calib_confinement", 1.0),
                 setattr(session, "calib_divertor", 1.0),
                 setattr(session, "calib_bootstrap", 1.0),
-                _helm_body.refresh(),
+                _helm_settings_section.refresh(),
             ),
         ).props("outline dense")
         ui.label("τE · divertor · bootstrap").classes("text-caption")
@@ -389,7 +402,7 @@ def _render_benchmark_vault(session: DesignSession) -> None:
                             apply_legacy_reference_machine_to_session(session, key)
                         log_ui_event(session, "UI", "ReferencePresetLoaded", {"preset": key})
                         ui.notify(f"Loaded preset: {key}", type="positive")
-                        _helm_body.refresh()
+                        _helm_settings_section.refresh()
                     except Exception as exc:
                         ui.notify(f"Preset load failed: {exc}", type="negative")
 
@@ -409,10 +422,9 @@ def _render_benchmark_vault(session: DesignSession) -> None:
 
             with ui.row().classes("w-full gap-2 q-mt-sm"):
                 def _go_pub() -> None:
-                    from ui_nicegui.lib.navigation import switch_deck, refresh_helm
+                    from ui_nicegui.lib.navigation import switch_deck
 
                     switch_deck("Publication Benchmarks")
-                    refresh_helm()
 
                 ui.button("Open Publication Benchmarks", on_click=_go_pub).props("outline dense").classes("flex-1")
                 ui.label(
@@ -442,7 +454,7 @@ def _render_integrity_gate(session: DesignSession) -> None:
         if session.helm_verify_running:
             return
         session.helm_verify_running = True
-        _helm_body.refresh()
+        _helm_settings_section.refresh()
         try:
             ok, out, err, dt = await run.io_bound(run_verification_capture)
             session.helm_verify_ok = ok
@@ -453,7 +465,7 @@ def _render_integrity_gate(session: DesignSession) -> None:
             ui.notify(f"Gatecheck {'PASS' if ok else 'FAIL'} ({dt:.1f}s)", type="positive" if ok else "negative")
         finally:
             session.helm_verify_running = False
-            _helm_body.refresh()
+            _helm_settings_section.refresh()
 
     with ui.row().classes("w-full gap-2"):
         gate_btn = ui.button("Run gatecheck", on_click=_run_gatecheck).classes("flex-1")
@@ -534,7 +546,7 @@ def _render_chronicle(session: DesignSession) -> None:
         value=session.shams_exit_confirm,
         on_change=lambda e: (
             setattr(session, "shams_exit_confirm", bool(e.value)),
-            _helm_body.refresh(),
+            _helm_settings_section.refresh(),
         ),
     )
 

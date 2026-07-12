@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.control_room import artifacts, chronicle, constitution, diagnostics, orientation, provenance, verdict
 from ui_nicegui.lib.control_room_labels import (
     CR_WORKFLOW_TABS,
@@ -47,6 +48,7 @@ def _sync_section(session: DesignSession, tab: str) -> None:
 def render_control_room(session: DesignSession) -> None:
     ui.label("Control Room").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
+    render_mode_scope("governance", default_open=False)
 
     verdict.render_governance_verdict_live(session)
 

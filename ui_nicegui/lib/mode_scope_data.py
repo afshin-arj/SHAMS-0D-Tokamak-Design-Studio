@@ -2,6 +2,54 @@
 from __future__ import annotations
 
 MODE_SCOPE: dict[str, dict[str, list[str]]] = {
+    "point": {
+        "does": [
+            "Runs the frozen deterministic evaluator for a single design point.",
+            "Reports PASS/FAIL, margins, dominant failure mechanism, and key outputs.",
+            "Surfaces which physics blocks were executed (transparency registry).",
+        ],
+        "does_not": [
+            "Does not optimize, iterate, or negotiate constraints.",
+            "Does not hide infeasibility via solver convergence or penalty smoothing.",
+            "Does not rank designs as best.",
+        ],
+    },
+    "systems_eval": {
+        "does": [
+            "Performs feasibility-first system-level negotiation as an explanation layer.",
+            "Organizes constraint ledgers into mechanism-level narratives (why feasibility breaks).",
+            "Provides deterministic what-would-need-to-change guidance without modifying truth.",
+        ],
+        "does_not": [
+            "Does not change the frozen evaluator or alter physics truth.",
+            "Does not perform any internal root-finding or Newton iterations.",
+            "Does not relax hard constraints implicitly.",
+        ],
+    },
+    "governance": {
+        "does": [
+            "Provides governance and operations utilities (run manifests, gatechecks, status).",
+            "Surfaces toolchain health and deterministic reproducibility checks.",
+            "Centralizes review-room readiness indicators and evidence export.",
+        ],
+        "does_not": [
+            "Does not change model outputs or evaluator behavior.",
+            "Does not run background tasks that mutate artifacts.",
+            "Does not bypass hygiene or verification requirements.",
+        ],
+    },
+    "bench": {
+        "does": [
+            "Hosts constitutional benchmarks and parity tracking (e.g., PROCESS parity atlas).",
+            "Allows user-supplied reference comparisons with explicit deltas.",
+            "Acts as regression safety for the evaluator and UI wiring.",
+        ],
+        "does_not": [
+            "Does not assume external reference values are authoritative without provenance.",
+            "Does not auto-fit SHAMS to match other codes by tuning hidden knobs.",
+            "Does not import or run external tools implicitly.",
+        ],
+    },
     "suite": {
         "does": [
             "Provides cross-cutting diagnostics and derived reports on the last Point Designer evaluation.",

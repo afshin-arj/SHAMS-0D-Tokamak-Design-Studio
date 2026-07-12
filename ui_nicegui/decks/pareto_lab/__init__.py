@@ -44,15 +44,19 @@ def render_pareto_lab(session: DesignSession) -> None:
     render_mode_scope("pareto", default_open=False)
 
     _, _, point_out = get_point_artifact_triple(session)
-    has_eval = isinstance(point_out, dict) and bool(point_out)
-    if not has_eval:
+    if not isinstance(point_out, dict):
         ui.badge(
-            "No Point Designer evaluation — using session baseline inputs",
+            "No Point Designer evaluation — run Point Designer first",
             color="orange",
         ).props("outline").classes("q-mb-sm")
-    else:
-        with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-            ui.label("Point evaluation loaded").classes("text-caption text-positive")
+        empty_state(
+            "Run **Point Designer → Evaluate Point** first — Pareto Lab uses that frozen baseline.",
+            kind="info",
+        )
+        return
+
+    with ui.row().classes("w-full items-center justify-between q-mb-sm"):
+        ui.label("Point evaluation loaded").classes("text-caption text-positive")
 
     with ui.row().classes("w-full items-center justify-end gap-4 q-mb-sm"):
         ui.switch(

@@ -121,8 +121,8 @@ def render_point_designer(session: DesignSession) -> None:
                 ),
             )
 
-    _render_workflow(session)
     _render_hero(session)
+    _render_workflow(session)
 
     async def _evaluate() -> None:
         if session.evaluating:
@@ -188,10 +188,11 @@ def render_point_designer(session: DesignSession) -> None:
         finally:
             session.evaluating = False
             runlock_release("PointDesigner")
-            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_helm_settings, refresh_status
 
             refresh_status()
             refresh_helm()
+            refresh_helm_settings()
 
     _render_tab_body(session, on_evaluate=_evaluate)
 
@@ -260,4 +261,7 @@ def _render_tab_body(session: DesignSession, *, on_evaluate) -> None:
 
 
 def _set_subdeck(session: DesignSession, value: str) -> None:
-    session.pd_subdeck = value
+    session.pd_subdeck = str(value)
+    from ui_nicegui.lib.navigation import refresh_active_deck
+
+    refresh_active_deck()

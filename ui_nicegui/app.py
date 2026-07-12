@@ -23,7 +23,13 @@ ensure_import_paths()
 
 from nicegui import ui
 
-from ui_nicegui.lib.navigation import register_deck_change, register_helm_refresh, register_status_refresh
+from ui_nicegui.lib.navigation import (
+    register_deck_change,
+    register_deck_refresh,
+    register_helm_refresh,
+    register_helm_settings_refresh,
+    register_status_refresh,
+)
 from ui_nicegui.decks import DECK_LABELS, DECK_RENDERERS
 from ui_nicegui.components.drawer_resize import (
     inject_drawer_resize_script,
@@ -42,6 +48,8 @@ _CONTENT: ui.column | None = None
 
 
 def _switch_deck(name: str) -> None:
+    if name == _SESSION.active_deck:
+        return
     _SESSION.active_deck = name
     from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
 
@@ -81,7 +89,11 @@ def main_page() -> None:
     inject_helm_drawer_theme()
     inject_drawer_resize_script()
     register_deck_change(_switch_deck)
-    register_helm_refresh(lambda: _helm_shell.refresh())
+    register_deck_refresh(lambda: _render_deck.refresh())
+    from ui_nicegui.components.helm_console import refresh_helm_navigation, refresh_helm_settings_panel
+
+    register_helm_refresh(refresh_helm_navigation)
+    register_helm_settings_refresh(refresh_helm_settings_panel)
     register_status_refresh(lambda: _render_status_header.refresh())
 
     with ui.header(elevated=True).classes("bg-slate-900 text-white items-center justify-between"):
@@ -114,17 +126,14 @@ def main_page() -> None:
                 with ui.column().classes(f"w-full q-pa-sm {HELM_DRAWER_CLASS} shams-helm-inner").style(
                     "min-width: 0; max-width: 100%; overflow-x: hidden;"
                 ):
-                    _helm_shell(_SESSION, on_deck_change=_switch_deck)
+                    from ui_nicegui.components.helm_console import render_helm_console
+
+                    render_helm_console(_SESSION, on_deck_change=_switch_deck)
             render_drawer_resize_handle()
 
     with ui.column().classes("w-full p-4"):
         _CONTENT = ui.column().classes("w-full")
         _render_deck()
-
-
-@ui.refreshable
-def _helm_shell(session: DesignSession, *, on_deck_change) -> None:
-    render_helm_console(session, on_deck_change=on_deck_change)
 
 
 def _pick_port(host: str, start: int, *, span: int = 20) -> int:

@@ -86,6 +86,15 @@ def render_publication_benchmarks(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("bench", default_open=False)
 
+    from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+
+    _, _, point_out = get_point_artifact_triple(session)
+    if not isinstance(point_out, dict):
+        ui.label(
+            "Tab 1 evaluates **reference machine presets** — not your session point. "
+            "Run Point Designer first to anchor a design, then use Atlas → Promote."
+        ).classes("text-caption text-grey q-mb-sm")
+
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         _render_deck_status(session)
         _render_mode_switches(session)

@@ -16,6 +16,9 @@ _LEGACY_CONTRACT = (
 
 
 def render_legacy_nested_panel(session: DesignSession) -> None:
+    ui.label(
+        "Legacy solver-assisted grid — separate from frozen evaluate-only cartography."
+    ).classes("text-caption text-orange q-mb-xs")
     with ui.expansion("Legacy nested grid scan (expert)", icon="archive").classes("w-full"):
         ui.markdown(_LEGACY_CONTRACT).classes("text-caption q-mb-sm")
 

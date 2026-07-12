@@ -97,6 +97,10 @@ def render_system_suite(session: DesignSession) -> None:
     apply_deck_dsg_context(session, "suite")
     ui.label("System Suite").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
+    ui.markdown(
+        "**System Suite** — read-only L1 engineering overlays on your Point Designer evaluation. "
+        "This is **not Systems Mode** (Monte Carlo precheck / Newton solver)."
+    ).classes("text-caption q-mb-sm")
     render_mode_scope("suite", default_open=False)
 
     art, point_inp, point_out = get_point_artifact_triple(session)
