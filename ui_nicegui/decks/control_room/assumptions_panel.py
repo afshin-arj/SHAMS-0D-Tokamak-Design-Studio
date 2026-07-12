@@ -1,7 +1,7 @@
 """Control Room — assumption toggles with re-evaluation."""
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from nicegui import run, ui
 
@@ -44,15 +44,24 @@ def render_assumptions_panel(session: DesignSession) -> None:
 
     async def _apply() -> None:
         try:
-            pi = session.build_point_inputs()
-            pi.fuel_mode = str(fuel.value or "DT")
-            pi.Ti_keV = float(ti.value or 10.0)
-            pi.Paux_MW = float(paux.value or 50.0)
-            pi.Ti_over_Te = float(tite.value or 2.0)
+            base_pi = session.build_point_inputs()
+            pi = replace(
+                base_pi,
+                fuel_mode=str(fuel.value or "DT"),
+                Ti_keV=float(ti.value or 10.0),
+                Paux_MW=float(paux.value or 50.0),
+                Ti_over_Te=float(tite.value or 2.0),
+            )
             out = await run.io_bound(ui_evaluate, pi, origin="control_room_assumptions")
             set_point_evaluation(session, outputs=out, inputs=asdict(pi))
             ui.notify("Re-evaluated with toggled assumptions (full artifact updated)", type="positive")
             _result.refresh(session)
+            try:
+                from ui_nicegui.decks.control_room.verdict import render_governance_verdict_live
+
+                render_governance_verdict_live.refresh(session)
+            except Exception:
+                pass
         except Exception as exc:
             ui.notify(f"Evaluate failed: {exc}", type="negative")
 

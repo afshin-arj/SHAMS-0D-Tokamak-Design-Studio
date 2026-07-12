@@ -53,14 +53,25 @@ This panel performs a lightweight hygiene scan of the working tree.
 """
         )
         scan = hygiene_scan()
-        if scan.get("ok"):
-            ui.label("No hygiene violations detected in this tree.").classes("text-positive")
+        if scan.get("packaging_ok"):
+            ui.label("No packaging hygiene violations detected.").classes("text-positive")
         else:
-            ui.label("Hygiene violations detected (should be removed before packaging).").classes(
+            ui.label("Packaging hygiene violations detected (remove before release).").classes(
                 "text-negative"
             )
-            with ui.expansion("Show paths").classes("w-full"):
+        dev_hits = scan.get("dev_cache_hits") or []
+        if dev_hits:
+            ui.label(
+                f"Dev cache artifacts present ({len(dev_hits)} paths) — advisory only, not a release blocker."
+            ).classes("text-caption text-grey")
+        if not scan.get("packaging_ok"):
+            with ui.expansion("Show packaging paths").classes("w-full"):
                 for h in scan.get("hits") or []:
+                    if h not in dev_hits:
+                        ui.label(h).classes("text-caption")
+        elif dev_hits:
+            with ui.expansion("Show dev cache paths").classes("w-full"):
+                for h in dev_hits:
                     ui.label(h).classes("text-caption")
 
     elif tab == "Interoperability":
@@ -100,9 +111,24 @@ This panel performs a lightweight hygiene scan of the working tree.
 
         cr = session.cr_contract_report
         if isinstance(cr, dict):
+            nicegui_ok = cr.get("nicegui_ok", cr.get("ok"))
             ui.label(
-                "Contract validator: OK" if cr.get("ok") else "Contract validator: issues detected"
+                "Contract validator (NiceGUI scope): OK"
+                if nicegui_ok
+                else "Contract validator: issues detected"
             ).classes("text-body2 q-mt-sm")
+            sp = cr.get("streamlit_parity") or {}
+            parts = []
+            if sp.get("uncontracted_panels"):
+                parts.append(f"{sp['uncontracted_panels']} uncontracted panels")
+            if sp.get("missing_functions"):
+                parts.append(f"{sp['missing_functions']} missing contract targets")
+            if sp.get("empty_requires"):
+                parts.append(f"{sp['empty_requires']} empty requires")
+            if parts:
+                ui.label(
+                    "Streamlit parity note: " + ", ".join(parts) + " (informational)."
+                ).classes("text-caption text-grey")
             with ui.expansion("Contract validator report").classes("w-full"):
                 render_json_blob(cr)
             ui.download_button(

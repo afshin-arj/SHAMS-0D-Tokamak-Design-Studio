@@ -37,10 +37,20 @@ def evaluate_point_inputs(
     inputs_dict: Dict[str, Any],
     solver_meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Evaluate a point and return a run artifact dict."""
+    """Evaluate a point and return a run artifact dict (L0 Evaluator choke point)."""
     inp = PointInputs.from_dict(inputs_dict)
-    out = hot_ion_point(inp)
-    cons = evaluate_constraints(out)
+    try:
+        from src.evaluator.core import Evaluator  # type: ignore
+    except ImportError:
+        from evaluator.core import Evaluator  # type: ignore
+
+    result = Evaluator().evaluate(inp)
+    out = getattr(result, "out", None)
+    if not isinstance(out, dict):
+        out = getattr(result, "outputs", None)
+    if not isinstance(out, dict):
+        out = hot_ion_point(inp)
+    cons = evaluate_constraints(out, point_inputs=inp.to_dict())
     art = build_run_artifact(inp.to_dict(), out, cons)
     # attach minimal solver/meta if provided (additive)
     if isinstance(solver_meta, dict):

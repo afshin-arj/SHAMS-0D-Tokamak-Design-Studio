@@ -60,3 +60,16 @@ def test_session_cr_workflow_fields() -> None:
     s = DesignSession()
     assert s.cr_workflow_step == "1 · Orient"
     assert s.cr_teaching_mode is True
+
+
+def test_cr_mode_switches_mutual_exclusivity_pattern() -> None:
+    """D10-001: Guided/Expert must flip peer flag and refresh widgets."""
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1].joinpath(
+        "ui_nicegui", "decks", "control_room", "__init__.py"
+    ).read_text(encoding="utf-8")
+    assert "def _render_mode_switches" in src
+    assert "cr_expert_view = False" in src
+    assert "cr_teaching_mode = False" in src
+    assert "_render_mode_switches.refresh()" in src

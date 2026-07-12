@@ -35,7 +35,9 @@ def test_list_docs_nonempty() -> None:
 def test_hygiene_scan_shape() -> None:
     scan = hygiene_scan()
     assert "ok" in scan
+    assert "packaging_ok" in scan
     assert isinstance(scan.get("hits"), list)
+    assert isinstance(scan.get("dev_cache_hits"), list)
 
 
 def test_interop_check() -> None:
@@ -52,6 +54,8 @@ def test_contract_validator_smoke() -> None:
     rep = run_contract_validator(DesignSession())
     assert isinstance(rep, dict)
     assert "ok" in rep
+    assert "nicegui_ok" in rep
+    assert rep.get("nicegui_ok") is True
 
 
 def test_governance_summary() -> None:

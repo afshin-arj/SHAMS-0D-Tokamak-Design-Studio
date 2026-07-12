@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from dataclasses import replace
+
 from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
@@ -85,9 +87,10 @@ def render_knob_trade_space(session: DesignSession) -> None:
                 "fuel_mode": str(fuel.value or "DT"),
             }
             pi = session.build_point_inputs()
-            for k, v in patch.items():
-                if hasattr(pi, k):
-                    setattr(pi, k, v)
+            pi = replace(
+                pi,
+                **{k: v for k, v in patch.items() if hasattr(pi, k)},
+            )
             rows = await run.io_bound(
                 evaluate_knob_trade_grid,
                 pi,

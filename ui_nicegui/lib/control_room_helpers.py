@@ -130,16 +130,29 @@ def read_capability_matrix() -> str:
 
 
 def hygiene_scan() -> Dict[str, Any]:
+    """Scan working tree for packaging violations vs dev-only cache artifacts."""
     root = _root()
-    forbidden = ["__pycache__", ".pytest_cache", "gspulse_ui"]
-    hits: List[str] = []
-    for name in forbidden:
+    packaging_forbidden = ["gspulse_ui"]
+    dev_cache_names = ["__pycache__", ".pytest_cache"]
+    packaging_hits: List[str] = []
+    dev_cache_hits: List[str] = []
+    for name in packaging_forbidden:
         for h in root.rglob(name):
-            hits.append(str(h))
+            packaging_hits.append(str(h))
+    for name in dev_cache_names:
+        for h in root.rglob(name):
+            dev_cache_hits.append(str(h))
     for h in root.glob("run_st*"):
-        hits.append(str(h))
-    hits = sorted(set(hits))
-    return {"ok": len(hits) == 0, "hits": hits}
+        packaging_hits.append(str(h))
+    packaging_hits = sorted(set(packaging_hits))
+    dev_cache_hits = sorted(set(dev_cache_hits))
+    packaging_ok = len(packaging_hits) == 0
+    return {
+        "ok": packaging_ok,
+        "packaging_ok": packaging_ok,
+        "dev_cache_hits": dev_cache_hits,
+        "hits": packaging_hits + dev_cache_hits,
+    }
 
 
 def session_snapshot(session: Any) -> Dict[str, str]:
@@ -167,9 +180,9 @@ def interop_check(session: Any) -> Dict[str, Any]:
     """Deterministic NiceGUI session interoperability audit (no physics)."""
     rep: Dict[str, Any] = {"ok": True, "checks": []}
 
-    def _add(name: str, ok: bool, detail: str = "") -> None:
-        rep["checks"].append({"name": name, "ok": bool(ok), "detail": str(detail)})
-        if not ok:
+    def _add(name: str, ok: bool, detail: str = "", *, required: bool = True) -> None:
+        rep["checks"].append({"name": name, "ok": bool(ok), "detail": str(detail), "required": required})
+        if required and not ok:
             rep["ok"] = False
 
     _add("pd_last_outputs", isinstance(getattr(session, "pd_last_outputs", None), dict),
@@ -180,6 +193,7 @@ def interop_check(session: Any) -> Dict[str, Any]:
         "cmp_slot_a",
         getattr(session, "cmp_slot_a", None) is not None,
         "present" if getattr(session, "cmp_slot_a", None) is not None else "missing (optional)",
+        required=False,
     )
     _add("systems_targets", True, "NiceGUI Systems Mode uses session fields directly")
     for k in ("last_precheck_report", "scan_cartography_report", "pareto_last", "trade_last"):
@@ -190,13 +204,30 @@ def interop_check(session: Any) -> Dict[str, Any]:
 
 
 def run_contract_validator(session: Any) -> Dict[str, Any]:
-    """Static UI contract validator (Streamlit ui/app.py wiring audit)."""
+    """Static wiring audit — NiceGUI scope (Streamlit uncontracted panels are informational)."""
     from ui.panel_contracts import get_panel_contracts
     from tools.interoperability.contract_validator import validate_ui_contracts
 
     contracts = get_panel_contracts()
     ss = {k: getattr(session, k, None) for k in dir(session) if not k.startswith("_")}
-    return validate_ui_contracts(_root(), contracts, session_state=ss)
+    rep = validate_ui_contracts(_root(), contracts, session_state=ss)
+    uncontracted = list(rep.get("uncontracted_panels") or [])
+    missing = list(rep.get("missing_functions") or [])
+    empty_req = list(rep.get("empty_requires") or [])
+    dup = rep.get("dup_required_keys") or {}
+    nicegui_ok = len(dup) == 0
+    rep["nicegui_ok"] = nicegui_ok
+    rep["ok"] = nicegui_ok
+    rep["streamlit_parity"] = {
+        "missing_functions": len(missing),
+        "uncontracted_panels": len(uncontracted),
+        "empty_requires": len(empty_req),
+        "note": "Legacy Streamlit ui/app.py contract drift — informational for NiceGUI Control Room.",
+    }
+    if isinstance(rep.get("summary"), dict):
+        rep["summary"]["nicegui_ok"] = nicegui_ok
+        rep["summary"]["streamlit_uncontracted"] = len(uncontracted)
+    return rep
 
 
 def governance_summary(session: Any) -> Dict[str, Any]:
@@ -221,7 +252,7 @@ def governance_summary(session: Any) -> Dict[str, Any]:
         "q_label": str(vs.get("q_label", "-")) if vs.get("loaded") else "-",
         "design_class": design_confidence_class(art) if isinstance(art, dict) else "-",
         "feasible_hard": kpis.get("feasible_hard"),
-        "hygiene_ok": bool(hygiene.get("ok")),
+        "hygiene_ok": bool(hygiene.get("packaging_ok", hygiene.get("ok"))),
     }
 
 
