@@ -165,7 +165,7 @@ def render_pub_handoffs(session: DesignSession) -> None:
     def _to_pd() -> None:
         try:
             n = promote_atlas_inputs_to_point_designer(session)
-            switch_deck("Point Designer")
+            switch_deck("Point Designer", force=True)
             ui.notify(f"Promoted {n} atlas inputs → Point Designer (re-evaluate there).", type="positive")
             log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffPointDesigner", {"n": n})
         except Exception as exc:

@@ -174,7 +174,7 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
     def _promote() -> None:
         try:
             n = promote_atlas_inputs_to_point_designer(session)
-            switch_deck("Point Designer")
+            switch_deck("Point Designer", force=True)
             ui.notify(f"Promoted {n} inputs → Point Designer — re-evaluate there.", type="positive")
         except Exception as exc:
             ui.notify(str(exc), type="warning")

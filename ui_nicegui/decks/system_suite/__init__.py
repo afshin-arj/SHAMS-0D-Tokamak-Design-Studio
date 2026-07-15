@@ -11,7 +11,6 @@ from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.components.verdict_banner import verdict_banner
 from ui_nicegui.decks.system_suite import tabs as suite_tabs
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.pd_hero_kpis import hero_kpi_cells
 from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
 from ui_nicegui.lib.suite_helpers import authority_version_badges
@@ -94,7 +93,6 @@ def _render_tab_content(session: DesignSession, ctx: suite_tabs.SuiteContext) ->
 
 
 def render_system_suite(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "suite")
     ui.label("System Suite").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     ui.markdown(

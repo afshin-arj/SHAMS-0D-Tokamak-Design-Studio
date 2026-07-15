@@ -14,6 +14,7 @@ from ui_nicegui.decks.compare import (
     verdict,
 )
 from ui_nicegui.lib.compare_helpers import summarize_comparison
+from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.compare_labels import (
     COMPARE_TABS,
     DECISION_STATES,
@@ -23,7 +24,6 @@ from ui_nicegui.lib.compare_labels import (
     normalize_compare_tab,
     teaching_banner,
 )
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.session import DesignSession
 
 
@@ -33,10 +33,21 @@ def _refresh_all() -> None:
 
 
 def render_compare(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "compare")
     ui.label("Compare").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("compare", default_open=False)
+
+    _, _, point_out = get_point_artifact_triple(session)
+    if not isinstance(point_out, dict):
+        ui.badge(
+            "No Point Designer evaluation — anchor a point before loading compare slots",
+            color="orange",
+        ).props("outline").classes("q-mb-sm")
+        empty_state(
+            "Run **Point Designer → Evaluate Point** first, then load artifacts A & B on tab 1.",
+            kind="info",
+        )
+        return
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         art_a, art_b = setup.resolve_artifacts(session)

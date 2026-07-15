@@ -14,7 +14,6 @@ from ui_nicegui.decks.pareto_lab import (
     setup_panel,
     verdict,
 )
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.pareto_labels import (
     ALL_EXTERNAL as EXTERNAL_DECKS,
@@ -37,7 +36,6 @@ def _refresh_all() -> None:
 
 
 def render_pareto_lab(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "pareto")
     ui.label("Pareto Lab").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     ui.markdown(PARETO_LOCK_LINE).classes("text-body2 q-mb-sm")

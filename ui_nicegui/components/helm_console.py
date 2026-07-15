@@ -31,6 +31,7 @@ from ui_nicegui.lib.helm_labels import (
     HELM_NAV_GROUPS,
     helm_section_label,
 )
+from ui_nicegui.lib.deck_dsg_hooks import normalize_edge_kind
 from ui_nicegui.lib.pd_intent_policy import constraint_policy_snapshot, policy_caption
 from ui_nicegui.lib.run_lock import status as runlock_status, global_status as runlock_global_status
 from ui_nicegui.session import DesignSession
@@ -98,6 +99,9 @@ def _helm_nav_section(session: DesignSession, *, on_deck_change: Callable[[str],
 
     _render_run_lock_banner(session)
     _render_posture(session)
+    if getattr(session, "dsg_edge_kind_auto", True):
+        ek = normalize_edge_kind(session.dsg_context_edge_kind)
+        ui.label(f"DSG edge kind (auto): {ek}").classes("text-caption text-grey-7 q-mb-xs")
 
     ui.separator().classes("q-my-sm")
     render_workflow_compass(session, on_deck_change=on_deck_change)

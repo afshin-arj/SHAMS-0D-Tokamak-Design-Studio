@@ -119,6 +119,16 @@ def test_compare_mode_scope_registered() -> None:
     assert any("rank" in line.lower() for line in MODE_SCOPE["compare"]["does_not"])
 
 
+def test_compare_pd_prerequisite_badge() -> None:
+    import inspect
+
+    from ui_nicegui.decks import compare as cmp_mod
+
+    src = inspect.getsource(cmp_mod.render_compare)
+    assert "ui.badge" in src
+    assert "No Point Designer evaluation" in src
+
+
 def test_trade_study_controls_refresh_on_suggest() -> None:
     import inspect
 

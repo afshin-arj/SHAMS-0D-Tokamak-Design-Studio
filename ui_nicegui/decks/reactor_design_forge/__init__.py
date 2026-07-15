@@ -15,7 +15,6 @@ from ui_nicegui.decks.reactor_design_forge import (
     workbench,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.forge_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -57,7 +56,6 @@ def _sync_legacy_deck(session: DesignSession, tab: str) -> None:
 
 
 def render_reactor_design_forge(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "forge")
     ui.label("Reactor Design Forge").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("forge", default_open=False)

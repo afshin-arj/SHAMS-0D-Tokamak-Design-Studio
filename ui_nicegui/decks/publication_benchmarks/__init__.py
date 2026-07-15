@@ -13,7 +13,6 @@ from ui_nicegui.decks.publication_benchmarks import (
     governance,
 )
 from ui_nicegui.lib.benchmark_helpers import summarize_atlas_result
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.pub_benchmark_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -81,7 +80,6 @@ def _render_deck_status(session: DesignSession) -> None:
 
 
 def render_publication_benchmarks(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "bench")
     ui.label("Publication Benchmarks").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("bench", default_open=False)

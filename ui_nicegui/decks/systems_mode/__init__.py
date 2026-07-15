@@ -29,7 +29,6 @@ from ui_nicegui.decks.systems_mode import (
 )
 from ui_nicegui.lib.pd_intent_policy import policy_caption
 from ui_nicegui.lib.systems_artifact import fetch_systems_artifact
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
 from ui_nicegui.lib.systems_labels import (
@@ -72,7 +71,6 @@ def _artifact_source(art: dict | None) -> str | None:
 
 
 def render_systems_mode(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "systems_eval")
     consume_systems_mode_queue(session)
     session.systems_workflow_step = normalize_systems_tab(session.systems_workflow_step)
 

@@ -38,9 +38,17 @@ def register_deck_refresh(callback: Callable[[], None]) -> None:
     _deck_refresh = callback
 
 
-def switch_deck(name: str) -> None:
+def switch_deck(name: str, *, force: bool = False) -> None:
+    """Navigate to a deck. Use force=True after handoffs that mutate session on the active deck."""
     if _deck_change is not None:
-        _deck_change(name)
+        _deck_change(name, force=force)
+
+
+def refresh_current_deck() -> None:
+    """Re-render the active deck after in-place session mutation (no deck change)."""
+    refresh_active_deck()
+    refresh_helm()
+    refresh_status()
 
 
 def refresh_helm() -> None:

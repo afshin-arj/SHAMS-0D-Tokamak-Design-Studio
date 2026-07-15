@@ -47,10 +47,12 @@ _SESSION = DesignSession()
 _CONTENT: ui.column | None = None
 
 
-def _switch_deck(name: str) -> None:
-    if name == _SESSION.active_deck:
+def _switch_deck(name: str, *, force: bool = False) -> None:
+    same = name == _SESSION.active_deck
+    if same and not force:
         return
-    _SESSION.active_deck = name
+    if not same:
+        _SESSION.active_deck = name
     from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
 
     apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))

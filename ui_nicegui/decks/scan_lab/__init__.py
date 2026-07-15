@@ -17,7 +17,6 @@ from ui_nicegui.decks.scan_lab import (
 )
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.scan_archive_helpers import probe_scan_imports
 from ui_nicegui.lib.scan_labels import (
     DECISION_STATES,
@@ -38,13 +37,14 @@ def _refresh_all() -> None:
 
 
 def render_scan_lab(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "scan")
     ui.label("Scan Lab").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("scan", default_open=False)
 
-    errs = probe_scan_imports()
-    session.scan_import_errors = errs
+    errs = session.scan_import_errors
+    if errs is None:
+        errs = probe_scan_imports()
+        session.scan_import_errors = errs
     if errs and not session.scan_expert_view:
         with ui.expansion("Import warnings", icon="warning").classes("w-full q-mb-sm"):
             for msg in errs:

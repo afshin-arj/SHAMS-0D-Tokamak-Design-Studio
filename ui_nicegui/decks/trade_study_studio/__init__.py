@@ -15,7 +15,6 @@ from ui_nicegui.decks.trade_study_studio import (
     verdict,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, STUDY_SETUP_DECK
 from ui_nicegui.lib.trade_study_labels import (
     ADVANCED_GROUPS,
@@ -43,7 +42,6 @@ def _refresh_all() -> None:
 
 
 def render_trade_study_studio(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "trade")
     ui.label("Trade Study Studio").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("trade", default_open=False)

@@ -14,7 +14,6 @@ from ui_nicegui.decks.point_designer.constraints import render_constraints
 from ui_nicegui.decks.point_designer.phase_envelopes import render_phase_envelopes
 from ui_nicegui.decks.point_designer.uncertainty_contracts import render_uncertainty_contracts
 from ui_nicegui.decks.point_designer.telemetry import render_telemetry
-from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context
 from ui_nicegui.lib.pd_solver_helpers import run_point_designer_evaluation
 from ui_nicegui.lib.pd_workflow_labels import (
     DECISION_STATES,
@@ -46,7 +45,6 @@ def _refresh_all(session: DesignSession) -> None:
 
 
 def render_point_designer(session: DesignSession) -> None:
-    apply_deck_dsg_context(session, "point")
     ui.label("Point Designer").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("point", default_open=False)

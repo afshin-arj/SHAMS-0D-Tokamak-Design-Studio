@@ -200,14 +200,23 @@ def test_helm_nav_does_not_double_refresh_on_click() -> None:
     assert "refresh_status" not in go_src
 
 
-def test_switch_deck_same_deck_is_noop() -> None:
+def test_switch_deck_same_deck_skips_without_force() -> None:
     import inspect
 
     from ui_nicegui import app as ng_app
 
     src = inspect.getsource(ng_app._switch_deck)
+    assert "force" in src
     assert "active_deck" in src
-    assert "return" in src
+
+
+def test_navigation_force_and_refresh_current_deck() -> None:
+    import inspect
+
+    from ui_nicegui.lib import navigation as nav
+
+    assert "force" in inspect.getsource(nav.switch_deck)
+    assert callable(nav.refresh_current_deck)
 
 
 def test_mode_scope_keys_for_all_decks() -> None:
