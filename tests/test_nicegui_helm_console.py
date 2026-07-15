@@ -237,7 +237,7 @@ def test_mode_scope_keys_for_all_decks() -> None:
     assert required <= set(MODE_SCOPE)
 
 
-def test_phase_two_requires_scan_artifact() -> None:
+def test_phase_two_requires_scan_or_systems() -> None:
     from ui_nicegui.lib.helm_workflow_guide import phase_completion, workflow_progress
 
     s = DesignSession()
@@ -250,3 +250,22 @@ def test_phase_two_requires_scan_artifact() -> None:
     progress2 = workflow_progress(s)
     assert progress2["scanned"] is True
     assert phase_completion(2, progress2) is True
+
+
+def test_hygiene_scan_is_cached() -> None:
+    from ui_nicegui.lib import control_room_helpers as crh
+
+    crh._HYGIENE_CACHE = None
+    a = crh.hygiene_scan()
+    b = crh.hygiene_scan()
+    assert a == b
+    assert crh._HYGIENE_CACHE is not None
+
+
+def test_systems_mode_scope_allows_newton_propose() -> None:
+    from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
+
+    does = " ".join(MODE_SCOPE["systems_eval"]["does"]).lower()
+    does_not = " ".join(MODE_SCOPE["systems_eval"]["does_not"]).lower()
+    assert "newton" in does
+    assert "does not perform any internal root-finding" not in does_not

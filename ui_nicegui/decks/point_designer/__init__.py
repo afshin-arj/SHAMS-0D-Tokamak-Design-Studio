@@ -73,7 +73,7 @@ def render_point_designer(session: DesignSession) -> None:
     with ui.expansion("About this mode", icon="info").classes("w-full q-mb-sm"):
         ui.markdown(
             "**Point Designer is frozen** — single operating point, constraint-authoritative, "
-            "no optimization. Exploration belongs in **Systems Mode**."
+            "no optimization. Cartography belongs in **Scan Lab**; systems closure/recovery in **Systems Mode**."
         )
         with ui.row().classes("w-full gap-4"):
             with ui.column().classes("flex-1"):
@@ -186,11 +186,10 @@ def render_point_designer(session: DesignSession) -> None:
         finally:
             session.evaluating = False
             runlock_release("PointDesigner")
-            from ui_nicegui.lib.navigation import refresh_helm, refresh_helm_settings, refresh_status
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
             refresh_status()
             refresh_helm()
-            refresh_helm_settings()
 
     _render_tab_body(session, on_evaluate=_evaluate)
 

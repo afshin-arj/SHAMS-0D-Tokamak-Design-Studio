@@ -54,6 +54,7 @@ def render_archive_handoffs(
     def _promote() -> None:
         try:
             session.inputs = promote_archive_row(session.inputs, run_rep, _ix())
+            switch_deck("Point Designer", force=True)
             ui.notify("Promoted to Point Designer inputs — evaluate there.", type="positive")
             if on_complete:
                 on_complete()
@@ -70,7 +71,7 @@ def render_archive_handoffs(
     def _to_scan() -> None:
         try:
             handoff_archive_row_to_scan_lab(session, run_rep, _ix())
-            switch_deck("Scan Lab")
+            switch_deck("Scan Lab", force=True)
             ui.notify("Opened Scan Lab with Forge candidate focus.", type="info")
         except Exception as exc:
             ui.notify(f"Scan Lab handoff failed: {exc}", type="negative")
@@ -78,7 +79,7 @@ def render_archive_handoffs(
     def _to_systems() -> None:
         try:
             handoff_archive_row_to_systems_mode(session, run_rep, _ix())
-            switch_deck("Systems Mode")
+            switch_deck("Systems Mode", force=True)
             ui.notify("Opened Systems Mode with queued candidate.", type="info")
         except Exception as exc:
             ui.notify(f"Systems Mode handoff failed: {exc}", type="negative")
@@ -87,5 +88,5 @@ def render_archive_handoffs(
         ui.button("Promote → Point Designer", icon="upload", on_click=_promote).props("outline color=primary")
         ui.button("Send → Compare A", icon="compare", on_click=lambda: _handoff_compare("A")).props("flat outline")
         ui.button("Send → Compare B", icon="compare", on_click=lambda: _handoff_compare("B")).props("flat outline")
-        ui.button("Focus Scan Lab", icon="map", on_click=_to_scan).props("flat outline")
-        ui.button("Queue Systems Mode", icon="hub", on_click=_to_systems).props("flat outline")
+        ui.button("Focus → Scan Lab", icon="map", on_click=_to_scan).props("flat outline")
+        ui.button("Queue → Systems Mode", icon="hub", on_click=_to_systems).props("flat outline")

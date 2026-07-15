@@ -17,13 +17,13 @@ MODE_SCOPE: dict[str, dict[str, list[str]]] = {
     "systems_eval": {
         "does": [
             "Performs feasibility-first system-level negotiation as an explanation layer.",
-            "Organizes constraint ledgers into mechanism-level narratives (why feasibility breaks).",
+            "Runs Monte Carlo precheck and Newton target solve that propose PointInputs only.",
             "Provides deterministic what-would-need-to-change guidance without modifying truth.",
         ],
         "does_not": [
-            "Does not change the frozen evaluator or alter physics truth.",
-            "Does not perform any internal root-finding or Newton iterations.",
-            "Does not relax hard constraints implicitly.",
+            "Does not change the frozen evaluator or alter physics truth — solvers propose; L0 re-evaluates.",
+            "Does not hide NO-SOLUTION or relax hard constraints inside the evaluator.",
+            "Does not claim Newton/MC results are authoritative without a frozen post-apply evaluate.",
         ],
     },
     "governance": {

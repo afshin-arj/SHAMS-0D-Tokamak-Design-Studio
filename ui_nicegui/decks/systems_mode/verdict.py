@@ -28,6 +28,7 @@ def _physics_kpis(art: dict) -> dict:
         "P_net": out.get("P_e_net_MW", out.get("P_net_MW")),
         "H98": out.get("H98"),
         "beta_N": out.get("beta_N", out.get("betaN")),
+        "f_G": out.get("fG", out.get("greenwald_fraction")),
         "q95": out.get("q95", out.get("q95_proxy")),
     }
 
@@ -75,6 +76,7 @@ def render_posture_strip(art: dict, *, next_action: str = "") -> None:
         ("P_net [MW]", fmt(kpis.get("P_net"))),
         ("q95", fmt(kpis.get("q95"))),
         ("β_N", fmt(kpis.get("beta_N"))),
+        ("f_G", fmt(kpis.get("f_G"))),
     ])
     if next_action:
         ui.markdown(f"**Next:** {next_action}").classes("text-body2 q-mt-xs")

@@ -6,6 +6,7 @@ from typing import Any, Optional
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.deck_gate import pd_prerequisite_gate
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.components.verdict_banner import verdict_banner
@@ -27,6 +28,41 @@ from ui_nicegui.lib.suite_overlay_helpers import render_overlay_status_panel
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 
+_SUITE_OVERLAYS: Optional[dict[str, Any]] = None
+
+
+def _suite_overlays() -> dict[str, Any]:
+    """Cache tools.system_suite imports — avoid remount latency on every deck switch."""
+    global _SUITE_OVERLAYS
+    if _SUITE_OVERLAYS is not None:
+        return _SUITE_OVERLAYS
+    from tools.system_suite import (
+        lifetime_and_fuel_overlay,
+        ops_availability_overlay,
+        power_closure_overlay,
+        thermal_network_diagnostics_client,
+        trajectory_diagnostics_client,
+    )
+
+    _SUITE_OVERLAYS = {
+        "power_closure_overlay": power_closure_overlay,
+        "ops_availability_overlay": ops_availability_overlay,
+        "thermal_network_diagnostics_client": thermal_network_diagnostics_client,
+        "trajectory_diagnostics_client": trajectory_diagnostics_client,
+        "lifetime_and_fuel_overlay": lifetime_and_fuel_overlay,
+    }
+    return _SUITE_OVERLAYS
+
+
+def _fmt_num(x, *, digits: int = 3) -> str:
+    try:
+        v = float(x)
+        if v != v:
+            return "n/a"
+        return f"{v:.{digits}g}"
+    except (TypeError, ValueError):
+        return "n/a"
+
 
 def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) -> None:
     if not point_out:
@@ -45,6 +81,15 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
         fuel_mode=fuel,
     )
     kpi_row([(c.label, c.display) for c in cells[:4]])
+
+    beta = point_out.get("betaN", point_out.get("beta_N"))
+    fg = point_out.get("fG", point_out.get("greenwald_fraction"))
+    q95 = point_out.get("q95")
+    kpi_row([
+        ("β_N", _fmt_num(beta)),
+        ("f_G", _fmt_num(fg)),
+        ("q95", _fmt_num(q95)),
+    ])
 
     subs = summary.get("subsystems") or {}
     with ui.row().classes("gap-2 q-mt-xs flex-wrap"):
@@ -103,20 +148,13 @@ def render_system_suite(session: DesignSession) -> None:
 
     art, point_inp, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
-        empty_state(
+        pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first to populate System Suite diagnostics.",
-            kind="info",
         )
         return
 
     try:
-        from tools.system_suite import (
-            lifetime_and_fuel_overlay,
-            ops_availability_overlay,
-            power_closure_overlay,
-            thermal_network_diagnostics_client,
-            trajectory_diagnostics_client,
-        )
+        overlays = _suite_overlays()
     except Exception as exc:
         ui.label(f"System Suite import failed: {exc}").classes("text-negative")
         return
@@ -126,13 +164,7 @@ def render_system_suite(session: DesignSession) -> None:
         artifact=art,
         point_inp=point_inp,
         point_out=point_out,
-        overlays={
-            "power_closure_overlay": power_closure_overlay,
-            "ops_availability_overlay": ops_availability_overlay,
-            "thermal_network_diagnostics_client": thermal_network_diagnostics_client,
-            "trajectory_diagnostics_client": trajectory_diagnostics_client,
-            "lifetime_and_fuel_overlay": lifetime_and_fuel_overlay,
-        },
+        overlays=overlays,
     )
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):

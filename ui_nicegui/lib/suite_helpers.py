@@ -460,9 +460,10 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
             from ui_nicegui.lib.suite_helpers import bridge_campaign_to_pareto
 
             meta = bridge_campaign_to_pareto(session)
-            switch_deck("Pareto Lab")
+            session.pareto_workflow_step = "5 · External Tools"
+            switch_deck("Pareto Lab", force=True)
             ui.notify(
-                f"Bridged to Pareto Lab: {meta.get('n_records', 0)} atlas records, "
+                f"Bridged to Pareto Lab External Tools: {meta.get('n_records', 0)} atlas records, "
                 f"{meta.get('n_candidates', 0)} candidates → {meta.get('yaml_name') or 'results only'}.",
                 type="positive",
             )

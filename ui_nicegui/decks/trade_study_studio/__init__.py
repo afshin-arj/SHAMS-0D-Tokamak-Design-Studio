@@ -4,6 +4,7 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.deck_gate import pd_prerequisite_gate
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.trade_study_studio import (
     advanced,
@@ -52,9 +53,8 @@ def render_trade_study_studio(session: DesignSession) -> None:
             "No Point Designer evaluation — run Point Designer first",
             color="orange",
         ).props("outline").classes("q-mb-sm")
-        empty_state(
+        pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Trade Study uses that baseline.",
-            kind="info",
         )
         return
 

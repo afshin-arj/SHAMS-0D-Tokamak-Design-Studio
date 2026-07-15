@@ -6,6 +6,7 @@ from typing import Optional
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.deck_gate import pd_prerequisite_gate
 from ui_nicegui.decks.scan_lab import (
     cartography,
     deep_maps,
@@ -31,6 +32,34 @@ from ui_nicegui.lib.scan_labels import (
 from ui_nicegui.session import DesignSession
 
 
+def _consume_scan_probe_focus(session: DesignSession) -> None:
+    """Apply inbound Scan Lab focus from Pareto/Forge; land on a useful tab."""
+    focus = getattr(session, "scan_probe_focus", None)
+    if not isinstance(focus, dict):
+        return
+    has_report = isinstance(getattr(session, "scan_cartography_report", None), dict) or isinstance(
+        getattr(session, "scan_cartography_artifact", None), dict
+    )
+    x_key = focus.get("x_key") or focus.get("x")
+    y_key = focus.get("y_key") or focus.get("y")
+    if x_key:
+        session.scan_cart_x_key = str(x_key)
+    if y_key:
+        session.scan_cart_y_key = str(y_key)
+    if has_report:
+        session.scan_workflow_step = "2 · Map & Probe"
+        src = focus.get("source") or "upstream deck"
+        ui.label(
+            f"Inbound probe focus from {src} — axes {session.scan_cart_x_key} × {session.scan_cart_y_key}."
+        ).classes("text-caption text-orange q-mb-sm")
+    else:
+        session.scan_workflow_step = "1 · Setup & Run"
+        ui.label(
+            "Inbound scan axes applied from handoff — run cartography on Setup first (Map & Probe needs a report)."
+        ).classes("text-caption text-orange q-mb-sm")
+    session.scan_probe_focus = None
+
+
 def _refresh_all() -> None:
     _render_verdict.refresh()
     _render_tab_body.refresh()
@@ -52,16 +81,20 @@ def render_scan_lab(session: DesignSession) -> None:
 
     _, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
-        empty_state(
+        pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Scan Lab uses that baseline.",
-            kind="info",
         )
         return
+
+    _consume_scan_probe_focus(session)
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
         q = point_out.get("Q_DT_eqv", point_out.get("Q"))
         h98 = point_out.get("H98")
         pnet = point_out.get("P_e_net_MW")
+        beta = point_out.get("betaN", point_out.get("beta_N"))
+        fg = point_out.get("fG", point_out.get("greenwald_fraction"))
+        q95 = point_out.get("q95")
         baseline_bits = []
         if q is not None:
             baseline_bits.append(f"Q≈{q}")
@@ -69,9 +102,15 @@ def render_scan_lab(session: DesignSession) -> None:
             baseline_bits.append(f"H98≈{h98}")
         if pnet is not None:
             baseline_bits.append(f"P_net≈{pnet} MW")
+        if beta is not None:
+            baseline_bits.append(f"β_N≈{beta}")
+        if fg is not None:
+            baseline_bits.append(f"f_G≈{fg}")
+        if q95 is not None:
+            baseline_bits.append(f"q95≈{q95}")
         cap = "Point evaluation loaded"
         if baseline_bits:
-            cap += f" ({', '.join(str(b) for b in baseline_bits[:3])})"
+            cap += f" ({', '.join(str(b) for b in baseline_bits[:6])})"
         ui.label(cap).classes("text-caption text-positive")
         with ui.row().classes("gap-4"):
             ui.switch(

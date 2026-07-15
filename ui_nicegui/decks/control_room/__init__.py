@@ -50,9 +50,9 @@ def render_control_room(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("governance", default_open=False)
 
-    verdict.render_governance_verdict_live(session)
-
     summary = governance_summary(session)
+    verdict.render_governance_verdict(summary)
+
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         _ver = summary.get("version") or read_version()
         ver_label = _ver if str(_ver).startswith("v") else f"v{_ver}"

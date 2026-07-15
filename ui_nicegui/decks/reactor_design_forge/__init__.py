@@ -4,6 +4,7 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.deck_gate import pd_prerequisite_gate
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.reactor_design_forge import (
     capsules,
@@ -62,9 +63,8 @@ def render_reactor_design_forge(session: DesignSession) -> None:
 
     _, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
-        empty_state(
+        pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Forge uses that baseline.",
-            kind="info",
         )
         return
 

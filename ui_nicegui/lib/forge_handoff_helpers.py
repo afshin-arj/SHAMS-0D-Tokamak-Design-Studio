@@ -46,7 +46,7 @@ def handoff_archive_row_to_scan_lab(session, run: dict, row_idx: int) -> dict:
         session.scan_cart_x_key = str(focus["x_key"])
     if focus.get("y_key"):
         session.scan_cart_y_key = str(focus["y_key"])
-    session.scan_workflow_step = "2 · Map & Probe"
+    session.scan_workflow_step = "1 · Setup & Run"
     return focus
 
 

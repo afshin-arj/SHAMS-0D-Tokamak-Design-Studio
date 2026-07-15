@@ -264,13 +264,13 @@ def render_interpret_tab(
                     session.scan_cart_x_key = str(focus.get("x_key") or x_key)
                     session.scan_cart_y_key = str(focus.get("y_key") or y_key)
                     session.scan_workflow_step = "2 · Map & Probe"
-                    switch_deck("Scan Lab")
+                    switch_deck("Scan Lab", force=True)
                     ui.notify("Opened Scan Lab with Pareto focus.", type="info")
 
                 def _systems() -> None:
                     session.systems_mode_queue = [systems_mode_handoff(p, bounds)]
                     session.systems_workflow_step = "1 · Targets"
-                    switch_deck("Systems Mode")
+                    switch_deck("Systems Mode", force=True)
                     ui.notify("Opened Systems Mode with queued inputs.", type="info")
 
                 with ui.row().classes("gap-2 q-mt-sm"):

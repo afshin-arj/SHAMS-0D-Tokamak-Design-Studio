@@ -100,7 +100,7 @@ def render_export_tab(
         if focus.get("y_key"):
             session.scan_cart_y_key = str(focus["y_key"])
         session.scan_workflow_step = "2 · Map & Probe"
-        switch_deck("Scan Lab")
+        switch_deck("Scan Lab", force=True)
         ui.notify("Opened Scan Lab with Pareto focus.", type="info")
 
     ui.button("Hand off focus to Scan Lab", icon="map", on_click=_handoff_scan).props("flat outline")
@@ -112,7 +112,7 @@ def render_export_tab(
             return
         session.systems_mode_queue = [systems_mode_handoff(pareto[i], bounds)]
         session.systems_workflow_step = "1 · Targets"
-        switch_deck("Systems Mode")
+        switch_deck("Systems Mode", force=True)
         ui.notify("Opened Systems Mode with queued inputs.", type="info")
 
     ui.button("Queue for Systems Mode", icon="hub", on_click=_handoff_systems).props("flat outline")

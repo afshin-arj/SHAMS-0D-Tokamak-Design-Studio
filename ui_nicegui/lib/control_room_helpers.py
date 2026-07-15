@@ -129,8 +129,18 @@ def read_capability_matrix() -> str:
     return "(missing docs/PHYSICS_CAPABILITY_MATRIX*.md)"
 
 
-def hygiene_scan() -> Dict[str, Any]:
-    """Scan working tree for packaging violations vs dev-only cache artifacts."""
+_HYGIENE_CACHE: Optional[Dict[str, Any]] = None
+
+
+def hygiene_scan(*, force: bool = False) -> Dict[str, Any]:
+    """Scan working tree for packaging violations vs dev-only cache artifacts.
+
+    Result is process-cached — full-tree rglob is expensive; Control Room mounts
+    call governance_summary often and must not walk the repo twice per switch.
+    """
+    global _HYGIENE_CACHE
+    if _HYGIENE_CACHE is not None and not force:
+        return dict(_HYGIENE_CACHE)
     root = _root()
     packaging_forbidden = ["gspulse_ui"]
     dev_cache_names = ["__pycache__", ".pytest_cache"]
@@ -147,12 +157,13 @@ def hygiene_scan() -> Dict[str, Any]:
     packaging_hits = sorted(set(packaging_hits))
     dev_cache_hits = sorted(set(dev_cache_hits))
     packaging_ok = len(packaging_hits) == 0
-    return {
+    _HYGIENE_CACHE = {
         "ok": packaging_ok,
         "packaging_ok": packaging_ok,
         "dev_cache_hits": dev_cache_hits,
         "hits": packaging_hits + dev_cache_hits,
     }
+    return dict(_HYGIENE_CACHE)
 
 
 def session_snapshot(session: Any) -> Dict[str, str]:

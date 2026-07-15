@@ -110,6 +110,17 @@ def has_compare_slots(session: Any) -> bool:
     return isinstance(a, dict) or isinstance(b, dict)
 
 
+def has_systems_closure(session: Any) -> bool:
+    """True when Systems Mode has a successful solve/artifact on the session."""
+    art = getattr(session, "systems_last_solve_artifact", None)
+    if isinstance(art, dict) and art:
+        return True
+    rep = getattr(session, "systems_last_solve_result", None)
+    if isinstance(rep, dict) and (rep.get("ok") or rep.get("feasible")):
+        return True
+    return False
+
+
 def suggest_next_deck(session: Any, active_deck: str) -> tuple[Optional[str], str]:
     """Return (recommended deck or None, plain-language reason)."""
     if not has_point_evaluation(session):
@@ -132,6 +143,8 @@ def suggest_next_deck(session: Any, active_deck: str) -> tuple[Optional[str], st
         return (None, "Run a cartography scan or continue to Systems Mode when ready.")
 
     if active_deck == "Systems Mode":
+        if not has_systems_closure(session):
+            return (None, "Run precheck/solve to close systems, or continue when ready.")
         return ("Compare", "Systems closed — diff baseline vs scenario artifacts.")
 
     if active_deck == "Compare" and not has_compare_slots(session):
@@ -151,12 +164,18 @@ def workflow_progress(session: Any) -> dict[str, bool]:
     scanned = isinstance(getattr(session, "scan_cartography_report", None), dict) or isinstance(
         getattr(session, "scan_cartography_artifact", None), dict
     )
+    systems_closed = has_systems_closure(session)
     compared = has_compare_slots(session)
+    forged = isinstance(getattr(session, "forge_mf_last_run", None), dict) or isinstance(
+        getattr(session, "forge_last_capsule", None), dict
+    )
     sealed = isinstance(getattr(session, "cr_study_protocol_last", None), dict)
     return {
         "evaluated": evaluated,
         "scanned": scanned,
+        "systems_closed": systems_closed,
         "compared": compared,
+        "forged": forged,
         "sealed": sealed,
     }
 
@@ -165,9 +184,12 @@ def phase_completion(phase: int, progress: dict[str, bool]) -> bool:
     if phase == 1:
         return progress.get("evaluated", False)
     if phase == 2:
-        return progress.get("scanned", False)
+        # Map & close — cartography sufficient; systems solve completes the phase vividly.
+        return progress.get("scanned", False) or progress.get("systems_closed", False)
     if phase == 3:
         return progress.get("compared", False)
+    if phase == 4:
+        return progress.get("forged", False)
     if phase == 5:
         return progress.get("sealed", False)
     return False

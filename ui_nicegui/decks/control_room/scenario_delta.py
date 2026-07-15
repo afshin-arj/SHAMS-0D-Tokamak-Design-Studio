@@ -79,7 +79,7 @@ def render_scenario_delta(session: DesignSession) -> None:
         def _open_compare() -> None:
             bridge_cr_to_compare_slots(session)
             session.cmp_workflow_step = "1 · Load A & B"
-            switch_deck("Compare")
+            switch_deck("Compare", force=True)
             ui.notify("Opened Compare with scenario pair.", type="info")
 
         with ui.row().classes("gap-2 flex-wrap"):

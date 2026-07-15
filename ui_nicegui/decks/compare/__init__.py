@@ -25,6 +25,7 @@ from ui_nicegui.lib.compare_labels import (
     teaching_banner,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.navigation import switch_deck
 
 
 def _refresh_all() -> None:
@@ -40,14 +41,18 @@ def render_compare(session: DesignSession) -> None:
     _, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
         ui.badge(
-            "No Point Designer evaluation — anchor a point before loading compare slots",
+            "No Point Designer evaluation in session — you can still load A & B from JSON",
             color="orange",
         ).props("outline").classes("q-mb-sm")
-        empty_state(
-            "Run **Point Designer → Evaluate Point** first, then load artifacts A & B on tab 1.",
-            kind="info",
-        )
-        return
+        ui.label(
+            "Tip: anchor a point in Point Designer when comparing against the live session; "
+            "artifact-only review works from tab 1 without a session evaluation."
+        ).classes("text-caption text-grey q-mb-sm")
+        ui.button(
+            "Open Point Designer",
+            icon="design_services",
+            on_click=lambda: switch_deck("Point Designer"),
+        ).props("outline dense").classes("q-mb-sm")
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         art_a, art_b = setup.resolve_artifacts(session)

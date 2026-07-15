@@ -29,7 +29,7 @@ def render_governance_panel(session: DesignSession, rep: dict | None = None) -> 
                         k: float(v) for k, v in cand.items() if isinstance(v, (int, float))
                     }
             session.systems_workflow_step = "1 · Targets"
-            switch_deck("Systems Mode")
+            switch_deck("Systems Mode", force=True)
             ui.notify("Opened Systems Mode — configure targets and run precheck/solve.", type="info")
 
         ui.button("Need target matching? → Systems Mode", icon="hub", on_click=_systems).props("outline flat")

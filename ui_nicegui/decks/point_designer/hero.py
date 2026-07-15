@@ -21,6 +21,29 @@ def _fmt_num(x, *, digits: int = 3) -> str:
         return "n/a"
 
 
+def _constraint_headroom(out: dict, names: list[str]) -> str:
+    """Format margin_frac from constraint ledger when present (presentation only)."""
+    cons = out.get("constraints") or []
+    if not isinstance(cons, list):
+        return ""
+    want = {n.lower() for n in names}
+    for c in cons:
+        if not isinstance(c, dict):
+            continue
+        name = str(c.get("name") or "").lower()
+        if name not in want:
+            continue
+        m = c.get("margin_frac", c.get("margin"))
+        limit = c.get("limit", c.get("threshold"))
+        try:
+            if m is not None and float(m) == float(m):
+                lim = f", lim {_fmt_num(limit)}" if limit is not None else ""
+                return f" (m={_fmt_num(m, digits=2)}{lim})"
+        except (TypeError, ValueError):
+            pass
+    return ""
+
+
 def render_hero(session: DesignSession) -> None:
     out = session.pd_last_outputs or session.last_eval
     if not out:
@@ -55,9 +78,9 @@ def render_hero(session: DesignSession) -> None:
     fg = out.get("fG", out.get("greenwald_fraction"))
     q95 = out.get("q95")
     kpi_row([
-        ("β_N", _fmt_num(beta)),
-        ("f_G", _fmt_num(fg)),
-        ("q95", _fmt_num(q95)),
+        ("β_N", _fmt_num(beta) + _constraint_headroom(out, ["betaN", "beta_n", "betaN_proxy"])),
+        ("f_G", _fmt_num(fg) + _constraint_headroom(out, ["fG", "fg", "greenwald"])),
+        ("q95", _fmt_num(q95) + _constraint_headroom(out, ["q95", "q95_min"])),
     ])
 
     for note in hero_diagnostic_notes(
