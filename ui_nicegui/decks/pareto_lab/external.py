@@ -541,13 +541,13 @@ def _cockpit_view(session: DesignSession) -> None:
 
 def _render_feasible_optimizer(session: DesignSession) -> None:
     from ui_nicegui.lib.external_optimizer_helpers import launch_optimizer_kit
-    from ui_nicegui.lib.pareto_helpers import default_bounds
+    from ui_nicegui.lib.pareto_helpers import ensure_pareto_bounds
 
     ui.label(
         "External feasible optimizer — proposes inputs only; SHAMS re-evaluates with frozen truth."
     ).classes("text-caption")
     base = session.build_point_inputs()
-    bounds = dict(session.pareto_bounds or default_bounds(base))
+    bounds = dict(ensure_pareto_bounds(session, base))
     kit = ui.select(["NSGA2-lite", "CMAES-lite", "BO-lite"], label="Optimizer kit", value="NSGA2-lite")
     seed = ui.number("Seed", value=session.pareto_seed, min=0, step=1)
     budget = ui.number("Budget (evaluations)", value=200, min=50, max=5000, step=50)

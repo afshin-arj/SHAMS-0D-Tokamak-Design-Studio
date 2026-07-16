@@ -139,10 +139,18 @@ def fmt_num(v: Any) -> str:
     try:
         f = float(v)
         if math.isnan(f):
-            return "nan"
+            return "—"
         return f"{f:.4g}"
     except (TypeError, ValueError):
         return str(v)
+
+
+def fmt_magnet_margin(v: Any, *, v400_enabled: bool = False) -> str:
+    """Magnet margin display — avoid raw nan in telemetry (MAG-NAN-001)."""
+    f = _safe_float(v)
+    if not math.isfinite(f):
+        return "OFF" if not v400_enabled else "—"
+    return f"{f:.4g}"
 
 
 def assumptions_snapshot(session: "DesignSession") -> Dict[str, Any]:
@@ -297,9 +305,13 @@ def build_coils_metrics(out: Dict[str, Any]) -> List[Tuple[str, str]]:
         ("Cryo power (MW)", "cryo_power_MW", "{:.2f}"),
     ]
     rows: List[Tuple[str, str]] = []
+    v400 = bool(out.get("magnet_v400_enabled", False))
     for lab, key, fmt in pairs:
         v = _safe_float(out.get(key, float("nan")))
-        rows.append((lab, fmt.format(v) if math.isfinite(v) else "n/a"))
+        if key == "hts_margin" and not math.isfinite(v):
+            rows.append((lab, fmt_magnet_margin(v, v400_enabled=v400)))
+        else:
+            rows.append((lab, fmt.format(v) if math.isfinite(v) else "—"))
     return rows
 
 
@@ -377,6 +389,9 @@ def magnet_card_metrics(out: Dict[str, Any]) -> Dict[str, Any]:
         "tech": str(out.get("magnet_technology", "unknown")),
         "tf_sc": tf_sc,
         "sc_margin": sc_margin,
+        "sc_margin_display": fmt_magnet_margin(
+            sc_margin, v400_enabled=bool(out.get("magnet_v400_enabled", False))
+        ),
         "p_tf_ohm": p_tf_ohm,
         "tcoil_K": out.get("Tcoil_K"),
         "tf_note": tf_note,

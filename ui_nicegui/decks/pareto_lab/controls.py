@@ -10,9 +10,11 @@ from ui_nicegui.lib.pareto_helpers import (
     OBJ_TEMPLATES,
     default_bounds,
     default_objective_sense,
+    ensure_pareto_bounds,
     frontier_posture,
     metric_label,
     run_pareto_study,
+    sanitize_sampling_bounds,
 )
 from ui_nicegui.lib.pareto_interpret_helpers import possible_next_questions
 from ui_nicegui.lib.pareto_labels import ROBUST_MARGIN_HELP
@@ -27,12 +29,13 @@ def render_pareto_controls(
 ) -> None:
     base = session.build_point_inputs()
     bounds_def = default_bounds(base)
+    # PARETO-BOUNDS-001: re-seed / expand stale or inverted boxes around PD baseline.
+    b = ensure_pareto_bounds(session, base)
 
     bounds_ctx = ui.column().classes("w-full") if flat else ui.expansion(
         "Bounds (sampling hyper-rectangle)", icon="crop", value=flat
     ).classes("w-full")
     with bounds_ctx:
-        b = session.pareto_bounds or bounds_def
         with ui.row().classes("w-full gap-2"):
             ui.number("R0 min [m]", value=b["R0_m"][0], step=0.01, on_change=lambda e: _set_bound(session, "R0_m", 0, e.value)).classes("flex-1")
             ui.number("R0 max [m]", value=b["R0_m"][1], step=0.01, on_change=lambda e: _set_bound(session, "R0_m", 1, e.value)).classes("flex-1")
@@ -168,7 +171,8 @@ def _post_run_verdict(session: DesignSession) -> None:
 
 
 def _resolved_bounds(session: DesignSession, defaults: dict) -> dict:
-    b = dict(session.pareto_bounds or defaults)
+    base = session.build_point_inputs()
+    b = ensure_pareto_bounds(session, base)
     for k, v in defaults.items():
         if k not in b:
             b[k] = v
@@ -176,12 +180,22 @@ def _resolved_bounds(session: DesignSession, defaults: dict) -> dict:
 
 
 def _set_bound(session: DesignSession, key: str, idx: int, value) -> None:
+    base = session.build_point_inputs()
     if session.pareto_bounds is None:
-        session.pareto_bounds = default_bounds(session.build_point_inputs())
+        session.pareto_bounds = default_bounds(base)
     lo, hi = session.pareto_bounds.get(key, (0.0, 1.0))
-    pair = [lo, hi]
-    pair[idx] = float(value)
+    pair = [float(lo), float(hi)]
+    try:
+        pair[idx] = float(value)
+    except (TypeError, ValueError):
+        return
     session.pareto_bounds[key] = (pair[0], pair[1])
+    # Keep lo ≤ hi after manual edits (swap edges; do not expand beyond user intent).
+    session.pareto_bounds = sanitize_sampling_bounds(
+        session.pareto_bounds,
+        baseline=None,
+        defaults=None,
+    )
 
 
 def _set_objectives(session: DesignSession, keys: list[str]) -> None:

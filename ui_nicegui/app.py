@@ -44,10 +44,16 @@ from ui_nicegui.session import DesignSession
 
 # Module-level session (single-user desktop; replace with per-client storage for multi-user)
 _SESSION = DesignSession()
-_CONTENT: ui.column | None = None
 
 
 def _switch_deck(name: str, *, force: bool = False) -> None:
+    """Navigate to a deck and always remount the main panel when the target changes.
+
+    NAV-001: deck body must live in ``_render_deck``'s refreshable slot (not a
+    sibling ``_CONTENT`` column). Writing into an external container while the
+    refreshable slot stayed empty left Helm/`active_deck` updated and the
+    previous deck DOM still visible after handoffs and nav clicks.
+    """
     same = name == _SESSION.active_deck
     if same and not force:
         return
@@ -56,6 +62,7 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
     from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
 
     apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
+    # Remount deck body first so main title matches Helm selection (NAV-001).
     _render_deck.refresh()
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -70,24 +77,19 @@ def _render_status_header(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_deck() -> None:
-    global _CONTENT
-    if _CONTENT is None:
+    """Render active deck into this refreshable's own slot (authoritative remount target)."""
+    cap = deck_workflow_caption(_SESSION.active_deck)
+    if cap:
+        ui.label(cap).classes("text-caption text-grey-7 q-mb-sm")
+    renderer = DECK_RENDERERS.get(_SESSION.active_deck)
+    if renderer is None:
+        ui.label(f"Unknown deck: {_SESSION.active_deck}")
         return
-    _CONTENT.clear()
-    with _CONTENT:
-        cap = deck_workflow_caption(_SESSION.active_deck)
-        if cap:
-            ui.label(cap).classes("text-caption text-grey-7 q-mb-sm")
-        renderer = DECK_RENDERERS.get(_SESSION.active_deck)
-        if renderer is None:
-            ui.label(f"Unknown deck: {_SESSION.active_deck}")
-            return
-        renderer(_SESSION)
+    renderer(_SESSION)
 
 
 @ui.page("/")
 def main_page() -> None:
-    global _CONTENT
     inject_helm_drawer_theme()
     inject_drawer_resize_script()
     register_deck_change(_switch_deck)
@@ -134,7 +136,7 @@ def main_page() -> None:
             render_drawer_resize_handle()
 
     with ui.column().classes("w-full p-4"):
-        _CONTENT = ui.column().classes("w-full")
+        # Deck body must be the refreshable slot itself — see _switch_deck / NAV-001.
         _render_deck()
 
 

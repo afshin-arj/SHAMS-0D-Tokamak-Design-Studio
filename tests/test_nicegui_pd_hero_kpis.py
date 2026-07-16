@@ -28,6 +28,34 @@ def test_hero_suppresses_extreme_q_on_infeasible() -> None:
     assert cells[2].suppressed is True
 
 
+def test_hero_suppresses_moderate_q_and_pnet_on_infeasible_research() -> None:
+    """PHYS-KPI-001: Q≈13 / P_net on INFEASIBLE Research must not read as hero claims."""
+    out = {"Q_DT_eqv": 13.2, "H98": 1.9, "P_net_e_MW": 114.0}
+    cells = hero_kpi_cells(out, _summary_infeasible(), design_intent="Experimental Device (research)")
+    assert cells[0].suppressed is True
+    assert "diagnostic" in cells[0].display.lower()
+    assert cells[2].suppressed is True
+    assert "diagnostic" in cells[2].display.lower()
+
+
+def test_hero_research_exhaust_diagnostic_note() -> None:
+    from ui_nicegui.evaluate import ui_evaluate
+    from ui_nicegui.lib.helm_helpers import apply_legacy_reference_machine_to_session
+    from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    s = DesignSession()
+    s.design_intent = "Experimental Device (research)"
+    apply_legacy_reference_machine_to_session(s, "SPARC-class (compact HTS)")
+    out = ui_evaluate(s.build_point_inputs(), origin="test:hero_note")
+    notes = hero_diagnostic_notes(
+        out,
+        verdict_summary(out),
+        design_intent=s.design_intent,
+    )
+    assert any("diagnostic-only" in n.lower() or "divertor" in n.lower() for n in notes)
+
+
 def test_hero_suppresses_high_h98_on_infeasible() -> None:
     out = {"Q_DT_eqv": 5.0, "H98": 3.28, "P_net_e_MW": 50.0}
     cells = hero_kpi_cells(out, _summary_infeasible(), design_intent="Experimental Device (research)")

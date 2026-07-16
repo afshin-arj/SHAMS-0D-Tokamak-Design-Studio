@@ -154,8 +154,8 @@ class DesignSession:
     scan_cart_x_hi: Optional[float] = None
     scan_cart_y_lo: Optional[float] = None
     scan_cart_y_hi: Optional[float] = None
-    scan_cart_nx: int = 31
-    scan_cart_ny: int = 25
+    scan_cart_nx: int = 11
+    scan_cart_ny: int = 11
     scan_cart_include_outputs: bool = False
     scan_cart_base_override: Optional[dict[str, Any]] = None
     scan_running: bool = False

@@ -207,8 +207,12 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                 ])
 
             elif v == "Edge/Divertor & Exhaust Control":
+                ui.label(
+                    "q_div is an Eich λq / wetted-area engineering proxy — screening cliff cartography only, "
+                    "not an absolute SOLPS heat-flux design margin."
+                ).classes("text-caption text-grey q-mb-xs")
                 kpi_row([
-                    ("q_div (MW/m²)", _fmt(_sf(out, "q_div_MW_m2"), 1)),
+                    ("q_div proxy (MW/m²)", _fmt(_sf(out, "q_div_MW_m2"), 1)),
                     ("q_div limit", _fmt(_sf(out, "q_div_max_MW_m2"), 1)),
                     ("f_rad_div", _fmt(_sf(out, "f_rad_div"))),
                     ("Divertor regime", str(out.get("div_regime", "unknown"))),

@@ -107,19 +107,30 @@ def hero_kpi_cells(
     pnet_sup = False
 
     if not feasible:
-        q_sup, q_note = _q_infeasible_suppressed(q_raw, fuel_mode=fuel_mode)
+        q_extreme_sup, q_extreme_note = _q_infeasible_suppressed(q_raw, fuel_mode=fuel_mode)
         h98_sup, h98_note = _h98_infeasible_suppressed(h98_raw, design_intent=design_intent)
-        if q_sup and math.isfinite(pnet_raw):
-            pnet_sup = True
+        # INFEASIBLE: never present Q / P_net,e as design claims (PHYS-KPI-001).
+        q_sup = math.isfinite(q_raw)
+        pnet_sup = math.isfinite(pnet_raw)
+        if q_extreme_sup and q_extreme_note:
+            q_note = q_extreme_note
+        elif q_sup:
+            q_note = (
+                "Q on an INFEASIBLE point is power-balance closure only — not a performance claim."
+            )
+        if pnet_sup:
+            notes.append(
+                "P_net,e on an INFEASIBLE point is plant bookkeeping residue — not a net-electric claim."
+            )
+    else:
+        q_sup, q_note = (False, "")
+        h98_sup, h98_note = (False, "")
+        pnet_sup = False
 
     if q_note:
         notes.append(q_note)
     if h98_note:
         notes.append(h98_note)
-    if pnet_sup:
-        notes.append(
-            "P_net,e suppressed — tied to non-credible Q on an infeasible point."
-        )
 
     mirage = bool(out.get("mirage_flag_v402"))
     if feasible and mirage:
@@ -161,10 +172,27 @@ def hero_diagnostic_notes(
     headline: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """Collect caption lines for suppressed / fragile hero KPIs."""
+    from ui_nicegui.lib.pd_intent_policy import classify_failed_constraints, design_intent_key
+    from ui_nicegui.lib.pd_parity_helpers import failed_hard_names
+
     cells = hero_kpi_cells(
         out, summary, design_intent=design_intent, fuel_mode=fuel_mode, headline=headline
     )
     notes: List[str] = []
+    if (
+        not summary.get("feasible")
+        and design_intent_key(design_intent) == "research"
+        and isinstance(out, dict)
+    ):
+        cls = classify_failed_constraints(failed_hard_names(out), design_intent=design_intent)
+        exhaust_diag = [n for n in cls.get("diagnostic", []) if n in ("q_div", "P_SOL/R")]
+        if exhaust_diag:
+            notes.append(
+                "Research covenant: divertor / exhaust limits ("
+                + ", ".join(exhaust_diag)
+                + ") are diagnostic-only — not blocking under this intent. "
+                "Do not treat Q or P_net,e as compliance claims."
+            )
     for c in cells:
         if c.note and c.note not in notes:
             notes.append(c.note)

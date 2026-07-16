@@ -208,6 +208,12 @@ def test_switch_deck_same_deck_skips_without_force() -> None:
     src = inspect.getsource(ng_app._switch_deck)
     assert "force" in src
     assert "active_deck" in src
+    # NAV-001: deck remount must refresh the refreshable slot (not an external content column).
+    mod_src = inspect.getsource(ng_app)
+    assert "_CONTENT =" not in mod_src
+    assert "global _CONTENT" not in mod_src
+    assert "_render_deck.refresh()" in src
+    assert "DECK_RENDERERS.get" in mod_src
 
 
 def test_navigation_force_and_refresh_current_deck() -> None:
@@ -217,6 +223,7 @@ def test_navigation_force_and_refresh_current_deck() -> None:
 
     assert "force" in inspect.getsource(nav.switch_deck)
     assert callable(nav.refresh_current_deck)
+    assert "force=True after handoffs" in (nav.switch_deck.__doc__ or "")
 
 
 def test_mode_scope_keys_for_all_decks() -> None:

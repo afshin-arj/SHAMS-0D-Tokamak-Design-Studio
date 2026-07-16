@@ -51,6 +51,11 @@ def render_constraints(session: DesignSession) -> None:
                 ui.markdown("**Blocking:** " + ", ".join(f"`{x}`" for x in cls["blocking"]))
             if cls["diagnostic"]:
                 ui.markdown("**Diagnostics:** " + ", ".join(f"`{x}`" for x in cls["diagnostic"]))
+                if any(x in cls["diagnostic"] for x in ("q_div", "P_SOL/R")):
+                    ui.label(
+                        "Divertor / exhaust listed as diagnostic under Research — "
+                        "physics margin still names the kill; switch to Reactor hard-set for compliance claims."
+                    ).classes("text-caption text-orange")
             if cls["ignored"]:
                 ui.markdown("**Ignored:** " + ", ".join(f"`{x}`" for x in cls["ignored"]))
 

@@ -134,6 +134,11 @@ def render_cartography_controls(
     ui.label(
         f"Frozen evaluator calls: {n_eval} (one per grid cell; intent lenses reuse the same truth)."
     ).classes("text-caption q-mb-xs")
+    if n_eval > 121:
+        ui.label(
+            f"Budget note: {n_eval} evaluations exceeds recommended 11×11 (121) — "
+            "use Quick probe or reduce Nx/Ny unless approved."
+        ).classes("text-caption text-orange q-mb-xs")
     ui.label(
         f"Projection: {SCAN_VAR_LABELS.get(session.scan_cart_x_key, session.scan_cart_x_key)} "
         f"vs {SCAN_VAR_LABELS.get(session.scan_cart_y_key, session.scan_cart_y_key)}"

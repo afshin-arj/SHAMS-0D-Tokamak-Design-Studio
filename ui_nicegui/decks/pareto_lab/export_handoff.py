@@ -101,7 +101,15 @@ def render_export_tab(
             session.scan_cart_y_key = str(focus["y_key"])
         session.scan_workflow_step = "2 · Map & Probe"
         switch_deck("Scan Lab", force=True)
-        ui.notify("Opened Scan Lab with Pareto focus.", type="info")
+        # HANDOFF-TOAST-001: toast only after navigation owns active_deck.
+        landed = str(getattr(session, "active_deck", "") or "")
+        if landed == "Scan Lab":
+            ui.notify("Opened Scan Lab with Pareto focus.", type="info")
+        else:
+            ui.notify(
+                f"Handoff prepared Scan Lab focus, but active deck is {landed or 'unknown'} — check Helm nav.",
+                type="warning",
+            )
 
     ui.button("Hand off focus to Scan Lab", icon="map", on_click=_handoff_scan).props("flat outline")
 

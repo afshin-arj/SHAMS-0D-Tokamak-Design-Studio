@@ -23,6 +23,36 @@ def test_default_bounds() -> None:
     assert b["fG"] == (0.3, 1.1)
 
 
+def test_sanitize_sampling_bounds_pareto_bounds_001() -> None:
+    """Stale compact-machine max + plant R0 must not stay inverted/outside."""
+    from ui_nicegui.lib.pareto_helpers import ensure_pareto_bounds, sanitize_sampling_bounds
+
+    # Exact campaign footprint: default R0=1.81 → max 2.2625; PD later raises R0=4.
+    stale = {
+        "R0_m": (1.448, 2.2625),
+        "Bt_T": (7.0, 11.5),
+        "Ip_MA": (4.8, 12.8),
+        "fG": (0.3, 1.1),
+    }
+    fixed = sanitize_sampling_bounds(
+        {"R0_m": (4.0, 2.2625), "Bt_T": stale["Bt_T"], "Ip_MA": stale["Ip_MA"], "fG": stale["fG"]},
+        baseline={"R0_m": 4.0},
+    )
+    assert fixed["R0_m"][0] <= fixed["R0_m"][1]
+    assert fixed["R0_m"][0] <= 4.0 <= fixed["R0_m"][1]
+
+    expanded = sanitize_sampling_bounds(stale, baseline={"R0_m": 4.0})
+    assert expanded["R0_m"][0] <= expanded["R0_m"][1]
+    assert expanded["R0_m"][0] <= 4.0 <= expanded["R0_m"][1]
+
+    s = DesignSession()
+    s.inputs["R0_m"] = 4.0
+    s.pareto_bounds = dict(stale)
+    b = ensure_pareto_bounds(s)
+    assert b["R0_m"][0] <= b["R0_m"][1]
+    assert b["R0_m"][0] <= 4.0 <= b["R0_m"][1]
+
+
 def test_run_pareto_study_smoke() -> None:
     s = DesignSession()
     base = s.build_point_inputs()

@@ -129,6 +129,94 @@ def default_bounds(base) -> Dict[str, Tuple[float, float]]:
     return out
 
 
+def _baseline_knob_values(base, keys: Optional[List[str]] = None) -> Dict[str, float]:
+    """Extract knob values from a PointInputs-like baseline (PARETO-BOUNDS-001)."""
+    keys = keys or ["R0_m", "Bt_T", "Ip_MA", "fG", "Paux_MW"]
+    out: Dict[str, float] = {}
+    for k in keys:
+        try:
+            out[k] = float(getattr(base, k))
+        except Exception:
+            continue
+    return out
+
+
+def sanitize_sampling_bounds(
+    bounds: Dict[str, Any],
+    *,
+    baseline: Optional[Dict[str, float]] = None,
+    defaults: Optional[Dict[str, Tuple[float, float]]] = None,
+) -> Dict[str, Tuple[float, float]]:
+    """Ensure each sampling box has lo ≤ hi and includes the PD baseline.
+
+    PARETO-BOUNDS-001: stale session bounds (e.g. R0 max≈2.26 from default R0=1.81)
+    can invert or exclude a raised PD point (R0=4). Strategy per knob:
+    - missing/corrupt → seed from ``defaults`` when available
+    - inverted → swap edges
+    - PD baseline outside → expand the nearer edge to include it
+    """
+    out: Dict[str, Tuple[float, float]] = {}
+    keys = list(bounds.keys()) if bounds else []
+    if defaults:
+        for k in defaults:
+            if k not in keys:
+                keys.append(k)
+
+    for key in keys:
+        pair = (bounds or {}).get(key)
+        lo: Optional[float] = None
+        hi: Optional[float] = None
+        if pair is not None:
+            try:
+                lo, hi = float(pair[0]), float(pair[1])
+            except (TypeError, ValueError, IndexError, KeyError):
+                lo = hi = None
+
+        if lo is None or hi is None:
+            if defaults and key in defaults:
+                lo, hi = float(defaults[key][0]), float(defaults[key][1])
+            else:
+                continue
+
+        if lo > hi:
+            lo, hi = hi, lo
+
+        v: Optional[float] = None
+        if baseline and key in baseline:
+            try:
+                v = float(baseline[key])
+            except (TypeError, ValueError):
+                v = None
+
+        if v is not None:
+            if v < lo:
+                lo = v
+            if v > hi:
+                hi = v
+            if lo >= hi:
+                pad = max(abs(v) * 0.05, 1e-9)
+                lo, hi = v - pad, v + pad
+
+        out[key] = (float(lo), float(hi))
+    return out
+
+
+def ensure_pareto_bounds(session: Any, base=None) -> Dict[str, Tuple[float, float]]:
+    """Seed/refresh ``session.pareto_bounds`` from the current PD baseline (sane lo≤hi)."""
+    if base is None:
+        base = session.build_point_inputs()
+    fresh = default_bounds(base)
+    baseline = _baseline_knob_values(base, list(fresh.keys()))
+    current = getattr(session, "pareto_bounds", None)
+    if not isinstance(current, dict) or not current:
+        session.pareto_bounds = dict(fresh)
+    else:
+        session.pareto_bounds = sanitize_sampling_bounds(
+            current, baseline=baseline, defaults=fresh
+        )
+    return session.pareto_bounds
+
+
 def intent_list(intent_mode: str) -> List[str]:
     if str(intent_mode).startswith("Both"):
         return ["Reactor", "Research"]

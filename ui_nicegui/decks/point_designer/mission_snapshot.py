@@ -280,7 +280,7 @@ def _magnet_card(out: dict) -> None:
         ),
         (
             "SC margin" if mc["tf_sc"] == 1.0 else "TF ohmic [MW]",
-            fmt_num(mc["sc_margin"] if mc["tf_sc"] == 1.0 else mc["p_tf_ohm"]),
+            mc["sc_margin_display"] if mc["tf_sc"] == 1.0 else fmt_num(mc["p_tf_ohm"]),
         ),
         ("Tcoil [K]", fmt_num(mc["tcoil_K"])),
     ])
@@ -289,7 +289,7 @@ def _magnet_card(out: dict) -> None:
     kpi_row([
         (
             "SC margin" if mc["tf_sc"] == 1.0 else "TF ohmic [MW]",
-            fmt_num(mc["sc_margin"] if mc["tf_sc"] == 1.0 else mc["p_tf_ohm"]),
+            mc["sc_margin_display"] if mc["tf_sc"] == 1.0 else fmt_num(mc["p_tf_ohm"]),
         ),
         ("Lifetime [yr]", fmt_num(mc["hts_lifetime_yr"])),
         ("Vdump [kV]", fmt_num(mc["V_dump_kV"])),
