@@ -138,6 +138,11 @@ OVERLAY_LABELS: Dict[str, Tuple[str, Optional[str], str]] = {
         "v410",
         "Per-family TF/PF/CS superconducting and engineering margins beyond v400 (proxy).",
     ),
+    "include_machine_build_authority_v412": (
+        "Radial / machine-build closure",
+        "v412",
+        "Layer-stack consistency, clearances, build gaps, and outboard envelope narrative (proxy).",
+    ),
     "include_authority_dominance_v402": (
         "Global authority dominance engine",
         "v402",
@@ -319,6 +324,7 @@ OVERLAY_GROUP_SPECS: List[Tuple[str, List[Tuple[str, bool]]]] = [
         [
             ("include_magnet_technology_authority_v400", True),
             ("include_magnet_sc_system_authority_v410", False),
+            ("include_machine_build_authority_v412", False),
             ("include_authority_dominance_v402", True),
             ("include_control_stability_authority_v398", False),
             ("include_impurity_v399", False),
@@ -364,6 +370,7 @@ OVERLAY_NUMERIC_TITLES: Dict[str, str] = {
     "include_profile_proxy_v397": "Kinetic profile peaking proxy",
     "include_magnet_technology_authority_v400": "Magnet technology margins",
     "include_magnet_sc_system_authority_v410": "TF/PF/CS SC system depth",
+    "include_machine_build_authority_v412": "Radial / machine-build closure",
     "include_control_stability_authority_v398": "Control & stability margins",
     "include_impurity_v399": "Multi-species impurity radiation",
     "include_profile_family_v358": "Profile family library",

@@ -25,6 +25,7 @@ _AUTHORITY_FIELDS: List[Tuple[str, str]] = [
     ("include_elm_transient_heat_v409", "Transient heat-flux envelope from ELM energy dumps."),
     ("cd_mix_enable", "Split launched CD power across ECCD/LHCD/NBI/ICRF channels."),
     ("include_magnet_sc_system_authority_v410", "TF/PF/CS superconducting system margins beyond v400 (proxy overlay)."),
+    ("include_machine_build_authority_v412", "Radial / machine-build closure: layer stack, clearances, outboard envelope (proxy)."),
     ("include_tritium_tight_closure", "Strict tritium balance without breeding slack."),
 ]
 

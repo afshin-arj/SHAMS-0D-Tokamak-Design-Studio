@@ -458,6 +458,33 @@ def magnet_v410_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def machine_v412_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Radial / machine-build closure overlay (proxy). None when disabled."""
+    if not bool(out.get("machine_v412_enabled", False)):
+        return None
+    return {
+        "screening_tier": out.get("machine_v412_screening_tier", "proxy"),
+        "overlay_version": out.get("machine_v412_overlay_version", "v412"),
+        "system_margin": out.get("machine_v412_system_margin"),
+        "system_tier": out.get("machine_v412_system_tier", "unknown"),
+        "dominant_aspect": out.get("machine_v412_dominant_aspect", "unknown"),
+        "dominant_aspect_margin": out.get("machine_v412_dominant_aspect_margin"),
+        "inboard_margin_m": out.get("machine_v412_inboard_margin_m"),
+        "closure_ok": out.get("machine_v412_closure_ok"),
+        "n_layers": out.get("machine_v412_n_layers"),
+        "outboard_R_outer_m": out.get("machine_v412_outboard_R_outer_m"),
+        "provenance": out.get("machine_v412_provenance", ""),
+        "narrative": out.get("machine_v412_narrative", ""),
+        "aspect_margins": {
+            "Inboard closure": out.get("machine_v412_inboard_closure_margin"),
+            "Coil bore": out.get("machine_v412_coil_bore_margin"),
+            "Build gap": out.get("machine_v412_gap_clearance_margin"),
+            "Layer mins": out.get("machine_v412_layer_mins_margin"),
+        },
+        "layer_ledger": out.get("machine_v412_layer_ledger"),
+    }
+
+
 POWER_LEDGER_BADGED = [
     ("Input power Pin", "Pin_MW", "Authoritative"),
     ("Aux heating", "Paux_MW", "Authoritative"),

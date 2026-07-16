@@ -22,6 +22,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     magnet_card_metrics,
     magnet_v400_summary,
     magnet_v410_summary,
+    machine_v412_summary,
     point_summary_rows,
     raw_telemetry_rows,
     regime_compass_rows,
@@ -157,6 +158,24 @@ def render_mission_snapshot(session: DesignSession) -> None:
             render_json_blob(v410["family_margins"])
             ui.label("Per-family tiers / dominants").classes("text-subtitle2 q-mt-sm")
             render_json_blob({"tiers": v410["family_tiers"], "dominants": v410["family_dominants"]})
+
+    v412 = machine_v412_summary(out)
+    if v412:
+        with ui.expansion("Machine-build / radial closure (v412) [PROXY]", icon="view_timeline").classes("w-full"):
+            ui.badge("PROXY overlay").props("color=orange")
+            ui.label(
+                "Layer-stack consistency, clearances, and outboard envelope narrative."
+            ).classes("text-caption q-mb-sm")
+            kpi_row([
+                ("System margin", fmt_num(v412["system_margin"])),
+                ("System tier", str(v412["system_tier"])),
+                ("Dominant aspect", str(v412["dominant_aspect"])),
+                ("Inboard margin [m]", fmt_num(v412["inboard_margin_m"])),
+            ])
+            ui.label("Aspect margins").classes("text-subtitle2")
+            render_json_blob(v412["aspect_margins"])
+            if v412.get("narrative"):
+                ui.label(str(v412["narrative"])).classes("text-caption q-mt-sm")
 
     with ui.expansion("Regime compass (sanity checks)", icon="explore").classes("w-full"):
         ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(

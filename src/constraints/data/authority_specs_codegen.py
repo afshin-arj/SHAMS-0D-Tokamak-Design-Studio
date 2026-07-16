@@ -31,5 +31,8 @@ REGISTRY_SPECS: List[Dict[str, Any]] = [
     {"name": "TF family margin (v410)", "value_key": "magnet_v410_tf_margin", "sense": ">=", "limit_lo_key": "tf_family_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
     {"name": "PF family margin (v410)", "value_key": "magnet_v410_pf_margin", "sense": ">=", "limit_lo_key": "pf_family_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
     {"name": "CS family margin (v410)", "value_key": "magnet_v410_cs_margin", "sense": ">=", "limit_lo_key": "cs_family_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
+    {"name": "Machine-build closure (v412)", "value_key": "machine_v412_system_margin", "sense": ">=", "limit_lo_key": "machine_build_closure_margin_min_v412", "group": "build", "authority": "v412", "enabled_key": "include_machine_build_authority_v412"},
+    {"name": "Inboard build clearance (v412)", "value_key": "machine_v412_inboard_margin_m", "sense": ">=", "limit_lo_key": "machine_build_inboard_margin_min_m_v412", "group": "build", "authority": "v412", "enabled_key": "include_machine_build_authority_v412"},
+    {"name": "Build gap clearance (v412)", "value_key": "machine_v412_gap_thickness_m", "sense": ">=", "limit_lo_key": "machine_build_gap_min_m_v412", "group": "build", "authority": "v412", "enabled_key": "include_machine_build_authority_v412"},
 ]
-REGISTRY_SPEC_COUNT = 24
+REGISTRY_SPEC_COUNT = 27

@@ -113,6 +113,19 @@ class PointInputs:
     pf_family_margin_min_v410: float = float("nan")
     cs_family_margin_min_v410: float = float("nan")
 
+    # ------------------------------------------------------------------
+    # v412.0: Machine-build / radial closure authority (MATCH-as-overlay)
+    # Layer stack consistency, clearances, build gaps, outboard envelope proxy.
+    # OFF by default (no L0 / golden drift when unused).
+    # ------------------------------------------------------------------
+    include_machine_build_authority_v412: bool = False
+    # Optional floors (NaN disables constraint): fractional system margin,
+    # absolute inboard clearance [m], gap thickness [m], layer surplus [m].
+    machine_build_closure_margin_min_v412: float = float("nan")
+    machine_build_inboard_margin_min_m_v412: float = float("nan")
+    machine_build_gap_min_m_v412: float = float("nan")
+    machine_build_layer_surplus_min_m_v412: float = float("nan")
+
 
     # Multiplicative uncertainty / calibration factors (default 1.0)
     confinement_mult: float = 1.0   # scales effective energy confinement time (tauE)

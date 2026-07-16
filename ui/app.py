@@ -1312,6 +1312,73 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
             except Exception:
                 st.write(fam_rows)
 
+        # v412 radial / machine-build closure (proxy overlay)
+        if bool(out.get("machine_v412_enabled", False)):
+            st.markdown("**Radial / machine-build closure (v412) — PROXY overlay**")
+            st.caption(
+                str(
+                    out.get(
+                        "machine_v412_provenance",
+                        "Algebraic layer-stack / clearance narrative; not PROCESS MFILE parity.",
+                    )
+                )
+            )
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                try:
+                    st.metric(
+                        "System margin",
+                        f"{float(out.get('machine_v412_system_margin', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("System margin", "—")
+            with c2:
+                st.metric("System tier", str(out.get("machine_v412_system_tier", "unknown")))
+            with c3:
+                st.metric("Dominant aspect", str(out.get("machine_v412_dominant_aspect", "unknown")))
+            with c4:
+                try:
+                    st.metric(
+                        "Inboard margin [m]",
+                        f"{float(out.get('machine_v412_inboard_margin_m', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("Inboard margin [m]", "—")
+            build_rows = [
+                {
+                    "Aspect": "Inboard closure",
+                    "Margin": out.get("machine_v412_inboard_closure_margin"),
+                    "Detail": f"{out.get('machine_v412_inboard_margin_m')} m",
+                },
+                {
+                    "Aspect": "Coil bore",
+                    "Margin": out.get("machine_v412_coil_bore_margin"),
+                    "Detail": f"R_coil_inner={out.get('machine_v412_R_coil_inner_m')} m",
+                },
+                {
+                    "Aspect": "Build gap",
+                    "Margin": out.get("machine_v412_gap_clearance_margin"),
+                    "Detail": f"t_gap={out.get('machine_v412_gap_thickness_m')} m",
+                },
+                {
+                    "Aspect": "Layer mins",
+                    "Margin": out.get("machine_v412_layer_mins_margin"),
+                    "Detail": str(out.get("machine_v412_layer_dominant", "")),
+                },
+            ]
+            try:
+                st.dataframe(pd.DataFrame(build_rows), use_container_width=True, hide_index=True)
+            except Exception:
+                st.write(build_rows)
+            ledger = out.get("machine_v412_layer_ledger")
+            if isinstance(ledger, list) and ledger:
+                with st.expander("Layer ledger (v412 PROXY)", expanded=False):
+                    try:
+                        st.dataframe(pd.DataFrame(ledger), use_container_width=True, hide_index=True)
+                    except Exception:
+                        st.write(ledger)
+            st.caption(str(out.get("machine_v412_narrative", "")))
+
         # Deterministic repair hints (high-level; detailed mapping lives in contract artifact)
         st.markdown("**Deterministic repair levers (non-exhaustive):**")
         st.markdown("- Decrease **Bt** or increase **R0** (reduces required ampere-turns and peak field).")
@@ -1319,6 +1386,10 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
         st.markdown("- Increase **shielding/build** to reduce **nuclear heat** to coils (when coupled).")
         if bool(out.get("magnet_v410_enabled", False)):
             st.markdown("- Adjust **CS Bmax / flux** or **PF envelope caps** when CS/PF family dominates v410.")
+        if bool(out.get("machine_v412_enabled", False)):
+            st.markdown(
+                "- Increase **R0** / reduce inboard **layer thicknesses** / raise **build gap** when v412 machine-build dominates."
+            )
 
 def _sync_point_designer_from_last_point_inp() -> None:
     if not st.session_state.get("pd_needs_sync", False):

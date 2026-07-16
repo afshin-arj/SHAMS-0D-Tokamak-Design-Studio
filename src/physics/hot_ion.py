@@ -3573,6 +3573,30 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         )
 
     # =========================================================================
+    # Machine-build / radial closure authority (v412)
+    # MATCH-as-overlay; algebraic narrative from L0 stack; no build solvers in L0.
+    # =========================================================================
+    try:
+        try:
+            from analysis.machine_build_authority_v412 import (
+                evaluate_machine_build_authority_v412,
+            )
+        except ImportError:
+            from ..analysis.machine_build_authority_v412 import (
+                evaluate_machine_build_authority_v412,
+            )
+        mb412 = evaluate_machine_build_authority_v412(out, inp)
+        if isinstance(mb412, dict):
+            out.update(mb412)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_machine_build_authority_v412",
+            error_key="machine_build_authority_v412_error",
+            exc=e,
+        )
+
+    # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)
     # Global cross-authority dominance ranking + regime classification.
     # Governance-only overlay; deterministic; no truth edits.

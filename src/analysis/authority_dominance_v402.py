@@ -240,7 +240,20 @@ def evaluate_authority_dominance_v402(out: Dict[str, Any], inp: Any) -> Dict[str
         if _finite(mag):
             rows.append(DominanceRowV402("MAGNET", float(mag), f"magnet_v400_margin={mag:.3g}"))
 
-    
+    # ------------------------------------------------------------------
+    # Machine-build / radial closure (v412)
+    # ------------------------------------------------------------------
+    mb412 = _sf(out.get("machine_v412_system_margin", _nan()))
+    if _finite(mb412) and bool(out.get("machine_v412_enabled", False)):
+        dom_asp = str(out.get("machine_v412_dominant_aspect", "unknown") or "unknown")
+        rows.append(
+            DominanceRowV402(
+                "MACHINE_BUILD",
+                float(mb412),
+                f"machine_v412_system_margin={mb412:.3g}; dominant_aspect={dom_asp}",
+            )
+        )
+
     # ------------------------------------------------------------------
     # Structural life authority (v404 preferred; fallback v389 stress margins)
     # ------------------------------------------------------------------

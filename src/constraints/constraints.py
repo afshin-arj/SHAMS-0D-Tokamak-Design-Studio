@@ -551,6 +551,41 @@ def evaluate_constraints(
                     group="magnets",
                 )
 
+    # Machine-build / radial closure authority v412 (optional caps)
+    if outputs.get("machine_v412_enabled") and "machine_v412_system_margin" in outputs:
+        lim = outputs.get("machine_build_closure_margin_min_v412", float("nan"))
+        if lim == lim:
+            ge(
+                "Machine-build closure margin v412",
+                outputs["machine_v412_system_margin"],
+                lim,
+                units="-",
+                note="Combined radial / machine-build closure margin (proxy overlay)",
+                group="build",
+            )
+        if "machine_v412_inboard_margin_m" in outputs:
+            lim_m = outputs.get("machine_build_inboard_margin_min_m_v412", float("nan"))
+            if lim_m == lim_m:
+                ge(
+                    "Inboard build clearance v412",
+                    outputs["machine_v412_inboard_margin_m"],
+                    lim_m,
+                    units="m",
+                    note="Absolute inboard stack clearance ≥ floor (proxy)",
+                    group="build",
+                )
+        if "machine_v412_gap_thickness_m" in outputs:
+            lim_g = outputs.get("machine_build_gap_min_m_v412", float("nan"))
+            if lim_g == lim_g:
+                ge(
+                    "Build gap clearance v412",
+                    outputs["machine_v412_gap_thickness_m"],
+                    lim_g,
+                    units="m",
+                    note="Inboard build gap thickness ≥ floor (proxy)",
+                    group="build",
+                )
+
     # -------- Neutronics --------
     if "TBR" in outputs:
         tbr_min = outputs.get("TBR_min", 1.05)

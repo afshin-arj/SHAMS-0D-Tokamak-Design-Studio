@@ -386,7 +386,12 @@ def render_authority_ledger(
     artifact: Optional[dict] = None,
     design_intent: str = "",
 ) -> None:
-    from ui_nicegui.lib.pd_parity_helpers import magnet_v400_summary, magnet_v410_summary, power_ledger_badged_rows
+    from ui_nicegui.lib.pd_parity_helpers import (
+        magnet_v400_summary,
+        magnet_v410_summary,
+        machine_v412_summary,
+        power_ledger_badged_rows,
+    )
     from ui_nicegui.lib.plant_kpi_honesty_ui import (
         coe_display,
         lcoe_display,
@@ -429,6 +434,20 @@ def render_authority_ledger(
         ])
     else:
         ui.label("Magnet v410 TF/PF/CS SC system overlay not enabled on this point.").classes(
+            "text-caption text-grey"
+        )
+
+    mb412 = machine_v412_summary(point_out)
+    if mb412:
+        ui.badge("v412 PROXY — radial / machine-build").props("color=orange outline")
+        kpi_row([
+            ("v412 system tier", str(mb412.get("system_tier", "-"))),
+            ("System margin", _fin(mb412.get("system_margin"), ".3f")),
+            ("Dominant aspect", str(mb412.get("dominant_aspect", "-"))),
+            ("Inboard margin [m]", _fin(mb412.get("inboard_margin_m"), ".3f")),
+        ])
+    else:
+        ui.label("Machine-build v412 radial closure overlay not enabled on this point.").classes(
             "text-caption text-grey"
         )
 

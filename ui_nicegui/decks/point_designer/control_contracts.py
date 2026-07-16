@@ -239,3 +239,28 @@ def render_control_contracts(session: DesignSession) -> None:
             ui.label(
                 "TF/PF/CS SC system depth (v410) is OFF — enable include_magnet_sc_system_authority_v410."
             ).classes("text-caption")
+
+    from ui_nicegui.lib.pd_parity_helpers import machine_v412_summary
+
+    v412 = machine_v412_summary(out)
+    with ui.expansion("Machine-build / radial closure (v412) [PROXY]", icon="view_timeline").classes(
+        "w-full q-mt-md"
+    ):
+        if v412:
+            ui.badge("PROXY overlay — not PROCESS MFILE parity").props("color=orange")
+            kpi_row([
+                ("System margin", fmt_num(v412["system_margin"])),
+                ("System tier", str(v412["system_tier"])),
+                ("Dominant aspect", str(v412["dominant_aspect"])),
+                ("Inboard margin [m]", fmt_num(v412["inboard_margin_m"])),
+            ])
+            ui.label("Aspect margins").classes("text-subtitle2")
+            render_json_blob(v412["aspect_margins"])
+            if v412.get("narrative"):
+                ui.label(str(v412["narrative"])).classes("text-caption q-mt-sm")
+            if v412.get("provenance"):
+                ui.label(str(v412["provenance"])).classes("text-caption")
+        else:
+            ui.label(
+                "Machine-build / radial closure (v412) is OFF — enable include_machine_build_authority_v412."
+            ).classes("text-caption")
