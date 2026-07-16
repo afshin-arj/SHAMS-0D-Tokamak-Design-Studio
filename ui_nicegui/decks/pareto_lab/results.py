@@ -119,7 +119,10 @@ def _render_promote_handoff(session: DesignSession, pareto: list[dict], pareto_l
                         session.inputs[k] = float(row[k])
                     except (TypeError, ValueError):
                         pass
-            ui.notify("Promoted to Point Designer inputs — switch deck to evaluate.", type="positive")
+            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+            navigate_to_point_designer(session)
+            ui.notify("Opened Point Designer Configure with frontier inputs.", type="positive")
 
         ui.button("Promote to Point Designer", on_click=_promote).props("outline")
 

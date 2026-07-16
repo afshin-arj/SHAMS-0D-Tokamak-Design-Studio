@@ -107,41 +107,33 @@ def render_chronicle_export(session: DesignSession) -> None:
 
 def render_compare_slot_actions(session: DesignSession) -> None:
     """Send current run artifact to Compare deck slots A/B."""
-    import time
+    from ui_nicegui.lib.compare_helpers import clear_compare_slots, open_compare_deck, store_compare_slot
 
     art = session.pd_last_artifact
     if not isinstance(art, dict):
         return
 
     ui.label("Quick interop: send the current run to Compare without downloading files.").classes("text-caption")
-    with ui.row().classes("gap-2 q-mb-sm"):
+    with ui.row().classes("gap-2 q-mb-sm flex-wrap"):
         def _send_a() -> None:
-            session.cmp_slot_a = dict(art)
-            session.cmp_slot_a_meta = {
-                "ts_unix": float(time.time()),
-                "inputs_hash": str(session.pd_last_inputs_hash or session.pd_current_inputs_hash or ""),
-                "label": "Point Designer (last run)",
-            }
+            store_compare_slot(session, art, "A", label="Point Designer (last run)")
             ui.notify("Sent current run to Compare Slot A.", type="positive")
 
         def _send_b() -> None:
-            session.cmp_slot_b = dict(art)
-            session.cmp_slot_b_meta = {
-                "ts_unix": float(time.time()),
-                "inputs_hash": str(session.pd_last_inputs_hash or session.pd_current_inputs_hash or ""),
-                "label": "Point Designer (last run)",
-            }
+            store_compare_slot(session, art, "B", label="Point Designer (last run)")
             ui.notify("Sent current run to Compare Slot B.", type="positive")
 
         def _clear() -> None:
-            session.cmp_slot_a = None
-            session.cmp_slot_b = None
-            session.cmp_slot_a_meta = {}
-            session.cmp_slot_b_meta = {}
+            clear_compare_slots(session)
             ui.notify("Cleared Compare slots.", type="info")
+
+        def _open_compare() -> None:
+            open_compare_deck(session)
+            ui.notify("Opened Compare deck.", type="info")
 
         ui.button("Send to Compare Slot A", on_click=_send_a).props("outline")
         ui.button("Send to Compare Slot B", on_click=_send_b).props("outline")
+        ui.button("Open Compare deck", on_click=_open_compare).props("flat outline")
         ui.button("Clear Compare Slots", on_click=_clear).props("flat")
 
 

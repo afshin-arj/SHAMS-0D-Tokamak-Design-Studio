@@ -133,6 +133,25 @@ def refresh_compare_if_active(session) -> None:
         refresh_active_deck()
 
 
+def clear_compare_slots(session) -> None:
+    """Reset Compare slots and use flags; refresh if Compare is active."""
+    session.cmp_slot_a = None
+    session.cmp_slot_b = None
+    session.cmp_slot_a_meta = {}
+    session.cmp_slot_b_meta = {}
+    session.cmp_use_slot_a = False
+    session.cmp_use_slot_b = False
+    refresh_compare_if_active(session)
+
+
+def open_compare_deck(session) -> None:
+    """Navigate to Compare tab 1 after a cross-deck slot handoff."""
+    session.cmp_workflow_step = "1 · Load A & B"
+    from ui_nicegui.lib.navigation import switch_deck
+
+    switch_deck("Compare", force=True)
+
+
 def send_row_to_compare_slot(session, row: dict, slot: str, *, label: str) -> dict:
     """Evaluate a study row through frozen truth and store in a Compare slot."""
     art = build_compare_artifact(session, dict(row), label=label)

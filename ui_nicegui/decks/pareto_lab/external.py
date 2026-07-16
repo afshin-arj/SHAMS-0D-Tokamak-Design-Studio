@@ -169,7 +169,10 @@ def _robust_view(session: DesignSession) -> None:
             from ui_nicegui.lib.pareto_interpret_helpers import promote_point_inputs
 
             promote_point_inputs(session, cand if isinstance(cand, dict) else pick_row, session.pareto_bounds or {})
-            ui.notify("Promoted point to Point Designer inputs — evaluate there.", type="positive")
+            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+            navigate_to_point_designer(session)
+            ui.notify("Opened Point Designer Configure with robust frontier inputs.", type="positive")
 
         ui.button("Promote row → Point Designer", icon="upload", on_click=_promote_robust).props("outline")
         ui.button(

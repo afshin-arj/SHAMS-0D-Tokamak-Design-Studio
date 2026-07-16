@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import time
 
 from nicegui import run, ui
-
 from ui_nicegui.evaluate import ui_evaluate
 from ui_nicegui.lib.pd_artifact_helpers import build_point_artifact
+from ui_nicegui.lib.compare_helpers import store_compare_slot
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_ranking_helpers import rank_candidates
 from ui_nicegui.lib.systems_workflow_helpers import apply_x_to_session, collect_candidates
@@ -42,6 +41,22 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
     cands = rank_candidates(collect_candidates(session), session.systems_ranking_profile)
     if not cands:
         ui.label("No candidates — run target solve, recovery, or search first.").classes("text-grey")
+
+        def _goto_targets() -> None:
+            session.systems_workflow_step = "1 · Targets"
+            if on_complete:
+                on_complete()
+
+        def _goto_solve() -> None:
+            session.systems_workflow_step = "2 · Check & Solve"
+            if on_complete:
+                on_complete()
+
+        with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
+            ui.button("Set targets", icon="flag", on_click=_goto_targets).props("outline")
+            ui.button("Run precheck / solve", icon="play_arrow", on_click=_goto_solve).props(
+                "outline color=primary"
+            )
         return
 
     labels = []
@@ -119,17 +134,8 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         )
         inputs_dict = inp.to_dict() if hasattr(inp, "to_dict") else dict(session.inputs)
         art = build_point_artifact(inputs=inputs_dict, outputs=out, design_intent=session.design_intent)
-        meta = {"ts_unix": time.time(), "label": f"Systems ({sel_now.get('source')})"}
-        if slot == "A":
-            session.cmp_slot_a = art
-            session.cmp_slot_a_meta = meta
-        else:
-            session.cmp_slot_b = art
-            session.cmp_slot_b_meta = meta
+        store_compare_slot(session, art, slot, label=f"Systems ({sel_now.get('source')})")
         ui.notify(f"Sent to Compare slot {slot}", type="positive")
-        from ui_nicegui.lib.compare_helpers import refresh_compare_if_active
-
-        refresh_compare_if_active(session)
 
     ui.button("Apply to PD & re-evaluate", icon="check", on_click=_apply_evaluate).props("color=primary w-full q-mb-sm")
     ui.button("Undo last apply", icon="undo", on_click=_undo_apply).props("flat q-mb-sm")

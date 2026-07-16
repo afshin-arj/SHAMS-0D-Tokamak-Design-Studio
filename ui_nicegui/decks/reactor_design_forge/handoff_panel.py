@@ -12,7 +12,7 @@ from ui_nicegui.lib.forge_handoff_helpers import (
 )
 from ui_nicegui.lib.forge_machine_finder_helpers import promote_archive_row
 from ui_nicegui.lib.navigation import switch_deck
-from ui_nicegui.lib.pd_handoff import prepare_point_designer_handoff
+from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 from ui_nicegui.session import DesignSession
 
 
@@ -55,9 +55,8 @@ def render_archive_handoffs(
     def _promote() -> None:
         try:
             session.inputs = promote_archive_row(session.inputs, run_rep, _ix())
-            prepare_point_designer_handoff(session)
-            switch_deck("Point Designer", force=True)
-            ui.notify("Promoted to Point Designer inputs — evaluate there.", type="positive")
+            navigate_to_point_designer(session)
+            ui.notify("Opened Point Designer Configure with archive row inputs.", type="positive")
             if on_complete:
                 on_complete()
         except Exception as exc:

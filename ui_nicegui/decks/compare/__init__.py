@@ -154,6 +154,15 @@ def _render_tab_body(session: DesignSession) -> None:
             "Load artifacts into **both slots** on tab 1 before exploring deltas.",
             kind="info",
         )
+        from ui_nicegui.components.workflow_cta import render_goto_setup_button
+
+        render_goto_setup_button(
+            session,
+            attr="cmp_workflow_step",
+            step="1 · Load A & B",
+            label="Go to Load A & B",
+            on_refresh=_render_tab_body.refresh,
+        )
         return
 
     if step == "2 · Performance":

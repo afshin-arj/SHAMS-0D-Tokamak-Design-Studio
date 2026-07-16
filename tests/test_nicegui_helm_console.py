@@ -355,6 +355,71 @@ def test_pd_handoff_prepares_truth_console() -> None:
     assert s.pd_workflow_tab == "1 · Configure"
 
 
+def test_navigate_to_point_designer_sets_deck() -> None:
+    from unittest.mock import patch
+
+    from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.pd_subdeck = "Phase Envelopes"
+    with patch("ui_nicegui.lib.navigation.switch_deck") as sw:
+        navigate_to_point_designer(s)
+        sw.assert_called_once_with("Point Designer", force=True)
+    assert s.pd_subdeck == "Truth Console"
+    assert s.pd_workflow_tab == "1 · Configure"
+
+
+def test_open_compare_deck_sets_workflow_step() -> None:
+    from unittest.mock import patch
+
+    from ui_nicegui.lib.compare_helpers import open_compare_deck
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    with patch("ui_nicegui.lib.navigation.switch_deck") as sw:
+        open_compare_deck(s)
+        sw.assert_called_once_with("Compare", force=True)
+    assert s.cmp_workflow_step == "1 · Load A & B"
+
+
+def test_clear_compare_slots_resets_flags() -> None:
+    from ui_nicegui.lib.compare_helpers import clear_compare_slots
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.cmp_slot_a = {"outputs": {"Q": 1.0}}
+    s.cmp_slot_b = {"outputs": {"Q": 2.0}}
+    s.cmp_use_slot_a = True
+    s.cmp_use_slot_b = True
+    clear_compare_slots(s)
+    assert s.cmp_slot_a is None
+    assert s.cmp_slot_b is None
+    assert s.cmp_use_slot_a is False
+    assert s.cmp_use_slot_b is False
+
+
+def test_systems_apply_uses_store_compare_slot() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import apply_ui
+
+    src = inspect.getsource(apply_ui.render_apply_panel)
+    assert "store_compare_slot" in src
+    assert "cmp_slot_a =" not in src
+
+
+def test_chronicle_compare_uses_store_compare_slot() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import chronicle_export as ce
+
+    src = inspect.getsource(ce.render_compare_slot_actions)
+    assert "store_compare_slot" in src
+    assert "clear_compare_slots" in src
+    assert "open_compare_deck" in src
+
+
 def test_systems_mode_scope_allows_newton_propose() -> None:
     from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
 

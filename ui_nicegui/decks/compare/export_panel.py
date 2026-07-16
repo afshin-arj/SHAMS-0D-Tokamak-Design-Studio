@@ -10,6 +10,7 @@ from ui_nicegui.lib.compare_helpers import (
     comparison_json_bundle,
     comparison_markdown,
 )
+from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 from ui_nicegui.session import DesignSession
 
 
@@ -43,7 +44,11 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
     def _apply(slot_art: dict, label: str) -> None:
         n = apply_artifact_inputs(session, slot_art)
         if n:
-            ui.notify(f"Applied {n} input fields from slot {label} to Point Designer — evaluate there.", type="positive")
+            navigate_to_point_designer(session)
+            ui.notify(
+                f"Applied {n} input fields from slot {label} — opened Point Designer Configure.",
+                type="positive",
+            )
         else:
             ui.notify(f"No overlapping inputs copied from slot {label}.", type="warning")
 

@@ -149,6 +149,35 @@ def test_trade_study_controls_refresh_on_suggest() -> None:
     assert "_apply_suggested_objectives" in src
 
 
+def test_compare_tabs_goto_setup_when_slots_empty() -> None:
+    import inspect
+
+    from ui_nicegui.decks import compare as cmp_mod
+
+    src = inspect.getsource(cmp_mod)
+    assert "render_goto_setup_button" in src
+    assert "1 · Load A & B" in src
+
+
+def test_compare_export_navigates_to_point_designer() -> None:
+    import inspect
+
+    from ui_nicegui.decks.compare import export_panel as ep
+
+    src = inspect.getsource(ep.render_export_panel)
+    assert "navigate_to_point_designer" in src
+
+
+def test_pareto_promote_navigates_to_point_designer() -> None:
+    import inspect
+
+    from ui_nicegui.decks.pareto_lab import export_handoff as eh
+
+    src = inspect.getsource(eh.render_export_tab)
+    assert "navigate_to_point_designer" in src
+    assert "open_compare_deck" in src
+
+
 def test_trade_study_pd_prerequisite_badge() -> None:
     import inspect
 

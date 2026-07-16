@@ -7,8 +7,9 @@ from typing import Callable, Optional
 from nicegui import ui
 
 from ui_nicegui.lib.navigation import switch_deck
-from ui_nicegui.lib.compare_helpers import send_row_to_compare_slot
+from ui_nicegui.lib.compare_helpers import open_compare_deck, send_row_to_compare_slot
 from ui_nicegui.lib.pareto_helpers import artifact_to_json_bytes, build_pareto_artifact
+from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 from ui_nicegui.lib.pareto_interpret_helpers import (
     promote_point_inputs,
     publication_pack_bytes,
@@ -78,7 +79,8 @@ def render_export_tab(
             ui.notify("Invalid row", type="warning")
             return
         promote_point_inputs(session, pareto[i], bounds)
-        ui.notify("Copied to Point Designer inputs — evaluate there.", type="positive")
+        navigate_to_point_designer(session)
+        ui.notify("Opened Point Designer Configure with frontier inputs.", type="positive")
 
     ui.button("Promote to Point Designer", icon="upload", on_click=_promote_pd).props("outline")
 
@@ -136,6 +138,9 @@ def render_export_tab(
         except Exception as exc:
             ui.notify(f"Compare handoff failed: {exc}", type="negative")
 
-    with ui.row().classes("gap-2 q-mt-sm"):
+    with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
         ui.button("Send row → Compare A", icon="compare", on_click=lambda: _send_compare("A")).props("flat outline")
         ui.button("Send row → Compare B", icon="compare", on_click=lambda: _send_compare("B")).props("flat outline")
+        ui.button("Open Compare deck", icon="compare_arrows", on_click=lambda: open_compare_deck(session)).props(
+            "flat outline"
+        )

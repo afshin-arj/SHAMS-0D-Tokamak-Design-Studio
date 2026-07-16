@@ -147,7 +147,10 @@ def render_intent_compiler(
 
         def _apply() -> None:
             session.inputs = merge_candidate_to_session_inputs(session.inputs, cand)
-            ui.notify("Candidate applied to Point Designer inputs — switch deck and Evaluate.", type="positive")
+            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+            navigate_to_point_designer(session)
+            ui.notify("Opened Point Designer Configure with Forge candidate inputs.", type="positive")
 
         ui.button("Apply in Point Designer", icon="upload", on_click=_apply).props("outline flat")
 

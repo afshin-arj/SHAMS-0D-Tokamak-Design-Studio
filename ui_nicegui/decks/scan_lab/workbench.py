@@ -224,7 +224,10 @@ def _render_inspector(
         def _promote() -> None:
             apply_probe_to_session(session, rep, cell)
             session.scan_promote_note = f"Scan probe ({session.scan_wb_i},{session.scan_wb_j})"
-            ui.notify("Promoted to Point Designer — switch deck to evaluate.", type="positive")
+            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+            navigate_to_point_designer(session)
+            ui.notify("Opened Point Designer Configure with probed cell inputs.", type="positive")
 
         ui.button("Promote to Point Designer", on_click=_promote).props("outline")
 
@@ -235,9 +238,14 @@ def _render_inspector(
         except Exception as exc:
             ui.notify(f"Compare handoff failed: {exc}", type="negative")
 
-    with ui.row().classes("gap-2 q-mt-sm"):
+    with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
         ui.button("Send probe → Compare A", icon="compare", on_click=lambda: _send_compare("A")).props("flat outline")
         ui.button("Send probe → Compare B", icon="compare", on_click=lambda: _send_compare("B")).props("flat outline")
+        from ui_nicegui.lib.compare_helpers import open_compare_deck
+
+        ui.button("Open Compare deck", icon="compare_arrows", on_click=lambda: open_compare_deck(session)).props(
+            "flat outline"
+        )
 
     ui.label("For causality / UQ tools, use the **Interpret** tab.").classes(
         "text-caption text-grey q-mt-sm"
