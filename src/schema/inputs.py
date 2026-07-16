@@ -102,6 +102,17 @@ class PointInputs:
     t_margin_min_v400: float = float("nan")
     p_tf_ohmic_margin_min_v400: float = float("nan")
 
+    # ------------------------------------------------------------------
+    # v410.0: Magnet SC system authority — TF/PF/CS depth beyond v400
+    # MATCH-as-overlay; OFF by default (no L0 / golden drift when unused).
+    # ------------------------------------------------------------------
+    include_magnet_sc_system_authority_v410: bool = False
+    # Optional family / system margin floors (NaN disables constraint).
+    magnet_system_margin_min_v410: float = float("nan")
+    tf_family_margin_min_v410: float = float("nan")
+    pf_family_margin_min_v410: float = float("nan")
+    cs_family_margin_min_v410: float = float("nan")
+
 
     # Multiplicative uncertainty / calibration factors (default 1.0)
     confinement_mult: float = 1.0   # scales effective energy confinement time (tauE)

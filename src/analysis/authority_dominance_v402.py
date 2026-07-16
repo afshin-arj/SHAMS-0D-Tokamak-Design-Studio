@@ -223,11 +223,22 @@ def evaluate_authority_dominance_v402(out: Dict[str, Any], inp: Any) -> Dict[str
         rows.append(DominanceRowV402("EXHAUST_RADIATION", float(rad_min), "; ".join(rad_notes) if rad_notes else ""))
 
     # ------------------------------------------------------------------
-    # Magnet tech (v400)
+    # Magnet tech (v410 TF/PF/CS system preferred; fallback v400 TF ledger)
     # ------------------------------------------------------------------
-    mag = _sf(out.get("magnet_v400_margin", _nan()))
-    if _finite(mag):
-        rows.append(DominanceRowV402("MAGNET", float(mag), f"magnet_v400_margin={mag:.3g}"))
+    mag410 = _sf(out.get("magnet_v410_system_margin", _nan()))
+    if _finite(mag410) and bool(out.get("magnet_v410_enabled", False)):
+        dom_fam = str(out.get("magnet_v410_dominant_family", "unknown") or "unknown")
+        rows.append(
+            DominanceRowV402(
+                "MAGNET",
+                float(mag410),
+                f"magnet_v410_system_margin={mag410:.3g}; dominant_family={dom_fam}",
+            )
+        )
+    else:
+        mag = _sf(out.get("magnet_v400_margin", _nan()))
+        if _finite(mag):
+            rows.append(DominanceRowV402("MAGNET", float(mag), f"magnet_v400_margin={mag:.3g}"))
 
     
     # ------------------------------------------------------------------

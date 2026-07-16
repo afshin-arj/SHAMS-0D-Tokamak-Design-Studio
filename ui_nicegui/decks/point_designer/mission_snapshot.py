@@ -21,6 +21,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     infeasibility_trace,
     magnet_card_metrics,
     magnet_v400_summary,
+    magnet_v410_summary,
     point_summary_rows,
     raw_telemetry_rows,
     regime_compass_rows,
@@ -138,6 +139,24 @@ def render_mission_snapshot(session: DesignSession) -> None:
             render_json_blob(v400["per_aspect_margins"])
             ui.label("Per-aspect tiers").classes("text-subtitle2 q-mt-sm")
             render_json_blob(v400["per_aspect_tiers"])
+
+    v410 = magnet_v410_summary(out)
+    if v410:
+        with ui.expansion("Magnet SC system (v410) — TF/PF/CS [PROXY]", icon="hub").classes("w-full"):
+            ui.badge("PROXY overlay").props("color=orange")
+            ui.label(
+                "Per-family TF/PF/CS superconducting & engineering margins beyond v400."
+            ).classes("text-caption q-mb-sm")
+            kpi_row([
+                ("System margin", fmt_num(v410["system_margin"])),
+                ("System tier", str(v410["system_tier"])),
+                ("Dominant family", str(v410["dominant_family"])),
+                ("Family margin", fmt_num(v410["dominant_family_margin"])),
+            ])
+            ui.label("Per-family margins").classes("text-subtitle2")
+            render_json_blob(v410["family_margins"])
+            ui.label("Per-family tiers / dominants").classes("text-subtitle2 q-mt-sm")
+            render_json_blob({"tiers": v410["family_tiers"], "dominants": v410["family_dominants"]})
 
     with ui.expansion("Regime compass (sanity checks)", icon="explore").classes("w-full"):
         ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(

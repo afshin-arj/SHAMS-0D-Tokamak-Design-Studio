@@ -20,7 +20,7 @@ Living campaign document.
 |-------|--------|-------|
 | 0 Stance & firewall | **Mostly done** | CCFS hard gate on `main`; agents/skills updated |
 | 1 Trust the verdict | **DONE** 2026-07-16 | Tickets 1.1–1.4 complete (atlas, plant KPI honesty, METHOD-ONLY parity, scientific release gate **CONDITIONAL**) |
-| 2 DEMO MATCH | **Active** | Next: 2.1 TF/PF/CS SC depth beyond v400 |
+| 2 DEMO MATCH | **Active** | 2.1 DONE 2026-07-16 (v410 TF/PF/CS SC); next: 2.2 radial/machine-build |
 | 3 Community default | Pending | Migration guide, Zenodo, champions |
 | 4 Independence | Pending | PROCESS = legacy only |
 
@@ -63,7 +63,7 @@ IN.DAT → parse/defaults → DataStructure (mutable)
 | Constraints ontology | **Strong** | Hard / diagnostic / ignored |
 | Systems Mode / extopt | **Strong** | Propose-only contract |
 | UI (Streamlit / NiceGUI) | **Partial→Strong** | Verdict-first studio (PROCESS has CLI) |
-| Magnets / radial build | **Partial / proxy** | v400 ON; depth below PROCESS TF/PF |
+| Magnets / radial build | **Partial→Stronger** | v400 ON + **v410** TF/PF/CS SC system overlay (proxy); radial-build still open |
 | Plant ledger / power | **Proxy** | Closure hooks exist |
 | Divertor / exhaust | **Proxy** | PROCESS also thin — BEAT target |
 | Neutronics / TBR | **Proxy** | v401/v407/v408 scaffolding |
@@ -93,7 +93,7 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 | 3 | ~~PROCESS parity corpus + delta dossiers~~ **DONE** 2026-07-16 (METHOD-ONLY honesty + hashed dossier) | BEAT | no | M | H | `/process-parity-compare` |
 | 4 | ~~Plant power ledger honesty (gate Pe_net on hard feasibility) + Sankey audit~~ **DONE** 2026-07-16 (`plant_kpi_honesty.v1`) | MATCH | no | M | H | `/reactor-systems` |
 | 5 | Exhaust / divertor authority depth | BEAT | no | M | H | `/reactor-systems` |
-| 6 | Magnet / SC / PF–CS overlay depth (post-v400) | MATCH | no | L | H | `/reactor-systems` |
+| 6 | ~~Magnet / SC / PF–CS overlay depth (post-v400)~~ **DONE** 2026-07-16 (`magnet_sc_system_authority_v410`) | MATCH | no | L | H | `/reactor-systems` |
 | 7 | Radial-build closure narrative | MATCH | no | M | M | `/architect` |
 | 8 | Native UQ / mirage-safe robust lanes | BEAT | no | L | H | `/pareto-frontier-check` |
 | 9 | Availability → OPEX / LCOE coupling | MATCH | no | M | M | `/reactor-systems` |
@@ -115,11 +115,12 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 3. ~~Fill `benchmarks/parity/process_reference_cases.json` (≥1 real PROCESS ref + hashed delta dossier; no invented MFILE)~~ **DONE** 2026-07-16 — METHOD-ONLY corpus (`process.parity_cases.v2`), hashed dossier `benchmarks/parity/dossiers/method_only_hts_compact_001_delta_dossier.json`, honesty gate in `src/parity_harness/process_corpus.py` (`tests/test_process_parity_corpus.py`). NUMERIC upgrade path documented; no invented MFILE numbers.
 4. ~~Plant KPI honesty — gate healthy `Pe_net` / COE on hard feasibility watermark~~ **DONE** 2026-07-16 — `plant_kpi_honesty.v1` on every run artifact; Suite/Systems Mode watermark Pe_net/COE/LCOE when hard-infeasible (`tests/test_plant_kpi_honesty.py`)
 5. ~~Scientific release gate (Phase 1.4)~~ **DONE** 2026-07-16 — verdict **CONDITIONAL** (`docs/validation/reports/scientific_release_readiness_20260716.md`); limitations `docs/LIMITATIONS.md`; CITATION.cff ↔ VERSION aligned; lock tests `tests/test_scientific_release_gate.py`. Phase 1 exit MET. No PROCESS-retired claim; no VERSION tag/Zenodo cut (deferred to APPROVED path).
-6. **Next (Phase 2.1):** TF/PF/CS SC depth beyond v400 — `/reactor-systems` + `/authority-overlay-author` (MATCH-as-overlay; L0 untouched)
+6. ~~**Next (Phase 2.1):** TF/PF/CS SC depth beyond v400~~ **DONE** 2026-07-16 — `magnet_sc_system_authority_v410` (MATCH-as-overlay; OFF by default; PROXY-labeled TF/PF/CS family ledgers + system margin; optional hard/diagnostic caps; UI watermark on Point Designer / Suite). L0 numeric truth unchanged when flag OFF (empty patch). No invented PROCESS MFILE numbers.
+7. **Next (Phase 2.2):** Radial / machine-build closure — `/architect` + `/reactor-systems` (MATCH-as-overlay; L0 untouched)
 
 ### Minimum DEMO MATCH overlays (reactor-systems)
 
-1. TF/PF/CS SC depth beyond v400  
+1. ~~TF/PF/CS SC depth beyond v400~~ **DONE** (`v410`)
 2. Radial / machine-build closure  
 3. Plant Sankey-grade ledger (extend v408)  
 4. Availability → energy/OPEX  

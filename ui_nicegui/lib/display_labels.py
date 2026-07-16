@@ -50,6 +50,7 @@ AUTHORITY_OVERLAY_NAMES: dict[str, str] = {
     "v402": "Authority dominance",
     "v405": "Multi-objective Pareto frontier",
     "v408": "Nuclear dataset intake",
+    "v410": "TF/PF/CS SC system depth",
 }
 
 # Legacy aliases → canonical (session state / old presets)

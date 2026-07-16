@@ -214,3 +214,28 @@ def render_control_contracts(session: DesignSession) -> None:
             render_json_blob(v400["per_aspect_tiers"])
         else:
             ui.label("Magnet technology ledger is disabled or unavailable for this run.").classes("text-caption")
+
+    from ui_nicegui.lib.pd_parity_helpers import magnet_v410_summary
+
+    v410 = magnet_v410_summary(out)
+    with ui.expansion("Magnet SC system (v410) — TF / PF / CS depth [PROXY]", icon="hub").classes(
+        "w-full q-mt-md"
+    ):
+        if v410:
+            ui.badge("PROXY overlay — not PROCESS MFILE parity").props("color=orange")
+            kpi_row([
+                ("System margin", fmt_num(v410["system_margin"])),
+                ("System tier", str(v410["system_tier"])),
+                ("Dominant family", str(v410["dominant_family"])),
+                ("Family margin", fmt_num(v410["dominant_family_margin"])),
+            ])
+            ui.label("Per-family margins (TF / PF / CS)").classes("text-subtitle2")
+            render_json_blob(v410["family_margins"])
+            ui.label("Per-family tiers / dominant aspects").classes("text-subtitle2 q-mt-sm")
+            render_json_blob({"tiers": v410["family_tiers"], "dominants": v410["family_dominants"]})
+            if v410.get("provenance"):
+                ui.label(str(v410["provenance"])).classes("text-caption q-mt-sm")
+        else:
+            ui.label(
+                "TF/PF/CS SC system depth (v410) is OFF — enable include_magnet_sc_system_authority_v410."
+            ).classes("text-caption")

@@ -428,6 +428,36 @@ def magnet_v400_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def magnet_v410_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """TF/PF/CS SC system depth overlay (proxy). None when disabled."""
+    if not bool(out.get("magnet_v410_enabled", False)):
+        return None
+    return {
+        "screening_tier": out.get("magnet_v410_screening_tier", "proxy"),
+        "overlay_version": out.get("magnet_v410_overlay_version", "v410"),
+        "system_margin": out.get("magnet_v410_system_margin"),
+        "system_tier": out.get("magnet_v410_system_tier", "unknown"),
+        "dominant_family": out.get("magnet_v410_dominant_family", "unknown"),
+        "dominant_family_margin": out.get("magnet_v410_dominant_family_margin"),
+        "provenance": out.get("magnet_v410_provenance", ""),
+        "family_margins": {
+            "TF family": out.get("magnet_v410_tf_margin"),
+            "PF family": out.get("magnet_v410_pf_margin"),
+            "CS family": out.get("magnet_v410_cs_margin"),
+        },
+        "family_tiers": {
+            "TF": out.get("magnet_v410_tf_tier"),
+            "PF": out.get("magnet_v410_pf_tier"),
+            "CS": out.get("magnet_v410_cs_tier"),
+        },
+        "family_dominants": {
+            "TF": out.get("magnet_v410_tf_dominant"),
+            "PF": out.get("magnet_v410_pf_dominant"),
+            "CS": out.get("magnet_v410_cs_dominant"),
+        },
+    }
+
+
 POWER_LEDGER_BADGED = [
     ("Input power Pin", "Pin_MW", "Authoritative"),
     ("Aux heating", "Paux_MW", "Authoritative"),

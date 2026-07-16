@@ -521,6 +521,36 @@ def evaluate_constraints(
         if lim == lim:
             ge("P_tf_ohmic margin v400", outputs["magnet_v400_p_tf_ohmic_margin"], lim, units="-", note="P_max/P_ohmic - 1 (copper)", severity="soft", group="magnets")
 
+    # Magnet SC system authority v410 (TF/PF/CS family margins; optional caps)
+    if outputs.get("magnet_v410_enabled") and "magnet_v410_system_margin" in outputs:
+        lim = outputs.get("magnet_system_margin_min_v410", float("nan"))
+        if lim == lim:
+            ge(
+                "MAG system margin v410",
+                outputs["magnet_v410_system_margin"],
+                lim,
+                units="-",
+                note="Combined TF/PF/CS magnet SC system margin (proxy overlay)",
+                group="magnets",
+            )
+        for fam, key, lim_key, label in (
+            ("TF", "magnet_v410_tf_margin", "tf_family_margin_min_v410", "TF family margin v410"),
+            ("PF", "magnet_v410_pf_margin", "pf_family_margin_min_v410", "PF family margin v410"),
+            ("CS", "magnet_v410_cs_margin", "cs_family_margin_min_v410", "CS family margin v410"),
+        ):
+            if key not in outputs:
+                continue
+            fam_lim = outputs.get(lim_key, float("nan"))
+            if fam_lim == fam_lim:
+                ge(
+                    label,
+                    outputs[key],
+                    fam_lim,
+                    units="-",
+                    note=f"v410 {fam} family magnet SC/engineering margin (proxy)",
+                    group="magnets",
+                )
+
     # -------- Neutronics --------
     if "TBR" in outputs:
         tbr_min = outputs.get("TBR_min", 1.05)

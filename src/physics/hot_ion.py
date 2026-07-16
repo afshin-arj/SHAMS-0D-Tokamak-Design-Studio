@@ -3548,6 +3548,31 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         )
 
     # =========================================================================
+    # Magnet SC system authority (v410) — TF/PF/CS depth beyond v400
+    # MATCH-as-overlay; algebraic only; no magnet iteration in L0.
+    # Runs after PF/CS proxies so family ledgers see full magnet outputs.
+    # =========================================================================
+    try:
+        try:
+            from analysis.magnet_sc_system_authority_v410 import (
+                evaluate_magnet_sc_system_authority_v410,
+            )
+        except ImportError:
+            from ..analysis.magnet_sc_system_authority_v410 import (
+                evaluate_magnet_sc_system_authority_v410,
+            )
+        mag410 = evaluate_magnet_sc_system_authority_v410(out, inp)
+        if isinstance(mag410, dict):
+            out.update(mag410)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_magnet_sc_system_authority_v410",
+            error_key="magnet_sc_system_authority_v410_error",
+            exc=e,
+        )
+
+    # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)
     # Global cross-authority dominance ranking + regime classification.
     # Governance-only overlay; deterministic; no truth edits.

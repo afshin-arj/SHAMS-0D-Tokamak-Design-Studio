@@ -27,5 +27,9 @@ REGISTRY_SPECS: List[Dict[str, Any]] = [
     {"name": "CD ECCD electric (mix)", "value_key": "P_cd_eccd_el_MW", "sense": "<=", "limit_hi_key": "P_cd_eccd_max_MW", "group": "plant", "authority": "v408", "enabled_key": "cd_mix_enable"},
     {"name": "CD LHCD electric (mix)", "value_key": "P_cd_lhcd_el_MW", "sense": "<=", "limit_hi_key": "P_cd_lhcd_max_MW", "group": "plant", "authority": "v408", "enabled_key": "cd_mix_enable"},
     {"name": "CD mix fraction sum", "value_key": "cd_mix_frac_sum", "sense": "<=", "limit_hi_key": "cd_mix_frac_sum_max", "group": "plant", "authority": "v408", "enabled_key": "cd_mix_enable"},
+    {"name": "MAG system margin (v410)", "value_key": "magnet_v410_system_margin", "sense": ">=", "limit_lo_key": "magnet_system_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
+    {"name": "TF family margin (v410)", "value_key": "magnet_v410_tf_margin", "sense": ">=", "limit_lo_key": "tf_family_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
+    {"name": "PF family margin (v410)", "value_key": "magnet_v410_pf_margin", "sense": ">=", "limit_lo_key": "pf_family_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
+    {"name": "CS family margin (v410)", "value_key": "magnet_v410_cs_margin", "sense": ">=", "limit_lo_key": "cs_family_margin_min_v410", "group": "magnets", "authority": "v410", "enabled_key": "include_magnet_sc_system_authority_v410"},
 ]
-REGISTRY_SPEC_COUNT = 20
+REGISTRY_SPEC_COUNT = 24

@@ -48,6 +48,7 @@ def authority_version_badges(out: dict) -> List[str]:
         return []
     checks = [
         ("magnet_v400_enabled", "v400 magnets"),
+        ("magnet_v410_enabled", "v410 TF/PF/CS SC"),
         ("nm_authority_v401_enabled", "v401 neutronics"),
         ("nuclear_data_authority_v407_enabled", "v407 nuclear data"),
         ("structural_stress_v389_enabled", "v389 structural"),
@@ -385,7 +386,7 @@ def render_authority_ledger(
     artifact: Optional[dict] = None,
     design_intent: str = "",
 ) -> None:
-    from ui_nicegui.lib.pd_parity_helpers import magnet_v400_summary, power_ledger_badged_rows
+    from ui_nicegui.lib.pd_parity_helpers import magnet_v400_summary, magnet_v410_summary, power_ledger_badged_rows
     from ui_nicegui.lib.plant_kpi_honesty_ui import (
         coe_display,
         lcoe_display,
@@ -417,6 +418,19 @@ def render_authority_ledger(
         ])
     else:
         ui.label("Magnet v400 authority not enabled on this point.").classes("text-caption text-grey")
+
+    mag410 = magnet_v410_summary(point_out)
+    if mag410:
+        ui.badge("v410 PROXY — TF/PF/CS SC system").props("color=orange outline")
+        kpi_row([
+            ("v410 system tier", str(mag410.get("system_tier", "-"))),
+            ("System margin", _fin(mag410.get("system_margin"), ".3f")),
+            ("Dominant family", str(mag410.get("dominant_family", "-"))),
+        ])
+    else:
+        ui.label("Magnet v410 TF/PF/CS SC system overlay not enabled on this point.").classes(
+            "text-caption text-grey"
+        )
 
     exh = build_exhaust_authority_bundle(point_out)
     row = exhaust_table_row(exh)

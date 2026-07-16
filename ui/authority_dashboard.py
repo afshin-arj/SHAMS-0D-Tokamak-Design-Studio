@@ -22,6 +22,7 @@ _OVERLAY_TOGGLES: List[Tuple[str, str, str]] = [
     ("include_authority_dominance_v402", "v402", "Authority dominance screening"),
     ("include_elm_transient_heat_v409", "v409", "ELM / transient heat-load screening"),
     ("cd_mix_enable", "v408", "CD mix plant electric ledger"),
+    ("include_magnet_sc_system_authority_v410", "v410", "TF/PF/CS SC system depth beyond v400"),
     ("include_tritium_tight_closure", "v405", "Tritium tight-closure inventory caps"),
 ]
 

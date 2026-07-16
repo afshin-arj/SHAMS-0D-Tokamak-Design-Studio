@@ -1258,11 +1258,67 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
         except Exception:
             st.write(rows)
 
+        # v410 TF/PF/CS SC system depth (proxy overlay)
+        if bool(out.get("magnet_v410_enabled", False)):
+            st.markdown("**TF / PF / CS SC system depth (v410) — PROXY overlay**")
+            st.caption(
+                str(
+                    out.get(
+                        "magnet_v410_provenance",
+                        "Algebraic TF/PF/CS margin stack; not PROCESS MFILE parity.",
+                    )
+                )
+            )
+            c_a, c_b, c_c, c_d = st.columns(4)
+            with c_a:
+                try:
+                    st.metric("System margin", f"{float(out.get('magnet_v410_system_margin', float('nan'))):.3g}")
+                except Exception:
+                    st.metric("System margin", "—")
+            with c_b:
+                st.metric("System tier", str(out.get("magnet_v410_system_tier", "unknown")))
+            with c_c:
+                st.metric("Dominant family", str(out.get("magnet_v410_dominant_family", "unknown")))
+            with c_d:
+                try:
+                    st.metric(
+                        "Family margin",
+                        f"{float(out.get('magnet_v410_dominant_family_margin', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("Family margin", "—")
+            fam_rows = [
+                {
+                    "Family": "TF",
+                    "Margin": out.get("magnet_v410_tf_margin"),
+                    "Tier": out.get("magnet_v410_tf_tier"),
+                    "Dominant": out.get("magnet_v410_tf_dominant"),
+                },
+                {
+                    "Family": "PF",
+                    "Margin": out.get("magnet_v410_pf_margin"),
+                    "Tier": out.get("magnet_v410_pf_tier"),
+                    "Dominant": out.get("magnet_v410_pf_dominant"),
+                },
+                {
+                    "Family": "CS",
+                    "Margin": out.get("magnet_v410_cs_margin"),
+                    "Tier": out.get("magnet_v410_cs_tier"),
+                    "Dominant": out.get("magnet_v410_cs_dominant"),
+                },
+            ]
+            try:
+                st.dataframe(pd.DataFrame(fam_rows), use_container_width=True, hide_index=True)
+            except Exception:
+                st.write(fam_rows)
+
         # Deterministic repair hints (high-level; detailed mapping lives in contract artifact)
         st.markdown("**Deterministic repair levers (non-exhaustive):**")
         st.markdown("- Decrease **Bt** or increase **R0** (reduces required ampere-turns and peak field).")
         st.markdown("- Increase **TF build** (winding/structure) to improve **J** and **stress** margins.")
         st.markdown("- Increase **shielding/build** to reduce **nuclear heat** to coils (when coupled).")
+        if bool(out.get("magnet_v410_enabled", False)):
+            st.markdown("- Adjust **CS Bmax / flux** or **PF envelope caps** when CS/PF family dominates v410.")
 
 def _sync_point_designer_from_last_point_inp() -> None:
     if not st.session_state.get("pd_needs_sync", False):

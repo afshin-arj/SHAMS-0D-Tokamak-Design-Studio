@@ -11,7 +11,7 @@ except ImportError:
     from src.constraints.constraints import constraint_is_hard
 
 _MECHANISM_TOKENS: Dict[str, tuple] = {
-    "MAGNET": ("magnet", "tf", "hts", "b_peak", "quench", "v400", "v288", "structural"),
+    "MAGNET": ("magnet", "tf", "hts", "b_peak", "quench", "v400", "v410", "pf family", "cs family", "v288", "structural"),
     "EXHAUST": ("exhaust", "div", "detachment", "sol", "prad", "v399", "v380", "elm", "v409", "heat flux"),
     "NEUTRONICS": ("neutronics", "tbr", "dpa", "v403", "v401", "v407", "v392", "nuclear"),
     "CONTROL": ("control", "vs_", "vde", "rwm", "v398", "v374", "stability", "mhd"),
