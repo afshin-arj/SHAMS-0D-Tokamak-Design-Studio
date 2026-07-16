@@ -249,12 +249,16 @@ def _render_tab_body(session: DesignSession, *, on_evaluate) -> None:
     if not _pd_active(session):
         return
     tab_key = normalize_pd_tab(session.pd_workflow_tab)
+
+    def _goto_configure_refresh() -> None:
+        _refresh_all(session)
+
     if tab_key == "1 · Configure":
         render_configure(session, on_evaluate=on_evaluate, on_refresh=lambda: _render_tab_body.refresh())
     elif tab_key == "2 · Telemetry":
-        render_telemetry(session)
+        render_telemetry(session, on_refresh=_goto_configure_refresh)
     else:
-        render_constraints(session)
+        render_constraints(session, on_refresh=_goto_configure_refresh)
 
 
 def _set_subdeck(session: DesignSession, value: str) -> None:

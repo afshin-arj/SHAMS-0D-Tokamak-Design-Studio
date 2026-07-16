@@ -6,7 +6,13 @@ import json
 from nicegui import ui
 
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.compare_helpers import artifact_from_point, normalize_compare_artifact, slot_meta
+from ui_nicegui.lib.compare_helpers import (
+    artifact_from_point,
+    clear_compare_slots,
+    normalize_compare_artifact,
+    store_compare_slot,
+    swap_compare_slots,
+)
 from ui_nicegui.session import DesignSession
 
 
@@ -84,39 +90,20 @@ def _load_pd_to_slot(session: DesignSession, slot: str, on_change) -> None:
     if not art:
         ui.notify("No Point Designer evaluation available", type="warning")
         return
-    if slot == "A":
-        session.cmp_slot_a = art
-        session.cmp_slot_a_meta = slot_meta(art, label="Point Designer")
-        session.cmp_use_slot_a = True
-    else:
-        session.cmp_slot_b = art
-        session.cmp_slot_b_meta = slot_meta(art, label="Point Designer")
-        session.cmp_use_slot_b = True
+    # refresh=False: caller on_change refreshes local panels (avoids full deck remount lag)
+    store_compare_slot(session, art, slot, label="Point Designer", refresh=False)
     ui.notify(f"Loaded Point Designer into slot {slot}", type="positive")
     on_change()
 
 
 def _clear_slots(session: DesignSession, on_change) -> None:
-    session.cmp_slot_a = None
-    session.cmp_slot_b = None
-    session.cmp_slot_a_meta = {}
-    session.cmp_slot_b_meta = {}
-    session.cmp_use_slot_a = False
-    session.cmp_use_slot_b = False
+    clear_compare_slots(session, refresh=False)
     ui.notify("Cleared Compare slots", type="info")
     on_change()
 
 
 def _swap_slots(session: DesignSession, on_change) -> None:
-    session.cmp_slot_a, session.cmp_slot_b = session.cmp_slot_b, session.cmp_slot_a
-    session.cmp_slot_a_meta, session.cmp_slot_b_meta = (
-        session.cmp_slot_b_meta,
-        session.cmp_slot_a_meta,
-    )
-    session.cmp_use_slot_a, session.cmp_use_slot_b = (
-        session.cmp_use_slot_b,
-        session.cmp_use_slot_a,
-    )
+    swap_compare_slots(session, refresh=False)
     ui.notify("Swapped slots A and B", type="info")
     on_change()
 
@@ -128,15 +115,7 @@ async def _store_upload(session: DesignSession, slot: str, e) -> None:
     except Exception as exc:
         ui.notify(f"Invalid JSON upload: {exc}", type="negative")
         return
-    norm = normalize_compare_artifact(art)
-    if slot == "A":
-        session.cmp_slot_a = norm
-        session.cmp_slot_a_meta = slot_meta(norm, label="Uploaded")
-        session.cmp_use_slot_a = True
-    else:
-        session.cmp_slot_b = norm
-        session.cmp_slot_b_meta = slot_meta(norm, label="Uploaded")
-        session.cmp_use_slot_b = True
+    store_compare_slot(session, art, slot, label="Uploaded", refresh=False)
     ui.notify(f"Stored upload in slot {slot}", type="positive")
 
 

@@ -1,9 +1,12 @@
 """Telemetry tab — full Streamlit parity views (Phase 19/21)."""
 from __future__ import annotations
 
+from typing import Callable, Optional
+
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
+from ui_nicegui.components.workflow_cta import render_goto_setup_button
 from ui_nicegui.decks.point_designer.chronicle_export import render_chronicle_export
 from ui_nicegui.decks.point_designer.control_contracts import render_control_contracts
 from ui_nicegui.decks.point_designer.dominance_closure import render_dominance_closure
@@ -31,12 +34,23 @@ def render_tau_peaking_panel(out: dict) -> None:
             ui.label(str(cap)).classes("text-caption")
 
 
-def render_telemetry(session: DesignSession) -> None:
+def render_telemetry(
+    session: DesignSession,
+    *,
+    on_refresh: Optional[Callable[[], None]] = None,
+) -> None:
     out = session.pd_last_outputs or session.last_eval
     if not out:
         empty_state(
             "No Point Designer results yet. Open **Configure** and click **Evaluate Point**.",
             kind="info",
+        )
+        render_goto_setup_button(
+            session,
+            attr="pd_workflow_tab",
+            step="1 · Configure",
+            label="Go to Configure",
+            on_refresh=on_refresh,
         )
         return
 

@@ -30,6 +30,7 @@ from ui_nicegui.lib.navigation import switch_deck
 
 def _refresh_all() -> None:
     _render_verdict.refresh()
+    _render_workflow.refresh()
     _render_tab_body.refresh()
 
 
@@ -68,6 +69,7 @@ def render_compare(session: DesignSession) -> None:
                 value=session.cmp_teaching_mode,
                 on_change=lambda e: (
                     setattr(session, "cmp_teaching_mode", bool(e.value)),
+                    _render_workflow.refresh(),
                     _render_tab_body.refresh(),
                 ),
             )
@@ -81,13 +83,19 @@ def render_compare(session: DesignSession) -> None:
             )
 
     _render_verdict(session)
+    _render_workflow(session)
+    _render_tab_body(session)
 
+
+@ui.refreshable
+def _render_workflow(session: DesignSession) -> None:
     def _on_decision(e) -> None:
         state = str(e.value)
         session.cmp_decision_state = state
         tab = DECISION_TO_TAB.get(state)
         if tab and session.cmp_teaching_mode:
             session.cmp_workflow_step = tab
+            _render_workflow.refresh()
             _render_tab_body.refresh()
 
     ui.select(
@@ -109,14 +117,13 @@ def render_compare(session: DesignSession) -> None:
         value=session.cmp_workflow_step,
         on_change=lambda e: (
             setattr(session, "cmp_workflow_step", normalize_compare_tab(str(e.value))),
+            _render_workflow.refresh(),
             _render_tab_body.refresh(),
         ),
     ).classes("w-full")
     help_text = TAB_HELP.get(normalize_compare_tab(session.cmp_workflow_step), "")
     if help_text:
         ui.label(help_text).classes("text-caption text-grey q-mb-sm")
-
-    _render_tab_body(session)
 
 
 @ui.refreshable
@@ -161,7 +168,7 @@ def _render_tab_body(session: DesignSession) -> None:
             attr="cmp_workflow_step",
             step="1 · Load A & B",
             label="Go to Load A & B",
-            on_refresh=_render_tab_body.refresh,
+            on_refresh=_refresh_all,
         )
         return
 

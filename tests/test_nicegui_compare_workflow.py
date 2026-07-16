@@ -116,10 +116,13 @@ def test_compare_swap_includes_use_flags() -> None:
     import inspect
 
     from ui_nicegui.decks.compare import setup as cmp_setup
+    from ui_nicegui.lib import compare_helpers as ch
 
     src = inspect.getsource(cmp_setup._swap_slots)
-    assert "cmp_use_slot_a" in src
-    assert "cmp_use_slot_b" in src
+    assert "swap_compare_slots" in src
+    helper = inspect.getsource(ch.swap_compare_slots)
+    assert "cmp_use_slot_a" in helper
+    assert "cmp_use_slot_b" in helper
 
     from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
 
@@ -176,6 +179,26 @@ def test_pareto_promote_navigates_to_point_designer() -> None:
     src = inspect.getsource(eh.render_export_tab)
     assert "navigate_to_point_designer" in src
     assert "open_compare_deck" in src
+
+
+def test_pd_telemetry_has_goto_configure_cta() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import telemetry
+
+    src = inspect.getsource(telemetry.render_telemetry)
+    assert "Go to Configure" in src
+    assert "render_goto_setup_button" in src
+
+
+def test_pd_constraints_has_goto_configure_cta() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import constraints
+
+    src = inspect.getsource(constraints.render_constraints)
+    assert "Go to Configure" in src
+    assert "render_goto_setup_button" in src
 
 
 def test_trade_study_pd_prerequisite_badge() -> None:

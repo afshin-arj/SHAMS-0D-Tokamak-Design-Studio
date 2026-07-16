@@ -329,10 +329,13 @@ def test_compare_clear_resets_use_flags() -> None:
     import inspect
 
     from ui_nicegui.decks.compare import setup as cmp_setup
+    from ui_nicegui.lib import compare_helpers as ch
 
     src = inspect.getsource(cmp_setup._clear_slots)
-    assert "cmp_use_slot_a = False" in src
-    assert "cmp_use_slot_b = False" in src
+    assert "clear_compare_slots" in src
+    helper = inspect.getsource(ch.clear_compare_slots)
+    assert "cmp_use_slot_a = False" in helper
+    assert "cmp_use_slot_b = False" in helper
 
 
 def test_store_compare_slot_refreshes_active_compare() -> None:
@@ -342,6 +345,37 @@ def test_store_compare_slot_refreshes_active_compare() -> None:
 
     src = inspect.getsource(ch.store_compare_slot)
     assert "refresh_compare_if_active" in src
+
+
+def test_swap_compare_slots_swaps_use_flags() -> None:
+    from ui_nicegui.lib.compare_helpers import store_compare_slot, swap_compare_slots
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    store_compare_slot(s, {"outputs": {"Q": 1.0}}, "A", label="A", refresh=False)
+    store_compare_slot(s, {"outputs": {"Q": 2.0}}, "B", label="B", refresh=False)
+    s.cmp_use_slot_a = True
+    s.cmp_use_slot_b = False
+    swap_compare_slots(s, refresh=False)
+    assert s.cmp_use_slot_a is False
+    assert s.cmp_use_slot_b is True
+    assert float((s.cmp_slot_a or {}).get("outputs", {}).get("Q", 0)) == 2.0
+    assert float((s.cmp_slot_b or {}).get("outputs", {}).get("Q", 0)) == 1.0
+
+
+def test_compare_setup_routes_through_helpers() -> None:
+    import inspect
+
+    from ui_nicegui.decks.compare import setup as cmp_setup
+
+    src = inspect.getsource(cmp_setup)
+    assert "store_compare_slot" in src
+    assert "clear_compare_slots" in src
+    assert "swap_compare_slots" in src
+    # No direct slot mutation outside helpers
+    assert "session.cmp_slot_a = art" not in src
+    assert "session.cmp_slot_a = None" not in src
+    assert "session.cmp_slot_a = norm" not in src
 
 
 def test_pd_handoff_prepares_truth_console() -> None:

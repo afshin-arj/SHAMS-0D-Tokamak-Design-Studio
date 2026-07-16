@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import math
+from typing import Callable, Optional
 
 from nicegui import ui
 
+from ui_nicegui.components.workflow_cta import render_goto_setup_button
 from ui_nicegui.lib.pd_intent_policy import classify_failed_constraints, policy_caption
 from ui_nicegui.lib.pd_parity_helpers import (
     constraint_notebook_rows,
@@ -29,7 +31,11 @@ def _fmt(v) -> str:
         return str(v)
 
 
-def render_constraints(session: DesignSession) -> None:
+def render_constraints(
+    session: DesignSession,
+    *,
+    on_refresh: Optional[Callable[[], None]] = None,
+) -> None:
     out = session.pd_last_outputs or session.last_eval
     ui.label("Constraint Briefing").classes("text-h6")
     ui.label(f"Design intent: {session.design_intent}").classes("text-caption")
@@ -41,6 +47,13 @@ def render_constraints(session: DesignSession) -> None:
 
     if not isinstance(out, dict) or not out:
         ui.label("Run **Evaluate Point** to see constraint checks.").classes("text-grey")
+        render_goto_setup_button(
+            session,
+            attr="pd_workflow_tab",
+            step="1 · Configure",
+            label="Go to Configure",
+            on_refresh=on_refresh,
+        )
         return
 
     failed = failed_hard_names(out)

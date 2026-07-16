@@ -111,7 +111,7 @@ def slot_meta(art: dict, *, label: str) -> dict:
     }
 
 
-def store_compare_slot(session, art: dict, slot: str, *, label: str) -> None:
+def store_compare_slot(session, art: dict, slot: str, *, label: str, refresh: bool = True) -> None:
     """Store a normalized artifact in Compare slot A or B."""
     norm = normalize_compare_artifact(art)
     meta = slot_meta(norm, label=label)
@@ -123,7 +123,8 @@ def store_compare_slot(session, art: dict, slot: str, *, label: str) -> None:
         session.cmp_slot_b = norm
         session.cmp_slot_b_meta = meta
         session.cmp_use_slot_b = True
-    refresh_compare_if_active(session)
+    if refresh:
+        refresh_compare_if_active(session)
 
 
 def refresh_compare_if_active(session) -> None:
@@ -133,15 +134,31 @@ def refresh_compare_if_active(session) -> None:
         refresh_active_deck()
 
 
-def clear_compare_slots(session) -> None:
-    """Reset Compare slots and use flags; refresh if Compare is active."""
+def clear_compare_slots(session, *, refresh: bool = True) -> None:
+    """Reset Compare slots and use flags; optionally refresh if Compare is active."""
     session.cmp_slot_a = None
     session.cmp_slot_b = None
     session.cmp_slot_a_meta = {}
     session.cmp_slot_b_meta = {}
     session.cmp_use_slot_a = False
     session.cmp_use_slot_b = False
-    refresh_compare_if_active(session)
+    if refresh:
+        refresh_compare_if_active(session)
+
+
+def swap_compare_slots(session, *, refresh: bool = True) -> None:
+    """Swap Compare slots A↔B including meta and use flags."""
+    session.cmp_slot_a, session.cmp_slot_b = session.cmp_slot_b, session.cmp_slot_a
+    session.cmp_slot_a_meta, session.cmp_slot_b_meta = (
+        session.cmp_slot_b_meta,
+        session.cmp_slot_a_meta,
+    )
+    session.cmp_use_slot_a, session.cmp_use_slot_b = (
+        session.cmp_use_slot_b,
+        session.cmp_use_slot_a,
+    )
+    if refresh:
+        refresh_compare_if_active(session)
 
 
 def open_compare_deck(session) -> None:
