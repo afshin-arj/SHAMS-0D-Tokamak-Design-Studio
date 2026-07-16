@@ -80,6 +80,10 @@ def render_export(session: DesignSession) -> None:
 
         extra=extra or None,
 
+        design_intent=str(getattr(session, "design_intent", "") or "") or None,
+
+        no_solution_atlas=art.get("no_solution_atlas") if isinstance(art, dict) else None,
+
     )
 
 

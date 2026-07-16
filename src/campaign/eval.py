@@ -104,6 +104,16 @@ def evaluate_campaign_candidates(
                 "kpis": {"feasible_hard": False, "min_hard_margin": float("nan")},
                 "error": f"SCHEMA_INVALID: {ex}",
                 "first_failure": "SCHEMA_INVALID",
+                "no_solution_atlas": {
+                    "schema": "no_solution_atlas.v1",
+                    "verdict": "INFEASIBLE",
+                    "dominant_constraint": "SCHEMA_INVALID",
+                    "dominant_mechanism": "GENERAL",
+                    "mechanism_map": {"GENERAL": ["SCHEMA_INVALID"]},
+                    "hard_failures": [],
+                    "n_hard_failures": 0,
+                    "parity_aligned": True,
+                },
             }
             art = _annotate_summary_fields(art, intent=spec.intent)
             rows.append(
@@ -130,6 +140,16 @@ def evaluate_campaign_candidates(
                 "constraints": [],
                 "kpis": {"feasible_hard": False, "min_hard_margin": float("nan")},
                 "error": evr.message,
+                "no_solution_atlas": {
+                    "schema": "no_solution_atlas.v1",
+                    "verdict": "INFEASIBLE",
+                    "dominant_constraint": "EVAL_ERROR",
+                    "dominant_mechanism": "GENERAL",
+                    "mechanism_map": {"GENERAL": ["EVAL_ERROR"]},
+                    "hard_failures": [],
+                    "n_hard_failures": 0,
+                    "parity_aligned": True,
+                },
             }
         else:
             out = evr.out

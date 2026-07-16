@@ -810,6 +810,32 @@ def build_run_artifact(
     # Explicit non-feasibility certificate when hard infeasible.
     if not bool(art["kpis"].get("feasible_hard", False)):
         art["nonfeasibility_certificate"] = _build_nonfeasibility_certificate(constraints_json)
+        # Independence ticket 1.1: every hard-infeasible run artifact carries
+        # no_solution_atlas.v1 (mechanism attribution). Post-processing only.
+        try:
+            try:
+                from diagnostics.no_solution_atlas import build_no_solution_atlas  # type: ignore
+            except ImportError:
+                from src.diagnostics.no_solution_atlas import build_no_solution_atlas  # type: ignore
+            _intent = None
+            if isinstance(inputs, dict):
+                _intent = inputs.get("design_intent") or inputs.get("intent")
+            art["no_solution_atlas"] = build_no_solution_atlas(
+                outputs if isinstance(outputs, dict) else {},
+                design_intent=str(_intent) if _intent else None,
+            )
+        except Exception:
+            art["no_solution_atlas"] = {
+                "schema": "no_solution_atlas.v1",
+                "verdict": "INFEASIBLE",
+                "dominant_constraint": "",
+                "dominant_mechanism": "GENERAL",
+                "mechanism_map": {},
+                "hard_failures": [],
+                "n_hard_failures": 0,
+                "parity_aligned": True,
+                "atlas_build_error": True,
+            }
 
     # Attach verification compliance matrix (if available).
     if verification is None:

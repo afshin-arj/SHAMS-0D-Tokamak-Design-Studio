@@ -112,6 +112,10 @@ def test_hard_fail_is_rejected_not_verified(patch_ccfs):
     assert row["claims"]["status"] == "VERIFIED"  # preserved, not trusted
     assert out["n_status_verified"] == 0
     assert out["firewall"]["claims_never_set_status"] is True
+    # Independence 1.1: REJECTED rows carry no_solution_atlas.v1
+    assert row["no_solution_atlas"]["schema"] == "no_solution_atlas.v1"
+    assert "verdict" in row["no_solution_atlas"]
+    assert "dominant_mechanism" in row["no_solution_atlas"]
 
 
 def test_claim_spoof_cannot_force_verified(patch_ccfs):
@@ -147,6 +151,7 @@ def test_happy_path_verified(patch_ccfs):
     assert "worst_hard_margin" in row["constraints_summary"]
     assert patch_ccfs["eval_calls"] == 1
     assert out["n_status_verified"] == 1
+    assert "no_solution_atlas" not in row
 
 
 def test_vacuous_hard_set_fail_closed(patch_ccfs):
@@ -156,6 +161,7 @@ def test_vacuous_hard_set_fail_closed(patch_ccfs):
     out = verify_ccfs_bundle(_bundle(claims={"status": "VERIFIED"}))
     assert out["verified"][0]["status"] == "REJECTED"
     assert out["verified"][0]["rejection_reason"] == "vacuous_hard_set"
+    assert out["verified"][0]["no_solution_atlas"]["schema"] == "no_solution_atlas.v1"
 
 
 def test_evaluator_not_ok_rejected(patch_ccfs):
@@ -164,6 +170,7 @@ def test_evaluator_not_ok_rejected(patch_ccfs):
     out = verify_ccfs_bundle(_bundle())
     assert out["verified"][0]["status"] == "REJECTED"
     assert out["verified"][0]["rejection_reason"] == "eval_error"
+    assert out["verified"][0]["no_solution_atlas"]["schema"] == "no_solution_atlas.v1"
 
 
 def test_bad_inputs_rejected(patch_ccfs, monkeypatch):
@@ -174,6 +181,7 @@ def test_bad_inputs_rejected(patch_ccfs, monkeypatch):
     out = verify_ccfs_bundle(_bundle())
     assert out["verified"][0]["status"] == "REJECTED"
     assert out["verified"][0]["rejection_reason"] == "eval_error"
+    assert out["verified"][0]["no_solution_atlas"]["schema"] == "no_solution_atlas.v1"
 
 
 def test_phase_fail_demotes_verified(patch_ccfs, monkeypatch):

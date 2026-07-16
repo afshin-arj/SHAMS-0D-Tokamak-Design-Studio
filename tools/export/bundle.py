@@ -47,6 +47,9 @@ def build_export_bundle_bytes(
 
         if point_artifact is not None:
             z.writestr("artifact_point.json", json.dumps(point_artifact, indent=2, sort_keys=True))
+            atlas = point_artifact.get("no_solution_atlas") if isinstance(point_artifact, dict) else None
+            if isinstance(atlas, dict) and atlas.get("schema") == "no_solution_atlas.v1":
+                z.writestr("no_solution_atlas.json", json.dumps(atlas, indent=2, sort_keys=True))
         if systems_artifact is not None:
             z.writestr("systems_artifact.json", json.dumps(systems_artifact, indent=2, sort_keys=True))
         if feasible_search_artifact is not None:

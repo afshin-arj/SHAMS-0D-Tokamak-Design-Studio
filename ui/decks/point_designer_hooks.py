@@ -48,10 +48,14 @@ def render_point_designer_export(session_state: Any, *, deck: str = "Point Desig
     if not out:
         st.caption("Evaluate a point before exporting.")
         return
+    intent = str(session_state.get("design_intent", "") or "")
+    prebuilt = art.get("no_solution_atlas") if isinstance(art, dict) else None
     bundle = build_export_bundle(
         deck=deck,
         outputs=out,
         inputs=art.get("inputs") if isinstance(art, dict) else None,
+        design_intent=intent or None,
+        no_solution_atlas=prebuilt if isinstance(prebuilt, dict) else None,
     )
     st.download_button(
         "Download evaluation bundle (JSON + SHA-256)",

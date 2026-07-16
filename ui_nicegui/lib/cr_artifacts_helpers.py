@@ -46,6 +46,7 @@ def artifact_summary(art: dict) -> Dict[str, Any]:
     meta = art.get("meta") or {}
     prov = art.get("provenance") or {}
     ledger = art.get("constraint_ledger") or {}
+    atlas = art.get("no_solution_atlas") if isinstance(art.get("no_solution_atlas"), dict) else {}
     return {
         "schema": art.get("schema_version") or art.get("kind"),
         "label": meta.get("label") or art.get("run_id") or art.get("id"),
@@ -53,6 +54,9 @@ def artifact_summary(art: dict) -> Dict[str, Any]:
         "git_commit": prov.get("git_commit"),
         "ledger_entries": len(ledger.get("entries") or []) if isinstance(ledger, dict) else 0,
         "has_model_set": bool(art.get("model_set")),
+        "has_no_solution_atlas": bool(atlas.get("schema") == "no_solution_atlas.v1"),
+        "atlas_verdict": atlas.get("verdict"),
+        "atlas_dominant_mechanism": atlas.get("dominant_mechanism"),
     }
 
 
@@ -77,4 +81,10 @@ def export_artifact_bundle(art: dict) -> bytes:
         z.writestr("shams_run_artifact.json", payload)
         summary = artifact_summary(art)
         z.writestr("ARTIFACT_SUMMARY.json", json.dumps(summary, indent=2, sort_keys=True))
+        atlas = art.get("no_solution_atlas")
+        if isinstance(atlas, dict) and atlas.get("schema") == "no_solution_atlas.v1":
+            z.writestr(
+                "no_solution_atlas.json",
+                json.dumps(atlas, indent=2, sort_keys=True, default=str).encode("utf-8"),
+            )
     return bio.getvalue()

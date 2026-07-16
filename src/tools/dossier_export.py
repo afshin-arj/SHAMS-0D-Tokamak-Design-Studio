@@ -67,6 +67,14 @@ def export_design_dossier_zip(
         "citation_completeness": artifact.get("citation_completeness"),
         "experimental_evidence": artifact.get("experimental_evidence_summary"),
     }
+    atlas = artifact.get("no_solution_atlas")
+    if isinstance(atlas, dict) and atlas.get("schema") == "no_solution_atlas.v1":
+        summary["no_solution_atlas"] = {
+            "verdict": atlas.get("verdict"),
+            "dominant_mechanism": atlas.get("dominant_mechanism"),
+            "dominant_constraint": atlas.get("dominant_constraint"),
+            "n_hard_failures": atlas.get("n_hard_failures"),
+        }
 
     md_lines = [
         f"# SHAMS Design Dossier",
@@ -76,12 +84,26 @@ def export_design_dossier_zip(
         f"- Verdict: {summary.get('verdict')}",
         f"- Dominant mechanism: {summary.get('dominant_mechanism')}",
         f"- Worst hard margin: {summary.get('worst_margin')}",
-        "\n## Governance",
-        _stable_json({
-            "citation_completeness": summary.get("citation_completeness"),
-            "experimental_evidence": summary.get("experimental_evidence"),
-        }),
     ]
+    if isinstance(atlas, dict) and atlas.get("schema") == "no_solution_atlas.v1":
+        md_lines.extend(
+            [
+                f"- NO-SOLUTION atlas verdict: {atlas.get('verdict')}",
+                f"- Atlas dominant mechanism: {atlas.get('dominant_mechanism')}",
+                f"- Atlas dominant constraint: {atlas.get('dominant_constraint')}",
+            ]
+        )
+    md_lines.extend(
+        [
+            "\n## Governance",
+            _stable_json(
+                {
+                    "citation_completeness": summary.get("citation_completeness"),
+                    "experimental_evidence": summary.get("experimental_evidence"),
+                }
+            ),
+        ]
+    )
 
     manifest = {
         "schema": "design_dossier_manifest.v2",

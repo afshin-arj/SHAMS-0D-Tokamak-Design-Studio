@@ -79,6 +79,35 @@ def _constraint_row(c: Any) -> Dict[str, Any]:
     return dict(getattr(c, "__dict__", {}) or {})
 
 
+def _empty_atlas(*, verdict: str = "UNKNOWN") -> Dict[str, Any]:
+    return {
+        "schema": "no_solution_atlas.v1",
+        "verdict": verdict,
+        "dominant_constraint": "",
+        "dominant_mechanism": "GENERAL",
+        "mechanism_map": {},
+        "hard_failures": [],
+        "n_hard_failures": 0,
+        "parity_aligned": True,
+    }
+
+
+def _atlas_for_outputs(out: Optional[Dict[str, Any]], *, design_intent: Optional[str] = None) -> Dict[str, Any]:
+    """Attach no_solution_atlas.v1 on REJECTED / infeasible CCFS rows."""
+    if not isinstance(out, dict) or not out:
+        return _empty_atlas(verdict="UNKNOWN")
+    try:
+        try:
+            from diagnostics.no_solution_atlas import build_no_solution_atlas  # type: ignore
+        except ImportError:
+            from src.diagnostics.no_solution_atlas import build_no_solution_atlas  # type: ignore
+        return build_no_solution_atlas(out, design_intent=design_intent)
+    except Exception:
+        atlas = _empty_atlas(verdict="UNKNOWN")
+        atlas["atlas_build_error"] = True
+        return atlas
+
+
 def _decision_status(
     *,
     feasible_hard: bool,
@@ -151,6 +180,7 @@ def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict
                     "claims_ignored": True,
                     "claims": claims,
                     "error": f"evaluator_not_ok: {getattr(res, 'message', '')}",
+                    "no_solution_atlas": _atlas_for_outputs(out if isinstance(out, dict) else None),
                 })
                 continue
 
@@ -224,6 +254,20 @@ def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict
             }
             if status != "VERIFIED":
                 row["rejection_reason"] = rejection_reason or "hard_infeasible"
+                # Independence ticket 1.1: REJECTED rows always carry atlas.
+                _intent = getattr(inp, "design_intent", None) or (inp.__dict__ or {}).get("design_intent")
+                atlas = _atlas_for_outputs(
+                    out,
+                    design_intent=str(_intent) if _intent else None,
+                )
+                # Hard-infeasible gate: never advertise FEASIBLE atlas on hard reject.
+                if rejection_reason in {"hard_infeasible", "vacuous_hard_set"} and str(atlas.get("verdict")) == "FEASIBLE":
+                    atlas = dict(atlas)
+                    atlas["verdict"] = "INFEASIBLE"
+                    atlas["atlas_aligned_to_rejection"] = True
+                atlas = dict(atlas)
+                atlas["rejection_reason"] = rejection_reason or "hard_infeasible"
+                row["no_solution_atlas"] = atlas
             verified.append(row)
 
         except Exception as e:
@@ -233,6 +277,7 @@ def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict
                 "rejection_reason": "eval_error",
                 "claims_ignored": True,
                 "error": f"verification_failed: {e}",
+                "no_solution_atlas": _empty_atlas(verdict="UNKNOWN"),
             })
 
     n_verified = sum(1 for v in verified if str(v.get("status")) == "VERIFIED")
