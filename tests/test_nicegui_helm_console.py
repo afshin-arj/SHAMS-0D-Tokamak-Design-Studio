@@ -269,6 +269,52 @@ def test_hygiene_scan_is_cached() -> None:
     assert crh._HYGIENE_CACHE is not None
 
 
+def test_baseline_kpi_caption_includes_stability() -> None:
+    from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+
+    cap = baseline_kpi_caption({
+        "Q": 10.0,
+        "H98": 1.0,
+        "betaN": 2.1,
+        "fG": 0.8,
+        "q95": 3.5,
+    })
+    assert "Q≈" in cap
+    assert "β_N≈" in cap
+    assert "f_G≈" in cap
+    assert "q95≈" in cap
+
+
+def test_control_room_uses_live_governance_verdict() -> None:
+    import inspect
+
+    from ui_nicegui.decks import control_room as cr_mod
+
+    src = inspect.getsource(cr_mod.render_control_room)
+    assert "render_governance_verdict_live" in src
+    assert "governance_summary(session)" not in src.split("render_governance_verdict")[0]
+
+
+def test_trade_study_export_has_scan_handoff() -> None:
+    import inspect
+
+    from ui_nicegui.decks.trade_study_studio import export_handoff as ts_exp
+
+    src = inspect.getsource(ts_exp.render_export_tab)
+    assert "scan_lab_focus" in src
+    assert "switch_deck" in src
+    assert "force=True" in src
+
+
+def test_pd_constraints_includes_next_steps_bridge() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import constraints as pd_c
+
+    src = inspect.getsource(pd_c.render_constraints)
+    assert "render_systems_precheck_bridge" in src
+
+
 def test_systems_mode_scope_allows_newton_propose() -> None:
     from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
 

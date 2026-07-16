@@ -42,6 +42,14 @@ def render_forge_workbench(
             "No Machine Finder archive yet. Run a search on **Setup & Search**, or restore a capsule.",
             kind="info",
         )
+        ui.button(
+            "Go to Setup & Search",
+            icon="settings",
+            on_click=lambda: (
+                setattr(session, "forge_workflow_step", "2 · Setup & Search"),
+                on_complete() if on_complete else None,
+            ),
+        ).props("outline").classes("q-mt-sm")
         return
 
     if isinstance(run_rep, dict):

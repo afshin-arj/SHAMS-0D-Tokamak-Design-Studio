@@ -7,6 +7,7 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+from ui_nicegui.components.workflow_cta import render_goto_setup_button
 from ui_nicegui.decks.scan_lab import (
     cartography,
     deep_maps,
@@ -18,6 +19,7 @@ from ui_nicegui.decks.scan_lab import (
 )
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
 from ui_nicegui.lib.scan_archive_helpers import probe_scan_imports
 from ui_nicegui.lib.scan_labels import (
     DECISION_STATES,
@@ -89,29 +91,7 @@ def render_scan_lab(session: DesignSession) -> None:
     _consume_scan_probe_focus(session)
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
-        q = point_out.get("Q_DT_eqv", point_out.get("Q"))
-        h98 = point_out.get("H98")
-        pnet = point_out.get("P_e_net_MW")
-        beta = point_out.get("betaN", point_out.get("beta_N"))
-        fg = point_out.get("fG", point_out.get("greenwald_fraction"))
-        q95 = point_out.get("q95")
-        baseline_bits = []
-        if q is not None:
-            baseline_bits.append(f"Q≈{q}")
-        if h98 is not None:
-            baseline_bits.append(f"H98≈{h98}")
-        if pnet is not None:
-            baseline_bits.append(f"P_net≈{pnet} MW")
-        if beta is not None:
-            baseline_bits.append(f"β_N≈{beta}")
-        if fg is not None:
-            baseline_bits.append(f"f_G≈{fg}")
-        if q95 is not None:
-            baseline_bits.append(f"q95≈{q95}")
-        cap = "Point evaluation loaded"
-        if baseline_bits:
-            cap += f" ({', '.join(str(b) for b in baseline_bits[:6])})"
-        ui.label(cap).classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",
@@ -226,12 +206,18 @@ def _render_tab_body(session: DesignSession) -> None:
         rep = session.scan_cartography_report
         if not isinstance(rep, dict):
             empty_state("Run a cartography scan on **Setup & Run** first.", kind="info")
+            render_goto_setup_button(
+                session, attr="scan_workflow_step", on_refresh=_render_tab_body.refresh
+            )
             return
         workbench.render_workbench(session, rep, on_update=_render_tab_body.refresh)
     elif step == "3 · Interpret":
         rep = session.scan_cartography_report
         if not isinstance(rep, dict):
             empty_state("Run a cartography scan first.", kind="info")
+            render_goto_setup_button(
+                session, attr="scan_workflow_step", on_refresh=_render_tab_body.refresh
+            )
             return
         insights.render_interpret_tab(session, rep, on_update=_render_tab_body.refresh)
         ui.separator().classes("q-my-md")

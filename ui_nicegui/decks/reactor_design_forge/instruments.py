@@ -31,6 +31,14 @@ def render_instruments_tab(
             "No Machine Finder archive. Run **Setup & Search** or restore a capsule first.",
             kind="info",
         )
+        ui.button(
+            "Go to Setup & Search",
+            icon="settings",
+            on_click=lambda: (
+                setattr(session, "forge_workflow_step", "2 · Setup & Search"),
+                on_complete() if on_complete else None,
+            ),
+        ).props("outline").classes("q-mt-sm")
         return
 
     ui.label("Expert instruments").classes("text-subtitle1")

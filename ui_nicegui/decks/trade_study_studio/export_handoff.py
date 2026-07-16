@@ -6,6 +6,9 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
+from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.compare_helpers import send_row_to_compare_slot
+from ui_nicegui.lib.pareto_interpret_helpers import scan_lab_focus, systems_mode_handoff
 from ui_nicegui.lib.trade_interpret_helpers import (
     capsule_from_restore,
     promote_row,
@@ -107,3 +110,41 @@ def render_export_tab(
     with ui.row().classes("gap-2 q-mt-sm"):
         ui.button("Send row → Compare A", icon="compare", on_click=lambda: _send_compare("A")).props("flat outline")
         ui.button("Send row → Compare B", icon="compare", on_click=lambda: _send_compare("B")).props("flat outline")
+
+    objectives = (rep.get("meta") or {}).get("objectives") or {}
+
+    def _handoff_scan() -> None:
+        i = int(idx.value or 0)
+        row = next((r for r in pareto if int(r.get("i", -1)) == i), None)
+        if row is None and 0 <= i < len(pareto):
+            row = pareto[i]
+        if row is None:
+            ui.notify("Invalid row", type="warning")
+            return
+        focus = scan_lab_focus(row, bounds, objectives)
+        focus["source"] = "Trade Study Studio"
+        session.scan_probe_focus = focus
+        if focus.get("x_key"):
+            session.scan_cart_x_key = str(focus["x_key"])
+        if focus.get("y_key"):
+            session.scan_cart_y_key = str(focus["y_key"])
+        session.scan_workflow_step = "1 · Setup & Run"
+        switch_deck("Scan Lab", force=True)
+        ui.notify("Opened Scan Lab with trade-study focus.", type="info")
+
+    def _handoff_systems() -> None:
+        i = int(idx.value or 0)
+        row = next((r for r in pareto if int(r.get("i", -1)) == i), None)
+        if row is None and 0 <= i < len(pareto):
+            row = pareto[i]
+        if row is None:
+            ui.notify("Invalid row", type="warning")
+            return
+        session.systems_mode_queue = [systems_mode_handoff(row, bounds)]
+        session.systems_workflow_step = "1 · Targets"
+        switch_deck("Systems Mode", force=True)
+        ui.notify("Opened Systems Mode with queued inputs.", type="info")
+
+    with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
+        ui.button("Hand off focus to Scan Lab", icon="map", on_click=_handoff_scan).props("flat outline")
+        ui.button("Queue for Systems Mode", icon="hub", on_click=_handoff_systems).props("flat outline")

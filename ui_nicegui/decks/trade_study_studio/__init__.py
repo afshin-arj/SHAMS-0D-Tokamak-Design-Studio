@@ -5,6 +5,7 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+from ui_nicegui.components.workflow_cta import render_goto_setup_button
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.trade_study_studio import (
     advanced,
@@ -16,6 +17,7 @@ from ui_nicegui.decks.trade_study_studio import (
     verdict,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
 from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, STUDY_SETUP_DECK
 from ui_nicegui.lib.trade_study_labels import (
     ADVANCED_GROUPS,
@@ -59,7 +61,7 @@ def render_trade_study_studio(session: DesignSession) -> None:
         return
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label("Point evaluation loaded").classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",
@@ -142,11 +144,17 @@ def _render_tab_body(session: DesignSession) -> None:
     elif step == "2 · Explore Results":
         if not isinstance(session.trade_last, dict):
             empty_state("Run a trade study on **Setup & Run** first.", kind="info")
+            render_goto_setup_button(
+                session, attr="trade_workflow_step", on_refresh=_render_tab_body.refresh
+            )
             return
         explore.render_explore_tab(session, session.trade_last, on_update=_render_tab_body.refresh)
     elif step == "3 · Interpret & Families":
         if not isinstance(session.trade_last, dict):
             empty_state("Run a trade study first.", kind="info")
+            render_goto_setup_button(
+                session, attr="trade_workflow_step", on_refresh=_render_tab_body.refresh
+            )
             return
         interpret.render_interpret_tab(session, session.trade_last)
     elif step == "4 · Export & Handoff":

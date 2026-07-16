@@ -280,7 +280,24 @@ def _render_tab_content(session: DesignSession) -> None:
                     reproduce_ui.render_reproduce_panel(session, on_change=refresh)
                     tools_ui.render_tools_panel(session)
         else:
-            ui.label("Run precheck/solve or apply a candidate to populate review artifacts.").classes(
-                "text-caption text-grey"
+            from ui_nicegui.components.empty_state import empty_state
+
+            empty_state(
+                "Run precheck/solve or apply a candidate to populate review artifacts.",
+                kind="info",
             )
+
+            def _goto_targets() -> None:
+                session.systems_workflow_step = "1 · Targets"
+                refresh()
+
+            def _goto_solve() -> None:
+                session.systems_workflow_step = "2 · Check & Solve"
+                refresh()
+
+            with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
+                ui.button("Set targets", icon="flag", on_click=_goto_targets).props("outline")
+                ui.button("Run precheck / solve", icon="play_arrow", on_click=_goto_solve).props(
+                    "outline color=primary"
+                )
         return

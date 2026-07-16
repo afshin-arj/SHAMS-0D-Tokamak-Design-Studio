@@ -16,7 +16,7 @@ from ui_nicegui.lib.control_room_labels import (
 )
 from ui_nicegui.session import DesignSession
 
-from ui_nicegui.lib.control_room_helpers import CR_SECTIONS, governance_summary, read_version
+from ui_nicegui.lib.control_room_helpers import CR_SECTIONS, read_version
 
 # Legacy section names ported from Streamlit (see test_nicegui_phase18).
 _PORTED = frozenset(CR_SECTIONS)
@@ -50,13 +50,12 @@ def render_control_room(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("governance", default_open=False)
 
-    summary = governance_summary(session)
-    verdict.render_governance_verdict(summary)
+    verdict.render_governance_verdict_live(session)
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        _ver = summary.get("version") or read_version()
+        _ver = read_version()
         ver_label = _ver if str(_ver).startswith("v") else f"v{_ver}"
-        ui.label(f"SHAMS {ver_label} · {summary.get('active_deck', '')}").classes("text-caption text-grey")
+        ui.label(f"SHAMS {ver_label} · {session.active_deck}").classes("text-caption text-grey")
         _render_mode_switches(session)
 
     _render_decision_chrome(session)

@@ -5,6 +5,7 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+from ui_nicegui.components.workflow_cta import render_goto_setup_button
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.decks.pareto_lab import (
     controls,
@@ -16,6 +17,7 @@ from ui_nicegui.decks.pareto_lab import (
     verdict,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
 from ui_nicegui.lib.pareto_labels import (
     ALL_EXTERNAL as EXTERNAL_DECKS,
     DECISION_STATES,
@@ -54,7 +56,7 @@ def render_pareto_lab(session: DesignSession) -> None:
         return
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label("Point evaluation loaded").classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
 
     with ui.row().classes("w-full items-center justify-end gap-4 q-mb-sm"):
         ui.switch(
@@ -149,6 +151,9 @@ def _render_tab_body(session: DesignSession) -> None:
     elif step == "3 · Interpret & Audit":
         if not isinstance(session.pareto_last, dict):
             empty_state("Run a Pareto study first.", kind="info")
+            render_goto_setup_button(
+                session, attr="pareto_workflow_step", on_refresh=_render_tab_body.refresh
+            )
             return
         interpret.render_interpret_tab(session, session.pareto_last)
     elif step == "4 · Export & Handoff":

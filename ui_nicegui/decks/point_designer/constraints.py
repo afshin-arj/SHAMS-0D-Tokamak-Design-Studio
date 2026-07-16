@@ -13,6 +13,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     pipeline_diff_rows,
 )
 from ui_nicegui.lib.verdict_core import constraint_table_rows
+from ui_nicegui.decks.point_designer.configure_systems_bridge import render_systems_precheck_bridge
 from ui_nicegui.session import DesignSession
 
 
@@ -104,6 +105,8 @@ def render_constraints(session: DesignSession) -> None:
         ui.label(f"{len(failed_rows)} hard constraint(s) failing.").classes("text-negative q-mt-sm")
     else:
         ui.label("All governance hard constraints pass.").classes("text-positive q-mt-sm")
+
+    render_systems_precheck_bridge(session)
 
 
 def _render_pipeline_diff(out: dict, design_intent: str) -> None:
