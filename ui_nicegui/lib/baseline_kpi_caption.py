@@ -22,7 +22,6 @@ def baseline_kpi_caption(
     q = point_out.get("Q_DT_eqv", point_out.get("Q"))
     h98 = point_out.get("H98")
     pfus = point_out.get("Pfus_total_MW", point_out.get("Pfus_MW", point_out.get("P_fus_MW")))
-    pnet = point_out.get("P_e_net_MW")
     beta = point_out.get("betaN", point_out.get("beta_N"))
     fg = point_out.get("fG", point_out.get("greenwald_fraction"))
     q95 = point_out.get("q95")
@@ -32,8 +31,18 @@ def baseline_kpi_caption(
         bits.append(f"H98≈{h98}")
     if pfus is not None:
         bits.append(f"Pfus≈{pfus} MW")
-    if pnet is not None:
-        bits.append(f"P_net≈{pnet} MW")
+    # Independence 1.2: never present healthy Pe_net on hard-infeasible points.
+    try:
+        from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+
+        pnet_disp = pe_net_display(point_out)
+        if pnet_disp and pnet_disp not in ("n/a", "-"):
+            bits.append(f"P_net={pnet_disp}")
+    except Exception:
+        if bool(vs.get("feasible", True)):
+            pnet = point_out.get("P_e_net_MW")
+            if pnet is not None:
+                bits.append(f"P_net≈{pnet} MW")
     if beta is not None:
         bits.append(f"β_N≈{beta}")
     if fg is not None:

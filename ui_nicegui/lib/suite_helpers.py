@@ -378,13 +378,35 @@ def bridge_campaign_to_pareto(session: DesignSession) -> Dict[str, Any]:
     return dict(session.suite_pareto_bridge_meta or {})
 
 
-def render_authority_ledger(point_out: dict, *, expert: bool = False) -> None:
+def render_authority_ledger(
+    point_out: dict,
+    *,
+    expert: bool = False,
+    artifact: Optional[dict] = None,
+    design_intent: str = "",
+) -> None:
     from ui_nicegui.lib.pd_parity_helpers import magnet_v400_summary, power_ledger_badged_rows
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        coe_display,
+        lcoe_display,
+        pe_net_display,
+        render_plant_kpi_watermark_banner,
+    )
 
     ui.label("Authority ledger (from last Point Designer evaluation)").classes("text-subtitle2")
     ui.label("Read-only drill-down — authority modules run at evaluate time, not in Suite.").classes(
         "text-caption q-mb-sm"
     )
+    banner = render_plant_kpi_watermark_banner(
+        point_out, artifact=artifact, design_intent=design_intent
+    )
+    if banner:
+        ui.badge(banner, color="orange").props("outline").classes("q-mb-xs")
+    kpi_row([
+        ("Pe_net (watermarked)", pe_net_display(point_out, artifact=artifact, design_intent=design_intent)),
+        ("COE proxy (watermarked)", coe_display(point_out, artifact=artifact, design_intent=design_intent)),
+        ("LCOE proxy (watermarked)", lcoe_display(point_out, artifact=artifact, design_intent=design_intent)),
+    ])
 
     mag = magnet_v400_summary(point_out)
     if mag:

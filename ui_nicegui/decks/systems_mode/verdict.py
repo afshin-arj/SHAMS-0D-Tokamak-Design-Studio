@@ -67,6 +67,16 @@ def render_posture_strip(art: dict, *, next_action: str = "") -> None:
                 break
 
     kpis = _physics_kpis(art)
+    # Independence 1.2: watermark Pe_net on hard-infeasible artifacts.
+    try:
+        from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+
+        out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+        if not out and isinstance(art.get("ledger"), dict):
+            out = art["ledger"].get("outputs") or {}
+        p_net_disp = pe_net_display(out if isinstance(out, dict) else {}, artifact=art)
+    except Exception:
+        p_net_disp = fmt(kpis.get("P_net"))
     ui.label("Design status").classes("text-subtitle1 q-mt-sm")
     if kpis.get("mirage"):
         ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
@@ -78,7 +88,7 @@ def render_posture_strip(art: dict, *, next_action: str = "") -> None:
         ("Q", fmt(kpis.get("Q"))),
         ("H98", fmt(kpis.get("H98"))),
         ("Pfus [MW]", fmt(kpis.get("P_fus"))),
-        ("P_net [MW]", fmt(kpis.get("P_net"))),
+        ("P_net [MW]", p_net_disp),
         ("q95", fmt(kpis.get("q95"))),
         ("β_N", fmt(kpis.get("beta_N"))),
         ("f_G", fmt(kpis.get("f_G"))),

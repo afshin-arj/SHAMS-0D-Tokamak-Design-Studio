@@ -31,7 +31,26 @@ KPI_SET: List[KPI] = [
 ]
 
 
-def format_kpi_value(kpi: KPI, outputs: Dict[str, Any]) -> str:
+_PLANT_CLAIM_KEYS = frozenset(
+    {"P_net_e_MW", "COE_proxy_USD_per_MWh", "LCOE_proxy_USD_per_MWh"}
+)
+
+
+def format_kpi_value(
+    kpi: KPI,
+    outputs: Dict[str, Any],
+    *,
+    hard_feasible: Optional[bool] = None,
+) -> str:
+    # Independence 1.2: plant claim KPIs are diagnostic when hard-infeasible.
+    if hard_feasible is False and kpi.key in _PLANT_CLAIM_KEYS:
+        v = outputs.get(kpi.key, kpi.fallback)
+        try:
+            vf = float(v)
+            if vf == vf:  # finite
+                return "— (diagnostic)"
+        except Exception:
+            pass
     v = outputs.get(kpi.key, kpi.fallback)
     try:
         if v is None:
@@ -44,6 +63,13 @@ def format_kpi_value(kpi: KPI, outputs: Dict[str, Any]) -> str:
         return str(v)
 
 
-def headline_kpis(outputs: Dict[str, Any]) -> List[Tuple[str, str]]:
+def headline_kpis(
+    outputs: Dict[str, Any],
+    *,
+    hard_feasible: Optional[bool] = None,
+) -> List[Tuple[str, str]]:
     """Return (label, formatted_value) pairs in stable order."""
-    return [(k.label, format_kpi_value(k, outputs)) for k in KPI_SET]
+    return [
+        (k.label, format_kpi_value(k, outputs, hard_feasible=hard_feasible))
+        for k in KPI_SET
+    ]

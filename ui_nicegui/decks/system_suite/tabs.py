@@ -92,18 +92,42 @@ def _expansion_defaults(session: DesignSession, *, panel_id: str, default_open: 
 
 
 def render_tab_plant_power(ctx: SuiteContext) -> None:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        pe_net_display,
+        plant_kpi_honesty_for_point,
+        render_plant_kpi_watermark_banner,
+    )
+
     fn = ctx.overlays.get("power_closure_overlay")
     if fn is None:
         empty_state("Power closure overlay unavailable.", kind="warn")
         return
     rep = fn(ctx.point_out, ctx.point_inp)
+    honesty = plant_kpi_honesty_for_point(
+        ctx.point_out,
+        artifact=ctx.artifact,
+        design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+    )
+    pe_disp = pe_net_display(
+        ctx.point_out,
+        artifact=ctx.artifact,
+        design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+    )
+    banner = render_plant_kpi_watermark_banner(
+        ctx.point_out,
+        artifact=ctx.artifact,
+        design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+    )
+    if banner:
+        ui.badge(banner, color="orange").props("outline").classes("q-mb-xs")
+        ui.label(str(honesty.get("message") or "")).classes("text-caption text-orange q-mb-sm")
     render_tab_summary_strip(
         "PLANT CLOSURE",
         detail="Gross, recirculating, and net electric from plant overlay.",
         kpis=[
             ("Gross electric (MW)", _fin(rep.Pe_gross_MW)),
             ("Recirc (MW)", _fin(rep.Precirc_MW)),
-            ("Net electric (MW)", _fin(rep.Pe_net_MW)),
+            ("Net electric (MW)", pe_disp),
             ("Recirc fraction", f"{100.0 * rep.recirc_frac:.1f}%" if math.isfinite(rep.recirc_frac) else "-"),
         ],
     )
@@ -114,9 +138,15 @@ def render_tab_plant_power(ctx: SuiteContext) -> None:
     kpi_row([
         ("Gross electric (MW)", _fin(rep.Pe_gross_MW)),
         ("Recirc (MW)", _fin(rep.Precirc_MW)),
-        ("Net electric (MW)", _fin(rep.Pe_net_MW)),
+        ("Net electric (MW)", pe_disp),
         ("Recirc fraction", f"{100.0 * rep.recirc_frac:.1f}%" if math.isfinite(rep.recirc_frac) else "-"),
     ])
+    if not honesty.get("claim_allowed"):
+        with ui.expansion("Raw Pe_net bookkeeping (diagnostic)", icon="science").classes("w-full"):
+            ui.label(
+                f"Raw Pe_net={_fin(rep.Pe_net_MW)} MW — not a certified net-electric claim "
+                f"(watermark={honesty.get('watermark')})."
+            ).classes("text-caption")
     stamp_label(rep.stamp_sha256)
     with ui.expansion("Breakdown (diagnostic)", icon="data_object").classes("w-full"):
         ui.code(json.dumps(rep.breakdown, indent=2, sort_keys=True), language="json")
@@ -125,7 +155,12 @@ def render_tab_plant_power(ctx: SuiteContext) -> None:
         icon="account_balance",
         value=not ctx.session.suite_expert_view,
     ).classes("w-full q-mt-sm"):
-        render_authority_ledger(ctx.point_out, expert=ctx.session.suite_expert_view)
+        render_authority_ledger(
+            ctx.point_out,
+            expert=ctx.session.suite_expert_view,
+            artifact=ctx.artifact,
+            design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +170,11 @@ def render_tab_plant_power(ctx: SuiteContext) -> None:
 
 @ui.refreshable
 def _render_duty_panel(ctx: SuiteContext) -> None:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        plant_kpi_honesty_for_point,
+        render_plant_kpi_watermark_banner,
+    )
+
     fn = ctx.overlays.get("ops_availability_overlay")
     if fn is None:
         empty_state("Operations overlay unavailable.", kind="warn")
@@ -144,11 +184,30 @@ def _render_duty_panel(ctx: SuiteContext) -> None:
         ctx.point_inp,
         availability=float(ctx.session.suite_availability),
     )
+    honesty = plant_kpi_honesty_for_point(
+        ctx.point_out,
+        artifact=ctx.artifact,
+        design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+    )
+    banner = render_plant_kpi_watermark_banner(
+        ctx.point_out,
+        artifact=ctx.artifact,
+        design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+    )
+    if banner:
+        ui.badge(banner, color="orange").props("outline").classes("q-mb-xs")
+    # Independence 1.2: do not show healthy delivered energy on hard-infeasible points.
+    if honesty.get("claim_allowed"):
+        avg_disp = _fin(rep.avg_delivered_MW)
+        ann_disp = _fin(rep.annual_energy_GWh, ".1f")
+    else:
+        avg_disp = "— (diagnostic)"
+        ann_disp = "— (diagnostic)"
     kpi_row([
         ("Duty cycle", f"{100.0 * rep.duty_cycle:.1f}%"),
         ("Availability", f"{100.0 * rep.availability:.1f}%"),
-        ("Avg delivered (MW)", _fin(rep.avg_delivered_MW)),
-        ("Annual energy (GWh)", _fin(rep.annual_energy_GWh, ".1f")),
+        ("Avg delivered (MW)", avg_disp),
+        ("Annual energy (GWh)", ann_disp),
     ])
     stamp_label(rep.stamp_sha256)
     with ui.expansion("Breakdown (diagnostic)", icon="data_object").classes("w-full"):

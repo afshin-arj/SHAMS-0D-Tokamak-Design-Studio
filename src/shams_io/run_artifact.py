@@ -807,6 +807,35 @@ def build_run_artifact(
     except Exception:
         art["requirements_trace"] = {"overall": "UNKNOWN", "requirements": []}
 
+    # Independence ticket 1.2: plant KPI honesty watermark (Pe_net / COE).
+    # Always stamped so consumers never show healthy plant KPIs without a gate.
+    # Post-processing only — does not alter L0 outputs.
+    try:
+        try:
+            from diagnostics.plant_kpi_honesty import attach_plant_kpi_honesty_to_artifact  # type: ignore
+        except ImportError:
+            from src.diagnostics.plant_kpi_honesty import attach_plant_kpi_honesty_to_artifact  # type: ignore
+        _intent_kpi = None
+        if isinstance(inputs, dict):
+            _intent_kpi = inputs.get("design_intent") or inputs.get("intent")
+        attach_plant_kpi_honesty_to_artifact(
+            art,
+            outputs=outputs if isinstance(outputs, dict) else {},
+            constraints_json=constraints_json,
+            design_intent=str(_intent_kpi) if _intent_kpi else None,
+        )
+    except Exception:
+        art["plant_kpi_honesty"] = {
+            "schema": "plant_kpi_honesty.v1",
+            "hard_feasible": bool(art.get("kpis", {}).get("feasible_hard")) if isinstance(art.get("kpis"), dict) else None,
+            "feasibility_source": "error",
+            "watermark": "UNKNOWN",
+            "claim_allowed": False,
+            "message": "Plant KPI honesty watermark unavailable.",
+            "kpis": {},
+            "honesty_build_error": True,
+        }
+
     # Explicit non-feasibility certificate when hard infeasible.
     if not bool(art["kpis"].get("feasible_hard", False)):
         art["nonfeasibility_certificate"] = _build_nonfeasibility_certificate(constraints_json)
