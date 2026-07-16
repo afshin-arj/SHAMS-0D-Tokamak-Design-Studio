@@ -17,7 +17,7 @@ from ui_nicegui.decks.reactor_design_forge import (
     workbench,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
 from ui_nicegui.lib.forge_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -71,7 +71,7 @@ def render_reactor_design_forge(session: DesignSession) -> None:
         return
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
         with ui.row().classes("gap-4 flex-wrap"):
             ui.switch(
                 "Guided mode",

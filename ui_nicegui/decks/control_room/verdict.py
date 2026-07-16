@@ -12,10 +12,14 @@ def render_governance_verdict(summary: dict) -> None:
     ui.label("Governance posture").classes("text-subtitle1")
     fh = summary.get("feasible_hard")
     fh_label = "-" if fh is None else ("YES" if fh else "NO")
+    if summary.get("mirage"):
+        ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
     kpi_row([
         ("Verdict", summary.get("point_verdict", "-")),
         ("Dominant", summary.get("dominant", "-")),
+        ("Mechanism", summary.get("mechanism", "-")),
         ("Q / nτE", summary.get("q_label", "-")),
+        ("Pfus", summary.get("pfus_label", "-")),
         ("Design class", summary.get("design_class", "-")),
         ("Hard feasible", fh_label),
         ("Version", summary.get("version", "-")),

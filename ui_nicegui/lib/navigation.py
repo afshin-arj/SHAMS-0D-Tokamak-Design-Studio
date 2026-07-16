@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-_deck_change: Optional[Callable[[str], None]] = None
+_deck_change: Optional[Callable[..., None]] = None
 _helm_refresh: Optional[Callable[[], None]] = None
 _helm_settings_refresh: Optional[Callable[[], None]] = None
 _status_refresh: Optional[Callable[[], None]] = None
 _deck_refresh: Optional[Callable[[], None]] = None
 
 
-def register_deck_change(callback: Callable[[str], None]) -> None:
+def register_deck_change(callback: Callable[..., None]) -> None:
     global _deck_change
     _deck_change = callback
 
@@ -40,8 +40,13 @@ def register_deck_refresh(callback: Callable[[], None]) -> None:
 
 def switch_deck(name: str, *, force: bool = False) -> None:
     """Navigate to a deck. Use force=True after handoffs that mutate session on the active deck."""
-    if _deck_change is not None:
+    if _deck_change is None:
+        return
+    try:
         _deck_change(name, force=force)
+    except TypeError:
+        # Back-compat for single-arg callbacks registered in tests / older hooks
+        _deck_change(name)
 
 
 def refresh_current_deck() -> None:

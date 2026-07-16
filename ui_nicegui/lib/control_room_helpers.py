@@ -255,12 +255,28 @@ def governance_summary(session: Any) -> Dict[str, Any]:
         kpis = {}
     verdict = str(vs.get("verdict", "-")) if vs.get("loaded") else "-"
     hygiene = hygiene_scan()
+    mirage = bool(last.get("mirage_flag_v402")) if isinstance(last, dict) else False
+    pfus = None
+    if isinstance(last, dict):
+        pfus = last.get("Pfus_total_MW", last.get("Pfus_MW", last.get("P_fus_MW")))
+    mechanism = "-"
+    if vs.get("loaded") and not vs.get("feasible"):
+        try:
+            from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
+
+            atlas = no_solution_atlas_summary(last, design_intent=str(getattr(session, "design_intent", "")))
+            mechanism = str(atlas.get("dominant_mechanism") or "-")
+        except Exception:
+            mechanism = "-"
     return {
         "version": ver,
         "active_deck": str(getattr(session, "active_deck", "-")),
         "point_verdict": verdict,
         "dominant": str(vs.get("dominant", "-")) if vs.get("loaded") else "-",
         "q_label": str(vs.get("q_label", "-")) if vs.get("loaded") else "-",
+        "pfus_label": f"{pfus:.3g} MW" if isinstance(pfus, (int, float)) else "-",
+        "mirage": mirage,
+        "mechanism": mechanism,
         "design_class": design_confidence_class(art) if isinstance(art, dict) else "-",
         "feasible_hard": kpis.get("feasible_hard"),
         "hygiene_ok": bool(hygiene.get("packaging_ok", hygiene.get("ok"))),

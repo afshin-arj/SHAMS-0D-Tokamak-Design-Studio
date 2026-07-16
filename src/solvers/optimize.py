@@ -187,6 +187,7 @@ def _pareto_worker(payload):
         "first_failure": str(ann.get("first_failure") or ""),
         "dominant_constraint": str(dom),
         "min_constraint_margin": float(mmin),
+        "mirage_flag_v402": bool(out.get("mirage_flag_v402", False)),
         **_pareto_row_metrics(out),
     })
     return row
@@ -314,6 +315,7 @@ def pareto_optimize(
                 "first_failure": str(ann.get("first_failure") or ""),
                 "dominant_constraint": str(dom),
                 "min_constraint_margin": float(mmin),
+                "mirage_flag_v402": bool(out.get("mirage_flag_v402", False)),
                 **_pareto_row_metrics(out),
             })
             all_rows.append(row)

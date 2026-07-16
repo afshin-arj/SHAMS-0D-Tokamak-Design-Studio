@@ -17,7 +17,7 @@ from ui_nicegui.decks.trade_study_studio import (
     verdict,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
 from ui_nicegui.lib.navigation import refresh_active_deck
 from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, STUDY_SETUP_DECK
 from ui_nicegui.lib.trade_study_labels import (
@@ -62,7 +62,7 @@ def render_trade_study_studio(session: DesignSession) -> None:
         return
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",

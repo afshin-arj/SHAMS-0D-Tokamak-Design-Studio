@@ -19,7 +19,7 @@ from ui_nicegui.decks.scan_lab import (
 )
 from ui_nicegui.components.mode_scope import render_mode_scope
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
 from ui_nicegui.lib.scan_archive_helpers import probe_scan_imports
 from ui_nicegui.lib.scan_labels import (
     DECISION_STATES,
@@ -64,6 +64,7 @@ def _consume_scan_probe_focus(session: DesignSession) -> None:
 
 def _refresh_all() -> None:
     _render_verdict.refresh()
+    _render_workflow_chrome.refresh()
     _render_tab_body.refresh()
 
 
@@ -91,7 +92,7 @@ def render_scan_lab(session: DesignSession) -> None:
     _consume_scan_probe_focus(session)
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
-        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",

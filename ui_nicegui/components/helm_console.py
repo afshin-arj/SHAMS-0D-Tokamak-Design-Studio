@@ -217,6 +217,8 @@ def _render_posture(session: DesignSession) -> None:
 
         summary = verdict_summary(out)
         detail = f"{summary.get('verdict', '-')} · Q {summary.get('q_label', '-')} · Dom {summary.get('dominant', '-')}"
+        if bool(out.get("mirage_flag_v402")):
+            detail += " · MIRAGE"
         if not summary.get("feasible"):
             from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
 
@@ -225,7 +227,10 @@ def _render_posture(session: DesignSession) -> None:
                 f" · {atlas.get('dominant_mechanism', '-')} / "
                 f"{atlas.get('dominant_constraint', '-')}"
             )
-        ui.label(f"Point: {detail}").classes("text-caption q-mt-xs")
+        tone = "text-orange" if (not summary.get("feasible") or out.get("mirage_flag_v402")) else "text-caption"
+        ui.label(f"Point: {detail}").classes(f"text-caption q-mt-xs {tone}")
+        if bool(out.get("mirage_flag_v402")):
+            ui.badge("MIRAGE", color="orange").props("outline dense").classes("q-mt-xs")
         try:
             h98 = float(out.get("H98"))
             if h98 == h98:

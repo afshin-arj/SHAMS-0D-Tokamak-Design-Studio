@@ -23,6 +23,9 @@ def render_constraints_governance(session: DesignSession) -> None:
     art = pick_session_artifact(session)
     if not isinstance(art, dict):
         empty_state("Load a run artifact first (**Artifacts Explorer** or evaluate in Point Designer).", kind="info")
+        from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+
+        pd_prerequisite_gate("Open Point Designer to evaluate, then return for constraint governance.")
         return
 
     session.cr_selected_artifact = art

@@ -85,6 +85,9 @@ def _sensitivity(session: DesignSession) -> None:
     art = _artifact_for_chronicle(session)
     if not isinstance(art, dict):
         empty_state("Load a run artifact (Artifacts section) or evaluate in Point Designer.", kind="info")
+        from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+
+        pd_prerequisite_gate("Open Point Designer to evaluate a baseline for sensitivity.")
         return
     try:
         base = point_inputs_from_artifact(art)

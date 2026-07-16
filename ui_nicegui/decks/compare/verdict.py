@@ -5,6 +5,8 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.components.workflow_cta import render_goto_setup_button
+from ui_nicegui.lib.navigation import refresh_active_deck
 from ui_nicegui.session import DesignSession
 
 
@@ -15,6 +17,14 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
             "Load artifacts into Slot A and Slot B to compare mechanism and margin deltas.",
             kind="info",
         )
+        if session is not None:
+            render_goto_setup_button(
+                session,
+                attr="cmp_workflow_step",
+                step="1 · Load A & B",
+                label="Go to Load A & B",
+                on_refresh=refresh_active_deck,
+            )
         return
     kpi_row([
         ("Verdict A", summary.get("verdict_a", "-")),
@@ -31,6 +41,11 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
         ("Pfus A [MW]", summary.get("pfus_a", "-")),
         ("Pfus B [MW]", summary.get("pfus_b", "-")),
     ])
+    with ui.row().classes("gap-2 q-mt-xs flex-wrap"):
+        if summary.get("mirage_a"):
+            ui.badge("MIRAGE A", color="orange").props("outline")
+        if summary.get("mirage_b"):
+            ui.badge("MIRAGE B", color="orange").props("outline")
 
     sub_rows = summary.get("subsystem_diff") or []
     changed = [r for r in sub_rows if isinstance(r, dict) and r.get("changed")]

@@ -75,7 +75,15 @@ def render_explore_tab(
     with ui.row().classes("w-full gap-2 items-end"):
         x_sel = ui.select(plot_keys, label="X axis", value=session.pareto_plot_x).classes("flex-1")
         y_sel = ui.select(plot_keys, label="Y axis", value=session.pareto_plot_y).classes("flex-1")
-        color_opts = ["dominant_constraint", "intent", "geography", "segment_id", "confidence", "(none)"] + obj_keys
+        color_opts = [
+            "dominant_constraint",
+            "intent",
+            "geography",
+            "segment_id",
+            "confidence",
+            "mirage_flag_v402",
+            "(none)",
+        ] + obj_keys
         c_val = session.pareto_plot_color if session.pareto_plot_color in color_opts else "dominant_constraint"
         c_sel = ui.select(color_opts, label="Color", value=c_val).classes("flex-1")
         robust_sw = ui.switch(
@@ -85,6 +93,10 @@ def render_explore_tab(
         overlay_sw = ui.switch(
             "Highlight margin-robust overlay",
             value=getattr(session, "pareto_robust_overlay", True),
+        ).classes("flex-none")
+        mirage_sw = ui.switch(
+            "Hide mirages",
+            value=bool(getattr(session, "pareto_hide_mirages", False)),
         ).classes("flex-none")
         intent_sw = ui.switch(
             "Split Reactor / Research traces",
@@ -98,6 +110,7 @@ def render_explore_tab(
         session.pareto_plot_color = str(c_sel.value)
         session.pareto_robust_only = bool(robust_sw.value)
         session.pareto_robust_overlay = bool(overlay_sw.value)
+        session.pareto_hide_mirages = bool(mirage_sw.value)
         session.pareto_intent_split = bool(intent_sw.value)
         session.pareto_show_failures = bool(fail_sw.value)
         if on_update:
@@ -107,6 +120,7 @@ def render_explore_tab(
         w.on("update:model-value", lambda: _sync())
     robust_sw.on("update:model-value", lambda: _sync())
     overlay_sw.on("update:model-value", lambda: _sync())
+    mirage_sw.on("update:model-value", lambda: _sync())
     intent_sw.on("update:model-value", lambda: _sync())
     fail_sw.on("update:model-value", lambda: _sync())
 
@@ -115,6 +129,9 @@ def render_explore_tab(
     full_pareto = list(pareto)
     robust_subset = robust_filtered(full_pareto, thr)
     plot_pareto = robust_subset if session.pareto_robust_only else full_pareto
+    if getattr(session, "pareto_hide_mirages", False):
+        plot_pareto = [p for p in plot_pareto if not bool(p.get("mirage_flag_v402"))]
+        robust_subset = [p for p in robust_subset if not bool(p.get("mirage_flag_v402"))]
     enriched = enrich_pareto_front(
         plot_pareto, feasible, x_key=x_key, y_key=y_key, robust_margin_thr=thr,
     )
@@ -226,6 +243,8 @@ def _add_pareto_trace(
         parts = [f"dom: {p.get('dominant_constraint')}", f"margin: {p.get('min_constraint_margin')}"]
         if p.get("intent"):
             parts.append(f"intent: {p.get('intent')}")
+        if bool(p.get("mirage_flag_v402")):
+            parts.append("MIRAGE")
         for fk in focus_keys:
             if fk in p and p[fk] is not None:
                 parts.append(f"{fk}: {p[fk]}")
@@ -245,12 +264,23 @@ def _add_pareto_trace(
 
 def _render_table(pareto: list[dict], obj_keys: list[str], focus_keys: list[str]) -> None:
     extra = [k for k in focus_keys if k not in obj_keys]
-    cols = ["intent", "dominant_constraint", "min_constraint_margin", "geography", "freedom_left", "segment_id", "confidence"] + obj_keys[:8] + extra[:6]
+    cols = [
+        "intent",
+        "mirage_flag_v402",
+        "dominant_constraint",
+        "min_constraint_margin",
+        "geography",
+        "freedom_left",
+        "segment_id",
+        "confidence",
+    ] + obj_keys[:8] + extra[:6]
     rows = []
     for i, p in enumerate(pareto[:80]):
         row = {"idx": i}
         for c in cols:
-            if c in p:
+            if c == "mirage_flag_v402":
+                row[c] = "YES" if bool(p.get("mirage_flag_v402")) else ""
+            elif c in p:
                 row[c] = p[c]
         rows.append(row)
     if not rows:

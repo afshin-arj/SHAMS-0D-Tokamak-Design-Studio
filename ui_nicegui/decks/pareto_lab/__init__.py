@@ -17,7 +17,7 @@ from ui_nicegui.decks.pareto_lab import (
     verdict,
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
-from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
 from ui_nicegui.lib.navigation import refresh_active_deck
 from ui_nicegui.lib.pareto_labels import (
     ALL_EXTERNAL as EXTERNAL_DECKS,
@@ -57,7 +57,7 @@ def render_pareto_lab(session: DesignSession) -> None:
         return
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out)).classes("text-caption text-positive")
+        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
 
     with ui.row().classes("w-full items-center justify-end gap-4 q-mb-sm"):
         ui.switch(

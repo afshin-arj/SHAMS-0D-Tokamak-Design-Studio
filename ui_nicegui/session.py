@@ -241,6 +241,7 @@ class DesignSession:
     pareto_intent_split: bool = False
     pareto_robust_only: bool = False
     pareto_robust_overlay: bool = True
+    pareto_hide_mirages: bool = False
     pareto_show_failures: bool = True
     pareto_focus_metrics: list[str] = field(default_factory=lambda: ["Q_DT_eqv", "H98", "TBR"])
     pareto_policy_filtered: Optional[list[dict[str, Any]]] = None

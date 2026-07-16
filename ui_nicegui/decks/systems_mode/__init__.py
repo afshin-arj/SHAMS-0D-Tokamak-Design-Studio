@@ -165,7 +165,6 @@ def _render_workflow_tabs(session: DesignSession) -> None:
         value=step,
         on_change=lambda e: (
             setattr(session, "systems_workflow_step", normalize_systems_tab(str(e.value))),
-            _render_workflow_tabs.refresh(),
             _render_tab_content.refresh(),
         ),
     ).classes("w-full q-mb-xs")
@@ -226,7 +225,6 @@ def _render_tab_content(session: DesignSession) -> None:
     refresh = lambda: (
         _render_posture.refresh(),
         _render_workflow_chips.refresh(),
-        _render_workflow_tabs.refresh(),
         _render_tab_content.refresh(),
     )
     step = normalize_systems_tab(session.systems_workflow_step)

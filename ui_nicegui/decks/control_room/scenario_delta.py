@@ -77,9 +77,10 @@ def render_scenario_delta(session: DesignSession) -> None:
                 ui.notify("Compare slots A/B are empty.", type="warning")
 
         def _open_compare() -> None:
+            from ui_nicegui.lib.compare_helpers import open_compare_deck
+
             bridge_cr_to_compare_slots(session)
-            session.cmp_workflow_step = "1 · Load A & B"
-            switch_deck("Compare", force=True)
+            open_compare_deck(session)
             ui.notify("Opened Compare with scenario pair.", type="info")
 
         with ui.row().classes("gap-2 flex-wrap"):

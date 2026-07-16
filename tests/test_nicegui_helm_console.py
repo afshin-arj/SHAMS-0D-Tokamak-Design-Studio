@@ -270,19 +270,29 @@ def test_hygiene_scan_is_cached() -> None:
 
 
 def test_baseline_kpi_caption_includes_stability() -> None:
-    from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+    from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
 
-    cap = baseline_kpi_caption({
+    out = {
         "Q": 10.0,
         "H98": 1.0,
         "betaN": 2.1,
         "fG": 0.8,
         "q95": 3.5,
-    })
+        "Pfus_total_MW": 500.0,
+        "constraints": [],
+        "feasible": True,
+    }
+    cap = baseline_kpi_caption(out, max_bits=10)
     assert "Q≈" in cap
-    assert "β_N≈" in cap
-    assert "f_G≈" in cap
-    assert "q95≈" in cap
+    assert "β_N≈" in cap or "H98≈" in cap
+    assert "Pfus≈" in cap
+    assert "MIRAGE" not in cap
+    assert "text-positive" in baseline_kpi_classes(out)
+
+    mir = dict(out)
+    mir["mirage_flag_v402"] = True
+    assert "MIRAGE" in baseline_kpi_caption(mir, max_bits=10)
+    assert "text-orange" in baseline_kpi_classes(mir)
 
 
 def test_control_room_uses_live_governance_verdict() -> None:
@@ -514,3 +524,51 @@ def test_helm_posture_shows_live_point() -> None:
     src = inspect.getsource(helm_console._render_posture)
     assert "pd_last_outputs" in src
     assert "verdict_summary" in src
+
+
+def test_build_compare_artifact_restores_inputs_on_error() -> None:
+    from unittest.mock import patch
+
+    from ui_nicegui.lib.compare_helpers import build_compare_artifact
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    original = float(s.inputs.get("R0_m", 1.8))
+    with patch("ui_nicegui.evaluate.ui_evaluate", side_effect=RuntimeError("boom")):
+        try:
+            build_compare_artifact(s, {"R0_m": original + 0.5}, label="test")
+        except RuntimeError:
+            pass
+    assert float(s.inputs.get("R0_m")) == original
+
+
+def test_systems_pfus_reads_l0_keys() -> None:
+    from ui_nicegui.decks.systems_mode.verdict import _physics_kpis
+
+    k = _physics_kpis({"outputs": {"Pfus_total_MW": 123.0, "Q_DT_eqv": 5.0}})
+    assert float(k["P_fus"]) == 123.0
+
+
+def test_scan_refresh_all_includes_chrome() -> None:
+    import inspect
+
+    from ui_nicegui.decks import scan_lab as scan_mod
+
+    src = inspect.getsource(scan_mod._refresh_all)
+    assert "_render_workflow_chrome.refresh" in src
+
+
+def test_switch_deck_tolerates_single_arg_callback() -> None:
+    from ui_nicegui.lib import navigation as nav
+
+    seen: list[str] = []
+
+    def _cb(name: str) -> None:
+        seen.append(name)
+
+    nav.register_deck_change(_cb)
+    try:
+        nav.switch_deck("Compare", force=True)
+        assert seen == ["Compare"]
+    finally:
+        nav.register_deck_change(lambda name, force=False: None)

@@ -31,6 +31,9 @@ def render_run_audit(session: DesignSession) -> None:
         _audit_body(session, art)
     else:
         empty_state("Upload an artifact or evaluate in Point Designer / Systems Mode.", kind="info")
+        from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+
+        pd_prerequisite_gate("Open Point Designer to evaluate a point, then return for run audit.")
 
     async def _upload(e) -> None:
         try:

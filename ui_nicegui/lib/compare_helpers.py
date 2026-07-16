@@ -198,11 +198,12 @@ def bridge_cr_to_compare_slots(session) -> tuple[bool, bool]:
     ok_a = ok_b = False
     base = getattr(session, "cr_scenario_base", None)
     var = getattr(session, "cr_scenario_variant", None)
+    # refresh=False — caller may open_compare_deck (single remount)
     if isinstance(base, dict):
-        store_compare_slot(session, base, "A", label="Control Room baseline")
+        store_compare_slot(session, base, "A", label="Control Room baseline", refresh=False)
         ok_a = True
     if isinstance(var, dict):
-        store_compare_slot(session, var, "B", label="Control Room scenario")
+        store_compare_slot(session, var, "B", label="Control Room scenario", refresh=False)
         ok_b = True
     return ok_a, ok_b
 
@@ -287,17 +288,18 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
     from ui_nicegui.evaluate import ui_evaluate
 
     saved = dict(session.inputs)
-    for k, v in inputs_patch.items():
-        if k in session.inputs and v is not None:
-            try:
-                session.inputs[k] = float(v)
-            except (TypeError, ValueError):
-                pass
-    inp = session.build_point_inputs()
-    out = ui_evaluate(inp, origin=f"NiceGUI:{label}")
-    art = normalize_compare_artifact({"inputs": asdict(inp), "outputs": out, "label": label})
-    session.inputs = saved
-    return art
+    try:
+        for k, v in inputs_patch.items():
+            if k in session.inputs and v is not None:
+                try:
+                    session.inputs[k] = float(v)
+                except (TypeError, ValueError):
+                    pass
+        inp = session.build_point_inputs()
+        out = ui_evaluate(inp, origin=f"NiceGUI:{label}")
+        return normalize_compare_artifact({"inputs": asdict(inp), "outputs": out, "label": label})
+    finally:
+        session.inputs = saved
 
 
 def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
@@ -334,6 +336,8 @@ def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
         "pfus_b": _fmt_kpi(
             _pick_output(nb.get("outputs") or {}, "Pfus_total_MW")
         ),
+        "mirage_a": bool((na.get("outputs") or {}).get("mirage_flag_v402")),
+        "mirage_b": bool((nb.get("outputs") or {}).get("mirage_flag_v402")),
         "subsystems_a": sa.get("subsystems") or {},
         "subsystems_b": sb.get("subsystems") or {},
         "subsystem_diff": subsystem_diff_rows(art_a, art_b),

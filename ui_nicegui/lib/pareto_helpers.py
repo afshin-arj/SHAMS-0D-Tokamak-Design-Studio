@@ -341,6 +341,9 @@ def summarize_pareto_run(pareto_last: dict) -> Dict[str, Any]:
             pass
     robust_mix = f"{robust_n}/{n_pareto}" if n_pareto else "-"
 
+    mirage_n = sum(1 for p in pareto if bool(p.get("mirage_flag_v402")))
+    mirage_mix = f"{mirage_n}/{n_pareto}" if n_pareto else "-"
+
     feas_frac = float(n_feasible) / float(total_samples)
     if feas_frac >= 0.01 and n_pareto >= 10:
         confidence = "High"
@@ -356,6 +359,7 @@ def summarize_pareto_run(pareto_last: dict) -> Dict[str, Any]:
         "n_pareto": n_pareto,
         "top_constraint": top_constraint,
         "robust_mix": robust_mix,
+        "mirage_mix": mirage_mix,
         "confidence": confidence,
         "feasible_fraction": feas_frac,
     }

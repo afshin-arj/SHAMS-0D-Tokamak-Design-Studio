@@ -117,7 +117,6 @@ def _render_workflow(session: DesignSession) -> None:
         value=session.cmp_workflow_step,
         on_change=lambda e: (
             setattr(session, "cmp_workflow_step", normalize_compare_tab(str(e.value))),
-            _render_workflow.refresh(),
             _render_tab_body.refresh(),
         ),
     ).classes("w-full")

@@ -24,12 +24,13 @@ def _physics_kpis(art: dict) -> dict:
         out = art["ledger"].get("outputs") or {}
     return {
         "Q": out.get("Q_DT_eqv", out.get("Q")),
-        "P_fus": out.get("P_fus_MW", out.get("P_fusion_MW")),
+        "P_fus": out.get("Pfus_total_MW", out.get("Pfus_MW", out.get("P_fus_MW", out.get("P_fusion_MW")))),
         "P_net": out.get("P_e_net_MW", out.get("P_net_MW")),
         "H98": out.get("H98"),
         "beta_N": out.get("beta_N", out.get("betaN")),
         "f_G": out.get("fG", out.get("greenwald_fraction")),
         "q95": out.get("q95", out.get("q95_proxy")),
+        "mirage": bool(out.get("mirage_flag_v402")),
     }
 
 
@@ -67,6 +68,8 @@ def render_posture_strip(art: dict, *, next_action: str = "") -> None:
 
     kpis = _physics_kpis(art)
     ui.label("Design status").classes("text-subtitle1 q-mt-sm")
+    if kpis.get("mirage"):
+        ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
     kpi_row([
         ("Verdict", fmt(verdict, digits=16)),
         ("Dominant limit", fmt(dom, digits=32) if dom else "-"),
