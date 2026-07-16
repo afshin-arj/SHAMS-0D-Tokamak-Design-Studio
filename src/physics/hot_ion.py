@@ -3623,6 +3623,32 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         )
 
     # =========================================================================
+    # Availability → OPEX / LCOE coupling authority (v420) — Independence 2.4
+    # MATCH-as-overlay; one availability chain feeds hours → energy → OPEX →
+    # LCOE consistently. No availability/economics iteration in L0. LCOE and
+    # Pe_net display stay watermarked via plant_kpi_honesty.v1.
+    # =========================================================================
+    try:
+        try:
+            from analysis.availability_opex_lcoe_authority_v420 import (
+                evaluate_availability_opex_lcoe_authority_v420,
+            )
+        except ImportError:
+            from ..analysis.availability_opex_lcoe_authority_v420 import (
+                evaluate_availability_opex_lcoe_authority_v420,
+            )
+        avail420 = evaluate_availability_opex_lcoe_authority_v420(out, inp)
+        if isinstance(avail420, dict):
+            out.update(avail420)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_availability_opex_lcoe_authority_v420",
+            error_key="availability_opex_lcoe_authority_v420_error",
+            exc=e,
+        )
+
+    # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)
     # Global cross-authority dominance ranking + regime classification.
     # Governance-only overlay; deterministic; no truth edits.

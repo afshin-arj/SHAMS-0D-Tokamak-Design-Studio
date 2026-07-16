@@ -27,6 +27,7 @@ _AUTHORITY_FIELDS: List[Tuple[str, str]] = [
     ("include_magnet_sc_system_authority_v410", "TF/PF/CS superconducting system margins beyond v400 (proxy overlay)."),
     ("include_machine_build_authority_v412", "Radial / machine-build closure: layer stack, clearances, outboard envelope (proxy)."),
     ("include_plant_sankey_ledger_authority_v419", "Sankey-grade plant power ledger: source→sink flows, recirc breakdown, conservation (proxy)."),
+    ("include_availability_opex_lcoe_authority_v420", "Availability→OPEX/LCOE coupling: one availability chain feeds hours, energy, OPEX, and LCOE (proxy; watermarked)."),
     ("include_tritium_tight_closure", "Strict tritium balance without breeding slack."),
 ]
 

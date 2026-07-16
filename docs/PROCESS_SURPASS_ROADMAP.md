@@ -20,7 +20,7 @@ Living campaign document.
 |-------|--------|-------|
 | 0 Stance & firewall | **Mostly done** | CCFS hard gate on `main`; agents/skills updated |
 | 1 Trust the verdict | **DONE** 2026-07-16 | Tickets 1.1–1.4 complete (atlas, plant KPI honesty, METHOD-ONLY parity, scientific release gate **CONDITIONAL**) |
-| 2 DEMO MATCH | **Active** | 2.1–2.3 DONE 2026-07-16 (v410 magnets; v412 radial/machine-build; **v419** plant Sankey ledger); next: 2.4 Availability → OPEX/LCOE |
+| 2 DEMO MATCH | **Active** | 2.1–2.3 DONE 2026-07-16 (v410 magnets; v412 radial/machine-build; v419 plant Sankey ledger); 2.4 DONE 2026-07-17 (**v420** availability → OPEX/LCOE coupling); next: 2.5 Bottom-up modular costing |
 | 3 Community default | Pending | Migration guide, Zenodo, champions |
 | 4 Independence | Pending | PROCESS = legacy only |
 
@@ -64,7 +64,7 @@ IN.DAT → parse/defaults → DataStructure (mutable)
 | Systems Mode / extopt | **Strong** | Propose-only contract |
 | UI (Streamlit / NiceGUI) | **Partial→Strong** | Verdict-first studio (PROCESS has CLI) |
 | Magnets / radial build | **Partial→Stronger** | v400 ON + **v410** TF/PF/CS SC + **v412** machine-build radial closure (proxy; OFF default) |
-| Plant ledger / power | **Partial→Stronger** | v408 CD-mix + **v419** Sankey-grade source→sink ledger (proxy; OFF default; KPI honesty watermark) |
+| Plant ledger / power | **Partial→Stronger** | v408 CD-mix + **v419** Sankey-grade source→sink ledger + **v420** availability→OPEX/LCOE chain (proxy; OFF default; KPI honesty watermark) |
 | Divertor / exhaust | **Proxy** | PROCESS also thin — BEAT target |
 | Neutronics / TBR | **Proxy** | v401/v407/v408 scaffolding |
 | Economics | **Proxy** | Do not clone 1990 Generomak as truth |
@@ -96,7 +96,7 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 | 6 | ~~Magnet / SC / PF–CS overlay depth (post-v400)~~ **DONE** 2026-07-16 (`magnet_sc_system_authority_v410`) | MATCH | no | L | H | `/reactor-systems` |
 | 7 | ~~Radial-build closure narrative~~ **DONE** 2026-07-16 (`machine_build_authority_v412`) | MATCH | no | M | M | `/architect` |
 | 8 | Native UQ / mirage-safe robust lanes | BEAT | no | L | H | `/pareto-frontier-check` |
-| 9 | Availability → OPEX / LCOE coupling | MATCH | no | M | M | `/reactor-systems` |
+| 9 | ~~Availability → OPEX / LCOE coupling~~ **DONE** 2026-07-17 (`availability_opex_lcoe_authority_v420`) | MATCH | no | M | M | `/reactor-systems` |
 | 10 | Bottom-up modular costing (not 1990 Generomak) | MATCH | no | L | M | `/shams-feature-development` |
 | 11 | SHA-256 reviewer pack + nuclear provenance | BEAT | no | S | H | `/reviewer-pack-export` |
 | 12 | Fusion performance tier ledger | BEAT | no | M | H | `/fusion-performance` |
@@ -118,14 +118,15 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 6. ~~**Next (Phase 2.1):** TF/PF/CS SC depth beyond v400~~ **DONE** 2026-07-16 — `magnet_sc_system_authority_v410` (MATCH-as-overlay; OFF by default; PROXY-labeled TF/PF/CS family ledgers + system margin; optional hard/diagnostic caps; UI watermark on Point Designer / Suite). L0 numeric truth unchanged when flag OFF (empty patch). No invented PROCESS MFILE numbers.
 7. ~~**Next (Phase 2.2):** Radial / machine-build closure~~ **DONE** 2026-07-16 — `machine_build_authority_v412` (MATCH-as-overlay; OFF by default; PROXY layer-stack ledger, clearances/gaps, inboard closure + outboard envelope narrative; optional caps; UI on PD/Suite/authority dashboard). L0 unchanged when flag OFF. No invented PROCESS MFILE numbers.
 8. ~~**Next (Phase 2.3):** Plant Sankey-grade ledger (extend v408)~~ **DONE** 2026-07-16 — `plant_sankey_ledger_authority_v419` (MATCH-as-overlay; OFF by default; PROXY source→sink flows, recirc breakdown, conservation checks; UI Sankey/flow-table with plant_kpi_honesty watermark). L0 unchanged when flag OFF. No invented PROCESS MFILE numbers.
-9. **Next (Phase 2.4):** Availability → OPEX/LCOE coupling — `/reactor-systems` (MATCH-as-overlay; L0 untouched)
+9. ~~**Next (Phase 2.4):** Availability → OPEX/LCOE coupling~~ **DONE** 2026-07-17 — `availability_opex_lcoe_authority_v420` (MATCH-as-overlay; OFF by default; one availability chain v368→v359→v391→availability_model→input with provenance feeds hours → annual energy → OPEX → LCOE on the same basis; centralized OPEX formulas in `src/economics/opex_coupling.py`; LCOE decomposition + bookkeeping/cross-ledger consistency checks; `avail_v420_LCOE_USD_per_MWh` in plant_kpi_honesty.v1 aliases; optional caps A_min/LCOE_max/OPEX_max; UI chain table on PD/Suite/dashboard). L0 unchanged when flag OFF. No invented PROCESS MFILE numbers; not 1990 Generomak.
+10. **Next (Phase 2.5):** Bottom-up modular costing authority (not 1990 Generomak) — `/shams-feature-development` (MATCH-as-overlay; L0 untouched)
 
 ### Minimum DEMO MATCH overlays (reactor-systems)
 
 1. ~~TF/PF/CS SC depth beyond v400~~ **DONE** (`v410`)
 2. ~~Radial / machine-build closure~~ **DONE** (`v412`)
 3. ~~Plant Sankey-grade ledger (extend v408)~~ **DONE** (`v419`)
-4. Availability → energy/OPEX  
+4. ~~Availability → energy/OPEX~~ **DONE** (`v420`)
 5. Bottom-up modular costing auth  
 
 ---

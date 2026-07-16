@@ -51,6 +51,7 @@ def authority_version_badges(out: dict) -> List[str]:
         ("magnet_v410_enabled", "v410 TF/PF/CS SC"),
         ("machine_v412_enabled", "v412 machine-build"),
         ("plant_v419_enabled", "v419 plant Sankey"),
+        ("avail_v420_enabled", "v420 availability→OPEX/LCOE"),
         ("nm_authority_v401_enabled", "v401 neutronics"),
         ("nuclear_data_authority_v407_enabled", "v407 nuclear data"),
         ("structural_stress_v389_enabled", "v389 structural"),
@@ -389,6 +390,7 @@ def render_authority_ledger(
     design_intent: str = "",
 ) -> None:
     from ui_nicegui.lib.pd_parity_helpers import (
+        avail_v420_summary,
         magnet_v400_summary,
         magnet_v410_summary,
         machine_v412_summary,
@@ -483,6 +485,51 @@ def render_authority_ledger(
         ui.label("Plant Sankey v419 overlay not enabled on this point.").classes(
             "text-caption text-grey"
         )
+
+    av420 = avail_v420_summary(point_out)
+    if av420:
+        ui.badge("v420 PROXY — availability→OPEX/LCOE coupling").props("color=orange outline")
+        kpi_row([
+            ("Availability", _fin(av420.get("availability"), ".3f")),
+            ("A source", str(av420.get("availability_source", "-"))),
+            ("E_net [MWh/y]", _fin(av420.get("E_net_MWh_per_y"), ".3g")),
+            ("OPEX [MUSD/y]", _fin(av420.get("OPEX_total_MUSD_per_y"), ".3g")),
+            ("LCOE (raw PROXY)", _fin(av420.get("LCOE_USD_per_MWh"), ".3g")),
+            ("Consistency", "OK" if av420.get("consistency_ok") else "FAIL"),
+        ])
+        ui.label(
+            "LCOE display above uses plant_kpi_honesty watermark — raw v420 value is PROXY bookkeeping "
+            f"(dominant OPEX driver: {av420.get('dominant_opex_driver', '-')})."
+        ).classes("text-caption text-orange")
+        try:
+            from analysis.availability_opex_lcoe_authority_v420 import (
+                availability_lcoe_chain_rows,
+            )
+        except ImportError:
+            from src.analysis.availability_opex_lcoe_authority_v420 import (
+                availability_lcoe_chain_rows,
+            )
+        chain = availability_lcoe_chain_rows(point_out)
+        if chain:
+            with ui.expansion(
+                "v420 availability→energy→OPEX→LCOE chain (PROXY)", icon="timeline"
+            ).classes("w-full"):
+                ui.table(
+                    columns=[
+                        {"name": "stage", "label": "Stage", "field": "stage", "align": "left"},
+                        {"name": "value", "label": "Value", "field": "value"},
+                        {"name": "units", "label": "Units", "field": "units", "align": "left"},
+                        {"name": "provenance", "label": "Provenance", "field": "provenance", "align": "left"},
+                    ],
+                    rows=[
+                        {**row, "value": _fin(row.get("value"), ".4g")} for row in chain
+                    ],
+                    row_key="stage",
+                ).classes("w-full")
+    else:
+        ui.label(
+            "Availability→OPEX/LCOE v420 overlay not enabled on this point."
+        ).classes("text-caption text-grey")
 
     exh = build_exhaust_authority_bundle(point_out)
     row = exhaust_table_row(exh)

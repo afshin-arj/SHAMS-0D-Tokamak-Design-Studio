@@ -141,6 +141,21 @@ class PointInputs:
     plant_sankey_f_recirc_max_v419: float = float("nan")
     plant_sankey_Pe_net_min_MW_v419: float = float("nan")
 
+    # ------------------------------------------------------------------
+    # v420.0: Availability → OPEX / LCOE coupling authority (MATCH-as-overlay)
+    # One availability chain (v368 → v359 → v391 → availability_model → input)
+    # feeding hours → annual energy → OPEX → LCOE consistently, with
+    # cross-ledger consistency checks. OFF by default (no L0 / golden drift).
+    # ------------------------------------------------------------------
+    include_availability_opex_lcoe_authority_v420: bool = False
+    # Relative tolerance for bookkeeping consistency checks (NaN → default).
+    avail_opex_lcoe_consistency_tol_v420: float = float("nan")
+    # Optional caps (NaN disables): availability floor [-], LCOE cap
+    # [USD/MWh], total OPEX cap [MUSD/y].
+    availability_min_v420: float = float("nan")
+    lcoe_max_USD_per_MWh_v420: float = float("nan")
+    opex_max_MUSD_per_y_v420: float = float("nan")
+
 
     # Multiplicative uncertainty / calibration factors (default 1.0)
     confinement_mult: float = 1.0   # scales effective energy confinement time (tauE)

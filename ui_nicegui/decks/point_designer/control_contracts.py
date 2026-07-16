@@ -293,3 +293,38 @@ def render_control_contracts(session: DesignSession) -> None:
             ui.label(
                 "Plant Sankey ledger (v419) is OFF — enable include_plant_sankey_ledger_authority_v419."
             ).classes("text-caption")
+
+    from ui_nicegui.lib.pd_parity_helpers import avail_v420_summary
+
+    v420 = avail_v420_summary(out)
+    with ui.expansion("Availability→OPEX/LCOE coupling (v420) [PROXY]", icon="timeline").classes(
+        "w-full q-mt-md"
+    ):
+        if v420:
+            ui.badge("PROXY overlay — not PROCESS MFILE parity").props("color=orange")
+            kpi_row([
+                ("Availability", fmt_num(v420.get("availability"))),
+                ("A source", str(v420.get("availability_source", "-"))),
+                ("OPEX [MUSD/y]", fmt_num(v420.get("OPEX_total_MUSD_per_y"))),
+                ("LCOE PROXY [USD/MWh]", fmt_num(v420.get("LCOE_USD_per_MWh"))),
+            ])
+            kpi_row([
+                ("Dominant OPEX", str(v420.get("dominant_opex_driver", "-"))),
+                ("CAPEX basis", str(v420.get("CAPEX_source", "-"))),
+                ("Replacement basis", str(v420.get("replacement_source", "-"))),
+                ("Consistency", "OK" if v420.get("consistency_ok") else "FAIL"),
+            ])
+            if v420.get("opex_breakdown_MUSD_per_y"):
+                ui.label("OPEX breakdown [MUSD/y]").classes("text-subtitle2")
+                render_json_blob(v420["opex_breakdown_MUSD_per_y"])
+            if v420.get("narrative"):
+                ui.label(str(v420["narrative"])).classes("text-caption q-mt-sm")
+            if v420.get("provenance"):
+                ui.label(str(v420["provenance"])).classes("text-caption")
+            ui.label(
+                "LCOE display must use plant_kpi_honesty.v1 watermark on hard-infeasible points."
+            ).classes("text-caption text-orange")
+        else:
+            ui.label(
+                "Availability→OPEX/LCOE coupling (v420) is OFF — enable include_availability_opex_lcoe_authority_v420."
+            ).classes("text-caption")

@@ -25,6 +25,7 @@ _PLANT_KPI_ALIASES: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
         "LCOE_proxy_USD_per_MWh",
         (
             "LCOE_proxy_USD_per_MWh",
+            "avail_v420_LCOE_USD_per_MWh",
             "LCOE_proxy_v360_USD_per_MWh",
             "LCOE_proxy_v359_USD_per_MWh",
             "LCOE_lite_v383_USD_per_MWh",

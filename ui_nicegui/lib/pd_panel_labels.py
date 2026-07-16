@@ -148,6 +148,11 @@ OVERLAY_LABELS: Dict[str, Tuple[str, Optional[str], str]] = {
         "v419",
         "Source→sink thermal/electric flows, recirculating breakdown, conservation checks (proxy; Pe_net watermarked).",
     ),
+    "include_availability_opex_lcoe_authority_v420": (
+        "Availability→OPEX/LCOE coupling",
+        "v420",
+        "One availability chain feeds operating hours, annual energy, OPEX, and LCOE consistently (proxy; LCOE watermarked).",
+    ),
     "include_authority_dominance_v402": (
         "Global authority dominance engine",
         "v402",
@@ -331,6 +336,7 @@ OVERLAY_GROUP_SPECS: List[Tuple[str, List[Tuple[str, bool]]]] = [
             ("include_magnet_sc_system_authority_v410", False),
             ("include_machine_build_authority_v412", False),
             ("include_plant_sankey_ledger_authority_v419", False),
+            ("include_availability_opex_lcoe_authority_v420", False),
             ("include_authority_dominance_v402", True),
             ("include_control_stability_authority_v398", False),
             ("include_impurity_v399", False),
@@ -378,6 +384,7 @@ OVERLAY_NUMERIC_TITLES: Dict[str, str] = {
     "include_magnet_sc_system_authority_v410": "TF/PF/CS SC system depth",
     "include_machine_build_authority_v412": "Radial / machine-build closure",
     "include_plant_sankey_ledger_authority_v419": "Plant Sankey-grade ledger",
+    "include_availability_opex_lcoe_authority_v420": "Availability→OPEX/LCOE coupling",
     "include_control_stability_authority_v398": "Control & stability margins",
     "include_impurity_v399": "Multi-species impurity radiation",
     "include_profile_family_v358": "Profile family library",

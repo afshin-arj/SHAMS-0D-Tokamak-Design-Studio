@@ -27,5 +27,8 @@
   {"name": "Inboard build clearance (v412)", "value_key": "machine_v412_inboard_margin_m", "sense": ">=", "limit_lo_key": "machine_build_inboard_margin_min_m_v412", "group": "build", "authority": "v412", "enabled_key": "include_machine_build_authority_v412"},
   {"name": "Build gap clearance (v412)", "value_key": "machine_v412_gap_thickness_m", "sense": ">=", "limit_lo_key": "machine_build_gap_min_m_v412", "group": "build", "authority": "v412", "enabled_key": "include_machine_build_authority_v412"},
   {"name": "Plant Sankey f_recirc (v419)", "value_key": "plant_v419_f_recirc", "sense": "<=", "limit_hi_key": "plant_sankey_f_recirc_max_v419", "group": "plant", "authority": "v419", "enabled_key": "include_plant_sankey_ledger_authority_v419"},
-  {"name": "Plant Sankey Pe_net floor (v419)", "value_key": "plant_v419_Pe_net_MW", "sense": ">=", "limit_lo_key": "plant_sankey_Pe_net_min_MW_v419", "group": "plant", "authority": "v419", "enabled_key": "include_plant_sankey_ledger_authority_v419"}
+  {"name": "Plant Sankey Pe_net floor (v419)", "value_key": "plant_v419_Pe_net_MW", "sense": ">=", "limit_lo_key": "plant_sankey_Pe_net_min_MW_v419", "group": "plant", "authority": "v419", "enabled_key": "include_plant_sankey_ledger_authority_v419"},
+  {"name": "Availability floor (v420)", "value_key": "avail_v420_availability", "sense": ">=", "limit_lo_key": "availability_min_v420", "group": "plant", "authority": "v420", "enabled_key": "include_availability_opex_lcoe_authority_v420"},
+  {"name": "LCOE cap (v420)", "value_key": "avail_v420_LCOE_USD_per_MWh", "sense": "<=", "limit_hi_key": "lcoe_max_USD_per_MWh_v420", "group": "plant", "authority": "v420", "enabled_key": "include_availability_opex_lcoe_authority_v420"},
+  {"name": "OPEX cap (v420)", "value_key": "avail_v420_OPEX_total_MUSD_per_y", "sense": "<=", "limit_hi_key": "opex_max_MUSD_per_y_v420", "group": "plant", "authority": "v420", "enabled_key": "include_availability_opex_lcoe_authority_v420"}
 ]

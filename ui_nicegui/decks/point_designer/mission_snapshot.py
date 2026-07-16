@@ -20,6 +20,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     headline_kpi_pairs,
     infeasibility_trace,
     magnet_card_metrics,
+    avail_v420_summary,
     magnet_v400_summary,
     magnet_v410_summary,
     machine_v412_summary,
@@ -196,6 +197,27 @@ def render_mission_snapshot(session: DesignSession) -> None:
                 render_json_blob(v419["recirc_breakdown"])
             if v419.get("narrative"):
                 ui.label(str(v419["narrative"])).classes("text-caption q-mt-sm")
+
+    v420 = avail_v420_summary(out)
+    if v420:
+        with ui.expansion("Availability→OPEX/LCOE coupling (v420) [PROXY]", icon="timeline").classes("w-full"):
+            ui.badge("PROXY overlay — LCOE watermarked").props("color=orange")
+            ui.label(
+                "One availability chain feeds operating hours, annual energy, OPEX, and LCOE consistently."
+            ).classes("text-caption q-mb-sm")
+            kpi_row([
+                ("Availability", fmt_num(v420.get("availability"))),
+                ("A source", str(v420.get("availability_source", "-"))),
+                ("E_net [MWh/y]", fmt_num(v420.get("E_net_MWh_per_y"))),
+                ("OPEX [MUSD/y]", fmt_num(v420.get("OPEX_total_MUSD_per_y"))),
+                ("LCOE PROXY [USD/MWh]", fmt_num(v420.get("LCOE_USD_per_MWh"))),
+                ("Consistency", "OK" if v420.get("consistency_ok") else "FAIL"),
+            ])
+            if v420.get("opex_breakdown_MUSD_per_y"):
+                ui.label("OPEX breakdown [MUSD/y]").classes("text-subtitle2")
+                render_json_blob(v420["opex_breakdown_MUSD_per_y"])
+            if v420.get("narrative"):
+                ui.label(str(v420["narrative"])).classes("text-caption q-mt-sm")
 
     with ui.expansion("Regime compass (sanity checks)", icon="explore").classes("w-full"):
         ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(

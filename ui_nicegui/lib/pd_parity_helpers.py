@@ -518,6 +518,46 @@ def plant_v419_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def avail_v420_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Summary dict for availability→OPEX/LCOE coupling v420 (None when disabled)."""
+    if not bool(out.get("avail_v420_enabled", False)):
+        return None
+    return {
+        "screening_tier": out.get("avail_v420_screening_tier", "proxy"),
+        "overlay_version": out.get("avail_v420_overlay_version", "v420"),
+        "system_tier": out.get("avail_v420_system_tier", "unknown"),
+        "availability": out.get("avail_v420_availability"),
+        "availability_source": out.get("avail_v420_availability_source", ""),
+        "elm_v409_coupled": out.get("avail_v420_elm_v409_coupled"),
+        "duty_factor": out.get("avail_v420_duty_factor"),
+        "hours_per_year_h": out.get("avail_v420_hours_per_year_h"),
+        "E_net_MWh_per_y": out.get("avail_v420_E_net_MWh_per_y"),
+        "OPEX_total_MUSD_per_y": out.get("avail_v420_OPEX_total_MUSD_per_y"),
+        "dominant_opex_driver": out.get("avail_v420_dominant_opex_driver", ""),
+        "LCOE_USD_per_MWh": out.get("avail_v420_LCOE_USD_per_MWh"),
+        "LCOE_capex_USD_per_MWh": out.get("avail_v420_LCOE_capex_USD_per_MWh"),
+        "LCOE_replacement_USD_per_MWh": out.get("avail_v420_LCOE_replacement_USD_per_MWh"),
+        "LCOE_opex_USD_per_MWh": out.get("avail_v420_LCOE_opex_USD_per_MWh"),
+        "CAPEX_source": out.get("avail_v420_CAPEX_source", ""),
+        "replacement_source": out.get("avail_v420_replacement_source", ""),
+        "consistency_ok": out.get("avail_v420_consistency_ok"),
+        "consistency_checks": out.get("avail_v420_consistency_checks"),
+        "provenance": out.get("avail_v420_provenance", ""),
+        "narrative": out.get("avail_v420_narrative", ""),
+        "requires_kpi_honesty_watermark": out.get(
+            "avail_v420_requires_kpi_honesty_watermark", True
+        ),
+        "opex_breakdown_MUSD_per_y": {
+            "fixed": out.get("avail_v420_OPEX_fixed_MUSD_per_y"),
+            "electric_recirc": out.get("avail_v420_OPEX_electric_recirc_MUSD_per_y"),
+            "electric_cryo": out.get("avail_v420_OPEX_electric_cryo_MUSD_per_y"),
+            "electric_cd": out.get("avail_v420_OPEX_electric_cd_MUSD_per_y"),
+            "tritium": out.get("avail_v420_OPEX_tritium_MUSD_per_y"),
+            "maintenance": out.get("avail_v420_OPEX_maintenance_MUSD_per_y"),
+        },
+    }
+
+
 POWER_LEDGER_BADGED = [
     ("Input power Pin", "Pin_MW", "Authoritative"),
     ("Aux heating", "Paux_MW", "Authoritative"),
