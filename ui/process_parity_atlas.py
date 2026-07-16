@@ -7,7 +7,10 @@ from tools.plant_dossier import build_plant_dossier
 
 def render_process_parity_atlas(repo_root: Path):
     st.markdown("## 📚 PROCESS Parity Atlas")
-    st.caption("Compare SHAMS outputs against user-supplied PROCESS reference values. No assumptions.")
+    st.caption(
+        "Compare SHAMS outputs against user-supplied PROCESS reference values. "
+        "METHOD-ONLY cases never invent MFILE numbers."
+    )
 
     default_path = repo_root / "benchmarks" / "parity" / "process_reference_cases.json"
     use_upload = st.toggle("Upload reference JSON", value=False)
@@ -28,6 +31,10 @@ def render_process_parity_atlas(repo_root: Path):
         st.error("Invalid reference schema.")
         return
 
+    corpus_status = str(ref.get("corpus_status") or "METHOD-ONLY")
+    honesty = ref.get("honesty") if isinstance(ref.get("honesty"), dict) else {}
+    st.info(f"Corpus status: **{corpus_status}** — {honesty.get('statement', 'No invented PROCESS KPIs.')}")
+
     cases = ref.get("cases", [])
     if not cases:
         st.info("No cases found in reference file.")
@@ -36,6 +43,11 @@ def render_process_parity_atlas(repo_root: Path):
     case_ids = [c.get("case_id","(no id)") for c in cases]
     sel = st.selectbox("Case", options=list(range(len(cases))), format_func=lambda i: case_ids[i])
     case = cases[int(sel)]
+    case_status = str(case.get("dossier_status") or corpus_status)
+    st.caption(f"Case dossier status: `{case_status}`")
+    dd = case.get("delta_dossier") if isinstance(case.get("delta_dossier"), dict) else {}
+    if dd.get("sha256"):
+        st.caption(f"Hashed delta dossier: `{dd.get('path','')}` · sha256 `{str(dd.get('sha256'))[:16]}…`")
 
     inputs = case.get("inputs", {})
     evaluator_label = st.text_input("Evaluator label", value="hot_ion_point")
@@ -67,6 +79,11 @@ def render_process_parity_atlas(repo_root: Path):
         st.json(dossier.get("plant_ledger", {}))
 
         st.markdown("### PROCESS reference (user-supplied)")
+        if case_status == "METHOD-ONLY":
+            st.warning(
+                "METHOD-ONLY — PROCESS KPI fields are null by design. "
+                "Do not treat empty deltas as numeric parity."
+            )
         st.json(case.get("process_reference", {}))
 
         st.markdown("### Delta (SHAMS - PROCESS) for provided fields")
@@ -80,4 +97,7 @@ def render_process_parity_atlas(repo_root: Path):
                 delta[k] = float(sh.get(k, 0.0)) - float(v)
             except Exception:
                 pass
-        st.json(delta)
+        if case_status == "METHOD-ONLY" and not delta:
+            st.json({"status": "METHOD-ONLY", "message": "No numeric PROCESS fields to delta."})
+        else:
+            st.json(delta)

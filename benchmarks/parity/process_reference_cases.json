@@ -1,21 +1,47 @@
 {
   "cases": [
     {
-      "case_id": "demo_case_001",
+      "case_id": "method_only_hts_compact_001",
+      "delta_dossier": {
+        "path": "benchmarks/parity/dossiers/method_only_hts_compact_001_delta_dossier.json",
+        "sha256": "7f6aff4fa98df6138a6cba6910c7b5193db8e7e95268ab866f46b07a5765fc54"
+      },
+      "dossier_status": "METHOD-ONLY",
       "inputs": {
-        "Bt": 12.0,
-        "Ip": 15000000.0,
-        "Paux": 50000000.0,
-        "f_G": 0.85
+        "Bt_T": 12.0,
+        "Ip_MA": 10.0,
+        "Paux_MW": 50.0,
+        "R0_m": 2.6,
+        "Ti_keV": 18.0,
+        "a_m": 0.9,
+        "delta": 0.35,
+        "fG": 0.2799159054348506,
+        "include_profile_family_v358": true,
+        "kappa": 2.0
       },
       "intent": "reactor",
+      "label": "HTS compact high-field (METHOD-ONLY PROCESS parity anchor)",
       "process_reference": {
+        "P_aux_MW": null,
         "P_el_net_W": null,
+        "P_fus_MW": null,
         "P_fus_W": null,
+        "Pe_net_MW": null,
         "Q_plasma": null
+      },
+      "provenance": {
+        "process_reference_reason": "No licensed PROCESS MFILE / OUT.DAT extract is checked into this repository. Numeric PROCESS KPIs intentionally omitted (METHOD-ONLY honesty).",
+        "process_reference_source": null,
+        "shams_inputs_source": "benchmarks/cases/v364_hts_compact_highfield.json (synthetic SHAMS harness case; PointInputs keys)"
       }
     }
   ],
-  "notes": "Populate with PROCESS reference outputs for parity tracking. Values are user-supplied; SHAMS does not assume PROCESS results.",
-  "schema_version": "process.parity_cases.v1"
+  "corpus_status": "METHOD-ONLY",
+  "honesty": {
+    "no_invented_mfile": true,
+    "statement": "This corpus ships METHOD-ONLY honesty: SHAMS PointInputs and delta dossiers are recorded, but PROCESS MFILE/OUT.DAT numeric KPIs are intentionally null until a lab contributes a licensed, provenance-tagged extract. Do not invent PROCESS reference numbers.",
+    "upgrade_path": "To promote a case to NUMERIC: (1) add provenance.process_reference_source (repo path or citation + checksum), (2) fill process_reference with real PROCESS KPIs only, (3) set dossier_status=NUMERIC, (4) run refresh_corpus_hashes and re-verify."
+  },
+  "notes": "Independence Phase 1.3 \u2014 PROCESS parity corpus. METHOD-ONLY is a valid Phase-1 gate when no real PROCESS reference is available in-repo. Harness: src/parity_harness/process_corpus.py",
+  "schema_version": "process.parity_cases.v2"
 }

@@ -19,7 +19,7 @@ Living campaign document.
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Stance & firewall | **Mostly done** | CCFS hard gate on `main`; agents/skills updated |
-| 1 Trust the verdict | **Active** | Ticket 1.1 atlas **DONE**; ticket 1.2 plant KPI honesty **DONE** 2026-07-16. Next: parity corpus (1.3) |
+| 1 Trust the verdict | **Active** | Tickets 1.1–1.3 **DONE** 2026-07-16 (atlas, plant KPI honesty, METHOD-ONLY parity corpus). Next: scientific release gate (1.4) |
 | 2 DEMO MATCH | Pending | Magnets/build/plant/cost overlays |
 | 3 Community default | Pending | Migration guide, Zenodo, champions |
 | 4 Independence | Pending | PROCESS = legacy only |
@@ -69,7 +69,7 @@ IN.DAT → parse/defaults → DataStructure (mutable)
 | Neutronics / TBR | **Proxy** | v401/v407/v408 scaffolding |
 | Economics | **Proxy** | Do not clone 1990 Generomak as truth |
 | Neutrals / edge | **Missing** | |
-| PROCESS numeric parity corpus | **Stub** | Harness strong; reference cases weak |
+| PROCESS numeric parity corpus | **METHOD-ONLY** | `process.parity_cases.v2` + hashed delta dossier; NUMERIC when lab MFILE lands |
 | Stellarator / IFE | **Ignore (default)** | Breadth tax |
 
 ---
@@ -90,7 +90,7 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 |------|------|----------|-----|--------|--------|--------------------|
 | 1 | Extopt CCFS certified-solve firewall | BEAT | no | M | H | `/pareto-frontier-check` |
 | 2 | NO-SOLUTION mechanism atlas | BEAT | no | M | H | `/shams-feature-development` |
-| 3 | PROCESS parity corpus + delta dossiers | BEAT | no | M | H | `/process-parity-compare` |
+| 3 | ~~PROCESS parity corpus + delta dossiers~~ **DONE** 2026-07-16 (METHOD-ONLY honesty + hashed dossier) | BEAT | no | M | H | `/process-parity-compare` |
 | 4 | ~~Plant power ledger honesty (gate Pe_net on hard feasibility) + Sankey audit~~ **DONE** 2026-07-16 (`plant_kpi_honesty.v1`) | MATCH | no | M | H | `/reactor-systems` |
 | 5 | Exhaust / divertor authority depth | BEAT | no | M | H | `/reactor-systems` |
 | 6 | Magnet / SC / PF–CS overlay depth (post-v400) | MATCH | no | L | H | `/reactor-systems` |
@@ -112,8 +112,9 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 
 1. ~~Harden CCFS (`src/extopt/certified_solve.py` + tests: VERIFIED ≠ claims when hard fail)~~ **DONE** (Evaluator + governance hard gate; `tests/test_ccfs_verified_hard_gate.py`)
 2. ~~Ship NO-SOLUTION atlas on every infeasible artifact (`src/diagnostics/no_solution_atlas.py`)~~ **DONE** 2026-07-16 — stamped on hard-infeasible `build_run_artifact`, CCFS REJECTED rows, campaign error artifacts, PD/CR export bundles (`no_solution_atlas.v1`)
-3. Fill `benchmarks/parity/process_reference_cases.json` (≥1 real PROCESS ref + hashed delta dossier; no invented MFILE)
+3. ~~Fill `benchmarks/parity/process_reference_cases.json` (≥1 real PROCESS ref + hashed delta dossier; no invented MFILE)~~ **DONE** 2026-07-16 — METHOD-ONLY corpus (`process.parity_cases.v2`), hashed dossier `benchmarks/parity/dossiers/method_only_hts_compact_001_delta_dossier.json`, honesty gate in `src/parity_harness/process_corpus.py` (`tests/test_process_parity_corpus.py`). NUMERIC upgrade path documented; no invented MFILE numbers.
 4. ~~Plant KPI honesty — gate healthy `Pe_net` / COE on hard feasibility watermark~~ **DONE** 2026-07-16 — `plant_kpi_honesty.v1` on every run artifact; Suite/Systems Mode watermark Pe_net/COE/LCOE when hard-infeasible (`tests/test_plant_kpi_honesty.py`)
+5. **Next:** Scientific release gate (Phase 1.4) — `/shams-scientific-release-prep` → verdict ≥ CONDITIONAL with documented limitations
 
 ### Minimum DEMO MATCH overlays (reactor-systems)
 
