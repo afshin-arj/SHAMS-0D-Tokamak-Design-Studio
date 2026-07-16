@@ -13,6 +13,11 @@ ENV/
 env/
 pip-wheel-metadata/
 
+# Local secrets / env (never commit)
+.env
+.env.*
+!.env.example
+
 # IDEs / OS
 .DS_Store
 Thumbs.db

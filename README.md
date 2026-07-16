@@ -305,6 +305,11 @@ For the full comparison table, see the [extended comparison section](#extended-c
 
 ---
 
+## Known limitations
+
+Honest scope for scientific handoff (proxies, METHOD-ONLY PROCESS parity, what SHAMS does **not** claim): **`docs/LIMITATIONS.md`**.  
+Phase 1 scientific release readiness (CONDITIONAL): `docs/validation/reports/scientific_release_readiness_20260716.md`.
+
 ## Contributing & governance
 
 - Physics / constraint changes: explicit request + versioning (`GOVERNANCE.md`)

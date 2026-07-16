@@ -19,8 +19,8 @@ Living campaign document.
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Stance & firewall | **Mostly done** | CCFS hard gate on `main`; agents/skills updated |
-| 1 Trust the verdict | **Active** | Tickets 1.1–1.3 **DONE** 2026-07-16 (atlas, plant KPI honesty, METHOD-ONLY parity corpus). Next: scientific release gate (1.4) |
-| 2 DEMO MATCH | Pending | Magnets/build/plant/cost overlays |
+| 1 Trust the verdict | **DONE** 2026-07-16 | Tickets 1.1–1.4 complete (atlas, plant KPI honesty, METHOD-ONLY parity, scientific release gate **CONDITIONAL**) |
+| 2 DEMO MATCH | **Active** | Next: 2.1 TF/PF/CS SC depth beyond v400 |
 | 3 Community default | Pending | Migration guide, Zenodo, champions |
 | 4 Independence | Pending | PROCESS = legacy only |
 
@@ -114,7 +114,8 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 2. ~~Ship NO-SOLUTION atlas on every infeasible artifact (`src/diagnostics/no_solution_atlas.py`)~~ **DONE** 2026-07-16 — stamped on hard-infeasible `build_run_artifact`, CCFS REJECTED rows, campaign error artifacts, PD/CR export bundles (`no_solution_atlas.v1`)
 3. ~~Fill `benchmarks/parity/process_reference_cases.json` (≥1 real PROCESS ref + hashed delta dossier; no invented MFILE)~~ **DONE** 2026-07-16 — METHOD-ONLY corpus (`process.parity_cases.v2`), hashed dossier `benchmarks/parity/dossiers/method_only_hts_compact_001_delta_dossier.json`, honesty gate in `src/parity_harness/process_corpus.py` (`tests/test_process_parity_corpus.py`). NUMERIC upgrade path documented; no invented MFILE numbers.
 4. ~~Plant KPI honesty — gate healthy `Pe_net` / COE on hard feasibility watermark~~ **DONE** 2026-07-16 — `plant_kpi_honesty.v1` on every run artifact; Suite/Systems Mode watermark Pe_net/COE/LCOE when hard-infeasible (`tests/test_plant_kpi_honesty.py`)
-5. **Next:** Scientific release gate (Phase 1.4) — `/shams-scientific-release-prep` → verdict ≥ CONDITIONAL with documented limitations
+5. ~~Scientific release gate (Phase 1.4)~~ **DONE** 2026-07-16 — verdict **CONDITIONAL** (`docs/validation/reports/scientific_release_readiness_20260716.md`); limitations `docs/LIMITATIONS.md`; CITATION.cff ↔ VERSION aligned; lock tests `tests/test_scientific_release_gate.py`. Phase 1 exit MET. No PROCESS-retired claim; no VERSION tag/Zenodo cut (deferred to APPROVED path).
+6. **Next (Phase 2.1):** TF/PF/CS SC depth beyond v400 — `/reactor-systems` + `/authority-overlay-author` (MATCH-as-overlay; L0 untouched)
 
 ### Minimum DEMO MATCH overlays (reactor-systems)
 

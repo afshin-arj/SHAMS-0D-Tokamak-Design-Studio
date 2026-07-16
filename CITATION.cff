@@ -1,8 +1,25 @@
 cff-version: 1.2.0
-message: "If you use SHAMS–FUSION-X, please cite it."
-title: "SHAMS–FUSION-X: Constraint-first, audit-ready fusion design authority system"
+message: "If you use SHAMS, please cite it using these metadata."
+title: "SHAMS: Tokamak 0-D Design Studio (feasibility-authoritative evaluator)"
 type: software
 authors:
-  - name: "SHAMS–FUSION-X Contributors"
-version: "v120_2026-01-17"
-date-released: "2026-01-17"
+  - family-names: "Arjhangmehr"
+    given-names: "Afshin"
+    email: "ms.arjangmehr@gmail.com"
+  - name: "SHAMS Contributors"
+version: "v418.1.0"
+date-released: "2026-07-16"
+license: "Apache-2.0"
+repository-code: "https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio"
+abstract: >-
+  SHAMS is a feasibility-authoritative tokamak 0-D design studio with a frozen
+  deterministic evaluator (L0), explicit hard/diagnostic/ignored constraints,
+  NO-SOLUTION as a valid scientific outcome, and certified external optimization
+  (propose-only). It is not a drop-in numeric clone of UKAEA PROCESS; plant and
+  magnet models may be proxies unless declared as versioned authority overlays.
+keywords:
+  - fusion
+  - tokamak
+  - systems code
+  - feasibility
+  - confinement
