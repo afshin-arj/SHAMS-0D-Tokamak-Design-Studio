@@ -24,6 +24,7 @@ _OVERLAY_TOGGLES: List[Tuple[str, str, str]] = [
     ("cd_mix_enable", "v408", "CD mix plant electric ledger"),
     ("include_magnet_sc_system_authority_v410", "v410", "TF/PF/CS SC system depth beyond v400"),
     ("include_machine_build_authority_v412", "v412", "Radial / machine-build closure narrative"),
+    ("include_plant_sankey_ledger_authority_v419", "v419", "Plant Sankey-grade power ledger"),
     ("include_tritium_tight_closure", "v405", "Tritium tight-closure inventory caps"),
 ]
 

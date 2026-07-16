@@ -264,3 +264,32 @@ def render_control_contracts(session: DesignSession) -> None:
             ui.label(
                 "Machine-build / radial closure (v412) is OFF — enable include_machine_build_authority_v412."
             ).classes("text-caption")
+
+    from ui_nicegui.lib.pd_parity_helpers import plant_v419_summary
+
+    v419 = plant_v419_summary(out)
+    with ui.expansion("Plant Sankey ledger (v419) [PROXY]", icon="account_tree").classes(
+        "w-full q-mt-md"
+    ):
+        if v419:
+            ui.badge("PROXY overlay — not PROCESS MFILE parity").props("color=orange")
+            kpi_row([
+                ("System tier", str(v419["system_tier"])),
+                ("Conservation", "OK" if v419.get("conservation_ok") else "FAIL"),
+                ("Dominant", str(v419.get("dominant_aspect", "-"))),
+                ("f_recirc", fmt_num(v419.get("f_recirc"))),
+            ])
+            if v419.get("recirc_breakdown"):
+                ui.label("Recirc breakdown [MW(e)]").classes("text-subtitle2")
+                render_json_blob(v419["recirc_breakdown"])
+            if v419.get("narrative"):
+                ui.label(str(v419["narrative"])).classes("text-caption q-mt-sm")
+            if v419.get("provenance"):
+                ui.label(str(v419["provenance"])).classes("text-caption")
+            ui.label(
+                "Pe_net display must use plant_kpi_honesty.v1 watermark on hard-infeasible points."
+            ).classes("text-caption text-orange")
+        else:
+            ui.label(
+                "Plant Sankey ledger (v419) is OFF — enable include_plant_sankey_ledger_authority_v419."
+            ).classes("text-caption")

@@ -49,6 +49,8 @@ def authority_version_badges(out: dict) -> List[str]:
     checks = [
         ("magnet_v400_enabled", "v400 magnets"),
         ("magnet_v410_enabled", "v410 TF/PF/CS SC"),
+        ("machine_v412_enabled", "v412 machine-build"),
+        ("plant_v419_enabled", "v419 plant Sankey"),
         ("nm_authority_v401_enabled", "v401 neutronics"),
         ("nuclear_data_authority_v407_enabled", "v407 nuclear data"),
         ("structural_stress_v389_enabled", "v389 structural"),
@@ -390,6 +392,7 @@ def render_authority_ledger(
         magnet_v400_summary,
         magnet_v410_summary,
         machine_v412_summary,
+        plant_v419_summary,
         power_ledger_badged_rows,
     )
     from ui_nicegui.lib.plant_kpi_honesty_ui import (
@@ -448,6 +451,36 @@ def render_authority_ledger(
         ])
     else:
         ui.label("Machine-build v412 radial closure overlay not enabled on this point.").classes(
+            "text-caption text-grey"
+        )
+
+    pl419 = plant_v419_summary(point_out)
+    if pl419:
+        ui.badge("v419 PROXY — plant Sankey ledger").props("color=orange outline")
+        kpi_row([
+            ("v419 tier", str(pl419.get("system_tier", "-"))),
+            ("Conservation", "OK" if pl419.get("conservation_ok") else "FAIL"),
+            ("f_recirc", _fin(pl419.get("f_recirc"), ".3f")),
+            ("Pe_net (raw PROXY)", _fin(pl419.get("Pe_net_MW"), ".3f")),
+        ])
+        ui.label(
+            "Pe_net display above uses plant_kpi_honesty watermark — raw v419 value is PROXY bookkeeping."
+        ).classes("text-caption text-orange")
+        ft = pl419.get("flow_table")
+        if isinstance(ft, list) and ft:
+            with ui.expansion("v419 source→sink flow table (PROXY)", icon="account_tree").classes("w-full"):
+                ui.table(
+                    columns=[
+                        {"name": "source", "label": "Source", "field": "source", "align": "left"},
+                        {"name": "sink", "label": "Sink", "field": "sink", "align": "left"},
+                        {"name": "value_MW", "label": "MW", "field": "value_MW"},
+                        {"name": "tier", "label": "Tier", "field": "tier"},
+                    ],
+                    rows=[{**row, "value_MW": _fin(row.get("value_MW"), ".3g")} for row in ft[:24]],
+                    row_key="source",
+                ).classes("w-full")
+    else:
+        ui.label("Plant Sankey v419 overlay not enabled on this point.").classes(
             "text-caption text-grey"
         )
 

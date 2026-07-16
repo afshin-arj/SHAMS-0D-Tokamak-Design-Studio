@@ -3597,6 +3597,32 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         )
 
     # =========================================================================
+    # Plant Sankey-grade ledger authority (v419) — extend v408 / plant closure
+    # MATCH-as-overlay; algebraic source→sink flows + conservation checks.
+    # No plant power iteration / solvers in L0. Pe_net still watermarked via
+    # plant_kpi_honesty.v1 in artifacts / UI.
+    # =========================================================================
+    try:
+        try:
+            from analysis.plant_sankey_ledger_authority_v419 import (
+                evaluate_plant_sankey_ledger_authority_v419,
+            )
+        except ImportError:
+            from ..analysis.plant_sankey_ledger_authority_v419 import (
+                evaluate_plant_sankey_ledger_authority_v419,
+            )
+        plant419 = evaluate_plant_sankey_ledger_authority_v419(out, inp)
+        if isinstance(plant419, dict):
+            out.update(plant419)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_plant_sankey_ledger_authority_v419",
+            error_key="plant_sankey_ledger_authority_v419_error",
+            exc=e,
+        )
+
+    # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)
     # Global cross-authority dominance ranking + regime classification.
     # Governance-only overlay; deterministic; no truth edits.

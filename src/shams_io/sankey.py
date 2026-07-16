@@ -15,18 +15,28 @@ def build_power_balance_sankey(artifact: Dict[str, Any]) -> Dict[str, Any]:
     - This function intentionally returns a *trace kwargs dict* (``node=...``, ``link=...``)
       rather than a SHAMS-native schema, because the UI uses ``go.Sankey(**...)``.
     - This is inspired by PROCESS's Sankey plots, but nodes/links are SHAMS-native.
+    - When plant Sankey ledger v419 is enabled on the point, prefer its stamped kwargs
+      (PROXY, conservation-checked source→sink table).
     """
-    out = artifact.get("outputs", {})
+    out = artifact.get("outputs", {}) if isinstance(artifact, dict) else {}
+    if not isinstance(out, dict) and isinstance(artifact, dict):
+        # Allow passing raw outputs dict
+        out = artifact
+    # Independence 2.3: prefer v419 Sankey-grade ledger when stamped
+    if bool(out.get("plant_v419_enabled", False)):
+        kw = out.get("plant_v419_sankey_kwargs")
+        if isinstance(kw, dict) and kw.get("node") and kw.get("link"):
+            return dict(kw)
     # SHAMS outputs (phase14): these keys are produced by physics/plant.py plant_power_closure
-    Pfus = float(out.get("Pfus_MW", 0.0))
-    Paux = float(out.get("Paux_MW", 0.0))
-    Palpha = float(out.get("Palpha_MW", 0.0))
-    Pneu = float(out.get("Pneu_MW", 0.0))
-    Pth = float(out.get("Pth_MW", out.get("Pth_gross_MW", 0.0)))
-    Pnet = float(out.get("Pnet_MWe", 0.0))
-    P_recirc = float(out.get("Precirc_MWe", out.get("P_recirc_MWe", 0.0)))
-    P_rad = float(out.get("Prad_core_MW", out.get("Prad_MW", 0.0)))
-    P_sol = float(out.get("Psol_MW", 0.0))
+    Pfus = float(out.get("Pfus_MW", out.get("Pfus_total_MW", 0.0)) or 0.0)
+    Paux = float(out.get("Paux_MW", 0.0) or 0.0)
+    Palpha = float(out.get("Palpha_MW", 0.0) or 0.0)
+    Pneu = float(out.get("Pneu_MW", out.get("P_n_MW", 0.0)) or 0.0)
+    Pth = float(out.get("Pth_MW", out.get("Pth_total_MW", out.get("Pth_gross_MW", 0.0))) or 0.0)
+    Pnet = float(out.get("Pnet_MWe", out.get("P_e_net_MW", 0.0)) or 0.0)
+    P_recirc = float(out.get("Precirc_MWe", out.get("P_recirc_MWe", out.get("P_recirc_MW", 0.0))) or 0.0)
+    P_rad = float(out.get("Prad_core_MW", out.get("Prad_MW", 0.0)) or 0.0)
+    P_sol = float(out.get("Psol_MW", out.get("P_SOL_MW", 0.0)) or 0.0)
 
     labels = [
         "Fusion",

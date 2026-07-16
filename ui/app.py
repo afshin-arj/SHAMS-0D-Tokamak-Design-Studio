@@ -1379,6 +1379,72 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
                         st.write(ledger)
             st.caption(str(out.get("machine_v412_narrative", "")))
 
+        # v419 plant Sankey-grade ledger (proxy overlay)
+        if bool(out.get("plant_v419_enabled", False)):
+            st.markdown("**Plant Sankey ledger (v419) — PROXY overlay**")
+            st.caption(
+                str(
+                    out.get(
+                        "plant_v419_provenance",
+                        "Algebraic source→sink plant power ledger; not PROCESS MFILE parity.",
+                    )
+                )
+            )
+            try:
+                from diagnostics.plant_kpi_honesty import (
+                    build_plant_kpi_honesty,
+                    format_plant_kpi,
+                    plant_kpi_banner_text,
+                )
+
+                _hon = build_plant_kpi_honesty(out)
+                _ban = plant_kpi_banner_text(_hon)
+                if _ban:
+                    st.warning(_ban)
+                _pe_disp = format_plant_kpi(
+                    _hon,
+                    "Pe_net_MW",
+                    fallback_raw=out.get("plant_v419_Pe_net_MW", out.get("P_e_net_MW")),
+                    units="MW",
+                )
+            except Exception:
+                _pe_disp = f"{out.get('plant_v419_Pe_net_MW', '—')} (raw PROXY)"
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("System tier", str(out.get("plant_v419_system_tier", "unknown")))
+            with c2:
+                st.metric(
+                    "Conservation",
+                    "OK" if out.get("plant_v419_conservation_ok") else "FAIL",
+                )
+            with c3:
+                try:
+                    st.metric(
+                        "f_recirc",
+                        f"{float(out.get('plant_v419_f_recirc', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("f_recirc", "—")
+            with c4:
+                st.metric("Pe_net (watermarked)", _pe_disp)
+            flow = out.get("plant_v419_flow_table")
+            if isinstance(flow, list) and flow:
+                with st.expander("Source→sink flow table (v419 PROXY)", expanded=False):
+                    try:
+                        st.dataframe(pd.DataFrame(flow), use_container_width=True, hide_index=True)
+                    except Exception:
+                        st.write(flow)
+            try:
+                from shams_io.sankey import build_power_balance_sankey
+                import plotly.graph_objects as go
+
+                sank = build_power_balance_sankey({"outputs": out})
+                fig = go.Figure(data=[go.Sankey(**sank)])
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.caption(f"Sankey plot unavailable: {e}")
+            st.caption(str(out.get("plant_v419_narrative", "")))
+
         # Deterministic repair hints (high-level; detailed mapping lives in contract artifact)
         st.markdown("**Deterministic repair levers (non-exhaustive):**")
         st.markdown("- Decrease **Bt** or increase **R0** (reduces required ampere-turns and peak field).")
@@ -1389,6 +1455,10 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
         if bool(out.get("machine_v412_enabled", False)):
             st.markdown(
                 "- Increase **R0** / reduce inboard **layer thicknesses** / raise **build gap** when v412 machine-build dominates."
+            )
+        if bool(out.get("plant_v419_enabled", False)):
+            st.markdown(
+                "- Reduce **Paux** / raise wall-plug η / cut BOP·pump·cryo loads when v419 recirc or Pe_net dominates."
             )
 
 def _sync_point_designer_from_last_point_inp() -> None:

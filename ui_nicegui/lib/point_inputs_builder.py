@@ -26,6 +26,7 @@ _PRIORITY_OVERLAY_KEYS = frozenset({
     "include_magnet_technology_authority_v400",
     "include_magnet_sc_system_authority_v410",
     "include_machine_build_authority_v412",
+    "include_plant_sankey_ledger_authority_v419",
     "include_neutronics_materials_coupling_v372",
     "include_neutronics_materials_library_v403",
     "include_neutronics_materials_authority_v401",

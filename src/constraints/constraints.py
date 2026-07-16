@@ -586,6 +586,42 @@ def evaluate_constraints(
                     group="build",
                 )
 
+    # Plant Sankey-grade ledger authority v419 (optional caps + conservation)
+    if outputs.get("plant_v419_enabled"):
+        # Conservation residual: treat failed checks as soft diagnostic unless
+        # caller elevates via governance; always surface when overlay ON.
+        cons_ok = outputs.get("plant_v419_conservation_ok")
+        if cons_ok is not None:
+            ge(
+                "Plant Sankey conservation v419",
+                1.0 if bool(cons_ok) else 0.0,
+                1.0,
+                units="-",
+                note="Source→sink residual checks within tol (PROXY overlay)",
+                group="plant",
+                severity="soft",
+            )
+        lim_f = outputs.get("plant_sankey_f_recirc_max_v419", float("nan"))
+        if lim_f == lim_f and "plant_v419_f_recirc" in outputs:
+            le(
+                "Plant Sankey f_recirc v419",
+                outputs["plant_v419_f_recirc"],
+                lim_f,
+                units="-",
+                note="Recirculating fraction ≤ cap (PROXY overlay)",
+                group="plant",
+            )
+        lim_net = outputs.get("plant_sankey_Pe_net_min_MW_v419", float("nan"))
+        if lim_net == lim_net and "plant_v419_Pe_net_MW" in outputs:
+            ge(
+                "Plant Sankey Pe_net floor v419",
+                outputs["plant_v419_Pe_net_MW"],
+                lim_net,
+                units="MW",
+                note="Net electric ≥ floor (PROXY; display still watermarked)",
+                group="plant",
+            )
+
     # -------- Neutronics --------
     if "TBR" in outputs:
         tbr_min = outputs.get("TBR_min", 1.05)

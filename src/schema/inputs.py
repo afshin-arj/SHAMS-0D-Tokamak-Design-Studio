@@ -126,6 +126,21 @@ class PointInputs:
     machine_build_gap_min_m_v412: float = float("nan")
     machine_build_layer_surplus_min_m_v412: float = float("nan")
 
+    # ------------------------------------------------------------------
+    # v419.0: Plant Sankey-grade ledger authority (MATCH-as-overlay)
+    # Extends v408 CD-mix plant ledger + L0 plant_power_closure with
+    # explicit source→sink flows, recirc breakdown, conservation checks.
+    # OFF by default (no L0 / golden drift when unused).
+    # ------------------------------------------------------------------
+    include_plant_sankey_ledger_authority_v419: bool = False
+    # Optional tritium-plant electric load [MW(e)]; NaN → treated as 0 PROXY.
+    P_tritium_plant_MW: float = float("nan")
+    # Absolute residual tolerance for conservation checks [MW].
+    plant_sankey_conservation_tol_MW_v419: float = float("nan")
+    # Optional caps (NaN disables): recirculating fraction, net electric floor.
+    plant_sankey_f_recirc_max_v419: float = float("nan")
+    plant_sankey_Pe_net_min_MW_v419: float = float("nan")
+
 
     # Multiplicative uncertainty / calibration factors (default 1.0)
     confinement_mult: float = 1.0   # scales effective energy confinement time (tauE)

@@ -485,6 +485,39 @@ def machine_v412_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def plant_v419_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Summary dict for plant Sankey ledger v419 (None when disabled)."""
+    if not bool(out.get("plant_v419_enabled", False)):
+        return None
+    return {
+        "screening_tier": out.get("plant_v419_screening_tier", "proxy"),
+        "overlay_version": out.get("plant_v419_overlay_version", "v419"),
+        "system_tier": out.get("plant_v419_system_tier", "unknown"),
+        "dominant_aspect": out.get("plant_v419_dominant_aspect", "unknown"),
+        "Pe_net_MW": out.get("plant_v419_Pe_net_MW"),
+        "Pe_gross_MW": out.get("plant_v419_Pe_gross_MW"),
+        "Precirc_MW": out.get("plant_v419_Precirc_MW"),
+        "f_recirc": out.get("plant_v419_f_recirc"),
+        "conservation_ok": out.get("plant_v419_conservation_ok"),
+        "n_flows": out.get("plant_v419_n_flows"),
+        "provenance": out.get("plant_v419_provenance", ""),
+        "narrative": out.get("plant_v419_narrative", ""),
+        "flow_table": out.get("plant_v419_flow_table"),
+        "sankey_kwargs": out.get("plant_v419_sankey_kwargs"),
+        "requires_kpi_honesty_watermark": out.get(
+            "plant_v419_requires_kpi_honesty_watermark", True
+        ),
+        "recirc_breakdown": {
+            "HCD": out.get("plant_v419_P_hcd_el_MW"),
+            "cryo": out.get("plant_v419_P_cryo_el_MW"),
+            "pumping": out.get("plant_v419_P_pumps_el_MW"),
+            "tritium": out.get("plant_v419_P_tritium_el_MW"),
+            "BOP": out.get("plant_v419_P_bop_el_MW"),
+            "TF_ohmic": out.get("plant_v419_P_tf_el_MW"),
+        },
+    }
+
+
 POWER_LEDGER_BADGED = [
     ("Input power Pin", "Pin_MW", "Authoritative"),
     ("Aux heating", "Paux_MW", "Authoritative"),
