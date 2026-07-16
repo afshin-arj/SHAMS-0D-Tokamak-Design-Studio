@@ -127,10 +127,9 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
             session.cmp_slot_b = art
             session.cmp_slot_b_meta = meta
         ui.notify(f"Sent to Compare slot {slot}", type="positive")
-        if session.active_deck == "Compare":
-            from ui_nicegui.lib.navigation import refresh_active_deck
+        from ui_nicegui.lib.compare_helpers import refresh_compare_if_active
 
-            refresh_active_deck()
+        refresh_compare_if_active(session)
 
     ui.button("Apply to PD & re-evaluate", icon="check", on_click=_apply_evaluate).props("color=primary w-full q-mb-sm")
     ui.button("Undo last apply", icon="undo", on_click=_undo_apply).props("flat q-mb-sm")

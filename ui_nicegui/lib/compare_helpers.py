@@ -123,6 +123,14 @@ def store_compare_slot(session, art: dict, slot: str, *, label: str) -> None:
         session.cmp_slot_b = norm
         session.cmp_slot_b_meta = meta
         session.cmp_use_slot_b = True
+    refresh_compare_if_active(session)
+
+
+def refresh_compare_if_active(session) -> None:
+    if getattr(session, "active_deck", None) == "Compare":
+        from ui_nicegui.lib.navigation import refresh_active_deck
+
+        refresh_active_deck()
 
 
 def send_row_to_compare_slot(session, row: dict, slot: str, *, label: str) -> dict:

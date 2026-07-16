@@ -315,6 +315,46 @@ def test_pd_constraints_includes_next_steps_bridge() -> None:
     assert "render_systems_precheck_bridge" in src
 
 
+def test_control_room_section_sync_maps_workflow_to_legacy() -> None:
+    from ui_nicegui.decks.control_room import _sync_section
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    _sync_section(s, "2 · Constitution")
+    assert s.cr_workflow_step == "2 · Constitution"
+    assert s.cr_section == "Constitution"
+
+
+def test_compare_clear_resets_use_flags() -> None:
+    import inspect
+
+    from ui_nicegui.decks.compare import setup as cmp_setup
+
+    src = inspect.getsource(cmp_setup._clear_slots)
+    assert "cmp_use_slot_a = False" in src
+    assert "cmp_use_slot_b = False" in src
+
+
+def test_store_compare_slot_refreshes_active_compare() -> None:
+    import inspect
+
+    from ui_nicegui.lib import compare_helpers as ch
+
+    src = inspect.getsource(ch.store_compare_slot)
+    assert "refresh_compare_if_active" in src
+
+
+def test_pd_handoff_prepares_truth_console() -> None:
+    from ui_nicegui.lib.pd_handoff import prepare_point_designer_handoff
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.pd_subdeck = "Phase Envelopes"
+    prepare_point_designer_handoff(s)
+    assert s.pd_subdeck == "Truth Console"
+    assert s.pd_workflow_tab == "1 · Configure"
+
+
 def test_systems_mode_scope_allows_newton_propose() -> None:
     from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
 

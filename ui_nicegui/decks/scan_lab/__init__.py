@@ -111,23 +111,22 @@ def render_scan_lab(session: DesignSession) -> None:
             )
 
     _render_verdict(session)
+    _render_workflow_chrome(session)
+    _render_tab_body(session)
 
-    def _on_decision(e) -> None:
-        state = str(e.value)
-        session.scan_decision_state = state
-        tab = DECISION_TO_TAB.get(state)
-        if tab and session.scan_teaching_mode:
-            session.scan_workflow_step = tab
-            _apply_quick_jump(session, tab)
-            _render_tab_body.refresh()
 
+@ui.refreshable
+def _render_workflow_chrome(session: DesignSession) -> None:
     ui.select(
         DECISION_STATES,
         label="What are you trying to learn?",
         value=session.scan_decision_state
         if session.scan_decision_state in DECISION_STATES
         else DECISION_STATES[0],
-        on_change=_on_decision,
+        on_change=lambda e: (
+            setattr(session, "scan_decision_state", str(e.value)),
+            _on_decision_scan(session, str(e.value)),
+        ),
     ).classes("w-full q-mb-xs")
 
     banner = teaching_banner(session)
@@ -158,7 +157,15 @@ def render_scan_lab(session: DesignSession) -> None:
     if help_text:
         ui.label(help_text).classes("text-caption text-grey q-mb-sm")
 
-    _render_tab_body(session)
+
+def _on_decision_scan(session: DesignSession, state: str) -> None:
+    session.scan_decision_state = state
+    tab = DECISION_TO_TAB.get(state)
+    if tab and session.scan_teaching_mode:
+        session.scan_workflow_step = tab
+        _apply_quick_jump(session, tab)
+        _render_workflow_chrome.refresh()
+        _render_tab_body.refresh()
 
 
 def _handle_quick_jump(session: DesignSession, cmd: str) -> None:
@@ -173,6 +180,7 @@ def _handle_quick_jump(session: DesignSession, cmd: str) -> None:
         session.scan_local_insight = "Causality trace"
     elif cmd == "I":
         session.scan_wb_compare_intents = True
+    _render_workflow_chrome.refresh()
     _render_tab_body.refresh()
 
 

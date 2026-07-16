@@ -101,6 +101,8 @@ def _clear_slots(session: DesignSession, on_change) -> None:
     session.cmp_slot_b = None
     session.cmp_slot_a_meta = {}
     session.cmp_slot_b_meta = {}
+    session.cmp_use_slot_a = False
+    session.cmp_use_slot_b = False
     ui.notify("Cleared Compare slots", type="info")
     on_change()
 
@@ -110,6 +112,10 @@ def _swap_slots(session: DesignSession, on_change) -> None:
     session.cmp_slot_a_meta, session.cmp_slot_b_meta = (
         session.cmp_slot_b_meta,
         session.cmp_slot_a_meta,
+    )
+    session.cmp_use_slot_a, session.cmp_use_slot_b = (
+        session.cmp_use_slot_b,
+        session.cmp_use_slot_a,
     )
     ui.notify("Swapped slots A and B", type="info")
     on_change()

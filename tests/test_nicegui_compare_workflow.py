@@ -112,7 +112,15 @@ def test_metrics_panel_refreshes_all_outputs_toggle() -> None:
     assert "_all_outputs_section.refresh" in src
 
 
-def test_compare_mode_scope_registered() -> None:
+def test_compare_swap_includes_use_flags() -> None:
+    import inspect
+
+    from ui_nicegui.decks.compare import setup as cmp_setup
+
+    src = inspect.getsource(cmp_setup._swap_slots)
+    assert "cmp_use_slot_a" in src
+    assert "cmp_use_slot_b" in src
+
     from ui_nicegui.lib.mode_scope_data import MODE_SCOPE
 
     assert "compare" in MODE_SCOPE

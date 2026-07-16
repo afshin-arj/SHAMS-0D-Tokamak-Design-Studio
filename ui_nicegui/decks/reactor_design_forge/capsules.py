@@ -93,7 +93,10 @@ async def _handle_restore(session: DesignSession, e, on_complete: Optional[Calla
         session.forge_lens_contract = capsule.get("lens") if isinstance(capsule.get("lens"), dict) else None
         session.forge_workflow_step = "3 · Workbench"
         session.forge_deck = "Machine Finder"
-        ui.notify("Capsule restored — open **Workbench** tab if not already there.", type="positive")
+        ui.notify("Capsule restored — opening Workbench.", type="positive")
+        from ui_nicegui.lib.navigation import switch_deck
+
+        switch_deck("Reactor Design Forge", force=True)
         if on_complete:
             on_complete()
     except Exception as exc:

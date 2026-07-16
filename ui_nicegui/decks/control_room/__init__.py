@@ -38,11 +38,12 @@ _LEGACY_TO_WORKFLOW = {
     "Diagnostics": "5 · Diagnostics",
     "Chronicle": "6 · Chronicle",
 }
+_WORKFLOW_TO_LEGACY = {v: k for k, v in _LEGACY_TO_WORKFLOW.items()}
 
 
 def _sync_section(session: DesignSession, tab: str) -> None:
     session.cr_workflow_step = normalize_cr_tab(tab)
-    session.cr_section = _LEGACY_TO_WORKFLOW.get(session.cr_workflow_step, "Orientation")
+    session.cr_section = _WORKFLOW_TO_LEGACY.get(session.cr_workflow_step, "Orientation")
 
 
 def render_control_room(session: DesignSession) -> None:
