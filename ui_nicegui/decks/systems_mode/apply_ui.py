@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-
 from nicegui import run, ui
+
 from ui_nicegui.evaluate import ui_evaluate
 from ui_nicegui.lib.pd_artifact_helpers import build_point_artifact
-from ui_nicegui.lib.compare_helpers import store_compare_slot
+from ui_nicegui.lib.compare_helpers import build_compare_artifact, open_compare_deck, store_compare_slot
+from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_ranking_helpers import rank_candidates
 from ui_nicegui.lib.systems_workflow_helpers import apply_x_to_session, collect_candidates
@@ -124,24 +125,26 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         sel_now = _selected(cands, session.systems_selected_candidate_id)
         if not sel_now or not isinstance(sel_now.get("x"), dict):
             return
-        apply_x_to_session(session, sel_now["x"])
-        inp = session.build_point_inputs()
-        out = await run.io_bound(
-            ui_evaluate,
-            inp,
-            origin="NiceGUI:SystemsCompare",
-            Paux_for_Q_MW=session.paux_for_q,
-        )
-        inputs_dict = inp.to_dict() if hasattr(inp, "to_dict") else dict(session.inputs)
-        art = build_point_artifact(inputs=inputs_dict, outputs=out, design_intent=session.design_intent)
-        store_compare_slot(session, art, slot, label=f"Systems ({sel_now.get('source')})")
+        # build_compare_artifact snapshots/restores session.inputs — no silent PD mutation
+        patch = dict(sel_now["x"])
+        label = f"Systems ({sel_now.get('source')})"
+        art = await run.io_bound(lambda: build_compare_artifact(session, patch, label=label))
+        store_compare_slot(session, art, slot, label=label)
         ui.notify(f"Sent to Compare slot {slot}", type="positive")
+
+    def _open_pd() -> None:
+        navigate_to_point_designer(session)
+        ui.notify("Opened Point Designer Configure.", type="info")
 
     ui.button("Apply to PD & re-evaluate", icon="check", on_click=_apply_evaluate).props("color=primary w-full q-mb-sm")
     ui.button("Undo last apply", icon="undo", on_click=_undo_apply).props("flat q-mb-sm")
-    with ui.row().classes("gap-2"):
+    with ui.row().classes("gap-2 flex-wrap"):
+        ui.button("Open Point Designer", icon="design_services", on_click=_open_pd).props("outline color=primary")
         ui.button("Compare slot A", on_click=lambda: _send_compare("A")).props("outline")
         ui.button("Compare slot B", on_click=lambda: _send_compare("B")).props("outline")
+        ui.button("Open Compare deck", icon="compare_arrows", on_click=lambda: open_compare_deck(session)).props(
+            "flat outline"
+        )
 
 
 def _pick(session: DesignSession, cands: list, labels: list, label: str) -> None:

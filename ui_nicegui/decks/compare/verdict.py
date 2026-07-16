@@ -23,6 +23,14 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
         ("Dominant B", summary.get("dominant_b", "-")),
         ("Largest Δ", summary.get("top_delta", "-")),
     ])
+    kpi_row([
+        ("Q A", summary.get("q_a", "-")),
+        ("Q B", summary.get("q_b", "-")),
+        ("H98 A", summary.get("h98_a", "-")),
+        ("H98 B", summary.get("h98_b", "-")),
+        ("Pfus A [MW]", summary.get("pfus_a", "-")),
+        ("Pfus B [MW]", summary.get("pfus_b", "-")),
+    ])
 
     sub_rows = summary.get("subsystem_diff") or []
     changed = [r for r in sub_rows if isinstance(r, dict) and r.get("changed")]

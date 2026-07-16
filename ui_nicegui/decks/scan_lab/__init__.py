@@ -163,7 +163,8 @@ def _on_decision_scan(session: DesignSession, state: str) -> None:
     tab = DECISION_TO_TAB.get(state)
     if tab and session.scan_teaching_mode:
         session.scan_workflow_step = tab
-        _apply_quick_jump(session, tab)
+        # Do not re-apply stale quick-jump mode — it overwrites the decision tab.
+        session.scan_view_mode = ""
         _render_workflow_chrome.refresh()
         _render_tab_body.refresh()
 
@@ -185,9 +186,8 @@ def _handle_quick_jump(session: DesignSession, cmd: str) -> None:
 
 
 def _apply_quick_jump(session: DesignSession, tab: str) -> None:
-    cmd = str(session.scan_view_mode or "").upper()
-    if cmd in QUICK_JUMP:
-        _handle_quick_jump(session, cmd)
+    """Legacy no-op kept for call-site compatibility; decision path must not re-apply D/F/I/C."""
+    _ = (session, tab)
 
 
 @ui.refreshable
@@ -215,7 +215,7 @@ def _render_tab_body(session: DesignSession) -> None:
         if not isinstance(rep, dict):
             empty_state("Run a cartography scan on **Setup & Run** first.", kind="info")
             render_goto_setup_button(
-                session, attr="scan_workflow_step", on_refresh=_render_tab_body.refresh
+                session, attr="scan_workflow_step", on_refresh=_refresh_all
             )
             return
         workbench.render_workbench(session, rep, on_update=_render_tab_body.refresh)
@@ -224,7 +224,7 @@ def _render_tab_body(session: DesignSession) -> None:
         if not isinstance(rep, dict):
             empty_state("Run a cartography scan first.", kind="info")
             render_goto_setup_button(
-                session, attr="scan_workflow_step", on_refresh=_render_tab_body.refresh
+                session, attr="scan_workflow_step", on_refresh=_refresh_all
             )
             return
         insights.render_interpret_tab(session, rep, on_update=_render_tab_body.refresh)

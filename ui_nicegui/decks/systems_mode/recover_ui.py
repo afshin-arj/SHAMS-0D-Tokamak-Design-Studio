@@ -171,7 +171,13 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             ui.notify("No recovery best point", type="warning")
             return
         applied = apply_x_to_session(session, rep["best_point"])
-        ui.notify(f"Applied {len(applied)} variables to Point Designer inputs", type="positive")
+        from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+        navigate_to_point_designer(session)
+        ui.notify(
+            f"Applied {len(applied)} variables — opened Point Designer Configure.",
+            type="positive",
+        )
 
     ui.button("Run seeded recovery", icon="healing", on_click=_run).props("outline q-mt-sm")
     ui.button("Apply best point → Point Designer", icon="input", on_click=_apply_best_to_inputs).props("flat q-ml-sm")

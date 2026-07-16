@@ -104,7 +104,10 @@ def render_dsg_sidebar(session: DesignSession) -> None:
                 ok = False
             if ok:
                 log_ui_event(session, "UI", "DSGAdopt", {"node_id": sel})
-                ui.notify("Adopted active node into Point Designer.", type="positive")
+                from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+                navigate_to_point_designer(session)
+                ui.notify("Adopted active node — opened Point Designer Configure.", type="positive")
             else:
                 ui.notify("Could not adopt node (missing or incompatible inputs).", type="warning")
 

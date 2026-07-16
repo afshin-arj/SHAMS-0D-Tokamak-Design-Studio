@@ -324,12 +324,32 @@ def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
         "feasible_b": bool(sb.get("feasible")),
         "dominant_a": sa.get("dominant", "-"),
         "dominant_b": sb.get("dominant", "-"),
+        "q_a": sa.get("q_label", "-"),
+        "q_b": sb.get("q_label", "-"),
+        "h98_a": _fmt_kpi((na.get("outputs") or {}).get("H98")),
+        "h98_b": _fmt_kpi((nb.get("outputs") or {}).get("H98")),
+        "pfus_a": _fmt_kpi(
+            _pick_output(na.get("outputs") or {}, "Pfus_total_MW")
+        ),
+        "pfus_b": _fmt_kpi(
+            _pick_output(nb.get("outputs") or {}, "Pfus_total_MW")
+        ),
         "subsystems_a": sa.get("subsystems") or {},
         "subsystems_b": sb.get("subsystems") or {},
         "subsystem_diff": subsystem_diff_rows(art_a, art_b),
         "top_delta": top_delta,
         "n_metrics": len(diffs),
     }
+
+
+def _fmt_kpi(v: Any) -> str:
+    try:
+        f = float(v)
+        if f != f:
+            return "-"
+        return f"{f:.3g}"
+    except (TypeError, ValueError):
+        return "-"
 
 
 def comparison_markdown(art_a: dict, art_b: dict) -> str:

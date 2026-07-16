@@ -73,6 +73,8 @@ def render_posture_strip(art: dict, *, next_action: str = "") -> None:
         ("Mechanism", fmt(mech, digits=16) if mech else "-"),
         ("Margin", fmt(dom_margin) if dom_margin is not None else "-"),
         ("Q", fmt(kpis.get("Q"))),
+        ("H98", fmt(kpis.get("H98"))),
+        ("Pfus [MW]", fmt(kpis.get("P_fus"))),
         ("P_net [MW]", fmt(kpis.get("P_net"))),
         ("q95", fmt(kpis.get("q95"))),
         ("β_N", fmt(kpis.get("beta_N"))),

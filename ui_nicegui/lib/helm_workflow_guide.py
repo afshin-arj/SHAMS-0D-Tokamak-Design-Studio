@@ -34,9 +34,9 @@ DECK_NOW_ACTIONS: dict[str, list[str]] = {
         "Export Scan Atlas capsule for replay.",
     ],
     "Systems Mode": [
-        "Close plant power balance and systems constraints.",
-        "Review feasibility map and recovery posture.",
-        "Save run artifact for Compare or Pareto.",
+        "Set targets and iteration variables, then precheck / solve.",
+        "Review candidates and recovery posture on the constraint ledger.",
+        "Apply a candidate to Point Designer (frozen re-evaluate) or Compare.",
     ],
     "Compare": [
         "Load baseline and scenario artifacts (A & B).",

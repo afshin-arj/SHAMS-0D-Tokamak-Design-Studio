@@ -204,6 +204,7 @@ def _render_workflow(session: DesignSession) -> None:
         tab = DECISION_TO_TAB.get(state)
         if tab and session.pd_teaching_mode:
             session.pd_workflow_tab = tab
+            _render_workflow.refresh()
             _render_tab_body.refresh()
 
     ui.select(

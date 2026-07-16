@@ -211,6 +211,32 @@ def _render_posture(session: DesignSession) -> None:
     else:
         ui.label("Run status: Ready — frozen evaluator armed.").classes("text-caption")
 
+    out = session.pd_last_outputs or session.last_eval
+    if isinstance(out, dict) and out:
+        from ui_nicegui.lib.verdict_core import verdict_summary
+
+        summary = verdict_summary(out)
+        detail = f"{summary.get('verdict', '-')} · Q {summary.get('q_label', '-')} · Dom {summary.get('dominant', '-')}"
+        if not summary.get("feasible"):
+            from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
+
+            atlas = no_solution_atlas_summary(out, design_intent=str(session.design_intent))
+            detail += (
+                f" · {atlas.get('dominant_mechanism', '-')} / "
+                f"{atlas.get('dominant_constraint', '-')}"
+            )
+        ui.label(f"Point: {detail}").classes("text-caption q-mt-xs")
+        try:
+            h98 = float(out.get("H98"))
+            if h98 == h98:
+                ui.label(f"H98(y,2) ≈ {h98:.3g}").classes("text-caption text-grey")
+        except (TypeError, ValueError):
+            pass
+    else:
+        ui.label("Point: No evaluation yet — Evaluate in Point Designer.").classes(
+            "text-caption text-grey q-mt-xs"
+        )
+
     ui.markdown(
         "- **Authority:** Frozen evaluator\n"
         "- **Workspace:** Non-authoritative (proposals only)"
@@ -407,6 +433,12 @@ def _render_benchmark_vault(session: DesignSession) -> None:
                         log_ui_event(session, "UI", "ReferencePresetLoaded", {"preset": key})
                         ui.notify(f"Loaded preset: {key}", type="positive")
                         _helm_settings_section.refresh()
+                        from ui_nicegui.lib.navigation import refresh_current_deck
+                        from ui_nicegui.lib.pd_handoff import prepare_point_designer_handoff
+
+                        prepare_point_designer_handoff(session)
+                        if session.active_deck == "Point Designer":
+                            refresh_current_deck()
                     except Exception as exc:
                         ui.notify(f"Preset load failed: {exc}", type="negative")
 

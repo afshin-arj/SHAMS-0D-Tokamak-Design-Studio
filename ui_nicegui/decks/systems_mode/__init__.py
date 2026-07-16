@@ -153,19 +153,23 @@ def render_systems_mode(session: DesignSession) -> None:
 
     _render_posture(session)
     _render_workflow_chips(session)
+    _render_workflow_tabs(session)
+    _render_tab_content(session)
 
+
+@ui.refreshable
+def _render_workflow_tabs(session: DesignSession) -> None:
     step = normalize_systems_tab(session.systems_workflow_step)
     ui.toggle(
         SYSTEMS_TABS,
         value=step,
         on_change=lambda e: (
             setattr(session, "systems_workflow_step", normalize_systems_tab(str(e.value))),
+            _render_workflow_tabs.refresh(),
             _render_tab_content.refresh(),
         ),
     ).classes("w-full q-mb-xs")
     ui.label(TAB_HELP.get(step, "")).classes("text-caption text-grey q-mb-md")
-
-    _render_tab_content(session)
 
 
 @ui.refreshable
@@ -219,7 +223,12 @@ def _render_workflow_chips(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_tab_content(session: DesignSession) -> None:
-    refresh = lambda: (_render_posture.refresh(), _render_workflow_chips.refresh(), _render_tab_content.refresh())
+    refresh = lambda: (
+        _render_posture.refresh(),
+        _render_workflow_chips.refresh(),
+        _render_workflow_tabs.refresh(),
+        _render_tab_content.refresh(),
+    )
     step = normalize_systems_tab(session.systems_workflow_step)
     art = fetch_systems_artifact(session)
 

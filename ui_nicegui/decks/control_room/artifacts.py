@@ -6,7 +6,7 @@ from nicegui import ui
 from ui_nicegui.decks.control_room import benchmarks_reference
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
-from ui_nicegui.lib.compare_helpers import store_compare_slot
+from ui_nicegui.lib.compare_helpers import open_compare_deck, store_compare_slot
 from ui_nicegui.lib.control_room_helpers import ARTIFACT_TABS, report_to_json_bytes
 from ui_nicegui.lib.cr_artifacts_helpers import (
     artifact_summary,
@@ -142,9 +142,14 @@ def _artifact_view(art: dict, session: DesignSession) -> None:
                 ui.notify("Loaded Compare slot B", type="positive"),
             ),
         ).props("flat outline dense")
-        ui.button("Open Compare deck", icon="open_in_new", on_click=lambda: switch_deck("Compare")).props(
-            "flat outline dense"
-        )
+        ui.button(
+            "Open Compare deck",
+            icon="open_in_new",
+            on_click=lambda: (
+                open_compare_deck(session),
+                ui.notify("Opened Compare deck.", type="info"),
+            ),
+        ).props("flat outline dense")
 
     rows = ledger_rows(art)[:50]
     if rows:

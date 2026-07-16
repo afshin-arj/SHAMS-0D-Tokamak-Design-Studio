@@ -100,18 +100,26 @@ def hero_kpi_cells(
     q_raw = _sf(head.get("Q_DT_eqv", out.get("Q_DT_eqv", out.get("Q"))))
     h98_raw = _sf(head.get("H98", out.get("H98")))
     pnet_raw = _sf(head.get("P_net_e_MW", out.get("P_net_e_MW", out.get("P_e_net_MW"))))
+    pfus_raw = _sf(
+        head.get(
+            "Pfus_total_MW",
+            out.get("Pfus_total_MW", out.get("P_fus_MW", out.get("Pfus_MW"))),
+        )
+    )
 
     notes: List[str] = []
     q_sup, q_note = (False, "")
     h98_sup, h98_note = (False, "")
     pnet_sup = False
+    pfus_sup = False
 
     if not feasible:
         q_extreme_sup, q_extreme_note = _q_infeasible_suppressed(q_raw, fuel_mode=fuel_mode)
         h98_sup, h98_note = _h98_infeasible_suppressed(h98_raw, design_intent=design_intent)
-        # INFEASIBLE: never present Q / P_net,e as design claims (PHYS-KPI-001).
+        # INFEASIBLE: never present Q / P_net,e / Pfus as design claims (PHYS-KPI-001).
         q_sup = math.isfinite(q_raw)
         pnet_sup = math.isfinite(pnet_raw)
+        pfus_sup = math.isfinite(pfus_raw)
         if q_extreme_sup and q_extreme_note:
             q_note = q_extreme_note
         elif q_sup:
@@ -122,10 +130,15 @@ def hero_kpi_cells(
             notes.append(
                 "P_net,e on an INFEASIBLE point is plant bookkeeping residue — not a net-electric claim."
             )
+        if pfus_sup:
+            notes.append(
+                "Pfus on an INFEASIBLE point is fusion-power closure only — not an achievement claim."
+            )
     else:
         q_sup, q_note = (False, "")
         h98_sup, h98_note = (False, "")
         pnet_sup = False
+        pfus_sup = False
 
     if q_note:
         notes.append(q_note)
@@ -150,12 +163,25 @@ def hero_kpi_cells(
     else:
         pnet_display = "n/a"
 
+    if math.isfinite(pfus_raw) and not pfus_sup:
+        pfus_display = f"{_fmt_num(pfus_raw)} MW"
+    elif pfus_sup:
+        pfus_display = "— (diagnostic)"
+    else:
+        pfus_display = "n/a"
+
     nt_label = summary.get("nt_label", "nτE=n/a")
     if not feasible and (q_sup or h98_sup):
         nt_label = "— (diagnostic)"
 
     cells = [
         HeroKpiCell("Performance", q_display, suppressed=q_sup, raw_value=q_raw if math.isfinite(q_raw) else None),
+        HeroKpiCell(
+            "Pfus",
+            pfus_display,
+            suppressed=pfus_sup,
+            raw_value=pfus_raw if math.isfinite(pfus_raw) else None,
+        ),
         HeroKpiCell("H98(y,2)", h98_display, suppressed=h98_sup, raw_value=h98_raw if math.isfinite(h98_raw) else None, note=h98_note),
         HeroKpiCell("P_net,e", pnet_display, suppressed=pnet_sup, raw_value=pnet_raw if math.isfinite(pnet_raw) else None),
         HeroKpiCell("Triple product proxy", nt_label, suppressed=bool(q_sup or h98_sup)),

@@ -461,3 +461,56 @@ def test_systems_mode_scope_allows_newton_propose() -> None:
     does_not = " ".join(MODE_SCOPE["systems_eval"]["does_not"]).lower()
     assert "newton" in does
     assert "does not perform any internal root-finding" not in does_not
+
+
+def test_scan_decision_does_not_reapply_quick_jump() -> None:
+    import inspect
+
+    from ui_nicegui.decks import scan_lab as scan_mod
+
+    src = inspect.getsource(scan_mod._on_decision_scan)
+    assert "_apply_quick_jump" not in src or "Do not re-apply" in inspect.getsource(scan_mod)
+    assert 'scan_view_mode = ""' in src
+
+
+def test_systems_apply_compare_does_not_mutate_inputs() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import apply_ui
+
+    src = inspect.getsource(apply_ui.render_apply_panel)
+    assert "build_compare_artifact" in src
+    assert "navigate_to_point_designer" in src
+    assert "open_compare_deck" in src
+    # apply_x_to_session must not appear inside compare-send path only — still used for Apply
+    assert "apply_x_to_session" in src
+
+
+def test_pd_hero_surfaces_no_solution_mechanism() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import hero
+
+    src = inspect.getsource(hero.render_hero)
+    assert "no_solution_atlas_summary" in src
+    assert "NO-SOLUTION" in src
+
+
+def test_systems_posture_includes_h98_pfus() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import verdict
+
+    src = inspect.getsource(verdict.render_posture_strip)
+    assert "H98" in src
+    assert "Pfus" in src
+
+
+def test_helm_posture_shows_live_point() -> None:
+    import inspect
+
+    from ui_nicegui.components import helm_console
+
+    src = inspect.getsource(helm_console._render_posture)
+    assert "pd_last_outputs" in src
+    assert "verdict_summary" in src

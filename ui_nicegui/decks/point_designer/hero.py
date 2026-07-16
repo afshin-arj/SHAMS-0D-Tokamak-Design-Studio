@@ -64,6 +64,17 @@ def render_hero(session: DesignSession) -> None:
 
     verdict_banner(summary["verdict"], detail=detail)
 
+    if not summary.get("feasible"):
+        from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
+
+        atlas = no_solution_atlas_summary(out, design_intent=str(session.design_intent))
+        ui.label(
+            f"NO-SOLUTION · Mechanism: {atlas.get('dominant_mechanism', '-')} · "
+            f"Constraint: {atlas.get('dominant_constraint', '-')}"
+        ).classes("text-caption text-orange q-mb-xs")
+        if bool(out.get("mirage_flag_v402")):
+            ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
+
     fuel_mode = str(session.inputs.get("fuel_mode", "DT"))
     cells = hero_kpi_cells(
         out,

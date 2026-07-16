@@ -20,22 +20,25 @@ def _summary_infeasible() -> dict:
 
 
 def test_hero_suppresses_extreme_q_on_infeasible() -> None:
-    out = {"Q_DT_eqv": 679.0, "H98": 1.07, "P_net_e_MW": 100.0}
+    out = {"Q_DT_eqv": 679.0, "H98": 1.07, "P_net_e_MW": 100.0, "Pfus_total_MW": 500.0}
     cells = hero_kpi_cells(out, _summary_infeasible(), design_intent="Power Reactor (net-electric)")
-    perf = cells[0]
-    assert perf.suppressed is True
-    assert "diagnostic" in perf.display.lower()
-    assert cells[2].suppressed is True
+    by_label = {c.label: c for c in cells}
+    assert by_label["Performance"].suppressed is True
+    assert "diagnostic" in by_label["Performance"].display.lower()
+    assert by_label["P_net,e"].suppressed is True
+    assert by_label["Pfus"].suppressed is True
 
 
 def test_hero_suppresses_moderate_q_and_pnet_on_infeasible_research() -> None:
     """PHYS-KPI-001: Q≈13 / P_net on INFEASIBLE Research must not read as hero claims."""
-    out = {"Q_DT_eqv": 13.2, "H98": 1.9, "P_net_e_MW": 114.0}
+    out = {"Q_DT_eqv": 13.2, "H98": 1.9, "P_net_e_MW": 114.0, "Pfus_total_MW": 200.0}
     cells = hero_kpi_cells(out, _summary_infeasible(), design_intent="Experimental Device (research)")
-    assert cells[0].suppressed is True
-    assert "diagnostic" in cells[0].display.lower()
-    assert cells[2].suppressed is True
-    assert "diagnostic" in cells[2].display.lower()
+    by_label = {c.label: c for c in cells}
+    assert by_label["Performance"].suppressed is True
+    assert "diagnostic" in by_label["Performance"].display.lower()
+    assert by_label["P_net,e"].suppressed is True
+    assert "diagnostic" in by_label["P_net,e"].display.lower()
+    assert by_label["Pfus"].suppressed is True
 
 
 def test_hero_research_exhaust_diagnostic_note() -> None:
@@ -59,13 +62,13 @@ def test_hero_research_exhaust_diagnostic_note() -> None:
 def test_hero_suppresses_high_h98_on_infeasible() -> None:
     out = {"Q_DT_eqv": 5.0, "H98": 3.28, "P_net_e_MW": 50.0}
     cells = hero_kpi_cells(out, _summary_infeasible(), design_intent="Experimental Device (research)")
-    h98 = cells[1]
+    h98 = next(c for c in cells if c.label == "H98(y,2)")
     assert h98.suppressed is True
     assert "implied" in h98.display.lower()
 
 
 def test_hero_shows_kpis_when_feasible() -> None:
-    out = {"Q_DT_eqv": 2.5, "H98": 1.05, "P_net_e_MW": 120.0}
+    out = {"Q_DT_eqv": 2.5, "H98": 1.05, "P_net_e_MW": 120.0, "Pfus_total_MW": 400.0}
     summary = {
         "loaded": True,
         "feasible": True,
@@ -75,9 +78,11 @@ def test_hero_shows_kpis_when_feasible() -> None:
         "subsystems": {},
     }
     cells = hero_kpi_cells(out, summary, design_intent="Power Reactor (net-electric)")
-    assert cells[0].suppressed is False
-    assert cells[1].suppressed is False
-    assert "120" in cells[2].display
+    by_label = {c.label: c for c in cells}
+    assert by_label["Performance"].suppressed is False
+    assert by_label["H98(y,2)"].suppressed is False
+    assert "120" in by_label["P_net,e"].display
+    assert "400" in by_label["Pfus"].display
 
 
 def test_confidence_preset_overwrites_knobs() -> None:

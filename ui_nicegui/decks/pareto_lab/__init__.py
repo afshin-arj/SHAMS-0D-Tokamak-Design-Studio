@@ -18,6 +18,7 @@ from ui_nicegui.decks.pareto_lab import (
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+from ui_nicegui.lib.navigation import refresh_active_deck
 from ui_nicegui.lib.pareto_labels import (
     ALL_EXTERNAL as EXTERNAL_DECKS,
     DECISION_STATES,
@@ -144,7 +145,7 @@ def _render_tab_body(session: DesignSession) -> None:
             empty_state("Run a Pareto study on **Setup & Run** first.", kind="info")
             ui.button("Go to Setup & Run", icon="settings", on_click=lambda: (
                 setattr(session, "pareto_workflow_step", "1 · Setup & Run"),
-                _render_tab_body.refresh(),
+                refresh_active_deck(),
             )).props("outline")
             return
         explore.render_explore_tab(session, session.pareto_last, on_update=_render_tab_body.refresh)
@@ -152,7 +153,9 @@ def _render_tab_body(session: DesignSession) -> None:
         if not isinstance(session.pareto_last, dict):
             empty_state("Run a Pareto study first.", kind="info")
             render_goto_setup_button(
-                session, attr="pareto_workflow_step", on_refresh=_render_tab_body.refresh
+                session,
+                attr="pareto_workflow_step",
+                on_refresh=refresh_active_deck,
             )
             return
         interpret.render_interpret_tab(session, session.pareto_last)
