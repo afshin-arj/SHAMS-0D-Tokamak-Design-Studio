@@ -6,6 +6,7 @@ from nicegui import ui
 from ui_nicegui.decks.control_room import assumptions_panel, constraint_provenance, constraints_governance
 from ui_nicegui.lib.control_room_helpers import (
     CHAMPION_CASES_DOC,
+    CITE_SHAMS_HANDOFF_DOC,
     CONST_TABS,
     MIGRATION_GUIDE_DOC,
     RETIREMENT_REPORT_DOC,
@@ -59,6 +60,7 @@ def _panel(session: DesignSession) -> None:
             "PROCESS handoff: PROCESS_TO_SHAMS_MIGRATION_GUIDE.md. "
             "Champion templates: CHAMPION_CASES.md (SHAMS-only feasibility + NO-SOLUTION stories). "
             "Scoped retirement evidence: PROCESS_RETIREMENT_REPORT.md (no blanket retirement claim). "
+            "Cite-SHAMS handoff: CITE_SHAMS_HANDOFF.md (VERSION + artifact hashes; PROCESS import optional). "
             "Cite VERSION + hashes — no invented MFILE numbers."
         ).classes("text-caption q-mb-sm")
         docs = list_docs()
@@ -72,6 +74,8 @@ def _panel(session: DesignSession) -> None:
                 session.cr_docs_sel = CHAMPION_CASES_DOC
             elif RETIREMENT_REPORT_DOC in docs:
                 session.cr_docs_sel = RETIREMENT_REPORT_DOC
+            elif CITE_SHAMS_HANDOFF_DOC in docs:
+                session.cr_docs_sel = CITE_SHAMS_HANDOFF_DOC
             else:
                 session.cr_docs_sel = docs[0]
         ui.select(

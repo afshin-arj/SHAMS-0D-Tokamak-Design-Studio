@@ -2,7 +2,7 @@
 
 **Schema:** `shams.process_retirement_report.v1`  
 **SHAMS VERSION:** `v418.1.0`  
-**Report SHA-256:** `ee6dc7182fc048c01ad14ae0d9f7f69537eb8e09c4b9f620d34b3b1fdf52d897`  
+**Report SHA-256:** `4e485546a1108d7b5a0395e2ebb9fb80896cd8028a1c57775adadd425a74c161`  
 **Independence ticket:** 4.1 (Phase 4)
 
 ## Verdict (scoped — not a blanket claim)

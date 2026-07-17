@@ -222,3 +222,27 @@ def _export_share(session: DesignSession) -> None:
         icon="folder_zip",
         on_click=lambda: ui.download(export_artifact_bundle(art), "shams_artifact_bundle.zip"),
     ).props("outline q-mt-sm")
+
+    def _cite_pack() -> None:
+        try:
+            try:
+                from reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
+            except ImportError:
+                from src.reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
+            pack = build_cite_shams_handoff_pack(art)
+            ui.download(
+                pack["zip_bytes"],
+                pack.get("suggested_filename") or "shams_cite_handoff.zip",
+            )
+            ui.notify("Cite-SHAMS handoff pack ready", type="positive")
+        except Exception as exc:
+            ui.notify(f"Cite-SHAMS pack failed: {exc}", type="negative")
+
+    ui.button(
+        "Download cite-SHAMS handoff pack",
+        icon="inventory_2",
+        on_click=_cite_pack,
+    ).props("outline color=primary q-mt-sm")
+    ui.label(
+        "Cite VERSION + artifact SHA-256 — PROCESS import optional for new studies."
+    ).classes("text-caption text-grey-7 q-mt-xs")

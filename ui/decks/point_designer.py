@@ -3933,6 +3933,22 @@ include_authority_dominance_v402=bool(locals().get('include_authority_dominance_
                                     use_container_width=True,
                                 )
 
+                                # Independence 4.2: Cite-SHAMS handoff pack (VERSION + hashes + citation)
+                                try:
+                                    from reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
+                                    _cite_pack = build_cite_shams_handoff_pack(artifact)
+                                    st.download_button(
+                                        "Download cite-SHAMS handoff pack",
+                                        data=_cite_pack["zip_bytes"],
+                                        file_name=_cite_pack.get("suggested_filename") or "shams_cite_handoff.zip",
+                                        mime="application/zip",
+                                        use_container_width=True,
+                                        key="pd_cite_shams_handoff_pack",
+                                        help="VERSION + PointInputs + artifact SHA-256 + citation; PROCESS import optional.",
+                                    )
+                                except Exception as _cite_exc:
+                                    st.caption(f"Cite-SHAMS handoff pack unavailable: {_cite_exc}")
+
                                 # Quick interop: send this run artifact to Compare session slots (A/B)
                                 st.caption("Quick interop: send the current run to Compare without downloading/uploading files.")
                                 _c1, _c2, _c3 = st.columns([1, 1, 1])

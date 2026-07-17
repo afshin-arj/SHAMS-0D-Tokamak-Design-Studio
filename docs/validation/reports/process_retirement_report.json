@@ -197,7 +197,7 @@
         {
           "kind": "limitations",
           "path": "docs/LIMITATIONS.md",
-          "sha256": "e7d9c3d27562d78516d9508c1205624f894f5afe71e29fca4b810c62ff14bef6"
+          "sha256": "9ceaaa73642beba501c841be1aa83aa447d1727d6eb42dbc7bc73eb7da1303b0"
         }
       ],
       "limitations": [
@@ -372,11 +372,11 @@
       "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
     },
     "limitations": {
-      "bytes": 3775,
+      "bytes": 3959,
       "exists": true,
       "label": "limitations",
       "path": "docs/LIMITATIONS.md",
-      "sha256": "e7d9c3d27562d78516d9508c1205624f894f5afe71e29fca4b810c62ff14bef6"
+      "sha256": "9ceaaa73642beba501c841be1aa83aa447d1727d6eb42dbc7bc73eb7da1303b0"
     },
     "migration_guide": {
       "bytes": 12391,
@@ -523,7 +523,7 @@
     ]
   },
   "independence_phase": 4,
-  "report_sha256": "ee6dc7182fc048c01ad14ae0d9f7f69537eb8e09c4b9f620d34b3b1fdf52d897",
+  "report_sha256": "4e485546a1108d7b5a0395e2ebb9fb80896cd8028a1c57775adadd425a74c161",
   "schema": "shams.process_retirement_report.v1",
   "shams_version": "v418.1.0",
   "ticket": "4.1",

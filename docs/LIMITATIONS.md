@@ -46,4 +46,4 @@ This document is the public limitations list for CONDITIONAL scientific release.
 
 ## Citation posture
 
-Cite `VERSION` + artifact SHA-256 hashes for feasibility studies. Use `CITATION.cff` for software citation metadata. For PROCESS comparisons, attach a parity dossier (METHOD-ONLY or NUMERIC) and declare assumptions — never soft-land infeasibility to look like solver convergence.
+Cite `VERSION` + artifact SHA-256 hashes for feasibility studies. Use `CITATION.cff` for software citation metadata. Prefer the **Cite-SHAMS handoff pack** (`docs/CITE_SHAMS_HANDOFF.md` — Point Designer / Control Room export) as the default handoff for new studies; PROCESS import remains optional. For PROCESS comparisons, attach a parity dossier (METHOD-ONLY or NUMERIC) and declare assumptions — never soft-land infeasibility to look like solver convergence.
