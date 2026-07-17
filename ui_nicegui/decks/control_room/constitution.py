@@ -8,6 +8,7 @@ from ui_nicegui.lib.control_room_helpers import (
     CHAMPION_CASES_DOC,
     CONST_TABS,
     MIGRATION_GUIDE_DOC,
+    RETIREMENT_REPORT_DOC,
     list_docs,
     read_capability_matrix,
     read_doc,
@@ -57,6 +58,7 @@ def _panel(session: DesignSession) -> None:
         ui.label(
             "PROCESS handoff: PROCESS_TO_SHAMS_MIGRATION_GUIDE.md. "
             "Champion templates: CHAMPION_CASES.md (SHAMS-only feasibility + NO-SOLUTION stories). "
+            "Scoped retirement evidence: PROCESS_RETIREMENT_REPORT.md (no blanket retirement claim). "
             "Cite VERSION + hashes — no invented MFILE numbers."
         ).classes("text-caption q-mb-sm")
         docs = list_docs()
@@ -68,6 +70,8 @@ def _panel(session: DesignSession) -> None:
                 session.cr_docs_sel = MIGRATION_GUIDE_DOC
             elif CHAMPION_CASES_DOC in docs:
                 session.cr_docs_sel = CHAMPION_CASES_DOC
+            elif RETIREMENT_REPORT_DOC in docs:
+                session.cr_docs_sel = RETIREMENT_REPORT_DOC
             else:
                 session.cr_docs_sel = docs[0]
         ui.select(

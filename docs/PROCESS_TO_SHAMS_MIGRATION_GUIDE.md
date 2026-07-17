@@ -206,6 +206,7 @@ This guide is documentation-first; Control Room → Constitution → Docs Librar
 - Soft-landing NO-SOLUTION to look like PROCESS convergence  
 - Inventing PROCESS reference numbers for plots or dossiers  
 - Claiming “PROCESS retired” without a scoped `process_retirement_report` + evidence  
+  (see **`docs/PROCESS_RETIREMENT_REPORT.md`** / `src/reports/process_retirement_report.py`)  
 - Showing healthy `Pe_net` / COE on hard-infeasible points without watermark  
 - Treating MATCH overlays (magnets, build, plant, cost) as L0 truth when flags are OFF  
 

@@ -67,6 +67,7 @@ STUDIO_STEPS = [
 STUDIO_DOC_LINKS: List[Tuple[str, str]] = [
     ("PROCESS → SHAMS migration guide", "docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md"),
     ("Champion feasibility cases", "docs/CHAMPION_CASES.md"),
+    ("Scoped PROCESS retirement evidence", "docs/PROCESS_RETIREMENT_REPORT.md"),
 ]
 
 # Map champion Design Intent onto the Helm Console mission-profile options.

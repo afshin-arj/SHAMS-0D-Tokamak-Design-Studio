@@ -1,0 +1,536 @@
+{
+  "coverage_summary": {
+    "n_not_covered": 6,
+    "n_scoped_covered_or_proxy": 8,
+    "not_covered": [
+      "approved_zenodo_doi",
+      "bankable_cost_coe",
+      "full_process_cli_breadth",
+      "neutrals_edge_physics",
+      "process_numeric_parity",
+      "stellarator_ife"
+    ],
+    "scoped_covered_or_proxy": [
+      "ccfs_propose_only",
+      "demo_match_overlays_proxy",
+      "no_solution_attribution",
+      "plant_kpi_honesty",
+      "process_method_only_parity",
+      "process_migration_path",
+      "scientific_release_conditional",
+      "tokamak_0d_feasibility"
+    ]
+  },
+  "domains": [
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "ccfs_propose_only",
+      "evidence": [
+        {
+          "kind": "ccfs",
+          "path": "tests/test_ccfs_verified_hard_gate.py",
+          "sha256": "cba5a6511ad71d66ec8cd12976b9b65768ddbaac55745c355b47d7aa7e8c507e"
+        }
+      ],
+      "limitations": [],
+      "process_role": "optional_proposer",
+      "summary": "Optimizers (including PROCESS) may propose inputs only; SHAMS re-evaluates and refuses VERIFIED claims when hard constraints fail.",
+      "title": "External optimization propose-only (CCFS)"
+    },
+    {
+      "coverage": "PROXY_OVERLAY",
+      "domain_id": "demo_match_overlays_proxy",
+      "evidence": [
+        {
+          "kind": "overlay",
+          "overlays": [
+            {
+              "exists": true,
+              "module": "magnet_sc_system_authority_v410",
+              "overlay_id": "v410",
+              "sha256": "5bc5e8f3e165da2cb8911270b3df5979a367ed254593e14ee46ec32a35be7e39"
+            },
+            {
+              "exists": true,
+              "module": "machine_build_authority_v412",
+              "overlay_id": "v412",
+              "sha256": "43dd0ba994e829517da36b942ff7b5c533c98b31b48abb93dc27db7be056f8a1"
+            },
+            {
+              "exists": true,
+              "module": "plant_sankey_ledger_authority_v419",
+              "overlay_id": "v419",
+              "sha256": "90b98a604920dfae3c8e110a667d143de292b7a13aeea13c88f34da7b9dd0abf"
+            },
+            {
+              "exists": true,
+              "module": "availability_opex_lcoe_authority_v420",
+              "overlay_id": "v420",
+              "sha256": "a583754dd9f51395ddc2fe5a3ce8aac2734823aeefe5be301b48f928f3111706"
+            },
+            {
+              "exists": true,
+              "module": "bottom_up_costing_authority_v421",
+              "overlay_id": "v421",
+              "sha256": "b90c49ae5cf2646ddac1de7160edea93160dd7f951d4b5fbd93b30d21455b906"
+            }
+          ]
+        }
+      ],
+      "limitations": [
+        "Overlays are PROXY-labeled engineering coverage \u2014 not bankable cost models and not PROCESS MFILE clones."
+      ],
+      "process_role": "optional_proposer",
+      "summary": "Versioned MATCH overlays v410/v412/v419/v420/v421 provide magnet, build, Sankey, availability\u2013OPEX\u2013LCOE, and bottom-up costing narratives (OFF by default).",
+      "title": "DEMO MATCH engineering overlays (proxy)"
+    },
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "no_solution_attribution",
+      "evidence": [
+        {
+          "case_citation_sha256": [
+            {
+              "case_id": "champion.reactor_conservative.iter_like",
+              "citation_sha256": "28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8"
+            },
+            {
+              "case_id": "champion.sparc_class.burning_plasma",
+              "citation_sha256": "d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55"
+            },
+            {
+              "case_id": "champion.sparc_class.overdriven_nosolution",
+              "citation_sha256": "f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6"
+            },
+            {
+              "case_id": "champion.step_like.st_baseline",
+              "citation_sha256": "10f72a61268e8042a0efdf93d1102b42ed117c2e58ace19063913a321c750d3e"
+            }
+          ],
+          "cases_path": "benchmarks/champions/cases.json",
+          "kind": "champion",
+          "n_cases": 4,
+          "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
+        },
+        {
+          "champion_infeasible_with_atlas": [
+            "champion.sparc_class.overdriven_nosolution",
+            "champion.step_like.st_baseline"
+          ],
+          "kind": "atlas",
+          "path": "tests/test_no_solution_atlas.py",
+          "sha256": "d8c9c22c446d0973b227eb6629abc2cca7a3f7298a0b4d2cd39972d78c95c861"
+        }
+      ],
+      "limitations": [],
+      "process_role": "optional_proposer",
+      "summary": "Hard-infeasible runs stamp no_solution_atlas.v1 with dominant mechanism; infeasible champion cases exercise this path.",
+      "title": "NO-SOLUTION mechanism attribution"
+    },
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "plant_kpi_honesty",
+      "evidence": [
+        {
+          "kind": "plant_kpi",
+          "path": "tests/test_plant_kpi_honesty.py",
+          "sha256": "e3d10dbfceaefa5973e3bf4b177bcc4e6c36e20f9f1a13fa1d134bed6c8b304f"
+        }
+      ],
+      "limitations": [],
+      "process_role": "optional_proposer",
+      "summary": "Healthy Pe_net / COE / LCOE are watermarked when hard-infeasible (plant_kpi_honesty.v1).",
+      "title": "Plant KPI honesty watermark"
+    },
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "process_method_only_parity",
+      "evidence": [
+        {
+          "corpus_sha256": "eff27468bfb62bef260b503ef82a58f3809345f1e9a9ac4bb58b4c9414cd1e95",
+          "corpus_status": "METHOD-ONLY",
+          "dossiers": [
+            {
+              "case_id": "method_only_hts_compact_001",
+              "declared_sha256": "7f6aff4fa98df6138a6cba6910c7b5193db8e7e95268ab866f46b07a5765fc54",
+              "dossier_status": "METHOD-ONLY",
+              "file_sha256": "7f6aff4fa98df6138a6cba6910c7b5193db8e7e95268ab866f46b07a5765fc54",
+              "hash_match": true,
+              "path": "benchmarks/parity/dossiers/method_only_hts_compact_001_delta_dossier.json"
+            }
+          ],
+          "kind": "parity"
+        }
+      ],
+      "limitations": [
+        "METHOD-ONLY is not numeric parity. Do not claim PROCESS KPI agreement."
+      ],
+      "process_role": "legacy_reproduce_when_mfile_available",
+      "summary": "Hashed METHOD-ONLY delta dossiers record SHAMS side + mapping assumptions; PROCESS numeric KPIs remain null until a lab lands a licensed MFILE.",
+      "title": "PROCESS parity honesty (METHOD-ONLY)"
+    },
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "process_migration_path",
+      "evidence": [
+        {
+          "kind": "migration",
+          "path": "docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md",
+          "sha256": "64db3c508e6edaefaa5c3d26d0debdec2c301ce33fbaa9b264143e8bebaa2287"
+        }
+      ],
+      "limitations": [],
+      "process_role": "handoff_documented",
+      "summary": "Community migration guide maps IN.DAT\u2192PointInputs, MFILE\u2192artifacts, and CCFS propose-only citation practice.",
+      "title": "PROCESS \u2192 SHAMS migration path"
+    },
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "scientific_release_conditional",
+      "evidence": [
+        {
+          "kind": "release_gate",
+          "path": "docs/validation/reports/scientific_release_readiness_20260716.md",
+          "sha256": "20e2b9a4d0f1b43578999e5ea4665fe9839c265063a9f046af30ffebc8df8e36",
+          "verdict": "CONDITIONAL"
+        },
+        {
+          "kind": "limitations",
+          "path": "docs/LIMITATIONS.md",
+          "sha256": "e7d9c3d27562d78516d9508c1205624f894f5afe71e29fca4b810c62ff14bef6"
+        }
+      ],
+      "limitations": [
+        "Release status is CONDITIONAL \u2014 not APPROVED."
+      ],
+      "process_role": "n_a",
+      "summary": "Phase 1.4 release gate verdict is CONDITIONAL with documented limitations; APPROVED / Zenodo DOI path is documented but not claimed.",
+      "title": "Scientific release readiness (CONDITIONAL)"
+    },
+    {
+      "coverage": "SCOPED_COVERED",
+      "domain_id": "tokamak_0d_feasibility",
+      "evidence": [
+        {
+          "case_citation_sha256": [
+            {
+              "case_id": "champion.reactor_conservative.iter_like",
+              "citation_sha256": "28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8"
+            },
+            {
+              "case_id": "champion.sparc_class.burning_plasma",
+              "citation_sha256": "d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55"
+            },
+            {
+              "case_id": "champion.sparc_class.overdriven_nosolution",
+              "citation_sha256": "f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6"
+            },
+            {
+              "case_id": "champion.step_like.st_baseline",
+              "citation_sha256": "10f72a61268e8042a0efdf93d1102b42ed117c2e58ace19063913a321c750d3e"
+            }
+          ],
+          "cases_path": "benchmarks/champions/cases.json",
+          "kind": "champion",
+          "n_cases": 4,
+          "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
+        },
+        {
+          "kind": "version",
+          "value": "v418.1.0"
+        },
+        {
+          "kind": "ccfs",
+          "path": "tests/test_ccfs_verified_hard_gate.py",
+          "sha256": "cba5a6511ad71d66ec8cd12976b9b65768ddbaac55745c355b47d7aa7e8c507e"
+        }
+      ],
+      "limitations": [],
+      "process_role": "optional_proposer",
+      "summary": "SHAMS frozen L0 evaluator + Design Intent hard set certify whether a tokamak point design is admissible; champion cases provide citeable packs.",
+      "title": "Tokamak 0-D feasibility certification"
+    },
+    {
+      "coverage": "NOT_COVERED",
+      "domain_id": "approved_zenodo_doi",
+      "evidence": [],
+      "limitations": [],
+      "process_role": "n_a",
+      "summary": "Archival checklist and packaging exist; DOI is not minted and APPROVED verdict is not claimed while CONDITIONAL waivers remain.",
+      "title": "APPROVED scientific release + Zenodo DOI",
+      "why_not_covered": "Release verdict remains CONDITIONAL; no DOI minted."
+    },
+    {
+      "coverage": "NOT_COVERED",
+      "domain_id": "bankable_cost_coe",
+      "evidence": [],
+      "limitations": [],
+      "process_role": "still_needed_or_specialist_tools",
+      "summary": "v421 is a transparent modular CAPEX proxy, not a bankable cost model; do not treat it as Generomak/PROCESS cost truth.",
+      "title": "Bankable / institutional cost & COE authority",
+      "why_not_covered": "Economics overlays remain PROXY; no institutional cost validation pack."
+    },
+    {
+      "coverage": "NOT_COVERED",
+      "domain_id": "full_process_cli_breadth",
+      "evidence": [],
+      "limitations": [],
+      "process_role": "still_leads_for_breadth",
+      "summary": "SHAMS serves feasibility authority + selective MATCH overlays; it does not clone PROCESS's full mutable megamodel / VaryRun operational lore.",
+      "title": "Full PROCESS-class coupled plant CLI breadth",
+      "why_not_covered": "Independence \u2260 feature-count clone; breadth remains selective MATCH."
+    },
+    {
+      "coverage": "NOT_COVERED",
+      "domain_id": "neutrals_edge_physics",
+      "evidence": [],
+      "limitations": [],
+      "process_role": "specialist_codes",
+      "summary": "Not present as a SHAMS frozen-truth domain.",
+      "title": "Neutrals / edge / scrape-off detailed physics",
+      "why_not_covered": "Missing physics coverage in SHAMS L0 / authorities."
+    },
+    {
+      "coverage": "NOT_COVERED",
+      "domain_id": "process_numeric_parity",
+      "evidence": [],
+      "limitations": [],
+      "process_role": "still_needed_for_numeric_compare",
+      "summary": "No licensed PROCESS MFILE / OUT.DAT extract is in-repo. Corpus stays METHOD-ONLY until a lab contributes provenance-tagged numerics.",
+      "title": "PROCESS numeric KPI parity (MFILE-backed)",
+      "why_not_covered": "Missing licensed PROCESS reference KPIs."
+    },
+    {
+      "coverage": "NOT_COVERED",
+      "domain_id": "stellarator_ife",
+      "evidence": [],
+      "limitations": [],
+      "process_role": "out_of_scope",
+      "summary": "Outside SHAMS tokamak 0-D mission (IGNORE unless explicitly requested).",
+      "title": "Stellarator / IFE systems studies",
+      "why_not_covered": "Mission scope \u2014 not a tokamak 0-D feasibility domain."
+    }
+  ],
+  "evidence_index": {
+    "ccfs_hard_gate_test": {
+      "bytes": 11533,
+      "exists": true,
+      "label": "ccfs_hard_gate_test",
+      "path": "tests/test_ccfs_verified_hard_gate.py",
+      "sha256": "cba5a6511ad71d66ec8cd12976b9b65768ddbaac55745c355b47d7aa7e8c507e"
+    },
+    "champions": {
+      "cases": [
+        {
+          "case_id": "champion.reactor_conservative.iter_like",
+          "citation_sha256": "28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8",
+          "dominant_constraint": null,
+          "dominant_mechanism": null,
+          "hard_feasible": true,
+          "has_no_solution_atlas": false,
+          "title": "Reactor-class conservative (ITER-like Research)"
+        },
+        {
+          "case_id": "champion.sparc_class.burning_plasma",
+          "citation_sha256": "d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55",
+          "dominant_constraint": null,
+          "dominant_mechanism": null,
+          "hard_feasible": true,
+          "has_no_solution_atlas": false,
+          "title": "SPARC-class compact HTS burning-plasma (Research)"
+        },
+        {
+          "case_id": "champion.sparc_class.overdriven_nosolution",
+          "citation_sha256": "f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6",
+          "dominant_constraint": "q95",
+          "dominant_mechanism": "PROFILE",
+          "hard_feasible": false,
+          "has_no_solution_atlas": true,
+          "title": "SPARC-class overdriven variant (Research) \u2014 NO-SOLUTION"
+        },
+        {
+          "case_id": "champion.step_like.st_baseline",
+          "citation_sha256": "10f72a61268e8042a0efdf93d1102b42ed117c2e58ace19063913a321c750d3e",
+          "dominant_constraint": "q95",
+          "dominant_mechanism": "PROFILE",
+          "hard_feasible": false,
+          "has_no_solution_atlas": true,
+          "title": "STEP-like spherical tokamak baseline (Reactor) \u2014 NO-SOLUTION"
+        }
+      ],
+      "cases_file": {
+        "bytes": 2146,
+        "exists": true,
+        "label": "champion_cases_json",
+        "path": "benchmarks/champions/cases.json",
+        "sha256": "e1d5dfc8e148e59345a7221a4e608ec3c419445df350a97959658c8183ca43aa"
+      },
+      "evaluated": true,
+      "n_cases": 4,
+      "n_hard_feasible": 2,
+      "n_infeasible": 2,
+      "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
+    },
+    "limitations": {
+      "bytes": 3775,
+      "exists": true,
+      "label": "limitations",
+      "path": "docs/LIMITATIONS.md",
+      "sha256": "e7d9c3d27562d78516d9508c1205624f894f5afe71e29fca4b810c62ff14bef6"
+    },
+    "migration_guide": {
+      "bytes": 12391,
+      "exists": true,
+      "label": "migration_guide",
+      "path": "docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md",
+      "sha256": "64db3c508e6edaefaa5c3d26d0debdec2c301ce33fbaa9b264143e8bebaa2287"
+    },
+    "no_solution_atlas_test": {
+      "bytes": 3729,
+      "exists": true,
+      "label": "no_solution_atlas_test",
+      "path": "tests/test_no_solution_atlas.py",
+      "sha256": "d8c9c22c446d0973b227eb6629abc2cca7a3f7298a0b4d2cd39972d78c95c861"
+    },
+    "overlays": [
+      {
+        "bytes": 60,
+        "default": "OFF",
+        "exists": true,
+        "label": "magnet_sc_system_authority_v410",
+        "maturity": "PROXY",
+        "module": "magnet_sc_system_authority_v410",
+        "overlay_id": "v410",
+        "path": "analysis/magnet_sc_system_authority_v410.py",
+        "sha256": "5bc5e8f3e165da2cb8911270b3df5979a367ed254593e14ee46ec32a35be7e39",
+        "title": "TF/PF/CS superconducting system margins"
+      },
+      {
+        "bytes": 57,
+        "default": "OFF",
+        "exists": true,
+        "label": "machine_build_authority_v412",
+        "maturity": "PROXY",
+        "module": "machine_build_authority_v412",
+        "overlay_id": "v412",
+        "path": "analysis/machine_build_authority_v412.py",
+        "sha256": "43dd0ba994e829517da36b942ff7b5c533c98b31b48abb93dc27db7be056f8a1",
+        "title": "Radial / machine-build closure"
+      },
+      {
+        "bytes": 63,
+        "default": "OFF",
+        "exists": true,
+        "label": "plant_sankey_ledger_authority_v419",
+        "maturity": "PROXY",
+        "module": "plant_sankey_ledger_authority_v419",
+        "overlay_id": "v419",
+        "path": "analysis/plant_sankey_ledger_authority_v419.py",
+        "sha256": "90b98a604920dfae3c8e110a667d143de292b7a13aeea13c88f34da7b9dd0abf",
+        "title": "Plant Sankey-grade power ledger"
+      },
+      {
+        "bytes": 66,
+        "default": "OFF",
+        "exists": true,
+        "label": "availability_opex_lcoe_authority_v420",
+        "maturity": "PROXY",
+        "module": "availability_opex_lcoe_authority_v420",
+        "overlay_id": "v420",
+        "path": "analysis/availability_opex_lcoe_authority_v420.py",
+        "sha256": "a583754dd9f51395ddc2fe5a3ce8aac2734823aeefe5be301b48f928f3111706",
+        "title": "Availability \u2192 OPEX / LCOE coupling"
+      },
+      {
+        "bytes": 61,
+        "default": "OFF",
+        "exists": true,
+        "label": "bottom_up_costing_authority_v421",
+        "maturity": "PROXY",
+        "module": "bottom_up_costing_authority_v421",
+        "overlay_id": "v421",
+        "path": "analysis/bottom_up_costing_authority_v421.py",
+        "sha256": "b90c49ae5cf2646ddac1de7160edea93160dd7f951d4b5fbd93b30d21455b906",
+        "title": "Bottom-up modular CAPEX costing"
+      }
+    ],
+    "parity": {
+      "cases": [
+        {
+          "case_id": "method_only_hts_compact_001",
+          "dossier_status": "METHOD-ONLY",
+          "label": "HTS compact high-field (METHOD-ONLY PROCESS parity anchor)"
+        }
+      ],
+      "corpus": {
+        "bytes": 2223,
+        "exists": true,
+        "label": "parity_corpus",
+        "path": "benchmarks/parity/process_reference_cases.json",
+        "sha256": "eff27468bfb62bef260b503ef82a58f3809345f1e9a9ac4bb58b4c9414cd1e95"
+      },
+      "corpus_status": "METHOD-ONLY",
+      "dossier_hashes_ok": true,
+      "dossiers": [
+        {
+          "case_id": "method_only_hts_compact_001",
+          "declared_sha256": "7f6aff4fa98df6138a6cba6910c7b5193db8e7e95268ab866f46b07a5765fc54",
+          "dossier_status": "METHOD-ONLY",
+          "file_sha256": "7f6aff4fa98df6138a6cba6910c7b5193db8e7e95268ab866f46b07a5765fc54",
+          "hash_match": true,
+          "path": "benchmarks/parity/dossiers/method_only_hts_compact_001_delta_dossier.json"
+        }
+      ],
+      "numeric_parity_available": false
+    },
+    "plant_kpi_honesty_test": {
+      "bytes": 5352,
+      "exists": true,
+      "label": "plant_kpi_honesty_test",
+      "path": "tests/test_plant_kpi_honesty.py",
+      "sha256": "e3d10dbfceaefa5973e3bf4b177bcc4e6c36e20f9f1a13fa1d134bed6c8b304f"
+    },
+    "release_gate": {
+      "bytes": 13559,
+      "exists": true,
+      "label": "scientific_release_gate",
+      "path": "docs/validation/reports/scientific_release_readiness_20260716.md",
+      "sha256": "20e2b9a4d0f1b43578999e5ea4665fe9839c265063a9f046af30ffebc8df8e36",
+      "verdict": "CONDITIONAL"
+    },
+    "version": {
+      "bytes": 10,
+      "exists": true,
+      "label": "VERSION",
+      "path": "VERSION",
+      "sha256": "44d7ed0923d8da81fac41b088363afca2ef724f3b8ef917fc3b69b4583378d2a",
+      "value": "v418.1.0"
+    }
+  },
+  "generated_at_unix": 0.0,
+  "honesty": {
+    "conditional_release_stated": true,
+    "invented_mfile": false,
+    "method_only_means_no_numeric_parity": true,
+    "numeric_parity_claimed": false,
+    "process_retired_claimed": false,
+    "statements": [
+      "Do not claim PROCESS is retired.",
+      "METHOD-ONLY parity does not authorize numeric PROCESS KPI claims.",
+      "Scientific release status is CONDITIONAL \u2014 not APPROVED.",
+      "Domains without evidence are listed as NOT_COVERED.",
+      "Optimizers (including PROCESS) propose inputs only; SHAMS certifies."
+    ]
+  },
+  "independence_phase": 4,
+  "report_sha256": "ee6dc7182fc048c01ad14ae0d9f7f69537eb8e09c4b9f620d34b3b1fdf52d897",
+  "schema": "shams.process_retirement_report.v1",
+  "shams_version": "v418.1.0",
+  "ticket": "4.1",
+  "verdict": {
+    "blanket_process_retired": false,
+    "parity_corpus_status": "METHOD-ONLY",
+    "release_status": "CONDITIONAL",
+    "summary": "SHAMS can serve the SCOPED_COVERED / PROXY_OVERLAY domains listed below as a feasibility authority with citeable VERSION + SHA-256 evidence. PROCESS is not retired. Domains under NOT_COVERED still need PROCESS, specialist codes, or are out of scope."
+  }
+}
