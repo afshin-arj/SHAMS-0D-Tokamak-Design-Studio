@@ -312,6 +312,10 @@ For the full comparison table, see the [extended comparison section](#extended-c
 Honest scope for scientific handoff (proxies, METHOD-ONLY PROCESS parity, what SHAMS does **not** claim): **`docs/LIMITATIONS.md`**.  
 Phase 1 scientific release readiness (CONDITIONAL): `docs/validation/reports/scientific_release_readiness_20260716.md`.
 
+## Citing SHAMS
+
+Use `CITATION.cff` for software citation metadata, and cite the exact `VERSION` plus the SHA-256 hashes of your exported run artifacts so reviewers can re-evaluate the same inputs against the same frozen truth. Zenodo archival metadata is prepared in `.zenodo.json`; the tagging / deposit / DOI procedure and the documented CONDITIONAL→APPROVED release gates live in **`docs/RELEASE_ARCHIVAL_CHECKLIST.md`** (no DOI is minted yet). Software-paper skeleton: `docs/SOFTWARE_PAPER_PITCH.md`.
+
 ## Contributing & governance
 
 - Physics / constraint changes: explicit request + versioning (`GOVERNANCE.md`)

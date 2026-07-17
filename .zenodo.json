@@ -1,0 +1,32 @@
+{
+  "title": "SHAMS: Tokamak 0-D Design Studio (feasibility-authoritative evaluator)",
+  "upload_type": "software",
+  "version": "v418.1.0",
+  "publication_date": "2026-07-16",
+  "license": "Apache-2.0",
+  "creators": [
+    {
+      "name": "Arjhangmehr, Afshin"
+    },
+    {
+      "name": "SHAMS Contributors"
+    }
+  ],
+  "description": "SHAMS is a feasibility-authoritative tokamak 0-D design studio with a frozen deterministic evaluator (L0), explicit hard/diagnostic/ignored constraints, NO-SOLUTION as a valid scientific outcome, and certified external optimization (propose-only, CCFS). It is not a drop-in numeric clone of UKAEA PROCESS; plant and magnet models may be proxies unless declared as versioned authority overlays. PROCESS numeric parity is METHOD-ONLY until lab-supplied reference files land; SHAMS does not claim PROCESS retirement. Cite the release VERSION plus artifact SHA-256 hashes for feasibility studies; see docs/LIMITATIONS.md for the honest scope shipped with every scientific handoff.",
+  "keywords": [
+    "fusion",
+    "tokamak",
+    "systems code",
+    "feasibility",
+    "confinement",
+    "reproducibility"
+  ],
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "identifier": "https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio",
+      "resource_type": "software"
+    }
+  ],
+  "notes": "Release verdict at this version: CONDITIONAL (docs/validation/reports/scientific_release_readiness_20260716.md). The APPROVED-release path and archival procedure are documented in docs/RELEASE_ARCHIVAL_CHECKLIST.md. No DOI is minted until a tagged Zenodo deposit is performed per that checklist."
+}

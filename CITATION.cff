@@ -6,6 +6,7 @@ authors:
   - family-names: "Arjhangmehr"
     given-names: "Afshin"
     email: "ms.arjangmehr@gmail.com"
+    # orcid: add real ORCID iD before the tagged Zenodo deposit (do not invent)
   - name: "SHAMS Contributors"
 version: "v418.1.0"
 date-released: "2026-07-16"
@@ -23,3 +24,5 @@ keywords:
   - systems code
   - feasibility
   - confinement
+# DOI: minted at first tagged Zenodo deposit — see docs/RELEASE_ARCHIVAL_CHECKLIST.md.
+# Cite VERSION + artifact SHA-256 hashes for feasibility studies (docs/LIMITATIONS.md).
