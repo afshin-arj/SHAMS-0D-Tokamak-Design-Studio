@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import List, Tuple
 
 from nicegui import ui
@@ -22,7 +23,14 @@ OVERLAY_NUMERIC_PANELS: List[Tuple[str, List[Tuple[str, str, float, float, float
     (
         "include_transport_envelope_v396",
         [
-            ("transport_spread_max_v396", "Transport spread max", 0.35, 0.0, 2.0, 0.01),
+            (
+                "transport_spread_max_v396",
+                "Max transport spread ratio (τE_max/τE_min) [optional; blank/NaN=off]",
+                float("nan"),
+                1.0,
+                20.0,
+                0.05,
+            ),
             ("tauE_user_C_v396", "τE scaling coefficient C", 1.0, 0.01, 10.0, 0.01),
             ("tauE_user_exp_Ip_v396", "τE exponent Ip", -0.93, -3.0, 1.0, 0.01),
             ("tauE_user_exp_Bt_v396", "τE exponent Bt", 0.15, -1.0, 1.0, 0.01),
@@ -219,6 +227,69 @@ def _knob(session: DesignSession, key: str, default: float) -> float:
     return finite_ui_number(v, unset=finite_ui_number(default, unset=0.0))
 
 
+# Optional hard-caps rendered as checkbox + number so NaN ("cap off", the
+# schema default) is never silently replaced by a spurious finite cap value.
+_OPTIONAL_CAP_KNOBS = {"transport_spread_max_v396"}
+_SPREAD_CAP_ENABLED_DEFAULT = 3.0
+
+
+def _render_optional_cap_knob(
+    session: DesignSession,
+    key: str,
+    label: str,
+    lo: float,
+    hi: float,
+    step: float,
+) -> None:
+    """Checkbox-gated optional cap: unchecked writes NaN (cap off) to knobs."""
+    try:
+        current = float(session.knobs.get(key, float("nan")))
+    except (TypeError, ValueError):
+        current = float("nan")
+    enabled = math.isfinite(current) and current >= lo
+
+    with ui.column().classes("gap-1"):
+        number = ui.number(
+            label,
+            value=current if enabled else _SPREAD_CAP_ENABLED_DEFAULT,
+            min=lo,
+            max=hi,
+            step=step,
+        )
+        number.visible = enabled
+
+        def _on_number(e) -> None:
+            try:
+                v = float(e.value)
+            except (TypeError, ValueError):
+                return
+            if math.isfinite(v) and v >= lo:
+                session.knobs[key] = v
+
+        number.on_value_change(_on_number)
+
+        def _on_toggle(e) -> None:
+            if bool(e.value):
+                number.visible = True
+                try:
+                    v = float(number.value)
+                except (TypeError, ValueError):
+                    v = _SPREAD_CAP_ENABLED_DEFAULT
+                if not (math.isfinite(v) and v >= lo):
+                    v = _SPREAD_CAP_ENABLED_DEFAULT
+                    number.value = v
+                session.knobs[key] = v
+            else:
+                number.visible = False
+                session.knobs[key] = float("nan")
+
+        ui.checkbox(
+            "Enable optional transport spread hard-cap",
+            value=enabled,
+            on_change=_on_toggle,
+        )
+
+
 def _overlay_enabled(session: DesignSession, flag: str) -> bool:
     return bool(session.overlay.get(flag, False))
 
@@ -240,6 +311,9 @@ def render_overlay_numeric_panels(
         with ui.expansion(title, icon="tune").classes("w-full"):
             with ui.grid(columns=2).classes("w-full gap-2"):
                 for key, label, default, lo, hi, step in fields:
+                    if key in _OPTIONAL_CAP_KNOBS:
+                        _render_optional_cap_knob(session, key, label, lo, hi, step)
+                        continue
                     val = _knob(session, key, default)
 
                     def _set(e, k=key) -> None:

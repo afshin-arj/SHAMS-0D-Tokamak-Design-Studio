@@ -87,5 +87,7 @@ def policy_caption(design_intent: str) -> str:
         return "Policy: Reactor hard constraints enforced."
     return (
         "Policy: Research intent — only q95 is blocking; "
-        "engineering limits are diagnostic; TBR ignored."
+        "engineering limits are diagnostic; TBR ignored. "
+        "Research does not change q_div physics — it only demotes "
+        "engineering limits (q_div, P_SOL/R, …) from blocking to diagnostic."
     )

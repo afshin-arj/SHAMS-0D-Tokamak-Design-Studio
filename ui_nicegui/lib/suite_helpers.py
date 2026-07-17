@@ -176,7 +176,7 @@ def render_impurity_radiation_panel(point_out: dict, *, expert: bool = False) ->
         kpis=[
             ("Prad_core (MW)", _fin(s["prad_core_MW"], ".1f")),
             ("P_SOL (MW)", _fin(s["p_sol_MW"], ".1f")),
-            ("q_div (MW/m²)", _fin(s["q_div_MW_m2"], ".1f")),
+            ("q_div proxy (MW/m²)", _fin(s["q_div_MW_m2"], ".1f")),
             ("q_div margin", _fin(s["q_div_margin"], ".2f")),
         ],
     )

@@ -19,7 +19,7 @@ _AUTHORITY_FIELDS: List[Tuple[str, str]] = [
     ("include_impurity_v399", "Multi-species impurity radiation partition."),
     ("include_magnet_technology_authority_v400", "Field, current density, and stress margins vs coil limits."),
     ("include_neutronics_materials_library_v403", "Activation inventories, dose rates, and replacement catalogs."),
-    ("include_structural_life_authority_v404", "Component lifetime under cyclic thermal and mechanical loads."),
+    ("include_structural_life_v404", "Component lifetime under cyclic thermal and mechanical loads."),
     ("include_nuclear_data_authority_v407", "Cross-section and decay-data provenance for neutronics."),
     ("include_authority_dominance_v402", "Ranks which constraint family binds the point design."),
     ("include_elm_transient_heat_v409", "Transient heat-flux envelope from ELM energy dumps."),
