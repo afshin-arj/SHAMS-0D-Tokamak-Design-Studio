@@ -50,14 +50,14 @@
           "exists": true,
           "label": "docs/PROCESS_RETIREMENT_REPORT.md",
           "path": "docs/PROCESS_RETIREMENT_REPORT.md",
-          "sha256": "0c404057953da0f2cc15b41c26f15b22c84c5b9b165ddc6e4d8bad0a8cd9f302"
+          "sha256": "e1c41739511baf47c2ae4db22d3ab40601b9918f04310d8cd6b51e744375f33f"
         },
         {
           "bytes": 21630,
           "exists": true,
           "label": "docs/validation/reports/process_retirement_report.json",
           "path": "docs/validation/reports/process_retirement_report.json",
-          "sha256": "7c3e5a1c895de8fc16afd67917585c2560daec623262970c914e4bcb5742487b"
+          "sha256": "98892e3743f69145fe6d6a11a61bd32d32338a23141acf0fdae2512444fb5360"
         },
         {
           "bytes": 8408,
@@ -297,7 +297,7 @@
     "process_retired_claimed": false,
     "statement": "This report records engineering evidence only. EXTERNAL checklist items cannot be marked DONE by regenerating this artifact."
   },
-  "report_sha256": "b626d0f7b062c833c83f00f40b87438e96a366fb24a2b99d99334ff4ff56ba64",
+  "report_sha256": "b9a2b8bd06ef79bd3f8b0760fc4755773336e8c5cd4b3e87856f0d7161217196",
   "schema": "shams.independence_exit_evidence.v1",
   "shams_version": "v418.1.0",
   "summary": {

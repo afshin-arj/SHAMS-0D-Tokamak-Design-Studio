@@ -130,6 +130,8 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 
 ### Campaign status after 4.3
 
+**Deep audit 2026-07-17 (tickets 1.1–4.3):** full re-verification on `main` — determinism, honesty gates, atlas coverage, UI truth, and full pytest re-run. Two defects found and fixed: (a) checked-in 4.1 retirement-report artifacts were stale vs the HEAD generators (champion citation hashes drifted; regenerated `docs/PROCESS_RETIREMENT_REPORT.md` + JSON and the downstream 4.3 exit-evidence anchors); (b) pre-existing `test_ui_wiring_index` desync from the legacy Trade Study removal (test updated to the current anchor label). No physics, constraint, or solver behavior changed.
+
 In-repo PROCESS-independence **engineering** for Phases 0–4 is complete. Remaining for *effective* independence in the wild:
 
 1. **EXTERNAL** — community adoption (new studies cite SHAMS by default)

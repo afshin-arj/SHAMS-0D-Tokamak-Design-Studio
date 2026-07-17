@@ -92,15 +92,15 @@
           "case_citation_sha256": [
             {
               "case_id": "champion.reactor_conservative.iter_like",
-              "citation_sha256": "5235bb163ace13ce1764e4621890c00c5ba210a38b0b1925c8953e84b82dbcc8"
+              "citation_sha256": "28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8"
             },
             {
               "case_id": "champion.sparc_class.burning_plasma",
-              "citation_sha256": "b90d8912d54d33f50f0c8e15815009aee5566fcda7cb92745d903767675480ad"
+              "citation_sha256": "d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55"
             },
             {
               "case_id": "champion.sparc_class.overdriven_nosolution",
-              "citation_sha256": "ed40ba1ed234b2d57b77611af44b0c95a411865d654bbf0f869a7e8bfe70f0a5"
+              "citation_sha256": "f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6"
             },
             {
               "case_id": "champion.step_like.st_baseline",
@@ -110,7 +110,7 @@
           "cases_path": "benchmarks/champions/cases.json",
           "kind": "champion",
           "n_cases": 4,
-          "pack_sha256": "1af6a6d18c28dee4deb0c91d98fc768f653eb8f799b93d39e709ae00fa7a9a07"
+          "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
         },
         {
           "champion_infeasible_with_atlas": [
@@ -215,15 +215,15 @@
           "case_citation_sha256": [
             {
               "case_id": "champion.reactor_conservative.iter_like",
-              "citation_sha256": "5235bb163ace13ce1764e4621890c00c5ba210a38b0b1925c8953e84b82dbcc8"
+              "citation_sha256": "28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8"
             },
             {
               "case_id": "champion.sparc_class.burning_plasma",
-              "citation_sha256": "b90d8912d54d33f50f0c8e15815009aee5566fcda7cb92745d903767675480ad"
+              "citation_sha256": "d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55"
             },
             {
               "case_id": "champion.sparc_class.overdriven_nosolution",
-              "citation_sha256": "ed40ba1ed234b2d57b77611af44b0c95a411865d654bbf0f869a7e8bfe70f0a5"
+              "citation_sha256": "f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6"
             },
             {
               "case_id": "champion.step_like.st_baseline",
@@ -233,7 +233,7 @@
           "cases_path": "benchmarks/champions/cases.json",
           "kind": "champion",
           "n_cases": 4,
-          "pack_sha256": "1af6a6d18c28dee4deb0c91d98fc768f653eb8f799b93d39e709ae00fa7a9a07"
+          "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
         },
         {
           "kind": "version",
@@ -323,7 +323,7 @@
       "cases": [
         {
           "case_id": "champion.reactor_conservative.iter_like",
-          "citation_sha256": "5235bb163ace13ce1764e4621890c00c5ba210a38b0b1925c8953e84b82dbcc8",
+          "citation_sha256": "28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8",
           "dominant_constraint": null,
           "dominant_mechanism": null,
           "hard_feasible": true,
@@ -332,7 +332,7 @@
         },
         {
           "case_id": "champion.sparc_class.burning_plasma",
-          "citation_sha256": "b90d8912d54d33f50f0c8e15815009aee5566fcda7cb92745d903767675480ad",
+          "citation_sha256": "d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55",
           "dominant_constraint": null,
           "dominant_mechanism": null,
           "hard_feasible": true,
@@ -341,7 +341,7 @@
         },
         {
           "case_id": "champion.sparc_class.overdriven_nosolution",
-          "citation_sha256": "ed40ba1ed234b2d57b77611af44b0c95a411865d654bbf0f869a7e8bfe70f0a5",
+          "citation_sha256": "f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6",
           "dominant_constraint": "q95",
           "dominant_mechanism": "PROFILE",
           "hard_feasible": false,
@@ -369,7 +369,7 @@
       "n_cases": 4,
       "n_hard_feasible": 2,
       "n_infeasible": 2,
-      "pack_sha256": "1af6a6d18c28dee4deb0c91d98fc768f653eb8f799b93d39e709ae00fa7a9a07"
+      "pack_sha256": "d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2"
     },
     "limitations": {
       "bytes": 4286,
@@ -523,7 +523,7 @@
     ]
   },
   "independence_phase": 4,
-  "report_sha256": "e7f31d9121244996509947086162876ec51d4f025181c6848764556793e39a08",
+  "report_sha256": "fcf22e69057bff9e3e5000895ff0fb1d3424075c4e287dc9f246867f1977188a",
   "schema": "shams.process_retirement_report.v1",
   "shams_version": "v418.1.0",
   "ticket": "4.1",

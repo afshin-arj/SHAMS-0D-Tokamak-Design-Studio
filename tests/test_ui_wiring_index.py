@@ -16,7 +16,9 @@ def test_ui_wiring_index_contains_expected_anchors() -> None:
         "Systems Mode tab block",
         "Scan Lab tab block",
         "Pareto Lab tab block",
-        "Trade Study Studio import",
+        # Legacy Streamlit Trade Study modules were removed (commit 60c5b04);
+        # the wiring index now anchors the NiceGUI handoff notice instead.
+        "Trade Study Studio (NiceGUI)",
         "PROCESS parity benchmarks view",
         "Reviewer Packet view",
     ]:

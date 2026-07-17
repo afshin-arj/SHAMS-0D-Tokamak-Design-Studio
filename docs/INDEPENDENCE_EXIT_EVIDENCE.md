@@ -1,6 +1,6 @@
 # SHAMS independence exit evidence (Phase 4.3)
 
-**Schema:** `shams.independence_exit_evidence.v1`  **SHAMS VERSION:** `v418.1.0`  **Report SHA-256:** `b626d0f7b062c833c83f00f40b87438e96a366fb24a2b99d99334ff4ff56ba64`
+**Schema:** `shams.independence_exit_evidence.v1`  **SHAMS VERSION:** `v418.1.0`  **Report SHA-256:** `b9a2b8bd06ef79bd3f8b0760fc4755773336e8c5cd4b3e87856f0d7161217196`
 
 ## Stance
 
@@ -49,8 +49,8 @@ Domain coverage is evidence-backed; blanket retirement is refused.
 
 Anchors:
 - `src/reports/process_retirement_report.py` (yes; sha256=`8417360ae2ac12b96525606e18a75e0fcbb62e347a3108f1ba3391d39732cd79`)
-- `docs/PROCESS_RETIREMENT_REPORT.md` (yes; sha256=`0c404057953da0f2cc15b41c26f15b22c84c5b9b165ddc6e4d8bad0a8cd9f302`)
-- `docs/validation/reports/process_retirement_report.json` (yes; sha256=`7c3e5a1c895de8fc16afd67917585c2560daec623262970c914e4bcb5742487b`)
+- `docs/PROCESS_RETIREMENT_REPORT.md` (yes; sha256=`e1c41739511baf47c2ae4db22d3ab40601b9918f04310d8cd6b51e744375f33f`)
+- `docs/validation/reports/process_retirement_report.json` (yes; sha256=`98892e3743f69145fe6d6a11a61bd32d32338a23141acf0fdae2512444fb5360`)
 - `tests/test_process_retirement_report.py` (yes; sha256=`d0205a25e7340b61da28ef731ad026bc7961705cf9c476a206083f7381c055c0`)
 
 ### PROCESS → SHAMS migration path live — `DONE`
