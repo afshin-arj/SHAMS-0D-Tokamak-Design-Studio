@@ -5,6 +5,7 @@ from nicegui import ui
 
 from ui_nicegui.decks.control_room import assumptions_panel, constraint_provenance, constraints_governance
 from ui_nicegui.lib.control_room_helpers import (
+    CHAMPION_CASES_DOC,
     CONST_TABS,
     MIGRATION_GUIDE_DOC,
     list_docs,
@@ -54,15 +55,21 @@ def _panel(session: DesignSession) -> None:
     else:
         ui.label("Documentation library").classes("text-subtitle2")
         ui.label(
-            "PROCESS handoff: open PROCESS_TO_SHAMS_MIGRATION_GUIDE.md for IN.DAT→PointInputs, "
-            "MFILE→artifacts, CCFS propose-only, and citation rules (no invented MFILE numbers)."
+            "PROCESS handoff: PROCESS_TO_SHAMS_MIGRATION_GUIDE.md. "
+            "Champion templates: CHAMPION_CASES.md (SHAMS-only feasibility + NO-SOLUTION stories). "
+            "Cite VERSION + hashes — no invented MFILE numbers."
         ).classes("text-caption q-mb-sm")
         docs = list_docs()
         if not docs:
             ui.label("No docs/ folder found in this build.").classes("text-grey")
             return
         if not session.cr_docs_sel or session.cr_docs_sel not in docs:
-            session.cr_docs_sel = MIGRATION_GUIDE_DOC if MIGRATION_GUIDE_DOC in docs else docs[0]
+            if MIGRATION_GUIDE_DOC in docs:
+                session.cr_docs_sel = MIGRATION_GUIDE_DOC
+            elif CHAMPION_CASES_DOC in docs:
+                session.cr_docs_sel = CHAMPION_CASES_DOC
+            else:
+                session.cr_docs_sel = docs[0]
         ui.select(
             docs,
             label="Open a doc (read-only)",

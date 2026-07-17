@@ -56,9 +56,11 @@ REFERENCE_GALLERY: List[Tuple[str, str]] = [
 ]
 
 MIGRATION_GUIDE_DOC = "PROCESS_TO_SHAMS_MIGRATION_GUIDE.md"
+CHAMPION_CASES_DOC = "CHAMPION_CASES.md"
 
 LAUNCHPAD_DECK: Dict[str, str] = {
     "Migrate a PROCESS study to SHAMS": "Control Room",
+    "Run a champion feasibility template": "Control Room",
     "Understand feasibility limits (cartography)": "Scan Lab",
     "Explore reactor concepts (Forge)": "Reactor Design Forge",
     "Review a finished case (Review Room)": "Reactor Design Forge",
@@ -72,6 +74,13 @@ LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
         "- Open **`docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`** (IN.DAT→PointInputs, MFILE→artifacts, CCFS propose-only)\n"
         "- Map knobs in **Point Designer**; treat NO-SOLUTION as valid\n"
         "- Cite `VERSION` + artifact SHA-256 — do **not** invent MFILE numbers or claim PROCESS retired.",
+    ),
+    (
+        "Run a champion feasibility template",
+        "Recommended: Control Room → Constitution → Docs Library → Champion cases; or CLI runner.",
+        "- Open **`docs/CHAMPION_CASES.md`** (SPARC-class / STEP-like / conservative templates + NO-SOLUTION stories)\n"
+        "- Reproduce with `python benchmarks/champions/run_champions.py`\n"
+        "- Cite `VERSION` + case `citation_sha256` — class/like inspiration only; no PROCESS-retired claim.",
     ),
     (
         "Understand feasibility limits (cartography)",

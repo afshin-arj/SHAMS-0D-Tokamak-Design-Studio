@@ -1,0 +1,45 @@
+{
+  "README": {
+    "purpose": "Independence Phase 3.3 champion cases — SHAMS-only feasibility templates (class/like inspiration, not device parity or PROCESS MFILE numbers).",
+    "schema": "shams.champion_cases.v1",
+    "feasibility": "Design Intent hard set (Point Designer policy). Research: q95 blocking. Reactor: full reactor hard set. Non-finite constraint values omitted."
+  },
+  "champion.sparc_class.burning_plasma": {
+    "title": "SPARC-class compact HTS burning-plasma (Research)",
+    "family": "SPARC-class",
+    "story": "Compact high-field HTS class point under Research intent — q95-feasible template labs can fork.",
+    "design_intent": "Research",
+    "reference_machine": "SPARC-class (compact HTS)",
+    "expect_hard_feasible": true,
+    "inputs": {}
+  },
+  "champion.step_like.st_baseline": {
+    "title": "STEP-like spherical tokamak baseline (Reactor) — NO-SOLUTION",
+    "family": "STEP-like",
+    "story": "Literature-geometry ST baseline under Reactor intent. Expected NO-SOLUTION with mechanism atlas (PROFILE/q95) — SHAMS differentiator vs soft-landing solvers.",
+    "design_intent": "Reactor",
+    "reference_machine": "STEP SPP baseline (UKAEA, 2023)",
+    "expect_hard_feasible": false,
+    "inputs": {}
+  },
+  "champion.reactor_conservative.iter_like": {
+    "title": "Reactor-class conservative (ITER-like Research)",
+    "family": "reactor-conservative",
+    "story": "Large LTS-class conservative point under Research intent — reproducible admissible template.",
+    "design_intent": "Research",
+    "reference_machine": "ITER-inspired (large LTS)",
+    "expect_hard_feasible": true,
+    "inputs": {}
+  },
+  "champion.sparc_class.overdriven_nosolution": {
+    "title": "SPARC-class overdriven variant (Research) — NO-SOLUTION",
+    "family": "SPARC-class",
+    "story": "Deliberate infeasible variant of the SPARC-class family (raised Ip). Expect PROFILE/q95 atlas attribution.",
+    "design_intent": "Research",
+    "reference_machine": "SPARC-class (compact HTS)",
+    "expect_hard_feasible": false,
+    "inputs": {
+      "Ip_MA": 14.0
+    }
+  }
+}

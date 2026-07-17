@@ -13,6 +13,7 @@ Related (do not duplicate poorly — use this guide as the entry point):
 | `PROCESS_TO_SHAMS_MAPPING.md` | Domain checklist (cost, magnets, build, …) |
 | `PROCESS_lessons.md` / `PROCESS_inspired_upgrade.md` | Architecture lessons |
 | `LIMITATIONS.md` | Honest scope / what SHAMS does **not** claim |
+| `CHAMPION_CASES.md` | Phase 3.3 reproducible SHAMS-only templates + NO-SOLUTION stories |
 | `benchmarks/parity/` | METHOD-ONLY (or NUMERIC) parity corpus + dossiers |
 
 ---
