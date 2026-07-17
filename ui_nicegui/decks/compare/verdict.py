@@ -6,7 +6,7 @@ from nicegui import ui
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.workflow_cta import render_goto_setup_button
-from ui_nicegui.lib.navigation import refresh_active_deck
+from ui_nicegui.lib.navigation import refresh_active_deck, switch_deck
 from ui_nicegui.session import DesignSession
 
 
@@ -14,18 +14,38 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
     ui.label("Comparison verdict").classes("text-subtitle1")
     if not isinstance(summary, dict) or not summary.get("loaded"):
         empty_state(
-            "Load artifacts into Slot A and Slot B to compare mechanism and margin deltas.",
+            "Load artifacts into Slot A and Slot B to compare mechanism and margin deltas. "
+            "You can load the live session from **Point Designer** or upload JSON.",
             kind="info",
         )
-        if session is not None:
-            render_goto_setup_button(
-                session,
-                attr="cmp_workflow_step",
-                step="1 · Load A & B",
-                label="Go to Load A & B",
-                on_refresh=refresh_active_deck,
-            )
+        with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
+            if session is not None:
+                render_goto_setup_button(
+                    session,
+                    attr="cmp_workflow_step",
+                    step="1 · Load A & B",
+                    label="Go to Load A & B",
+                    on_refresh=refresh_active_deck,
+                )
+            ui.button(
+                "Open Point Designer",
+                icon="design_services",
+                on_click=lambda: switch_deck("Point Designer"),
+            ).props("outline color=primary")
         return
+    from ui_nicegui.components.verdict_banner import verdict_banner
+
+    va = str(summary.get("verdict_a") or "-")
+    vb = str(summary.get("verdict_b") or "-")
+    same = va.upper() == vb.upper()
+    verdict_banner(
+        "PASS" if same and "FEAS" in va.upper() else ("MIXED" if va.upper() != vb.upper() else va),
+        detail=(
+            f"A: {va} (dom {summary.get('dominant_a', '-')}) · "
+            f"B: {vb} (dom {summary.get('dominant_b', '-')}) · "
+            f"Largest Δ: {summary.get('top_delta', '-')}"
+        ),
+    )
     kpi_row([
         ("Verdict A", summary.get("verdict_a", "-")),
         ("Verdict B", summary.get("verdict_b", "-")),

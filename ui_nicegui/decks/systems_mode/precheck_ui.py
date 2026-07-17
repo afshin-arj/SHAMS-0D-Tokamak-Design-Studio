@@ -69,7 +69,7 @@ def render_precheck_panel(
     if not valid and (targets or variables):
         ui.label(val_msg).classes("text-orange q-mb-sm")
     elif disabled:
-        ui.label("Configure targets on tab **1 · Targets** first.").classes("text-orange")
+        ui.markdown("Configure targets on tab **1 · Targets** first.").classes("text-orange")
 
     with ui.row().classes("gap-4 flex-wrap q-mb-sm"):
         ui.number(

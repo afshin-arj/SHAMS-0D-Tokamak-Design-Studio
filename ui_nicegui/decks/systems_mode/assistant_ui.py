@@ -70,7 +70,7 @@ def render_assistant_panel(
 def _proposal_list(session: DesignSession, *, on_change=None) -> None:
     props = getattr(session, "systems_assistant_proposals", None) or []
     if not props:
-        ui.label("Click **Generate proposals**.").classes("text-grey")
+        ui.markdown("Click **Generate proposals**.").classes("text-grey")
         return
 
     _, targets, variables = resolve_systems_problem(session)

@@ -47,6 +47,9 @@ class DesignSession:
     pd_last_outputs: Optional[dict[str, Any]] = None
     pd_last_artifact: Optional[dict[str, Any]] = None
     pd_last_run_ts: Optional[float] = None
+    # Presentation caches (UI only) — filled by set_point_evaluation; never L0 truth.
+    pd_verdict_summary_cache: Optional[dict[str, Any]] = None
+    pd_no_solution_atlas_cache: Optional[dict[str, Any]] = None
     last_error: Optional[str] = None
     evaluating: bool = False
     # System Suite

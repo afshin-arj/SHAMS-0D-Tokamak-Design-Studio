@@ -114,6 +114,50 @@ def test_helm_console_exports() -> None:
     assert "helm-drawer" in HELM_DRAWER_CLASS
     s = DesignSession()
     assert "Ready" in helm_status_caption(s)
+    assert "Point Designer" in helm_status_caption(s)
+    s.active_deck = "Scan Lab"
+    assert "Scan Lab" in helm_status_caption(s)
+
+
+def test_policy_caption_distinguishes_pilot_and_hfs() -> None:
+    from ui_nicegui.lib.pd_intent_policy import constraint_policy_snapshot, policy_caption
+
+    assert "Pilot" in policy_caption("Pilot Plant (demonstration)")
+    assert "High-field" in policy_caption("High-field science (HFS)")
+    assert "Research" in policy_caption("Experimental Device (research)")
+    pol = constraint_policy_snapshot("Pilot Plant (demonstration)")
+    assert pol["intent_key"] == "reactor"
+    assert "TBR" in pol["hard_blocking"]
+    assert "TBR" in constraint_policy_snapshot("Experimental Device (research)")["ignored"]
+
+
+def test_mission_policy_shows_ignored_and_remounts_after_contract_change() -> None:
+    """Constraint briefing must list Ignored; contract changes must remount deck/posture."""
+    import inspect
+
+    from ui_nicegui.components import helm_console
+
+    mission = inspect.getsource(helm_console._render_mission_policy)
+    assert "**Ignored:**" in mission
+    assert "_refresh_after_truth_contract_change" in mission
+    refresh_src = inspect.getsource(helm_console._refresh_after_truth_contract_change)
+    assert "refresh_current_deck" in refresh_src
+    posture = inspect.getsource(helm_console._render_posture)
+    assert "Mission:" in posture
+    assert "policy_caption" in posture
+
+
+def test_workflow_phase_pills_are_navigable() -> None:
+    import inspect
+
+    from ui_nicegui.components import helm_workflow_panel as hwp
+
+    src = inspect.getsource(hwp.render_workflow_compass)
+    assert "on_deck_change" in src
+    assert "HELM_NAV_GROUPS" in src
+    assert "ui.button" in src
+    assert "DECK_SHORT_VERBS" in src
+    assert "ui.html" not in src or "helm-phase-pill" in src
 
 
 def test_active_helm_group_is_pinned_not_expansion() -> None:
@@ -214,6 +258,58 @@ def test_switch_deck_same_deck_skips_without_force() -> None:
     assert "global _CONTENT" not in mod_src
     assert "_render_deck.refresh()" in src
     assert "DECK_RENDERERS.get" in mod_src
+    # Settings panel must not remount on every deck switch (heavy).
+    assert "refresh_helm_settings" not in src
+
+
+def test_configure_uses_lazy_expansions() -> None:
+    """Point Designer Configure must defer heavy widget trees until section open."""
+    import inspect
+
+    from ui_nicegui.decks.point_designer import configure
+    from ui_nicegui.lib import lazy_expansion
+
+    src = inspect.getsource(configure.render_configure)
+    assert "lazy_expansion" in src
+    assert callable(lazy_expansion.lazy_expansion)
+
+
+def test_switch_deck_behavioral_remount_and_force() -> None:
+    """Behavioral (not inspect-only): _switch_deck updates session and remounts."""
+    from unittest.mock import MagicMock
+
+    from ui_nicegui import app as ng_app
+    from ui_nicegui.lib import navigation as nav
+
+    calls: list[str] = []
+    orig_refresh = ng_app._render_deck.refresh
+    ng_app._render_deck.refresh = MagicMock(side_effect=lambda: calls.append("deck"))  # type: ignore[method-assign]
+
+    helm_calls: list[str] = []
+    status_calls: list[str] = []
+    nav.register_helm_refresh(lambda: helm_calls.append("helm"))
+    nav.register_status_refresh(lambda: status_calls.append("status"))
+    try:
+        s = ng_app._SESSION
+        s.active_deck = "Point Designer"
+        ng_app._switch_deck("Point Designer")
+        assert calls == []  # same deck, no force → skip
+        ng_app._switch_deck("Scan Lab")
+        assert s.active_deck == "Scan Lab"
+        assert calls == ["deck"]
+        assert helm_calls == ["helm"]
+        assert status_calls == ["status"]
+        calls.clear()
+        helm_calls.clear()
+        status_calls.clear()
+        ng_app._switch_deck("Scan Lab", force=True)
+        assert calls == ["deck"]
+        assert helm_calls == ["helm"]
+    finally:
+        ng_app._render_deck.refresh = orig_refresh  # type: ignore[method-assign]
+        nav.register_helm_refresh(lambda: None)
+        nav.register_status_refresh(lambda: None)
+        ng_app._SESSION.active_deck = "Point Designer"
 
 
 def test_navigation_force_and_refresh_current_deck() -> None:
@@ -293,6 +389,28 @@ def test_baseline_kpi_caption_includes_stability() -> None:
     mir["mirage_flag_v402"] = True
     assert "MIRAGE" in baseline_kpi_caption(mir, max_bits=10)
     assert "text-orange" in baseline_kpi_classes(mir)
+
+
+def test_presentation_caches_survive_deck_switch_path() -> None:
+    """Evaluate once; cached verdict/atlas must hit without rebuilding constraints."""
+    from unittest.mock import patch
+
+    from ui_nicegui.evaluate import ui_evaluate
+    from ui_nicegui.lib.session_store import (
+        get_cached_verdict_summary,
+        set_point_evaluation,
+    )
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    out = ui_evaluate(s.build_point_inputs(), origin="cache-test")
+    set_point_evaluation(s, outputs=out, inputs=dict(s.inputs))
+    assert isinstance(s.pd_verdict_summary_cache, dict)
+    assert s.pd_last_artifact and "plant_kpi_honesty" in s.pd_last_artifact
+    with patch("ui_nicegui.lib.verdict_core.build_all_constraints") as mocked:
+        vs = get_cached_verdict_summary(s, out)
+        assert vs.get("loaded") is True
+        mocked.assert_not_called()
 
 
 def test_control_room_uses_live_governance_verdict() -> None:
@@ -502,7 +620,7 @@ def test_pd_hero_surfaces_no_solution_mechanism() -> None:
     from ui_nicegui.decks.point_designer import hero
 
     src = inspect.getsource(hero.render_hero)
-    assert "no_solution_atlas_summary" in src
+    assert "get_cached_no_solution_atlas" in src
     assert "NO-SOLUTION" in src
 
 
@@ -514,6 +632,24 @@ def test_systems_posture_includes_h98_pfus() -> None:
     src = inspect.getsource(verdict.render_posture_strip)
     assert "H98" in src
     assert "Pfus" in src
+    assert "hero_kpi_cells" in src
+
+
+def test_suggest_next_deck_infeasible_points_to_systems() -> None:
+    from ui_nicegui.lib.helm_workflow_guide import suggest_next_deck
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.pd_last_outputs = {"Q": 1.0, "feasible": False}
+    s.pd_verdict_summary_cache = {
+        "loaded": True,
+        "feasible": False,
+        "verdict": "INFEASIBLE",
+        "dominant": "q_div",
+    }
+    nxt, reason = suggest_next_deck(s, "Point Designer")
+    assert nxt == "Systems Mode"
+    assert "INFEASIBLE" in reason
 
 
 def test_helm_posture_shows_live_point() -> None:
@@ -523,7 +659,11 @@ def test_helm_posture_shows_live_point() -> None:
 
     src = inspect.getsource(helm_console._render_posture)
     assert "pd_last_outputs" in src
-    assert "verdict_summary" in src
+    assert "get_cached_verdict_summary" in src
+    assert "hero_kpi_cells" in src
+    # PHYS-KPI-001: must not print raw H98 float as achieved on INFEASIBLE.
+    assert 'out.get("H98")' not in src or "hero_kpi_cells" in src
+    assert "H98(y,2)" in src
 
 
 def test_build_compare_artifact_restores_inputs_on_error() -> None:

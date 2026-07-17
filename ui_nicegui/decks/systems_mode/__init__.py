@@ -189,7 +189,13 @@ def _render_posture(session: DesignSession) -> None:
     )
 
     if has_art:
-        verdict.render_posture_strip(art, next_action=hint)
+        fuel = str((session.inputs or {}).get("fuel_mode", "DT"))
+        verdict.render_posture_strip(
+            art,
+            next_action=hint,
+            design_intent=str(session.design_intent),
+            fuel_mode=fuel,
+        )
         src = _artifact_source(art)
         if src == "point_designer_fallback":
             ui.label("Baseline from Point Designer — no target solve yet.").classes("text-caption text-orange")

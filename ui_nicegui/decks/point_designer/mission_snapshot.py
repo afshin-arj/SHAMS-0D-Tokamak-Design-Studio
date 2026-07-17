@@ -341,7 +341,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
             if failed or soft_failed:
                 ui.label("Actionable suggestions (rule-of-thumb):").classes("text-subtitle2 q-mt-sm")
                 for r in failed + soft_failed:
-                    ui.label(f"• **{r['constraint']}**: {constraint_suggestion(r['constraint'])}").classes(
+                    ui.markdown(f"• **{r['constraint']}**: {constraint_suggestion(r['constraint'])}").classes(
                         "text-body2"
                     )
 

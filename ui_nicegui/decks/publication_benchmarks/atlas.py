@@ -235,7 +235,7 @@ def _render_atlas_detail(session: DesignSession) -> None:
         ui.label("Local fragility scan").classes("text-subtitle2 q-mt-md")
         scan = session.pub_atlas_fragility
         if not isinstance(scan, dict):
-            ui.label("Run **Local fragility scan** to classify robustness in a small input neighborhood.").classes(
+            ui.markdown("Run **Local fragility scan** to classify robustness in a small input neighborhood.").classes(
                 "text-caption text-grey"
             )
         else:

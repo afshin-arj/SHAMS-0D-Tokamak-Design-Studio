@@ -72,6 +72,20 @@ def ignored_constraint_names_for_intent(design_intent: str) -> Set[str]:
 
 def policy_caption(design_intent: str) -> str:
     pol = constraint_policy_snapshot(design_intent)
+    label = str(design_intent or "").strip().lower()
     if pol.get("intent_key") == "reactor":
+        if "pilot" in label:
+            return (
+                "Policy: Pilot Plant uses the reactor hard-constraint set "
+                "(same blocking list as Power Reactor)."
+            )
+        if "high-field" in label or label.startswith("hfs"):
+            return (
+                "Policy: High-field science uses the reactor hard-constraint set "
+                "(plant limits remain blocking)."
+            )
         return "Policy: Reactor hard constraints enforced."
-    return "Policy: Research intent — only q95 is blocking; engineering limits are diagnostic; TBR ignored."
+    return (
+        "Policy: Research intent — only q95 is blocking; "
+        "engineering limits are diagnostic; TBR ignored."
+    )

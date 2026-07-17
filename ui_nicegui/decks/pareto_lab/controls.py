@@ -164,7 +164,7 @@ def _post_run_verdict(session: DesignSession) -> None:
     for q in possible_next_questions({"summary": summary, "intent_mode": rep.get("intent_mode")}):
         ui.label(f"→ {q}").classes("text-caption text-grey")
     why = rep.get("summary", {})
-    ui.label(
+    ui.markdown(
         f"Feasible {why.get('n_feasible', '-')} · Pareto {why.get('n_pareto', '-')} · "
         f"Top limiter: {why.get('top_constraint', '-')} — open **Explore Frontier** to plot."
     ).classes("text-caption text-grey")

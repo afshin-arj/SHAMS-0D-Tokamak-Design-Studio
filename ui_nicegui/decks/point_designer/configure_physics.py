@@ -585,7 +585,7 @@ def render_power_composition(session: DesignSession, *, embedded: bool = False) 
                 min=0.0, max=1.0, step=0.05,
                 on_change=lambda e: inp.__setitem__("cd_fraction_of_Paux", e.value),
             )
-            ui.label(
+            ui.markdown(
                 "For full CD plant ledger, also enable **include_current_drive** in Engineering overlays."
             ).classes("text-caption")
             ui.number(

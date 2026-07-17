@@ -27,4 +27,4 @@ def render_setup_panel(*, default_open: bool = True) -> None:
         ).classes("text-caption q-mt-sm")
         ui.label("Knob sets (sampling domains)").classes("text-subtitle2 q-mt-sm")
         for ks in default_knob_sets()[:6]:
-            ui.label(f"**{ks.name}** — {ks.notes}").classes("text-caption")
+            ui.markdown(f"**{ks.name}** — {ks.notes}").classes("text-caption")

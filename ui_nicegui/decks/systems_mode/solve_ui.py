@@ -89,7 +89,7 @@ def render_solve_panel(
     if not valid and (targets or variables):
         ui.label(val_msg).classes("text-caption text-orange q-mb-sm")
     elif disabled:
-        ui.label("Complete tab **1 · Targets** first.").classes("text-orange")
+        ui.markdown("Complete tab **1 · Targets** first.").classes("text-orange")
 
     pre = session.last_precheck_report
     if pre is not None:

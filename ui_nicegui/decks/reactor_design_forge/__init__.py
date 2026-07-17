@@ -63,15 +63,20 @@ def render_reactor_design_forge(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("forge", default_open=False)
 
-    _, _, point_out = get_point_artifact_triple(session)
+    art, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
         pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Forge uses that baseline.",
         )
         return
 
+    from ui_nicegui.lib.session_store import get_cached_verdict_summary
+
+    _vs = get_cached_verdict_summary(session, point_out)
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
+        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
+            baseline_kpi_classes(point_out, verdict=_vs)
+        )
         with ui.row().classes("gap-4 flex-wrap"):
             ui.switch(
                 "Guided mode",
@@ -94,6 +99,10 @@ def render_reactor_design_forge(session: DesignSession) -> None:
                 value=session.forge_review_mode,
                 on_change=lambda e: _set_forge_review_mode(session, bool(e.value)),
             )
+
+    from ui_nicegui.lib.pd_intent_policy import policy_caption
+
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
 
     if session.forge_review_mode:
         ui.label("Review Mode: search/compile controls locked; inspect archives and export only.").classes(

@@ -15,6 +15,20 @@ def render_forge_dashboard(summary: dict | None) -> None:
             kind="info",
         )
         return
+    from ui_nicegui.components.verdict_banner import verdict_banner
+
+    if "audit_feasible" in summary:
+        posture = "FEASIBLE" if summary.get("audit_feasible") else "INFEASIBLE"
+    else:
+        posture = "READY" if summary.get("loaded") else "UNKNOWN"
+    verdict_banner(
+        posture,
+        detail=(
+            f"Compiler: {summary.get('compiler_status', '-')} · "
+            f"Audit: {summary.get('audit_verdict', '-')} · "
+            f"Dominant: {summary.get('dominant', '-')}"
+        ),
+    )
     kpi_row([
         ("Compiler", summary.get("compiler_status", "-")),
         ("Audit verdict", summary.get("audit_verdict", "-")),

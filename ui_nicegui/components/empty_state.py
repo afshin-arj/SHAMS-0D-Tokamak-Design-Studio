@@ -13,4 +13,5 @@ def empty_state(message: str, *, kind: str = "info") -> None:
         "error": "bg-red-1",
     }.get(kind, "bg-blue-grey-1")
     with ui.card().classes(f"w-full p-4 {color}"):
-        ui.label(message).classes("text-body2")
+        # Messages routinely carry **bold** deck/action names — render as markdown.
+        ui.markdown(message).classes("text-body2")

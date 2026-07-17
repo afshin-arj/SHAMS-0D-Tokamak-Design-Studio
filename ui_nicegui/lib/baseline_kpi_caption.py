@@ -1,7 +1,7 @@
 """Baseline point-evaluation caption for PD-gated study decks."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 
 def baseline_kpi_caption(
@@ -9,14 +9,16 @@ def baseline_kpi_caption(
     *,
     prefix: str = "Point evaluation loaded",
     max_bits: int = 6,
+    artifact: Optional[Mapping[str, Any]] = None,
+    verdict: Optional[Mapping[str, Any]] = None,
 ) -> str:
     if not isinstance(point_out, dict):
         return prefix
     from ui_nicegui.lib.verdict_core import verdict_summary
 
-    vs = verdict_summary(point_out)
-    verdict = str(vs.get("verdict") or "-")
-    bits: list[str] = [verdict]
+    vs = dict(verdict) if isinstance(verdict, Mapping) else verdict_summary(point_out)
+    verdict_label = str(vs.get("verdict") or "-")
+    bits: list[str] = [verdict_label]
     if bool(point_out.get("mirage_flag_v402")):
         bits.append("MIRAGE")
     q = point_out.get("Q_DT_eqv", point_out.get("Q"))
@@ -35,7 +37,7 @@ def baseline_kpi_caption(
     try:
         from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
 
-        pnet_disp = pe_net_display(point_out)
+        pnet_disp = pe_net_display(point_out, artifact=artifact)
         if pnet_disp and pnet_disp not in ("n/a", "-"):
             bits.append(f"P_net={pnet_disp}")
     except Exception:
@@ -52,7 +54,11 @@ def baseline_kpi_caption(
     return f"{prefix} ({', '.join(str(b) for b in bits[:max_bits])})"
 
 
-def baseline_kpi_classes(point_out: Optional[dict[str, Any]]) -> str:
+def baseline_kpi_classes(
+    point_out: Optional[dict[str, Any]],
+    *,
+    verdict: Optional[Mapping[str, Any]] = None,
+) -> str:
     """CSS classes for baseline caption — warn on infeasible / mirage."""
     if not isinstance(point_out, dict):
         return "text-caption text-grey"
@@ -60,6 +66,7 @@ def baseline_kpi_classes(point_out: Optional[dict[str, Any]]) -> str:
         return "text-caption text-orange"
     from ui_nicegui.lib.verdict_core import verdict_summary
 
-    if not verdict_summary(point_out).get("feasible", True):
+    vs = dict(verdict) if isinstance(verdict, Mapping) else verdict_summary(point_out)
+    if not vs.get("feasible", True):
         return "text-caption text-orange"
     return "text-caption text-positive"

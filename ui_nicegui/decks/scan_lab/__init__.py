@@ -82,7 +82,7 @@ def render_scan_lab(session: DesignSession) -> None:
             for msg in errs:
                 ui.label(msg).classes("text-caption text-orange")
 
-    _, _, point_out = get_point_artifact_triple(session)
+    art, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
         pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Scan Lab uses that baseline.",
@@ -91,8 +91,13 @@ def render_scan_lab(session: DesignSession) -> None:
 
     _consume_scan_probe_focus(session)
 
+    from ui_nicegui.lib.session_store import get_cached_verdict_summary
+
+    _vs = get_cached_verdict_summary(session, point_out)
     with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
-        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
+        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
+            baseline_kpi_classes(point_out, verdict=_vs)
+        )
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",
@@ -111,6 +116,9 @@ def render_scan_lab(session: DesignSession) -> None:
                 ),
             )
 
+    from ui_nicegui.lib.pd_intent_policy import policy_caption
+
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
     _render_verdict(session)
     _render_workflow_chrome(session)
     _render_tab_body(session)

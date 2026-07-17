@@ -201,11 +201,12 @@ def test_pd_constraints_has_goto_configure_cta() -> None:
     assert "render_goto_setup_button" in src
 
 
-def test_trade_study_pd_prerequisite_badge() -> None:
+def test_trade_study_pd_prerequisite_gate() -> None:
+    """PD gate uses the shared empty-state + Open Point Designer CTA (no duplicate badge)."""
     import inspect
 
     from ui_nicegui.decks import trade_study_studio as ts_mod
 
     src = inspect.getsource(ts_mod.render_trade_study_studio)
-    assert "ui.badge" in src
-    assert "No Point Designer evaluation" in src
+    assert "pd_prerequisite_gate" in src
+    assert "Point Designer → Evaluate Point" in src

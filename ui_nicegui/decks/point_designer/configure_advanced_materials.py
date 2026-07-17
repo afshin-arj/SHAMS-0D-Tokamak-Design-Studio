@@ -11,8 +11,8 @@ def _knob_str(session: DesignSession, key: str, default: str = "") -> str:
     return str(v) if v is not None else default
 
 
-def render_advanced_materials(session: DesignSession) -> None:
-    with ui.expansion("Advanced materials & nuclear data inputs", icon="science").classes("w-full"):
+def render_advanced_materials(session: DesignSession, *, embedded: bool = False) -> None:
+    def _body() -> None:
         ui.label(
             "Text/JSON fields for library-backed authorities. Enable matching overlays in the master toggle list."
         ).classes("text-caption q-mb-sm")
@@ -67,6 +67,14 @@ def render_advanced_materials(session: DesignSession) -> None:
             ui.number(
                 "Fragile margin fraction",
                 value=float(session.knobs.get("nm_fragile_margin_frac_v401", 0.10)),
-                min=0.0, max=0.5, step=0.01,
+                min=0.0,
+                max=0.5,
+                step=0.01,
                 on_change=lambda e: session.knobs.__setitem__("nm_fragile_margin_frac_v401", e.value),
             )
+
+    if embedded:
+        _body()
+    else:
+        with ui.expansion("Advanced materials & nuclear data inputs", icon="science").classes("w-full"):
+            _body()

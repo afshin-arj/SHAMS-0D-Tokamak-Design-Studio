@@ -57,7 +57,7 @@ def render_setup_panel(session: DesignSession, *, on_change) -> None:
             ui.upload(label="Artifact A", auto_upload=True, on_upload=_on_upload_a).classes("flex-1")
             ui.upload(label="Artifact B", auto_upload=True, on_upload=_on_upload_b).classes("flex-1")
 
-    ui.label(
+    ui.markdown(
         "Tip: Control Room **Scenario Delta** can send baseline/scenario pairs here via the Compare bridge."
     ).classes("text-caption text-grey q-mt-sm")
 

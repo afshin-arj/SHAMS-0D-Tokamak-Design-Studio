@@ -24,7 +24,7 @@ def render_explore_tab(
     all_samples = pareto_last.get("all") or []
 
     if not pareto and not feasible:
-        ui.label("No feasible points — adjust bounds or intent on **Setup & Run**.").classes("text-orange")
+        ui.markdown("No feasible points — adjust bounds or intent on **Setup & Run**.").classes("text-orange")
         return
 
     plot_keys = obj_keys + [k for k in ("R0_m", "Bt_T", "Ip_MA", "fG") if k not in obj_keys]

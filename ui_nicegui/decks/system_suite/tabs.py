@@ -709,7 +709,7 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
         "Campaign specification (JSON)",
         value=ctx.session.suite_campaign_spec_json,
     ).classes("w-full").props("rows=12")
-    ui.label(
+    ui.markdown(
         "Default generator.n is 16 (QA-safe). Edit generator.n before **Run batch locally** "
         "if you need a larger campaign — each candidate is re-evaluated by the frozen evaluator."
     ).classes("text-caption text-grey q-mb-sm")

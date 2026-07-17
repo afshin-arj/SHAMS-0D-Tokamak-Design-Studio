@@ -7,7 +7,7 @@ from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.verdict_banner import verdict_banner
 from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes, hero_kpi_cells
-from ui_nicegui.lib.verdict_core import verdict_summary
+from ui_nicegui.lib.session_store import get_cached_no_solution_atlas, get_cached_verdict_summary
 from ui_nicegui.session import DesignSession
 
 
@@ -49,7 +49,7 @@ def render_hero(session: DesignSession) -> None:
     if not out:
         empty_state("No evaluation loaded. Click **Evaluate Point** in Configure.", kind="info")
         return
-    summary = verdict_summary(out)
+    summary = get_cached_verdict_summary(session, out)
     art = session.pd_last_artifact if isinstance(session.pd_last_artifact, dict) else {}
     rs = art.get("run_summary") if isinstance(art.get("run_summary"), dict) else {}
     headline = rs.get("headline") if isinstance(rs.get("headline"), dict) else {}
@@ -68,9 +68,7 @@ def render_hero(session: DesignSession) -> None:
         ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
 
     if not summary.get("feasible"):
-        from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
-
-        atlas = no_solution_atlas_summary(out, design_intent=str(session.design_intent))
+        atlas = get_cached_no_solution_atlas(session, out)
         ui.label(
             f"NO-SOLUTION · Mechanism: {atlas.get('dominant_mechanism', '-')} · "
             f"Constraint: {atlas.get('dominant_constraint', '-')}"
@@ -102,7 +100,8 @@ def render_hero(session: DesignSession) -> None:
         fuel_mode=fuel_mode,
         headline=headline,
     ):
-        ui.label(note).classes("text-caption text-orange q-mt-xs")
+        # Notes may carry **bold** emphasis (e.g. suppressed-KPI banner) — render markdown.
+        ui.markdown(note).classes("text-caption text-orange q-mt-xs")
 
     suppressed = [c for c in cells if c.suppressed and c.raw_value is not None]
     if suppressed:

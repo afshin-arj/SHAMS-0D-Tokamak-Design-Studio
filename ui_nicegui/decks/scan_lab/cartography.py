@@ -46,7 +46,7 @@ def render_cartography_controls(
     helm_lens = helm_suggested_scan_lens(str(session.design_intent or ""))
     scan_lenses = set(session.scan_cart_intents or ["Reactor"])
     if helm_lens not in scan_lenses:
-        ui.label(
+        ui.markdown(
             f"Helm mission profile aligns with **{helm_lens}** lens — intent checkboxes below are independent."
         ).classes("text-caption text-orange q-mb-xs")
     if session.scan_teaching_mode:

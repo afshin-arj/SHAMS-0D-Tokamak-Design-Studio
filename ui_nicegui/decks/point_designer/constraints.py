@@ -46,7 +46,7 @@ def render_constraints(
         ).classes("text-caption text-blue-grey q-mb-sm")
 
     if not isinstance(out, dict) or not out:
-        ui.label("Run **Evaluate Point** to see constraint checks.").classes("text-grey")
+        ui.markdown("Run **Evaluate Point** to see constraint checks.").classes("text-grey")
         render_goto_setup_button(
             session,
             attr="pd_workflow_tab",
