@@ -41,6 +41,8 @@ _MODE_CACHE_ATTRS: tuple[str, ...] = (
     "pd_last_run_ts",
     "pd_last_inputs_hash",
     "pd_last_forensics",
+    "pd_verdict_summary_cache",
+    "pd_no_solution_atlas_cache",
     "last_eval",
     "systems_last_solve_artifact",
     "scan_cartography_artifact",

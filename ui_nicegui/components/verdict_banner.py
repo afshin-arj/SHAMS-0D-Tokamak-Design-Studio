@@ -19,6 +19,11 @@ def verdict_banner(posture: str, *, detail: str = "") -> None:
         "READY": "bg-blue-1 text-blue-10",
         "SEMANTICS": "bg-blue-grey-1 text-blue-grey-10",
         "MISSING ARTIFACT": "bg-orange-1 text-orange-10",
+        # Scan Lab cartography robustness proxies (not L0 constraint verdicts)
+        "ROBUST": "bg-green-1 text-green-10",
+        "BALANCED": "bg-blue-1 text-blue-10",
+        "BRITTLE": "bg-amber-1 text-orange-10",
+        "KNIFE-EDGE": "bg-red-1 text-red-10",
         "UNKNOWN": "bg-grey-2",
     }.get(p, "bg-grey-2")
     with ui.card().classes(f"w-full p-3 {style}"):

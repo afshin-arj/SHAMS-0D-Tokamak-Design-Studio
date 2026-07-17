@@ -44,5 +44,10 @@ def normalize_edge_kind(kind: str) -> str:
 
 
 def apply_deck_dsg_context(session: DesignSession, kind: str) -> None:
-    if getattr(session, "dsg_edge_kind_auto", True):
-        session.dsg_context_edge_kind = normalize_edge_kind(kind)
+    if not getattr(session, "dsg_edge_kind_auto", True):
+        return
+    normalized = normalize_edge_kind(kind)
+    # No-op when already tagged — avoids churn on same-kind remounts / force switches.
+    if str(getattr(session, "dsg_context_edge_kind", "")) == normalized:
+        return
+    session.dsg_context_edge_kind = normalized

@@ -50,7 +50,7 @@ def render_workbench(
     ui.label("Orient → look → probe. PASS = blocking-feasible; gray dominance = all cells feasible.").classes(
         "text-caption text-grey q-mb-sm"
     )
-    ui.label(
+    ui.markdown(
         f"Slice: **{rep.get('x_key')}** vs **{rep.get('y_key')}** · "
         f"intents: **{' / '.join(str(i) for i in intents)}** · n={int(rep.get('n_points') or 0)}"
     ).classes("text-caption q-mb-md")
@@ -94,7 +94,7 @@ def _render_nav(
     if str(session.scan_wb_view).startswith("Operating"):
         keys = contour_field_keys(rep)
         if not keys:
-            ui.label("Re-run with **Include compact outputs** on Setup & Run.").classes(
+            ui.markdown("Re-run with **Include compact outputs** on Setup & Run.").classes(
                 "text-caption text-orange"
             )
         else:
@@ -247,7 +247,7 @@ def _render_inspector(
             "flat outline"
         )
 
-    ui.label("For causality / UQ tools, use the **Interpret** tab.").classes(
+    ui.markdown("For causality / UQ tools, use the **Interpret** tab.").classes(
         "text-caption text-grey q-mt-sm"
     )
 

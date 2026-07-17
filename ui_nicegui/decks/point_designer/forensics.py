@@ -52,7 +52,7 @@ def _attach_forensics_to_artifact(session: DesignSession, ff: dict) -> None:
 def _panel(session: DesignSession) -> None:
     ff = session.pd_last_forensics
     if not isinstance(ff, dict) or not ff:
-        ui.label("Click **Compute forensics** after evaluating a point.").classes("text-caption text-grey")
+        ui.markdown("Click **Compute forensics** after evaluating a point.").classes("text-caption text-grey")
         return
 
     if ff.get("status") == "error":

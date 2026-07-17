@@ -134,6 +134,26 @@ def suggest_next_deck(session: Any, active_deck: str) -> tuple[Optional[str], st
         return (None, "")
 
     if active_deck == "Point Designer":
+        # Prefer recovery/closure when the anchored point is already INFEASIBLE.
+        cache = getattr(session, "pd_verdict_summary_cache", None)
+        if isinstance(cache, dict) and cache.get("loaded") and not cache.get("feasible"):
+            return (
+                "Systems Mode",
+                "Point is INFEASIBLE — close systems / recover before mapping the design space.",
+            )
+        out = getattr(session, "pd_last_outputs", None) or getattr(session, "last_eval", None)
+        if isinstance(out, dict) and out and "outputs" not in out:
+            try:
+                from ui_nicegui.lib.verdict_core import verdict_summary
+
+                summary = verdict_summary(out)
+                if summary.get("loaded") and not summary.get("feasible"):
+                    return (
+                        "Systems Mode",
+                        "Point is INFEASIBLE — close systems / recover before mapping the design space.",
+                    )
+            except Exception:
+                pass
         return ("Scan Lab", "Point evaluated — map feasible regions before committing.")
 
     if active_deck == "Scan Lab" and not (

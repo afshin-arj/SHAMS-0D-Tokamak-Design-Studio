@@ -28,8 +28,7 @@ def _classify_subsystem(name: str) -> str:
     return "other"
 
 
-def subsystem_status(out: Dict[str, Any]) -> Dict[str, str]:
-    bundle = build_all_constraints(out)
+def _subsystem_status_from_bundle(bundle) -> Dict[str, str]:
     status: Dict[str, str] = {k: "pass" for k in _SUBSYSTEM_GROUPS}
     status["other"] = "pass"
     for c in bundle.governance:
@@ -41,6 +40,10 @@ def subsystem_status(out: Dict[str, Any]) -> Dict[str, str]:
         elif status.get(sub) != "fail":
             status[sub] = "warn"
     return status
+
+
+def subsystem_status(out: Dict[str, Any]) -> Dict[str, str]:
+    return _subsystem_status_from_bundle(build_all_constraints(out))
 
 
 def tier_badges(out: Dict[str, Any]) -> Tuple[str, str]:
@@ -75,7 +78,8 @@ def verdict_summary(out: Dict[str, Any]) -> Dict[str, Any]:
         "dominant": dom or "(none)",
         "q_label": q_s,
         "nt_label": nt_s,
-        "subsystems": subsystem_status(out),
+        # Reuse the same bundle — avoid a second full constraint rebuild on every deck switch/helm refresh.
+        "subsystems": _subsystem_status_from_bundle(bundle),
         "parity_aligned": bool(parity.get("pipelines_aligned", True)),
         "parity_n_mismatch": int(parity.get("n_pass_mismatch") or 0),
         "parity_n_gov": int(parity.get("n_governance") or 0),

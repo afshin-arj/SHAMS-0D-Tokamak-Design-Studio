@@ -5,26 +5,40 @@ from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.pareto_helpers import frontier_posture
 
 
-def render_frontier_dashboard(summary: dict | None) -> None:
+def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") -> None:
     ui.label("Frontier Dashboard").classes("text-subtitle1")
     if not isinstance(summary, dict) or not summary:
         empty_state(
-            "No Pareto study yet. Configure objectives and run a feasible-only study below.",
+            "No Pareto study yet. Configure objectives and run a feasible-only study on **Setup & Run** "
+            "(requires a **Point Designer** baseline).",
             kind="info",
         )
+        ui.button(
+            "Open Point Designer",
+            icon="design_services",
+            on_click=lambda: switch_deck("Point Designer"),
+        ).props("outline color=primary").classes("q-mt-sm")
         return
 
+    if intent_mode:
+        ui.badge(f"Feasibility lens: {intent_mode}", color="blue-grey").props("outline").classes(
+            "q-mb-xs"
+        )
+
     posture, tone = frontier_posture(summary)
-    tone_cls = {
-        "positive": "text-positive",
-        "warning": "text-orange",
-        "negative": "text-negative",
-        "info": "text-grey",
-    }.get(tone, "text-grey")
-    ui.label(posture).classes(f"text-body2 q-mb-sm {tone_cls}")
+    from ui_nicegui.components.verdict_banner import verdict_banner
+
+    banner_posture = {
+        "positive": "PASS",
+        "info": "READY",
+        "warning": "MIXED",
+        "negative": "FAIL",
+    }.get(tone, "UNKNOWN")
+    verdict_banner(banner_posture, detail=posture)
 
     feas_frac = summary.get("feasible_fraction")
     feas_pct = f"{100.0 * float(feas_frac):.1f}%" if isinstance(feas_frac, (int, float)) else "-"

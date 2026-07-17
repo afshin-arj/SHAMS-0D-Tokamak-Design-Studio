@@ -52,7 +52,7 @@ def render_scenario_delta(session: DesignSession) -> None:
             ui.upload(on_upload=_variant).props('accept=".json" auto-upload label="Scenario artifact"')
 
     with ui.expansion("Compare deck bridge", icon="compare", value=False).classes("w-full q-mt-sm"):
-        ui.label(
+        ui.markdown(
             "Bidirectional handoff with the **Compare** deck — baseline → slot A, scenario → slot B."
         ).classes("text-caption text-grey q-mb-sm")
 

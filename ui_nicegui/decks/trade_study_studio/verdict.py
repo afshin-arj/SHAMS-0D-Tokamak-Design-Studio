@@ -7,7 +7,7 @@ from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 
 
-def render_study_dashboard(summary: dict | None) -> None:
+def render_study_dashboard(summary: dict | None, *, design_intent: str = "") -> None:
     ui.label("Trade Study Dashboard").classes("text-subtitle1")
     if not isinstance(summary, dict) or not summary:
         empty_state(
@@ -15,6 +15,23 @@ def render_study_dashboard(summary: dict | None) -> None:
             kind="info",
         )
         return
+    if design_intent:
+        ui.badge(f"Feasibility lens: {design_intent}", color="blue-grey").props("outline").classes(
+            "q-mb-xs"
+        )
+    from ui_nicegui.components.verdict_banner import verdict_banner
+
+    n_feas = int(summary.get("n_feasible") or 0)
+    n_par = int(summary.get("n_pareto") or 0)
+    if n_feas == 0:
+        verdict_banner("FAIL", detail="No feasible samples — widen knob set or change intent lens.")
+    elif n_par == 0:
+        verdict_banner("MIXED", detail="Feasible samples exist but no Pareto set yet.")
+    else:
+        verdict_banner(
+            "PASS",
+            detail=f"{n_feas} feasible · {n_par} Pareto · confidence={summary.get('confidence', '-')}",
+        )
     objs = summary.get("objectives") or []
     obj_label = ", ".join(objs[:3]) + ("…" if len(objs) > 3 else "")
     kpi_row([

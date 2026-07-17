@@ -72,6 +72,9 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
         return
     detail = f"Dominant: {summary['dominant']}"
     verdict_banner(summary["verdict"], detail=detail)
+    from ui_nicegui.lib.pd_intent_policy import policy_caption
+
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
 
     fuel = str((session.inputs or {}).get("fuel_mode", "DT"))
     cells = hero_kpi_cells(

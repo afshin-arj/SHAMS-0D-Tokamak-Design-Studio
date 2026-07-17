@@ -45,19 +45,20 @@ def render_pareto_lab(session: DesignSession) -> None:
     ui.markdown(PARETO_LOCK_LINE).classes("text-body2 q-mb-sm")
     render_mode_scope("pareto", default_open=False)
 
-    _, _, point_out = get_point_artifact_triple(session)
+    art, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
-        ui.badge(
-            "No Point Designer evaluation — run Point Designer first",
-            color="orange",
-        ).props("outline").classes("q-mb-sm")
         pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Pareto Lab uses that frozen baseline.",
         )
         return
 
+    from ui_nicegui.lib.session_store import get_cached_verdict_summary
+
+    _vs = get_cached_verdict_summary(session, point_out)
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
+        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
+            baseline_kpi_classes(point_out, verdict=_vs)
+        )
 
     with ui.row().classes("w-full items-center justify-end gap-4 q-mb-sm"):
         ui.switch(
@@ -77,6 +78,9 @@ def render_pareto_lab(session: DesignSession) -> None:
             ),
         )
 
+    from ui_nicegui.lib.pd_intent_policy import policy_caption
+
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
     _render_dashboard(session)
 
     def _on_decision(e) -> None:
@@ -119,9 +123,11 @@ def render_pareto_lab(session: DesignSession) -> None:
 @ui.refreshable
 def _render_dashboard(session: DesignSession) -> None:
     summary = None
+    intent_mode = ""
     if isinstance(session.pareto_last, dict):
         summary = session.pareto_last.get("summary")
-    verdict.render_frontier_dashboard(summary)
+        intent_mode = str(session.pareto_last.get("intent_mode") or "")
+    verdict.render_frontier_dashboard(summary, intent_mode=intent_mode)
 
 
 @ui.refreshable

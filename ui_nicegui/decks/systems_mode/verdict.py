@@ -46,7 +46,13 @@ def render_degraded_posture(*, next_action: str = "") -> None:
         ui.markdown(f"**Next:** {next_action}").classes("text-body2 q-mt-xs")
 
 
-def render_posture_strip(art: dict, *, next_action: str = "") -> None:
+def render_posture_strip(
+    art: dict,
+    *,
+    next_action: str = "",
+    design_intent: str = "",
+    fuel_mode: str = "DT",
+) -> None:
     constraints = extract_constraints(art)
     verdict = pick_first(art, [["verdict"], ["summary", "verdict"], ["ledger", "verdict"]]) or "-"
     dom = pick_first(
@@ -67,34 +73,70 @@ def render_posture_strip(art: dict, *, next_action: str = "") -> None:
                 break
 
     kpis = _physics_kpis(art)
-    # Independence 1.2: watermark Pe_net on hard-infeasible artifacts.
-    try:
-        from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+    out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+    if not out and isinstance(art.get("ledger"), dict):
+        out = art["ledger"].get("outputs") or {}
+    if not isinstance(out, dict):
+        out = {}
 
-        out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
-        if not out and isinstance(art.get("ledger"), dict):
-            out = art["ledger"].get("outputs") or {}
-        p_net_disp = pe_net_display(out if isinstance(out, dict) else {}, artifact=art)
-    except Exception:
-        p_net_disp = fmt(kpis.get("P_net"))
-    ui.label("Design status").classes("text-subtitle1 q-mt-sm")
+    # PHYS-KPI-001 parity with Point Designer: suppress Q/H98/Pfus/P_net claims on INFEASIBLE.
+    from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes, hero_kpi_cells
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    summary = verdict_summary(out) if out else {
+        "loaded": False,
+        "feasible": str(verdict).upper() in ("FEASIBLE", "PASS", "PASS+DIAG"),
+        "verdict": str(verdict or "UNKNOWN"),
+        "q_label": f"Q={fmt(kpis.get('Q'))}",
+        "nt_label": "nτE=n/a",
+    }
+    cells = hero_kpi_cells(
+        out if out else {
+            "Q_DT_eqv": kpis.get("Q"),
+            "H98": kpis.get("H98"),
+            "Pfus_total_MW": kpis.get("P_fus"),
+            "P_net_e_MW": kpis.get("P_net"),
+        },
+        summary,
+        design_intent=design_intent,
+        fuel_mode=fuel_mode,
+    )
+    by_label = {c.label: c for c in cells}
+    q_disp = by_label.get("Performance").display if "Performance" in by_label else fmt(kpis.get("Q"))
+    h98_disp = by_label.get("H98(y,2)").display if "H98(y,2)" in by_label else fmt(kpis.get("H98"))
+    pfus_disp = by_label.get("Pfus").display if "Pfus" in by_label else fmt(kpis.get("P_fus"))
+    p_net_disp = by_label.get("P_net,e").display if "P_net,e" in by_label else fmt(kpis.get("P_net"))
+
+    from ui_nicegui.components.verdict_banner import verdict_banner
+
+    detail_bits = []
+    if dom:
+        detail_bits.append(f"Dominant: {fmt(dom, digits=32)}")
+    if mech:
+        detail_bits.append(f"Mechanism: {fmt(mech, digits=16)}")
+    if dom_margin is not None:
+        detail_bits.append(f"Margin: {fmt(dom_margin)}")
+    if next_action:
+        detail_bits.append(f"Next: {next_action}")
+    verdict_banner(str(verdict or "UNKNOWN"), detail=" · ".join(detail_bits))
     if kpis.get("mirage"):
         ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
     kpi_row([
-        ("Verdict", fmt(verdict, digits=16)),
-        ("Dominant limit", fmt(dom, digits=32) if dom else "-"),
-        ("Mechanism", fmt(mech, digits=16) if mech else "-"),
-        ("Margin", fmt(dom_margin) if dom_margin is not None else "-"),
-        ("Q", fmt(kpis.get("Q"))),
-        ("H98", fmt(kpis.get("H98"))),
-        ("Pfus [MW]", fmt(kpis.get("P_fus"))),
+        ("Q", q_disp),
+        ("H98", h98_disp),
+        ("Pfus [MW]", pfus_disp),
         ("P_net [MW]", p_net_disp),
         ("q95", fmt(kpis.get("q95"))),
         ("β_N", fmt(kpis.get("beta_N"))),
         ("f_G", fmt(kpis.get("f_G"))),
     ])
-    if next_action:
-        ui.markdown(f"**Next:** {next_action}").classes("text-body2 q-mt-xs")
+    for note in hero_diagnostic_notes(
+        out,
+        summary,
+        design_intent=design_intent,
+        fuel_mode=fuel_mode,
+    )[:2]:
+        ui.markdown(note).classes("text-caption text-orange q-mt-xs")
     ui.label("Diagnostic only — does not modify frozen physics.").classes("text-caption text-grey q-mb-sm")
 
 

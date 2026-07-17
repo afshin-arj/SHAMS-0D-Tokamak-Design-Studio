@@ -116,11 +116,16 @@ def render_compare_slot_actions(session: DesignSession) -> None:
     ui.label("Quick interop: send the current run to Compare without downloading files.").classes("text-caption")
     with ui.row().classes("gap-2 q-mb-sm flex-wrap"):
         def _send_a() -> None:
-            store_compare_slot(session, art, "A", label="Point Designer (last run)")
+            # refresh=False — user may Open Compare next (single remount)
+            store_compare_slot(
+                session, art, "A", label="Point Designer (last run)", refresh=False
+            )
             ui.notify("Sent current run to Compare Slot A.", type="positive")
 
         def _send_b() -> None:
-            store_compare_slot(session, art, "B", label="Point Designer (last run)")
+            store_compare_slot(
+                session, art, "B", label="Point Designer (last run)", refresh=False
+            )
             ui.notify("Sent current run to Compare Slot B.", type="positive")
 
         def _clear() -> None:

@@ -50,19 +50,20 @@ def render_trade_study_studio(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("trade", default_open=False)
 
-    _, _, point_out = get_point_artifact_triple(session)
+    art, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
-        ui.badge(
-            "No Point Designer evaluation — run Point Designer first",
-            color="orange",
-        ).props("outline").classes("q-mb-sm")
         pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Trade Study uses that baseline.",
         )
         return
 
+    from ui_nicegui.lib.session_store import get_cached_verdict_summary
+
+    _vs = get_cached_verdict_summary(session, point_out)
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out)).classes(baseline_kpi_classes(point_out))
+        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
+            baseline_kpi_classes(point_out, verdict=_vs)
+        )
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",
@@ -81,6 +82,9 @@ def render_trade_study_studio(session: DesignSession) -> None:
                 ),
             )
 
+    from ui_nicegui.lib.pd_intent_policy import policy_caption
+
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
     _render_dashboard(session)
 
     def _on_decision(e) -> None:
@@ -125,7 +129,7 @@ def _render_dashboard(session: DesignSession) -> None:
     summary = None
     if isinstance(session.trade_last, dict):
         summary = session.trade_last.get("summary")
-    verdict.render_study_dashboard(summary)
+    verdict.render_study_dashboard(summary, design_intent=str(session.design_intent or ""))
 
 
 @ui.refreshable

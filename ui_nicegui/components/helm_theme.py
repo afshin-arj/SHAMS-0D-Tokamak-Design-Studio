@@ -143,12 +143,20 @@ body.shams-drawer-resizing .shams-drawer-resize-handle {
   justify-content: center;
   width: 26px;
   height: 26px;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  padding: 0 !important;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
   background: #334155;
   color: #94a3b8;
   border: 1px solid #475569;
+  cursor: pointer;
+}
+.shams-helm-drawer .helm-phase-pill:hover {
+  border-color: #60a5fa;
+  color: #e2e8f0;
 }
 .shams-helm-drawer .helm-phase-active {
   background: #2563eb;

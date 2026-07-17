@@ -88,7 +88,7 @@ def render_publication_benchmarks(session: DesignSession) -> None:
 
     _, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
-        ui.label(
+        ui.markdown(
             "Tab 1 evaluates **reference machine presets** — not your session point. "
             "Run Point Designer first to anchor a design, then use Atlas → Promote."
         ).classes("text-caption text-grey q-mb-sm")

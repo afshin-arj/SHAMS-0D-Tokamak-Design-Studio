@@ -43,7 +43,7 @@ def render_control_contracts(session: DesignSession) -> None:
     enabled = bool((inputs_dict or {}).get("include_control_contracts", False))
 
     if not enabled:
-        ui.label(
+        ui.markdown(
             "Control contracts are OFF. Enable **Control system contracts** in Configure."
         ).classes("text-orange")
         return

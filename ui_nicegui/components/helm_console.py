@@ -184,12 +184,27 @@ def _render_run_lock_banner(session: DesignSession) -> None:
     ).classes("w-full q-mb-sm")
 
 
+def _refresh_after_truth_contract_change() -> None:
+    """Remount active deck + Helm posture after intent/enforcement/TRL invalidation.
+
+    Cache clear alone left Captain's Ledger and deck hero showing a stale Point
+    verdict until the next manual deck switch.
+    """
+    from ui_nicegui.lib.navigation import refresh_current_deck
+
+    refresh_current_deck()
+
+
 def _render_posture(session: DesignSession) -> None:
     ui.label(helm_section_label("Captain's Ledger")).classes("text-caption text-weight-bold")
     posture = "Review Mode (locked)" if session.forge_review_mode else "Explore Mode"
     ui.badge(posture, color="orange" if session.forge_review_mode else "green").props("outline").classes(
         "q-mb-xs"
     )
+
+    # Mission + policy visible without opening Session setup (fusion-researcher path).
+    ui.label(f"Mission: {session.design_intent}").classes("text-caption q-mt-xs")
+    ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
 
     locked, task, holder = runlock_global_status()
     if (
@@ -213,16 +228,27 @@ def _render_posture(session: DesignSession) -> None:
 
     out = session.pd_last_outputs or session.last_eval
     if isinstance(out, dict) and out:
-        from ui_nicegui.lib.verdict_core import verdict_summary
+        from ui_nicegui.lib.pd_hero_kpis import hero_kpi_cells
+        from ui_nicegui.lib.session_store import get_cached_no_solution_atlas, get_cached_verdict_summary
 
-        summary = verdict_summary(out)
-        detail = f"{summary.get('verdict', '-')} · Q {summary.get('q_label', '-')} · Dom {summary.get('dominant', '-')}"
+        summary = get_cached_verdict_summary(session, out)
+        # PHYS-KPI-001: suppress Q/H98/Pfus claims on INFEASIBLE (PD hero parity).
+        cells = hero_kpi_cells(
+            out,
+            summary,
+            design_intent=str(session.design_intent or ""),
+            fuel_mode=str((session.inputs or {}).get("fuel_mode", "DT")),
+        )
+        by_label = {c.label: c for c in cells}
+        q_cell = by_label.get("Performance")
+        h98_cell = by_label.get("H98(y,2)")
+        pfus_cell = by_label.get("Pfus")
+        q_bit = q_cell.display if q_cell is not None else summary.get("q_label", "-")
+        detail = f"{summary.get('verdict', '-')} · {q_bit} · Dom {summary.get('dominant', '-')}"
         if bool(out.get("mirage_flag_v402")):
             detail += " · MIRAGE"
         if not summary.get("feasible"):
-            from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
-
-            atlas = no_solution_atlas_summary(out, design_intent=str(session.design_intent))
+            atlas = get_cached_no_solution_atlas(session, out)
             detail += (
                 f" · {atlas.get('dominant_mechanism', '-')} / "
                 f"{atlas.get('dominant_constraint', '-')}"
@@ -231,12 +257,11 @@ def _render_posture(session: DesignSession) -> None:
         ui.label(f"Point: {detail}").classes(f"text-caption q-mt-xs {tone}")
         if bool(out.get("mirage_flag_v402")):
             ui.badge("MIRAGE", color="orange").props("outline dense").classes("q-mt-xs")
-        try:
-            h98 = float(out.get("H98"))
-            if h98 == h98:
-                ui.label(f"H98(y,2) ≈ {h98:.3g}").classes("text-caption text-grey")
-        except (TypeError, ValueError):
-            pass
+        if h98_cell is not None and h98_cell.display not in ("n/a", ""):
+            prefix = "H98(y,2)" if h98_cell.suppressed else "H98(y,2) ≈"
+            ui.label(f"{prefix} {h98_cell.display}").classes("text-caption text-grey")
+        if pfus_cell is not None and pfus_cell.suppressed:
+            ui.label(f"Pfus {pfus_cell.display}").classes("text-caption text-grey")
     else:
         ui.label("Point: No evaluation yet — Evaluate in Point Designer.").classes(
             "text-caption text-grey q-mt-xs"
@@ -262,6 +287,7 @@ def _render_mission_policy(session: DesignSession) -> None:
         if prev != new:
             on_design_intent_changed(session, prev, new)
             _helm_settings_section.refresh()
+            _refresh_after_truth_contract_change()
 
     ui.select(
         DESIGN_INTENT_OPTIONS,
@@ -270,36 +296,49 @@ def _render_mission_policy(session: DesignSession) -> None:
         on_change=_set_intent,
     ).props(helm_dark_props()).classes("w-full")
     ui.label(
-        "Reactor missions enforce plant limits (TBR, stress, exhaust). "
-        "Research missions keep q95 blocking; engineering limits become diagnostic."
+        "Reactor / Pilot / High-field missions enforce plant limits (TBR, stress, exhaust). "
+        "Research missions keep q95 blocking; engineering limits become diagnostic; TBR ignored."
     ).classes("text-caption q-mb-sm")
 
     pol = constraint_policy_snapshot(session.design_intent)
     ui.label(policy_caption(session.design_intent)).classes("text-caption text-weight-bold")
     ui.markdown(
         f"- **Blocking:** {', '.join(pol.get('hard_blocking') or []) or '(none)'}\n"
-        f"- **Diagnostic:** {', '.join(pol.get('diagnostic_only') or []) or '(none)'}"
+        f"- **Diagnostic:** {', '.join(pol.get('diagnostic_only') or []) or '(none)'}\n"
+        f"- **Ignored:** {', '.join(pol.get('ignored') or []) or '(none)'}"
     ).classes("text-caption q-mb-sm")
 
     ui.label("Per-limit enforcement (does not change physics outputs)").classes("text-caption text-weight-bold")
     q_prev = str(inp.get("q95_enforcement", "hard"))
     fg_prev = str(inp.get("greenwald_enforcement", "hard"))
 
+    def _set_q95(e) -> None:
+        inp["q95_enforcement"] = str(e.value)
+        on_policy_contract_changed(session)
+        _refresh_after_truth_contract_change()
+
+    def _set_fg(e) -> None:
+        inp["greenwald_enforcement"] = str(e.value)
+        on_policy_contract_changed(session)
+        _refresh_after_truth_contract_change()
+
+    def _set_tier(e) -> None:
+        inp["tech_tier"] = str(e.value)
+        on_tech_tier_changed(session)
+        _refresh_after_truth_contract_change()
+
     with ui.grid(columns=2).classes("w-full gap-2"):
         ui.select(
             _POLICY_ENFORCEMENT,
             label="q95 limit",
             value=q_prev if q_prev in _POLICY_ENFORCEMENT else "hard",
-            on_change=lambda e: (inp.__setitem__("q95_enforcement", str(e.value)), on_policy_contract_changed(session)),
+            on_change=_set_q95,
         ).props(helm_dark_props())
         ui.select(
             _POLICY_ENFORCEMENT,
             label="Greenwald fG",
             value=fg_prev if fg_prev in _POLICY_ENFORCEMENT else "hard",
-            on_change=lambda e: (
-                inp.__setitem__("greenwald_enforcement", str(e.value)),
-                on_policy_contract_changed(session),
-            ),
+            on_change=_set_fg,
         ).props(helm_dark_props())
 
     tier = str(inp.get("tech_tier", "TRL7")).upper().strip()
@@ -310,7 +349,7 @@ def _render_mission_policy(session: DesignSession) -> None:
         _TRL_TIERS,
         label="Technology readiness (TRL)",
         value=tier,
-        on_change=lambda e: (inp.__setitem__("tech_tier", str(e.value)), on_tech_tier_changed(session)),
+        on_change=_set_tier,
     ).props(helm_dark_props()).classes("w-full q-mt-sm")
 
     ui.markdown(
@@ -613,8 +652,9 @@ def _render_chronicle_tail(session: DesignSession) -> None:
 
 
 def helm_status_caption(session: DesignSession) -> str:
+    deck = str(getattr(session, "active_deck", "") or "Point Designer")
     locked, task, is_owner = runlock_status("PointDesigner")
     if session.evaluating or (locked and task):
         who = "" if is_owner else " (another task)"
-        return f"Running: {task or 'evaluation'}{who} · solver actions locked"
-    return "Ready · Helm Console armed · Awaiting next sequence."
+        return f"{deck} · Running: {task or 'evaluation'}{who} · solver actions locked"
+    return f"{deck} · Ready · frozen evaluator armed"

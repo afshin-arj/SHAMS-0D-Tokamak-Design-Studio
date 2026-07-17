@@ -1,0 +1,4 @@
+.................................................................        [100%]
+65 passed in ~40s
+command: python -m pytest tests/test_nicegui_helm_console.py tests/test_nicegui_pd_hero_kpis.py -q --tb=line
+date: 2026-07-17

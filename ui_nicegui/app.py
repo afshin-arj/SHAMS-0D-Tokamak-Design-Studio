@@ -53,6 +53,9 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
     sibling ``_CONTENT`` column). Writing into an external container while the
     refreshable slot stayed empty left Helm/`active_deck` updated and the
     previous deck DOM still visible after handoffs and nav clicks.
+
+    Order: update session → DSG tag → remount deck → light Helm/status refresh.
+    Same-deck clicks no-op unless ``force=True`` (handoffs that mutate session).
     """
     same = name == _SESSION.active_deck
     if same and not force:
@@ -63,9 +66,11 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
 
     apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
     # Remount deck body first so main title matches Helm selection (NAV-001).
+    # Single remount path: do not also write into an external content column.
     _render_deck.refresh()
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
+    # Nav/compass + status only — settings panel stays mounted (heavy; unchanged by deck).
     refresh_helm()
     refresh_status()
 

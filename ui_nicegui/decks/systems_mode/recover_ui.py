@@ -35,7 +35,7 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
 
     base, _, variables = resolve_systems_problem(session)
     if not variables:
-        ui.label("Configure iteration variables on **1 · Targets** first.").classes("text-orange")
+        ui.markdown("Configure iteration variables on **1 · Targets** first.").classes("text-orange")
         return
 
     ui.checkbox(

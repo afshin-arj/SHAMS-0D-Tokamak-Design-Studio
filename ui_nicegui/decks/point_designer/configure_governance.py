@@ -4,6 +4,7 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.lib.helm_labels import DESIGN_INTENT_OPTIONS
+from ui_nicegui.lib.lazy_expansion import lazy_expansion
 from ui_nicegui.lib.pd_intent_policy import policy_caption
 from ui_nicegui.session import DesignSession
 
@@ -18,8 +19,8 @@ def render_design_governance(session: DesignSession) -> None:
     session.knobs.setdefault("profile_peaking_p_ref_v402", 3.0)
     session.knobs.setdefault("zeff_ref_max_v402", 2.5)
 
-    with ui.expansion("Design governance (dominance references)", icon="gavel").classes("w-full q-mb-sm"):
-        ui.label(
+    def _body() -> None:
+        ui.markdown(
             "**Mission profile, q95/Greenwald tiering, and TRL** are set in "
             "**Helm Console → Design contract**. This panel only adjusts global dominance ranking references."
         ).classes("text-caption q-mb-sm")
@@ -45,18 +46,28 @@ def render_design_governance(session: DesignSession) -> None:
                 ui.number(
                     "Transport spread reference",
                     value=float(session.knobs.get("transport_spread_ref_v402", 3.0)),
-                    min=1.1, step=0.1,
+                    min=1.1,
+                    step=0.1,
                     on_change=lambda e: session.knobs.__setitem__("transport_spread_ref_v402", e.value),
                 )
                 ui.number(
                     "Pressure peaking reference",
                     value=float(session.knobs.get("profile_peaking_p_ref_v402", 3.0)),
-                    min=1.1, step=0.1,
+                    min=1.1,
+                    step=0.1,
                     on_change=lambda e: session.knobs.__setitem__("profile_peaking_p_ref_v402", e.value),
                 )
                 ui.number(
                     "Zeff reference maximum",
                     value=float(session.knobs.get("zeff_ref_max_v402", 2.5)),
-                    min=1.1, step=0.1,
+                    min=1.1,
+                    step=0.1,
                     on_change=lambda e: session.knobs.__setitem__("zeff_ref_max_v402", e.value),
                 )
+
+    lazy_expansion(
+        "Design governance (dominance references)",
+        icon="gavel",
+        classes="w-full q-mb-sm",
+        body=_body,
+    )

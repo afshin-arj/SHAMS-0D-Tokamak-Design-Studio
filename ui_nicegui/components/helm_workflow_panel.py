@@ -6,8 +6,10 @@ from typing import Callable
 from nicegui import ui
 
 from ui_nicegui.lib.deck_workflow import DECK_WORKFLOW_STEP, deck_nav_short_label
+from ui_nicegui.lib.helm_labels import HELM_NAV_GROUPS
 from ui_nicegui.lib.helm_workflow_guide import (
     DECK_NOW_ACTIONS,
+    DECK_SHORT_VERBS,
     WORKFLOW_PHASES,
     deck_phase,
     phase_completion,
@@ -31,7 +33,7 @@ def render_workflow_compass(
     ui.label("Study workflow").classes("text-subtitle2 text-weight-bold q-mb-xs")
     ui.label(f"Phase {phase} · {phase_title(phase)} · deck {step}/10").classes("text-caption q-mb-sm")
 
-    with ui.row().classes("w-full gap-1 q-mb-sm flex-wrap"):
+    with ui.row().classes("w-full gap-1 q-mb-sm flex-wrap items-center"):
         for i, (title, _) in enumerate(WORKFLOW_PHASES, start=1):
             done = phase_completion(i, progress)
             current = i == phase
@@ -40,9 +42,18 @@ def render_workflow_compass(
                 cls += " helm-phase-active"
             elif done:
                 cls += " helm-phase-done"
-            ui.html(f'<span class="{cls}" title="{title}">{i}</span>')
+            # First deck of the phase (HELM_NAV_GROUPS order matches WORKFLOW_PHASES).
+            target = HELM_NAV_GROUPS[i - 1][2][0] if 0 < i <= len(HELM_NAV_GROUPS) else "Point Designer"
 
-    ui.label(active).classes("text-body2 text-weight-bold")
+            def _go_phase(deck: str = target) -> None:
+                on_deck_change(deck)
+
+            ui.button(str(i), on_click=_go_phase).props(
+                f'flat dense round title="Go to phase {i}: {title}"'
+            ).classes(cls)
+
+    verb = DECK_SHORT_VERBS.get(active, "")
+    ui.label(f"{active}" + (f" — {verb}" if verb else "")).classes("text-body2 text-weight-bold")
     actions = DECK_NOW_ACTIONS.get(active, [])
     if actions:
         ui.markdown("**Do now:**\n" + "\n".join(f"- {a}" for a in actions[:3])).classes(

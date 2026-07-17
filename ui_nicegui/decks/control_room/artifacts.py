@@ -130,7 +130,9 @@ def _artifact_view(art: dict, session: DesignSession) -> None:
             "Send to Compare A",
             icon="compare",
             on_click=lambda: (
-                store_compare_slot(session, art, "A", label="Control Room explorer"),
+                store_compare_slot(
+                    session, art, "A", label="Control Room explorer", refresh=False
+                ),
                 ui.notify("Loaded Compare slot A", type="positive"),
             ),
         ).props("flat outline dense")
@@ -138,7 +140,9 @@ def _artifact_view(art: dict, session: DesignSession) -> None:
             "Send to Compare B",
             icon="compare",
             on_click=lambda: (
-                store_compare_slot(session, art, "B", label="Control Room explorer"),
+                store_compare_slot(
+                    session, art, "B", label="Control Room explorer", refresh=False
+                ),
                 ui.notify("Loaded Compare slot B", type="positive"),
             ),
         ).props("flat outline dense")
