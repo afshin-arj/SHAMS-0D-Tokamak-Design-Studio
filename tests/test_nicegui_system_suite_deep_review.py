@@ -44,8 +44,10 @@ def test_trajectory_power_incomplete_flag() -> None:
 
 def test_authority_version_badges_from_enabled_flags() -> None:
     badges = authority_version_badges({"magnet_v400_enabled": True, "nm_authority_v401_enabled": True})
-    assert "v400 magnets" in badges
-    assert "v401 neutronics" in badges
+    assert "Magnet technology" in badges
+    assert "Neutronics" in badges
+    # User-facing badges must not carry internal overlay version tags.
+    assert not any("v4" in b.lower() for b in badges)
 
 
 def test_envelope_posture_summary_campaign() -> None:

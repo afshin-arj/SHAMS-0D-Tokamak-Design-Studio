@@ -3649,6 +3649,33 @@ def _hot_ion_point_uncached(inp: PointInputs, Paux_for_Q_MW: Optional[float] = N
         )
 
     # =========================================================================
+    # Bottom-up modular costing authority (v421) — Independence 2.5
+    # MATCH-as-overlay; modular direct/indirect CAPEX account ledger with
+    # explicit drivers, transparent in-repo unit rates, and PROXY provenance
+    # (not 1990 Generomak). No costing iteration in L0. COE/LCOE display
+    # stays watermarked via plant_kpi_honesty.v1. Empty patch when OFF.
+    # =========================================================================
+    try:
+        try:
+            from analysis.bottom_up_costing_authority_v421 import (
+                evaluate_bottom_up_costing_authority_v421,
+            )
+        except ImportError:
+            from ..analysis.bottom_up_costing_authority_v421 import (
+                evaluate_bottom_up_costing_authority_v421,
+            )
+        costing421 = evaluate_bottom_up_costing_authority_v421(out, inp)
+        if isinstance(costing421, dict):
+            out.update(costing421)
+    except Exception as e:
+        _record_overlay_failure(
+            out,
+            enabled_key="include_bottom_up_costing_authority_v421",
+            error_key="bottom_up_costing_authority_v421_error",
+            exc=e,
+        )
+
+    # =========================================================================
     # Added: Authority Dominance Engine 2.0 (v402.0.0)
     # Global cross-authority dominance ranking + regime classification.
     # Governance-only overlay; deterministic; no truth edits.

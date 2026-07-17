@@ -88,6 +88,31 @@ def lcoe_display(
     return format_plant_kpi(honesty, "LCOE_proxy_USD_per_MWh", fallback_raw=raw, units="USD/MWh")
 
 
+def bottom_up_lcoe_display(
+    point_out: Optional[Mapping[str, Any]] = None,
+    *,
+    artifact: Optional[Mapping[str, Any]] = None,
+    design_intent: Optional[str] = None,
+) -> str:
+    """Watermarked display of the bottom-up costing LCOE restatement.
+
+    Uses the same hard-feasibility watermark as the global LCOE claim but
+    formats the bottom-up key specifically, so the bottom-up costing panel
+    never pairs its CAPEX with an LCOE computed on a different CAPEX basis.
+    """
+    honesty = plant_kpi_honesty_for_point(point_out, artifact=artifact, design_intent=design_intent)
+    raw = (
+        point_out.get("costing_v421_LCOE_USD_per_MWh")
+        if isinstance(point_out, Mapping)
+        else None
+    )
+    # The canon key is intentionally absent from the honesty kpis map, so
+    # format_plant_kpi falls back to claim_allowed + this specific raw value.
+    return format_plant_kpi(
+        honesty, "costing_v421_LCOE_USD_per_MWh", fallback_raw=raw, units="USD/MWh"
+    )
+
+
 def render_plant_kpi_watermark_banner(
     point_out: Optional[Mapping[str, Any]] = None,
     *,
@@ -107,6 +132,7 @@ __all__ = [
     "pe_net_display",
     "coe_display",
     "lcoe_display",
+    "bottom_up_lcoe_display",
     "render_plant_kpi_watermark_banner",
     "format_plant_kpi",
     "plant_kpi_banner_text",

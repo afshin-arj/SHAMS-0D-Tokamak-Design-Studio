@@ -21,6 +21,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     infeasibility_trace,
     magnet_card_metrics,
     avail_v420_summary,
+    costing_v421_summary,
     magnet_v400_summary,
     magnet_v410_summary,
     machine_v412_summary,
@@ -222,6 +223,33 @@ def render_mission_snapshot(session: DesignSession) -> None:
                 render_json_blob(v420["opex_breakdown_MUSD_per_y"])
             if v420.get("narrative"):
                 ui.label(str(v420["narrative"])).classes("text-caption q-mt-sm")
+
+    c421 = costing_v421_summary(out)
+    if c421:
+        with ui.expansion("Bottom-up modular costing [PROXY]", icon="receipt_long").classes("w-full"):
+            ui.badge("PROXY overlay — not 1990 Generomak").props("color=orange")
+            ui.label(
+                "Modular direct/indirect CAPEX account ledger with explicit drivers and transparent unit rates."
+            ).classes("text-caption q-mb-sm")
+            from ui_nicegui.lib.plant_kpi_honesty_ui import bottom_up_lcoe_display
+
+            kpi_row([
+                ("Total CAPEX [MUSD]", fmt_num(c421.get("CAPEX_total_MUSD"))),
+                ("Direct [MUSD]", fmt_num(c421.get("direct_subtotal_MUSD"))),
+                ("Indirect [MUSD]", fmt_num(c421.get("indirect_subtotal_MUSD"))),
+                ("Dominant account", str(c421.get("dominant_account", "-"))),
+                ("LCOE [USD/MWh]", bottom_up_lcoe_display(out, artifact=art, design_intent=str(session.design_intent))),
+                ("Consistency", "OK" if c421.get("consistency_ok") else "FAIL"),
+            ])
+            if c421.get("account_ledger"):
+                ui.label("CAPEX account ledger [MUSD]").classes("text-subtitle2")
+                render_json_blob({
+                    str(r.get("account")): r.get("cost_MUSD")
+                    for r in c421["account_ledger"]
+                    if isinstance(r, dict)
+                })
+            if c421.get("narrative"):
+                ui.label(str(c421["narrative"])).classes("text-caption q-mt-sm")
 
     with ui.expansion("Regime compass (sanity checks)", icon="explore").classes("w-full"):
         ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(

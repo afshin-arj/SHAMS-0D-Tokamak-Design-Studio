@@ -153,6 +153,11 @@ OVERLAY_LABELS: Dict[str, Tuple[str, Optional[str], str]] = {
         None,
         "One availability chain feeds operating hours, annual energy, OPEX, and LCOE consistently (proxy; LCOE watermarked).",
     ),
+    "include_bottom_up_costing_authority_v421": (
+        "Bottom-up modular costing",
+        None,
+        "Modular direct/indirect CAPEX account ledger with explicit drivers and transparent unit rates (proxy; LCOE watermarked).",
+    ),
     "include_authority_dominance_v402": (
         "Authority dominance",
         None,
@@ -337,6 +342,7 @@ OVERLAY_GROUP_SPECS: List[Tuple[str, List[Tuple[str, bool]]]] = [
             ("include_machine_build_authority_v412", False),
             ("include_plant_sankey_ledger_authority_v419", False),
             ("include_availability_opex_lcoe_authority_v420", False),
+            ("include_bottom_up_costing_authority_v421", False),
             ("include_authority_dominance_v402", True),
             ("include_control_stability_authority_v398", False),
             ("include_impurity_v399", False),
@@ -385,6 +391,7 @@ OVERLAY_NUMERIC_TITLES: Dict[str, str] = {
     "include_machine_build_authority_v412": "Machine build closure / Radial machine-build",
     "include_plant_sankey_ledger_authority_v419": "Plant Sankey ledger",
     "include_availability_opex_lcoe_authority_v420": "Availability–OPEX–LCOE",
+    "include_bottom_up_costing_authority_v421": "Bottom-up modular costing",
     "include_control_stability_authority_v398": "Control & stability margins",
     "include_impurity_v399": "Multi-species impurity radiation",
     "include_profile_family_v358": "Profile family library",

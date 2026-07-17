@@ -647,7 +647,11 @@ def build_run_artifact(
                 "avail_v420_availability", "avail_v420_availability_source", "avail_v420_hours_per_year_h", "avail_v420_E_net_MWh_per_y",
                 "avail_v420_OPEX_total_MUSD_per_y", "avail_v420_LCOE_USD_per_MWh", "avail_v420_LCOE_capex_USD_per_MWh",
                 "avail_v420_LCOE_replacement_USD_per_MWh", "avail_v420_LCOE_opex_USD_per_MWh", "avail_v420_consistency_ok",
-                "avail_v420_dominant_opex_driver", "avail_v420_CAPEX_source", "avail_v420_replacement_source"
+                "avail_v420_dominant_opex_driver", "avail_v420_CAPEX_source", "avail_v420_replacement_source",
+                "costing_v421_CAPEX_total_MUSD", "costing_v421_direct_subtotal_MUSD", "costing_v421_indirect_subtotal_MUSD",
+                "costing_v421_equipment_subtotal_MUSD", "costing_v421_dominant_account", "costing_v421_dominant_account_frac",
+                "costing_v421_LCOE_USD_per_MWh", "costing_v421_LCOE_basis", "costing_v421_consistency_ok",
+                "costing_v421_account_ledger"
             ] if k in outd},
             "tritium": {k: outd.get(k) for k in ['TBR', 'TBR_required_fuelcycle', 'TBR_margin_fuelcycle', 'TBR_eff_fuelcycle', 'TBR_self_sufficiency_required', 'TBR_self_sufficiency_margin', 'T_burn_kg_per_day', 'T_processing_required_g_per_day', 'T_inventory_reserve_kg', 'T_inventory_required_kg', 'T_in_vessel_required_kg', 'T_startup_inventory_kg', 'T_total_inventory_required_kg', 'T_in_vessel_max_kg', 'T_total_inventory_max_kg', 'T_loss_fraction', 'tritium_fuelcycle_contract_sha256'] if k in outd},
         }

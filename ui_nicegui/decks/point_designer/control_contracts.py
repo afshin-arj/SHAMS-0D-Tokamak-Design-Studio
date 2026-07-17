@@ -330,3 +330,44 @@ def render_control_contracts(session: DesignSession) -> None:
             ui.label(
                 "Availability–OPEX–LCOE is OFF — enable Availability–OPEX–LCOE overlay."
             ).classes("text-caption")
+
+    from ui_nicegui.lib.pd_parity_helpers import costing_v421_summary
+
+    c421 = costing_v421_summary(out)
+    with ui.expansion("Bottom-up modular costing [PROXY]", icon="receipt_long").classes(
+        "w-full q-mt-md"
+    ):
+        if c421:
+            ui.badge("PROXY overlay — not 1990 Generomak").props("color=orange")
+            from ui_nicegui.lib.plant_kpi_honesty_ui import bottom_up_lcoe_display
+
+            kpi_row([
+                ("Total CAPEX [MUSD]", fmt_num(c421.get("CAPEX_total_MUSD"))),
+                ("Direct [MUSD]", fmt_num(c421.get("direct_subtotal_MUSD"))),
+                ("Indirect [MUSD]", fmt_num(c421.get("indirect_subtotal_MUSD"))),
+                ("LCOE [USD/MWh]", bottom_up_lcoe_display(out)),
+            ])
+            kpi_row([
+                ("Dominant account", str(c421.get("dominant_account", "-"))),
+                ("Field bin", str(c421.get("field_bin", "-"))),
+                ("Magnet mass source", str(c421.get("magnet_mass_source", "-"))),
+                ("Consistency", "OK" if c421.get("consistency_ok") else "FAIL"),
+            ])
+            if c421.get("account_ledger"):
+                ui.label("CAPEX account ledger [MUSD]").classes("text-subtitle2")
+                render_json_blob({
+                    str(r.get("account")): r.get("cost_MUSD")
+                    for r in c421["account_ledger"]
+                    if isinstance(r, dict)
+                })
+            if c421.get("narrative"):
+                ui.label(str(c421["narrative"])).classes("text-caption q-mt-sm")
+            if c421.get("provenance"):
+                ui.label(str(c421["provenance"])).classes("text-caption")
+            ui.label(
+                "LCOE display must use plant KPI honesty watermark on hard-infeasible points."
+            ).classes("text-caption text-orange")
+        else:
+            ui.label(
+                "Bottom-up modular costing is OFF — enable Bottom-up modular costing overlay."
+            ).classes("text-caption")

@@ -558,6 +558,35 @@ def avail_v420_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def costing_v421_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Summary dict for bottom-up modular costing (None when disabled)."""
+    if not bool(out.get("costing_v421_enabled", False)):
+        return None
+    return {
+        "screening_tier": out.get("costing_v421_screening_tier", "proxy"),
+        "overlay_version": out.get("costing_v421_overlay_version", "v421"),
+        "system_tier": out.get("costing_v421_system_tier", "unknown"),
+        "CAPEX_total_MUSD": out.get("costing_v421_CAPEX_total_MUSD"),
+        "direct_subtotal_MUSD": out.get("costing_v421_direct_subtotal_MUSD"),
+        "indirect_subtotal_MUSD": out.get("costing_v421_indirect_subtotal_MUSD"),
+        "equipment_subtotal_MUSD": out.get("costing_v421_equipment_subtotal_MUSD"),
+        "dominant_account": out.get("costing_v421_dominant_account", ""),
+        "dominant_account_frac": out.get("costing_v421_dominant_account_frac"),
+        "LCOE_USD_per_MWh": out.get("costing_v421_LCOE_USD_per_MWh"),
+        "LCOE_basis": out.get("costing_v421_LCOE_basis", ""),
+        "field_bin": out.get("costing_v421_field_bin", ""),
+        "magnet_mass_source": out.get("costing_v421_magnet_mass_source", ""),
+        "consistency_ok": out.get("costing_v421_consistency_ok"),
+        "consistency_checks": out.get("costing_v421_consistency_checks"),
+        "account_ledger": out.get("costing_v421_account_ledger"),
+        "provenance": out.get("costing_v421_provenance", ""),
+        "narrative": out.get("costing_v421_narrative", ""),
+        "requires_kpi_honesty_watermark": out.get(
+            "costing_v421_requires_kpi_honesty_watermark", True
+        ),
+    }
+
+
 POWER_LEDGER_BADGED = [
     ("Input power Pin", "Pin_MW", "Authoritative"),
     ("Aux heating", "Paux_MW", "Authoritative"),

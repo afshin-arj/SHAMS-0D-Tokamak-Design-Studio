@@ -52,6 +52,7 @@ def authority_version_badges(out: dict) -> List[str]:
         ("machine_v412_enabled", "Machine build"),
         ("plant_v419_enabled", "Plant Sankey"),
         ("avail_v420_enabled", "Availability–OPEX–LCOE"),
+        ("costing_v421_enabled", "Bottom-up modular costing"),
         ("nm_authority_v401_enabled", "Neutronics"),
         ("nuclear_data_authority_v407_enabled", "Nuclear data"),
         ("structural_stress_v389_enabled", "Structural"),
@@ -529,6 +530,55 @@ def render_authority_ledger(
     else:
         ui.label(
             "Availability–OPEX–LCOE overlay not enabled on this point."
+        ).classes("text-caption text-grey")
+
+    from ui_nicegui.lib.pd_parity_helpers import costing_v421_summary
+
+    c421 = costing_v421_summary(point_out)
+    if c421:
+        from ui_nicegui.lib.plant_kpi_honesty_ui import bottom_up_lcoe_display
+
+        ui.badge("PROXY — Bottom-up modular costing").props("color=orange outline")
+        kpi_row([
+            ("Total CAPEX [MUSD]", _fin(c421.get("CAPEX_total_MUSD"), ".4g")),
+            ("Direct [MUSD]", _fin(c421.get("direct_subtotal_MUSD"), ".4g")),
+            ("Indirect [MUSD]", _fin(c421.get("indirect_subtotal_MUSD"), ".4g")),
+            ("Dominant account", str(c421.get("dominant_account", "-"))),
+            ("LCOE (watermarked)", bottom_up_lcoe_display(point_out, artifact=artifact, design_intent=design_intent)),
+            ("Consistency", "OK" if c421.get("consistency_ok") else "FAIL"),
+        ])
+        ui.label(
+            "CAPEX accounts are transparent in-repo proxies — not 1990 Generomak, "
+            "no PROCESS MFILE parity. LCOE display uses the plant KPI honesty watermark."
+        ).classes("text-caption text-orange")
+        ledger = c421.get("account_ledger")
+        if isinstance(ledger, list) and ledger:
+            with ui.expansion(
+                "CAPEX account ledger (PROXY)", icon="receipt_long"
+            ).classes("w-full"):
+                ui.table(
+                    columns=[
+                        {"name": "account", "label": "Account", "field": "account", "align": "left"},
+                        {"name": "cost_MUSD", "label": "MUSD", "field": "cost_MUSD"},
+                        {"name": "driver", "label": "Driver", "field": "driver", "align": "left"},
+                        {"name": "rate", "label": "Rate", "field": "rate", "align": "left"},
+                        {"name": "kind", "label": "Kind", "field": "kind", "align": "left"},
+                        {"name": "note", "label": "Note", "field": "note", "align": "left"},
+                    ],
+                    rows=[
+                        {
+                            **r,
+                            "cost_MUSD": _fin(r.get("cost_MUSD"), ".4g"),
+                            "note": r.get("note", ""),
+                        }
+                        for r in ledger
+                        if isinstance(r, dict)
+                    ],
+                    row_key="account",
+                ).classes("w-full")
+    else:
+        ui.label(
+            "Bottom-up modular costing overlay not enabled on this point."
         ).classes("text-caption text-grey")
 
     exh = build_exhaust_authority_bundle(point_out)

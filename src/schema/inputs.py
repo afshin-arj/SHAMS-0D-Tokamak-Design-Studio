@@ -156,6 +156,20 @@ class PointInputs:
     lcoe_max_USD_per_MWh_v420: float = float("nan")
     opex_max_MUSD_per_y_v420: float = float("nan")
 
+    # ------------------------------------------------------------------
+    # v421.0: Bottom-up modular costing authority (MATCH-as-overlay)
+    # Modular direct/indirect CAPEX account ledger with explicit drivers,
+    # transparent in-repo unit rates, and PROXY provenance (not 1990
+    # Generomak). OFF by default (no L0 / golden drift).
+    # ------------------------------------------------------------------
+    include_bottom_up_costing_authority_v421: bool = False
+    # Relative tolerance for bookkeeping identity checks (NaN → default).
+    costing_consistency_tol_v421: float = float("nan")
+    # Optional caps (NaN disables): total CAPEX cap [MUSD], bottom-up
+    # LCOE cap [USD/MWh] (on the availability-coupling energy basis).
+    capex_total_max_MUSD_v421: float = float("nan")
+    lcoe_bottom_up_max_USD_per_MWh_v421: float = float("nan")
+
 
     # Multiplicative uncertainty / calibration factors (default 1.0)
     confinement_mult: float = 1.0   # scales effective energy confinement time (tauE)

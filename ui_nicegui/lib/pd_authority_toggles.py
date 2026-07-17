@@ -28,6 +28,7 @@ _AUTHORITY_FIELDS: List[Tuple[str, str]] = [
     ("include_machine_build_authority_v412", "Radial / machine-build closure: layer stack, clearances, outboard envelope (proxy)."),
     ("include_plant_sankey_ledger_authority_v419", "Plant Sankey ledger: source→sink flows, recirc breakdown, conservation (proxy)."),
     ("include_availability_opex_lcoe_authority_v420", "Availability–OPEX–LCOE: one availability chain feeds hours, energy, OPEX, and LCOE (proxy; watermarked)."),
+    ("include_bottom_up_costing_authority_v421", "Bottom-up modular costing: direct/indirect CAPEX account ledger with explicit drivers and unit rates (proxy; watermarked)."),
     ("include_tritium_tight_closure", "Strict tritium balance without breeding slack."),
 ]
 

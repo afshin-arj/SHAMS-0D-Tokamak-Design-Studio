@@ -39,5 +39,7 @@ REGISTRY_SPECS: List[Dict[str, Any]] = [
     {"name": "Availability floor", "value_key": "avail_v420_availability", "sense": ">=", "limit_lo_key": "availability_min_v420", "group": "plant", "authority": "v420", "enabled_key": "include_availability_opex_lcoe_authority_v420"},
     {"name": "LCOE cap", "value_key": "avail_v420_LCOE_USD_per_MWh", "sense": "<=", "limit_hi_key": "lcoe_max_USD_per_MWh_v420", "group": "plant", "authority": "v420", "enabled_key": "include_availability_opex_lcoe_authority_v420"},
     {"name": "OPEX cap", "value_key": "avail_v420_OPEX_total_MUSD_per_y", "sense": "<=", "limit_hi_key": "opex_max_MUSD_per_y_v420", "group": "plant", "authority": "v420", "enabled_key": "include_availability_opex_lcoe_authority_v420"},
+    {"name": "Total CAPEX cap", "value_key": "costing_v421_CAPEX_total_MUSD", "sense": "<=", "limit_hi_key": "capex_total_max_MUSD_v421", "group": "plant", "authority": "v421", "enabled_key": "include_bottom_up_costing_authority_v421"},
+    {"name": "Bottom-up LCOE cap", "value_key": "costing_v421_LCOE_USD_per_MWh", "sense": "<=", "limit_hi_key": "lcoe_bottom_up_max_USD_per_MWh_v421", "group": "plant", "authority": "v421", "enabled_key": "include_bottom_up_costing_authority_v421"},
 ]
-REGISTRY_SPEC_COUNT = 32
+REGISTRY_SPEC_COUNT = 34

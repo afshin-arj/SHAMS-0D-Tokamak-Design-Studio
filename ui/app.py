@@ -1516,6 +1516,105 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
             )
             st.caption(str(out.get("avail_v420_narrative", "")))
 
+        # Bottom-up modular costing (proxy overlay)
+        if bool(out.get("costing_v421_enabled", False)):
+            st.markdown("**Bottom-up modular costing — PROXY overlay**")
+            st.caption(
+                str(
+                    out.get(
+                        "costing_v421_provenance",
+                        "Modular CAPEX account ledger; transparent in-repo unit rates — not 1990 Generomak.",
+                    )
+                )
+            )
+            try:
+                from diagnostics.plant_kpi_honesty import (
+                    build_plant_kpi_honesty,
+                    format_plant_kpi,
+                    plant_kpi_banner_text,
+                )
+
+                _hon_c = build_plant_kpi_honesty(out)
+                _ban_c = plant_kpi_banner_text(_hon_c)
+                if _ban_c:
+                    st.warning(_ban_c)
+                # Format the bottom-up key specifically (absent from the
+                # honesty kpis map → falls back to claim_allowed + this raw),
+                # so this panel never pairs bottom-up CAPEX with an LCOE
+                # computed on a different CAPEX basis.
+                _lcoe_c_disp = format_plant_kpi(
+                    _hon_c,
+                    "costing_v421_LCOE_USD_per_MWh",
+                    fallback_raw=out.get("costing_v421_LCOE_USD_per_MWh"),
+                    units="USD/MWh",
+                )
+            except Exception:
+                _lcoe_c_disp = "n/a (honesty watermark unavailable)"
+            c1, c2, c3, c4, c5 = st.columns(5)
+            with c1:
+                try:
+                    st.metric(
+                        "Total CAPEX [MUSD]",
+                        f"{float(out.get('costing_v421_CAPEX_total_MUSD', float('nan'))):.4g}",
+                    )
+                except Exception:
+                    st.metric("Total CAPEX [MUSD]", "—")
+            with c2:
+                try:
+                    st.metric(
+                        "Direct [MUSD]",
+                        f"{float(out.get('costing_v421_direct_subtotal_MUSD', float('nan'))):.4g}",
+                    )
+                except Exception:
+                    st.metric("Direct [MUSD]", "—")
+            with c3:
+                try:
+                    st.metric(
+                        "Indirect [MUSD]",
+                        f"{float(out.get('costing_v421_indirect_subtotal_MUSD', float('nan'))):.4g}",
+                    )
+                except Exception:
+                    st.metric("Indirect [MUSD]", "—")
+            with c4:
+                st.metric("LCOE (watermarked)", _lcoe_c_disp)
+            with c5:
+                st.metric(
+                    "Consistency",
+                    "OK" if out.get("costing_v421_consistency_ok") else "FAIL",
+                )
+            st.caption(
+                f"Dominant account: {out.get('costing_v421_dominant_account', '—')} · "
+                f"LCOE basis: {out.get('costing_v421_LCOE_basis', '—')}"
+            )
+            _ledger_rows = out.get("costing_v421_account_ledger")
+            if isinstance(_ledger_rows, list) and _ledger_rows:
+                with st.expander("CAPEX account ledger (PROXY)"):
+                    try:
+                        import pandas as _pd
+
+                        st.dataframe(
+                            _pd.DataFrame(
+                                [
+                                    {
+                                        "account": r.get("account"),
+                                        "cost [MUSD]": r.get("cost_MUSD"),
+                                        "driver": r.get("driver"),
+                                        "driver value": r.get("driver_value"),
+                                        "units": r.get("driver_units"),
+                                        "rate": r.get("rate"),
+                                        "kind": r.get("kind"),
+                                        "note": r.get("note", ""),
+                                    }
+                                    for r in _ledger_rows
+                                    if isinstance(r, dict)
+                                ]
+                            ),
+                            use_container_width=True,
+                        )
+                    except Exception:
+                        st.json(_ledger_rows)
+            st.caption(str(out.get("costing_v421_narrative", "")))
+
         # Deterministic repair hints (high-level; detailed mapping lives in contract artifact)
         st.markdown("**Deterministic repair levers (non-exhaustive):**")
         st.markdown("- Decrease **Bt** or increase **R0** (reduces required ampere-turns and peak field).")
@@ -1536,6 +1635,10 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
         if bool(out.get("avail_v420_enabled", False)):
             st.markdown(
                 "- Raise **availability** / cut dominant OPEX driver when Availability–OPEX–LCOE coupling binds."
+            )
+        if bool(out.get("costing_v421_enabled", False)):
+            st.markdown(
+                "- Shrink the **dominant CAPEX account** (size, field, installed power) when the bottom-up costing cap binds."
             )
 
 def _sync_point_designer_from_last_point_inp() -> None:

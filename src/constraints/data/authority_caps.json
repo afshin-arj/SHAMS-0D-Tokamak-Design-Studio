@@ -275,5 +275,23 @@
     "group": "plant",
     "authority": "v420",
     "enabled_key": "include_availability_opex_lcoe_authority_v420"
+  },
+  {
+    "name": "Total CAPEX cap",
+    "value_key": "costing_v421_CAPEX_total_MUSD",
+    "sense": "<=",
+    "limit_hi_key": "capex_total_max_MUSD_v421",
+    "group": "plant",
+    "authority": "v421",
+    "enabled_key": "include_bottom_up_costing_authority_v421"
+  },
+  {
+    "name": "Bottom-up LCOE cap",
+    "value_key": "costing_v421_LCOE_USD_per_MWh",
+    "sense": "<=",
+    "limit_hi_key": "lcoe_bottom_up_max_USD_per_MWh_v421",
+    "group": "plant",
+    "authority": "v421",
+    "enabled_key": "include_bottom_up_costing_authority_v421"
   }
 ]

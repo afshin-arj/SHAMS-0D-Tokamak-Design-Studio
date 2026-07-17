@@ -43,6 +43,11 @@ _OVERLAY_TOGGLES: List[Tuple[str, str, str]] = [
         "Availability–OPEX–LCOE",
         "Availability chain → annual energy → OPEX → LCOE (PROXY overlay)",
     ),
+    (
+        "include_bottom_up_costing_authority_v421",
+        "Bottom-up modular costing",
+        "Modular direct/indirect CAPEX account ledger with explicit drivers and unit rates (PROXY overlay)",
+    ),
     ("include_tritium_tight_closure", "Tritium tight closure", "Tritium tight-closure inventory caps"),
 ]
 

@@ -54,6 +54,7 @@ AUTHORITY_OVERLAY_NAMES: dict[str, str] = {
     "v412": "Machine build closure / Radial machine-build",
     "v419": "Plant Sankey ledger",
     "v420": "Availability–OPEX–LCOE",
+    "v421": "Bottom-up modular costing",
 }
 
 # Legacy aliases → canonical (session state / old presets)
