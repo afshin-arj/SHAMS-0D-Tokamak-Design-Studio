@@ -301,6 +301,8 @@ Details: `docs/patch_notes/PATCH_NOTES_v418.md`
 **PROCESS** asks: *what design optimizes my objective if constraints can be negotiated?*  
 **SHAMS** asks: *which tokamak designs are admissible, how robust are they, why do others fail, and what evidence supports the claim?*
 
+**Migrating a PROCESS study:** start with [`docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`](docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md) (IN.DAT→`PointInputs`, MFILE→artifacts, CCFS propose-only, citation + METHOD-ONLY honesty). Short crosswalk: `docs/PROCESS_CROSSWALK.md`.
+
 For the full comparison table, see the [extended comparison section](#extended-comparison-shams-vs-process) below.
 
 ---

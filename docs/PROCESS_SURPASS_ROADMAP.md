@@ -12,7 +12,7 @@ Living campaign document.
 
 **Upstream:** [ukaea/PROCESS](https://github.com/ukaea/PROCESS) · [docs](https://ukaea.github.io/PROCESS/)  
 **SHAMS version at last refresh:** see `VERSION`  
-**Last analytical refresh:** 2026-07-16
+**Last analytical refresh:** 2026-07-17
 
 ## Independence phases (campaign)
 
@@ -21,7 +21,7 @@ Living campaign document.
 | 0 Stance & firewall | **Mostly done** | CCFS hard gate on `main`; agents/skills updated |
 | 1 Trust the verdict | **DONE** 2026-07-16 | Tickets 1.1–1.4 complete (atlas, plant KPI honesty, METHOD-ONLY parity, scientific release gate **CONDITIONAL**) |
 | 2 DEMO MATCH | **DONE** 2026-07-17 | 2.1–2.3 DONE 2026-07-16 (v410 magnets; v412 radial/machine-build; v419 plant Sankey ledger); 2.4 DONE 2026-07-17 (**v420** availability → OPEX/LCOE coupling); 2.5 DONE 2026-07-17 (**v421** bottom-up modular costing — not 1990 Generomak) |
-| 3 Community default | **Next** | Migration guide (3.1), Zenodo, champions |
+| 3 Community default | **In progress** | 3.1 migration guide **DONE** 2026-07-17; next Zenodo/CITATION (3.2), champions |
 | 4 Independence | Pending | PROCESS = legacy only |
 
 ## Stance (do not blur)
@@ -120,7 +120,8 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 8. ~~**Next (Phase 2.3):** Plant Sankey-grade ledger (extend v408)~~ **DONE** 2026-07-16 — `plant_sankey_ledger_authority_v419` (MATCH-as-overlay; OFF by default; PROXY source→sink flows, recirc breakdown, conservation checks; UI Sankey/flow-table with plant_kpi_honesty watermark). L0 unchanged when flag OFF. No invented PROCESS MFILE numbers.
 9. ~~**Next (Phase 2.4):** Availability → OPEX/LCOE coupling~~ **DONE** 2026-07-17 — `availability_opex_lcoe_authority_v420` (MATCH-as-overlay; OFF by default; one availability chain v368→v359→v391→availability_model→input with provenance feeds hours → annual energy → OPEX → LCOE on the same basis; centralized OPEX formulas in `src/economics/opex_coupling.py`; LCOE decomposition + bookkeeping/cross-ledger consistency checks; `avail_v420_LCOE_USD_per_MWh` in plant_kpi_honesty.v1 aliases; optional caps A_min/LCOE_max/OPEX_max; UI chain table on PD/Suite/dashboard). L0 unchanged when flag OFF. No invented PROCESS MFILE numbers; not 1990 Generomak.
 10. ~~**Next (Phase 2.5):** Bottom-up modular costing authority (not 1990 Generomak)~~ **DONE** 2026-07-17 — `bottom_up_costing_authority_v421` (MATCH-as-overlay; OFF by default; 13-row direct/indirect CAPEX account ledger with explicit drivers, units, and transparent in-repo unit rates; bookkeeping identity checks + informational cross-checks vs legacy/v356/v388/v420 CAPEX bases; LCOE restated only on the v420 availability chain basis and registered in plant_kpi_honesty.v1 aliases; optional caps with version-tag-free UI names). L0 unchanged when flag OFF. Not 1990 Generomak; no invented PROCESS MFILE numbers. **Phase 2 (DEMO MATCH) complete.**
-11. **Next (Phase 3.1):** PROCESS → SHAMS migration guide (community default) — `/documentation` (docs-only; how a PROCESS user reproduces a feasibility study in SHAMS: IN.DAT concepts → PointInputs, constraint mapping, NO-SOLUTION interpretation, artifact citation)
+11. ~~**Next (Phase 3.1):** PROCESS → SHAMS migration guide~~ **DONE** 2026-07-17 — `docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md` (IN.DAT→Case/`PointInputs`, MFILE→artifacts, constraint/policy mapping, VERSION+SHA-256 citation, CCFS propose-only, METHOD-ONLY honesty). Crosswalk/README/LIMITATIONS link in; Control Room Docs Library + Launchpad entry. Lock tests: `tests/test_process_migration_guide.py`. No invented MFILE numbers; no PROCESS-retired claim.
+12. **Next (Phase 3.2):** Zenodo / CITATION / software paper pitch — clear APPROVED release path (`/shams-release-engineer`, `/shams-scientific-release-prep`)
 
 ### Minimum DEMO MATCH overlays (reactor-systems)
 
@@ -168,7 +169,7 @@ All five minimum DEMO MATCH overlays shipped — Phase 2 complete 2026-07-17.
 | `/architect` `/reactor-systems` `/fusion-performance` `/reviewer` `/developer` `/documentation` | Domain execution |
 | `/shams-release-engineer` | Community release gate |
 
-Related docs: `PROCESS_CROSSWALK.md`, `PROCESS_TO_SHAMS_MAPPING.md`, `PROCESS_lessons.md`, `PROCESS_inspired_upgrade.md`, README § SHAMS vs PROCESS.
+Related docs: **`PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`** (Phase 3.1 canonical), `PROCESS_CROSSWALK.md`, `PROCESS_TO_SHAMS_MAPPING.md`, `PROCESS_lessons.md`, `PROCESS_inspired_upgrade.md`, README § SHAMS vs PROCESS.
 
 ---
 

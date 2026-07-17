@@ -55,7 +55,10 @@ REFERENCE_GALLERY: List[Tuple[str, str]] = [
     ("DEMO-like", "Plant realism anchor; often recirculating power and availability assumptions dominate."),
 ]
 
+MIGRATION_GUIDE_DOC = "PROCESS_TO_SHAMS_MIGRATION_GUIDE.md"
+
 LAUNCHPAD_DECK: Dict[str, str] = {
+    "Migrate a PROCESS study to SHAMS": "Control Room",
     "Understand feasibility limits (cartography)": "Scan Lab",
     "Explore reactor concepts (Forge)": "Reactor Design Forge",
     "Review a finished case (Review Room)": "Reactor Design Forge",
@@ -63,6 +66,13 @@ LAUNCHPAD_DECK: Dict[str, str] = {
 }
 
 LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
+    (
+        "Migrate a PROCESS study to SHAMS",
+        "Recommended: Control Room → Constitution → Docs Library → PROCESS→SHAMS migration guide.",
+        "- Open **`docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`** (IN.DAT→PointInputs, MFILE→artifacts, CCFS propose-only)\n"
+        "- Map knobs in **Point Designer**; treat NO-SOLUTION as valid\n"
+        "- Cite `VERSION` + artifact SHA-256 — do **not** invent MFILE numbers or claim PROCESS retired.",
+    ),
     (
         "Understand feasibility limits (cartography)",
         "Recommended: Scan Lab → build Scan Atlas → inspect first-failure topology.",
