@@ -347,7 +347,6 @@ OVERLAY_GROUP_SPECS: List[Tuple[str, List[Tuple[str, bool]]]] = [
             ("include_control_stability_authority_v398", False),
             ("include_impurity_v399", False),
             ("include_structural_life_v404", False),
-            ("include_structural_life_authority_v404", False),
             ("include_elm_transient_heat_v409", False),
             ("include_damage_strength_coupling_v393", False),
         ],

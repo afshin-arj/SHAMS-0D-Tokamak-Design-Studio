@@ -18,7 +18,7 @@ _OVERLAY_TOGGLES: List[Tuple[str, str, str]] = [
     ("include_impurity_v399", "Impurity radiation", "Multi-species impurity radiation partition"),
     ("include_magnet_technology_authority_v400", "Magnet technology margins", "Magnet technology margin stack"),
     ("include_neutronics_materials_library_v403", "Neutronics materials library", "Neutronics materials library"),
-    ("include_structural_life_authority_v404", "Structural life", "Structural life / fatigue envelopes"),
+    ("include_structural_life_v404", "Structural life", "Structural life / fatigue envelopes"),
     ("include_nuclear_data_authority_v407", "Nuclear data", "Nuclear data multi-group attenuation"),
     ("include_authority_dominance_v402", "Authority dominance", "Authority dominance screening"),
     ("include_elm_transient_heat_v409", "ELM / transient heat", "ELM / transient heat-load screening"),

@@ -157,6 +157,10 @@ def _merge_overlay(session: DesignSession, inp: Any) -> Any:
     for key in _PRIORITY_OVERLAY_KEYS:
         if key in names and key in session.overlay:
             data[key] = session.overlay[key]
+    # Alias for old sessions: the legacy "_authority_" toggle name is not a
+    # PointInputs field — map it onto the real schema key when enabled.
+    if bool(session.overlay.get("include_structural_life_authority_v404", False)):
+        data["include_structural_life_v404"] = True
     data = _apply_overlay_gating(session, data)
     return PointInputs(**{k: v for k, v in data.items() if k in names})
 
