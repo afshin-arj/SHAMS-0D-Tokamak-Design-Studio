@@ -8,7 +8,7 @@ from ui.export_bundle import build_export_bundle
 
 
 def test_classify_mechanism_transport() -> None:
-    assert classify_mechanism("Transport spread (v396)") == "TRANSPORT"
+    assert classify_mechanism("Transport spread") == "TRANSPORT"
 
 
 def test_no_solution_atlas_infeasible() -> None:
@@ -37,7 +37,7 @@ def test_run_artifact_stamps_atlas_when_hard_infeasible() -> None:
     # Constraint JSON with a failed hard constraint → feasible_hard False.
     cons = [
         {
-            "name": "Transport spread (v396)",
+            "name": "Transport spread",
             "value": 5.0,
             "limit": 1.5,
             "sense": "<=",

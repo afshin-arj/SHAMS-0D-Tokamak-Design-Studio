@@ -38,7 +38,7 @@ def test_constraint_pipeline_mirror_v396_in_ledger() -> None:
         "transport_spread_max_v396": 1.5,
     }
     names = [c.name for c in build_constraints_from_outputs(out)]
-    assert "Transport spread (v396)" in names
+    assert "Transport spread" in names
 
 
 def test_constraint_pipeline_mirror_v407_in_governance() -> None:
@@ -49,7 +49,7 @@ def test_constraint_pipeline_mirror_v407_in_governance() -> None:
         "tf_case_fluence_max_n_m2_per_fpy_v392": 5.0e19,
     }
     names = [c.name for c in evaluate_constraints(out)]
-    assert "TF case fluence (v407)" in names
+    assert "TF case fluence" in names
 
 
 def test_constraint_pipeline_mirror_v403_granular_in_governance() -> None:
@@ -62,8 +62,8 @@ def test_constraint_pipeline_mirror_v403_granular_in_governance() -> None:
         "tbr_proxy_min_v403": 1.0,
     }
     names = [c.name for c in evaluate_constraints(out)]
-    assert "FW DPA (v403)" in names
-    assert "TBR proxy (v403)" in names
+    assert "FW DPA" in names
+    assert "TBR proxy" in names
 
 
 def test_constraint_pipeline_mirror_v398_in_ledger() -> None:
@@ -76,8 +76,8 @@ def test_constraint_pipeline_mirror_v398_in_ledger() -> None:
         "rwm_proximity_index_max_v398": 0.5,
     }
     names = [c.name for c in build_constraints_from_outputs(out)]
-    assert "VS budget margin (v398)" in names
-    assert "RWM proximity (v398)" in names
+    assert "VS budget margin" in names
+    assert "RWM proximity" in names
 
 
 def test_constraint_pipeline_mirror_v397_q0_in_ledger() -> None:
@@ -90,8 +90,8 @@ def test_constraint_pipeline_mirror_v397_q0_in_ledger() -> None:
         "bootstrap_localization_max_v397": 1.0,
     }
     names = [c.name for c in build_constraints_from_outputs(out)]
-    assert "q0 proxy (v397)" in names
-    assert "Bootstrap localization (v397)" in names
+    assert "q0 proxy" in names
+    assert "Bootstrap localization" in names
 
 
 def test_constraint_pipeline_mirror_v399_in_ledger() -> None:
@@ -108,9 +108,9 @@ def test_constraint_pipeline_mirror_v399_in_ledger() -> None:
         "detachment_margin_min_v399": 0.0,
     }
     names = [c.name for c in build_constraints_from_outputs(out)]
-    assert "Zeff (v399)" in names
-    assert "Prad core fraction (v399)" in names
-    assert "Detachment margin (v399)" in names
+    assert "Zeff" in names
+    assert "Prad core fraction" in names
+    assert "Detachment margin" in names
 
 
 def test_detachment_index_not_duplicated_in_ledger() -> None:

@@ -12,8 +12,8 @@ def test_authority_registry_loads_specs() -> None:
     specs = load_authority_specs()
     assert len(specs) >= 10
     names = registry_spec_names()
-    assert "Transport spread (v396)" in names
-    assert "ELM transient heat flux (v409)" in names
+    assert "Transport spread" in names
+    assert "ELM transient heat flux" in names
 
 
 def test_registry_builds_governance_and_ledger() -> None:
@@ -28,9 +28,9 @@ def test_registry_builds_governance_and_ledger() -> None:
     led = evaluate_registry_ledger(out)
     gov_names = {c.name for c in gov}
     led_names = {c.name for c in led}
-    assert "Transport spread (v396)" in gov_names
-    assert "Transport spread (v396)" in led_names
-    assert "ELM transient heat flux (v409)" in gov_names
+    assert "Transport spread" in gov_names
+    assert "Transport spread" in led_names
+    assert "ELM transient heat flux" in gov_names
 
 
 def test_unified_uses_registry_merge() -> None:

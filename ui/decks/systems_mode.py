@@ -1252,17 +1252,40 @@ def render_systems_mode(_app_module) -> None:
         try:
             _outs = (_sys_latest_art.get("headline") or _sys_latest_art.get("outputs") or {})
             _kc = st.columns(4)
-            def _m(_col, _k):
+
+            def _sf(_k: str) -> float:
                 try:
-                    v = float(_outs.get(_k, float("nan")))
+                    return float(_outs.get(_k, float("nan")))
                 except Exception:
-                    v = float("nan")
-                with _col:
-                    st.metric(_k, f"{v:.3g}"if v == v else "NaN")
-            _m(_kc[0], "Q_DT_eqv")
-            _m(_kc[1], "H98")
-            _m(_kc[2], "P_e_net_MW")
-            _m(_kc[3], "q_div_MW_m2")
+                    return float("nan")
+
+            try:
+                from diagnostics.plant_kpi_honesty import (
+                    build_plant_kpi_honesty,
+                    format_plant_kpi,
+                )
+
+                _pe_disp = format_plant_kpi(
+                    build_plant_kpi_honesty(_outs),
+                    "Pe_net_MW",
+                    fallback_raw=_outs.get("P_e_net_MW"),
+                    units="MW",
+                )
+            except Exception:
+                _pe_v = _sf("P_e_net_MW")
+                _pe_disp = f"{_pe_v:.3g}" if _pe_v == _pe_v else "NaN"
+
+            _q = _sf("Q_DT_eqv")
+            _h = _sf("H98")
+            _qd = _sf("q_div_MW_m2")
+            with _kc[0]:
+                st.metric("Q_DT_eqv", f"{_q:.3g}" if _q == _q else "NaN")
+            with _kc[1]:
+                st.metric("H98", f"{_h:.3g}" if _h == _h else "NaN")
+            with _kc[2]:
+                st.metric("Pe_net [MW]", _pe_disp)
+            with _kc[3]:
+                st.metric("q_div_MW_m2", f"{_qd:.3g}" if _qd == _qd else "NaN")
         except Exception:
             pass
         with st.expander("Downloads, export bundle, and full details", expanded=False):

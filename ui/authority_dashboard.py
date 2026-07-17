@@ -1,4 +1,4 @@
-"""Overlay authority toggle dashboard (UI Phase C + v418 extensions)."""
+"""Overlay authority toggle dashboard (UI Phase C + governance extensions)."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,23 +10,40 @@ try:
 except ImportError:
     from src.schema.governance_presets import is_reactor_intent, preset_overlay_defaults
 
+# (field, user-facing label, help tip) — never show version tags in the UI.
 _OVERLAY_TOGGLES: List[Tuple[str, str, str]] = [
-    ("include_transport_envelope_v396", "v396", "Transport envelope spread authority"),
-    ("include_profile_contracts_v397", "v397", "Profile / q0 / bootstrap localization proxies"),
-    ("include_control_stability_authority_v398", "v398", "VS budget, VDE headroom, RWM proximity"),
-    ("include_impurity_v399", "v399", "Multi-species impurity radiation partition"),
-    ("include_magnet_technology_authority_v400", "v400", "Magnet technology margin stack"),
-    ("include_neutronics_materials_library_v403", "v403", "Neutronics materials library"),
-    ("include_structural_life_authority_v404", "v404", "Structural life / fatigue envelopes"),
-    ("include_nuclear_data_authority_v407", "v407", "Nuclear data multi-group attenuation"),
-    ("include_authority_dominance_v402", "v402", "Authority dominance screening"),
-    ("include_elm_transient_heat_v409", "v409", "ELM / transient heat-load screening"),
-    ("cd_mix_enable", "v408", "CD mix plant electric ledger"),
-    ("include_magnet_sc_system_authority_v410", "v410", "TF/PF/CS SC system depth beyond v400"),
-    ("include_machine_build_authority_v412", "v412", "Radial / machine-build closure narrative"),
-    ("include_plant_sankey_ledger_authority_v419", "v419", "Plant Sankey-grade power ledger"),
-    ("include_availability_opex_lcoe_authority_v420", "v420", "Availability → OPEX / LCOE coupling"),
-    ("include_tritium_tight_closure", "v405", "Tritium tight-closure inventory caps"),
+    ("include_transport_envelope_v396", "Transport envelope", "Transport envelope spread authority"),
+    ("include_profile_contracts_v397", "Profile contracts", "Profile / q0 / bootstrap localization proxies"),
+    ("include_control_stability_authority_v398", "Control & stability", "VS budget, VDE headroom, RWM proximity"),
+    ("include_impurity_v399", "Impurity radiation", "Multi-species impurity radiation partition"),
+    ("include_magnet_technology_authority_v400", "Magnet technology margins", "Magnet technology margin stack"),
+    ("include_neutronics_materials_library_v403", "Neutronics materials library", "Neutronics materials library"),
+    ("include_structural_life_authority_v404", "Structural life", "Structural life / fatigue envelopes"),
+    ("include_nuclear_data_authority_v407", "Nuclear data", "Nuclear data multi-group attenuation"),
+    ("include_authority_dominance_v402", "Authority dominance", "Authority dominance screening"),
+    ("include_elm_transient_heat_v409", "ELM / transient heat", "ELM / transient heat-load screening"),
+    ("cd_mix_enable", "CD mix plant ledger", "CD mix plant electric ledger"),
+    (
+        "include_magnet_sc_system_authority_v410",
+        "Magnet SC system",
+        "TF/PF/CS superconducting and engineering margins (PROXY overlay)",
+    ),
+    (
+        "include_machine_build_authority_v412",
+        "Machine build closure",
+        "Radial / machine-build layer-stack and clearance narrative (PROXY overlay)",
+    ),
+    (
+        "include_plant_sankey_ledger_authority_v419",
+        "Plant Sankey ledger",
+        "Source→sink plant power ledger with conservation checks (PROXY overlay)",
+    ),
+    (
+        "include_availability_opex_lcoe_authority_v420",
+        "Availability–OPEX–LCOE",
+        "Availability chain → annual energy → OPEX → LCOE (PROXY overlay)",
+    ),
+    ("include_tritium_tight_closure", "Tritium tight closure", "Tritium tight-closure inventory caps"),
 ]
 
 _OVERLAY_TOGGLES_FIELDS = [t[0] for t in _OVERLAY_TOGGLES]
@@ -81,7 +98,7 @@ def render_v402_threshold_panel(
     *,
     widget_key_prefix: str = "auth_dash",
 ) -> Dict[str, float]:
-    """PHYS-003: v402 reference thresholds in authority dashboard."""
+    """Dominance reference thresholds in authority dashboard."""
     st.markdown("##### Dominance reference thresholds")
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -119,7 +136,7 @@ def render_v402_threshold_panel(
 
 
 def render_profile_tau_peaking_panel(out: Dict[str, Any]) -> None:
-    """Display τE peaking factor from v397 profile proxy (PHYS-002 UI)."""
+    """Display τE peaking factor from profile proxy."""
     if not isinstance(out, dict) or not out:
         return
     factor = out.get("tau_e_profile_factor_v397", out.get("tau_e_density_peaking_factor_v397"))
@@ -131,7 +148,11 @@ def render_profile_tau_peaking_panel(out: Dict[str, Any]) -> None:
         f = float(factor)
         if f != f:
             return
-        st.metric("τE profile peaking factor", f"{f:.3f}", help="PHYS-002: density/pressure peaking degrades volume-averaged τE proxy.")
+        st.metric(
+            "τE profile peaking factor",
+            f"{f:.3f}",
+            help="Density/pressure peaking degrades volume-averaged τE proxy.",
+        )
         tau0 = out.get("tauE_s")
         if tau0 is not None:
             try:
@@ -153,16 +174,16 @@ def render_overlay_authority_dashboard(
     """Render overlay toggles; returns {field_name: enabled} and writes session."""
     intent = design_intent or str(session_state.get("design_intent", "Power Reactor (net-electric)"))
     st.markdown("#### Authority overlays")
-    st.caption("Governance overlays only — frozen truth equations unchanged.")
+    st.caption("Governance overlays only — frozen truth equations unchanged. Labels are scientific names (not release tags).")
     if is_reactor_intent(intent):
-        st.caption("Reactor intent: tritium tight closure and ELM screening suggested ON (PHYS-010).")
+        st.caption("Reactor intent: tritium tight closure and ELM screening suggested ON.")
     state: Dict[str, bool] = {}
     cols = st.columns(3)
-    for i, (field, tag, tip) in enumerate(_OVERLAY_TOGGLES):
+    for i, (field, label, tip) in enumerate(_OVERLAY_TOGGLES):
         with cols[i % 3]:
             default = _default_bool(session_state, field, intent)
             state[field] = st.checkbox(
-                f"{tag}",
+                label,
                 value=default,
                 key=f"{widget_key_prefix}_{field}",
                 help=tip,

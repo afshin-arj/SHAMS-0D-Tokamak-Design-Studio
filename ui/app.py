@@ -1258,9 +1258,9 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
         except Exception:
             st.write(rows)
 
-        # v410 TF/PF/CS SC system depth (proxy overlay)
+        # Magnet SC system / TF/PF/CS SC (proxy overlay)
         if bool(out.get("magnet_v410_enabled", False)):
-            st.markdown("**TF / PF / CS SC system depth (v410) — PROXY overlay**")
+            st.markdown("**Magnet SC system / TF/PF/CS SC — PROXY overlay**")
             st.caption(
                 str(
                     out.get(
@@ -1312,9 +1312,9 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
             except Exception:
                 st.write(fam_rows)
 
-        # v412 radial / machine-build closure (proxy overlay)
+        # Machine build closure / radial machine-build (proxy overlay)
         if bool(out.get("machine_v412_enabled", False)):
-            st.markdown("**Radial / machine-build closure (v412) — PROXY overlay**")
+            st.markdown("**Machine build closure / Radial machine-build — PROXY overlay**")
             st.caption(
                 str(
                     out.get(
@@ -1372,16 +1372,16 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
                 st.write(build_rows)
             ledger = out.get("machine_v412_layer_ledger")
             if isinstance(ledger, list) and ledger:
-                with st.expander("Layer ledger (v412 PROXY)", expanded=False):
+                with st.expander("Layer ledger (PROXY)", expanded=False):
                     try:
                         st.dataframe(pd.DataFrame(ledger), use_container_width=True, hide_index=True)
                     except Exception:
                         st.write(ledger)
             st.caption(str(out.get("machine_v412_narrative", "")))
 
-        # v419 plant Sankey-grade ledger (proxy overlay)
+        # Plant Sankey ledger (proxy overlay)
         if bool(out.get("plant_v419_enabled", False)):
-            st.markdown("**Plant Sankey ledger (v419) — PROXY overlay**")
+            st.markdown("**Plant Sankey ledger — PROXY overlay**")
             st.caption(
                 str(
                     out.get(
@@ -1429,7 +1429,7 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
                 st.metric("Pe_net (watermarked)", _pe_disp)
             flow = out.get("plant_v419_flow_table")
             if isinstance(flow, list) and flow:
-                with st.expander("Source→sink flow table (v419 PROXY)", expanded=False):
+                with st.expander("Source→sink flow table (PROXY)", expanded=False):
                     try:
                         st.dataframe(pd.DataFrame(flow), use_container_width=True, hide_index=True)
                     except Exception:
@@ -1445,20 +1445,97 @@ def _render_magnet_authority_panel(out: Dict[str, Any]) -> None:
                 st.caption(f"Sankey plot unavailable: {e}")
             st.caption(str(out.get("plant_v419_narrative", "")))
 
+        # Availability–OPEX–LCOE (proxy overlay)
+        if bool(out.get("avail_v420_enabled", False)):
+            st.markdown("**Availability–OPEX–LCOE — PROXY overlay**")
+            st.caption(
+                str(
+                    out.get(
+                        "avail_v420_provenance",
+                        "Availability chain → annual energy → OPEX → LCOE; not PROCESS MFILE parity.",
+                    )
+                )
+            )
+            try:
+                from diagnostics.plant_kpi_honesty import (
+                    build_plant_kpi_honesty,
+                    format_plant_kpi,
+                    plant_kpi_banner_text,
+                )
+
+                _hon_a = build_plant_kpi_honesty(out)
+                _ban_a = plant_kpi_banner_text(_hon_a)
+                if _ban_a:
+                    st.warning(_ban_a)
+                _lcoe_disp = format_plant_kpi(
+                    _hon_a,
+                    "LCOE_proxy_USD_per_MWh",
+                    fallback_raw=out.get(
+                        "avail_v420_LCOE_USD_per_MWh",
+                        out.get("LCOE_proxy_USD_per_MWh"),
+                    ),
+                    units="USD/MWh",
+                )
+            except Exception:
+                _lcoe_disp = f"{out.get('avail_v420_LCOE_USD_per_MWh', '—')} (raw PROXY)"
+            a1, a2, a3, a4, a5 = st.columns(5)
+            with a1:
+                try:
+                    st.metric(
+                        "Availability",
+                        f"{float(out.get('avail_v420_availability', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("Availability", "—")
+            with a2:
+                try:
+                    st.metric(
+                        "E_net [MWh/y]",
+                        f"{float(out.get('avail_v420_E_net_MWh_per_y', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("E_net [MWh/y]", "—")
+            with a3:
+                try:
+                    st.metric(
+                        "OPEX [MUSD/y]",
+                        f"{float(out.get('avail_v420_OPEX_total_MUSD_per_y', float('nan'))):.3g}",
+                    )
+                except Exception:
+                    st.metric("OPEX [MUSD/y]", "—")
+            with a4:
+                st.metric("LCOE (watermarked)", _lcoe_disp)
+            with a5:
+                st.metric(
+                    "Consistency",
+                    "OK" if out.get("avail_v420_consistency_ok") else "FAIL",
+                )
+            st.caption(
+                f"A source: {out.get('avail_v420_availability_source', '—')} · "
+                f"Dominant OPEX: {out.get('avail_v420_dominant_opex_driver', '—')}"
+            )
+            st.caption(str(out.get("avail_v420_narrative", "")))
+
         # Deterministic repair hints (high-level; detailed mapping lives in contract artifact)
         st.markdown("**Deterministic repair levers (non-exhaustive):**")
         st.markdown("- Decrease **Bt** or increase **R0** (reduces required ampere-turns and peak field).")
         st.markdown("- Increase **TF build** (winding/structure) to improve **J** and **stress** margins.")
         st.markdown("- Increase **shielding/build** to reduce **nuclear heat** to coils (when coupled).")
         if bool(out.get("magnet_v410_enabled", False)):
-            st.markdown("- Adjust **CS Bmax / flux** or **PF envelope caps** when CS/PF family dominates v410.")
+            st.markdown(
+                "- Adjust **CS Bmax / flux** or **PF envelope caps** when CS/PF family dominates Magnet SC system."
+            )
         if bool(out.get("machine_v412_enabled", False)):
             st.markdown(
-                "- Increase **R0** / reduce inboard **layer thicknesses** / raise **build gap** when v412 machine-build dominates."
+                "- Increase **R0** / reduce inboard **layer thicknesses** / raise **build gap** when machine-build closure dominates."
             )
         if bool(out.get("plant_v419_enabled", False)):
             st.markdown(
-                "- Reduce **Paux** / raise wall-plug η / cut BOP·pump·cryo loads when v419 recirc or Pe_net dominates."
+                "- Reduce **Paux** / raise wall-plug η / cut BOP·pump·cryo loads when Plant Sankey recirc or Pe_net dominates."
+            )
+        if bool(out.get("avail_v420_enabled", False)):
+            st.markdown(
+                "- Raise **availability** / cut dominant OPEX driver when Availability–OPEX–LCOE coupling binds."
             )
 
 def _sync_point_designer_from_last_point_inp() -> None:

@@ -488,45 +488,45 @@ def evaluate_constraints(
     if "magnet_v400_margin" in outputs:
         lim = outputs.get("magnet_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("MAG margin v400", outputs["magnet_v400_margin"], lim, units="-",
+            ge("Magnet technology margin", outputs["magnet_v400_margin"], lim, units="-",
                note="Combined TF magnet margin ledger (min of B/J/stress/SC/T-window[/ohmic])", group="magnets")
 
     if "magnet_v400_b_margin" in outputs:
         lim = outputs.get("b_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("B margin v400", outputs["magnet_v400_b_margin"], lim, units="-", note="B_allow/B_peak - 1", group="magnets")
+            ge("Magnet B margin", outputs["magnet_v400_b_margin"], lim, units="-", note="B_allow/B_peak - 1", group="magnets")
 
     if "magnet_v400_j_margin" in outputs:
         lim = outputs.get("j_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("J margin v400", outputs["magnet_v400_j_margin"], lim, units="-", note="J_allow/J_req - 1", group="magnets")
+            ge("Magnet J margin", outputs["magnet_v400_j_margin"], lim, units="-", note="J_allow/J_req - 1", group="magnets")
 
     if "magnet_v400_stress_margin" in outputs:
         lim = outputs.get("stress_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("Stress margin v400", outputs["magnet_v400_stress_margin"], lim, units="-", note="sigma_allow/sigma - 1", group="magnets")
+            ge("Magnet stress margin", outputs["magnet_v400_stress_margin"], lim, units="-", note="sigma_allow/sigma - 1", group="magnets")
 
     if "magnet_v400_sc_oper_margin" in outputs:
         lim = outputs.get("sc_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("SC margin v400", outputs["magnet_v400_sc_oper_margin"], lim, units="-", note="(sc_margin/sc_margin_min) - 1", group="magnets")
+            ge("Magnet SC margin", outputs["magnet_v400_sc_oper_margin"], lim, units="-", note="(sc_margin/sc_margin_min) - 1", group="magnets")
 
     if "magnet_v400_t_window_margin" in outputs:
         lim = outputs.get("t_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("T window v400", outputs["magnet_v400_t_window_margin"], lim, units="-", note="Normalized distance to coil T window edges", group="magnets")
+            ge("Magnet T-window margin", outputs["magnet_v400_t_window_margin"], lim, units="-", note="Normalized distance to coil T window edges", group="magnets")
 
     if "magnet_v400_p_tf_ohmic_margin" in outputs:
         lim = outputs.get("p_tf_ohmic_margin_min_v400", float("nan"))
         if lim == lim:
-            ge("P_tf_ohmic margin v400", outputs["magnet_v400_p_tf_ohmic_margin"], lim, units="-", note="P_max/P_ohmic - 1 (copper)", severity="soft", group="magnets")
+            ge("TF ohmic power margin", outputs["magnet_v400_p_tf_ohmic_margin"], lim, units="-", note="P_max/P_ohmic - 1 (copper)", severity="soft", group="magnets")
 
-    # Magnet SC system authority v410 (TF/PF/CS family margins; optional caps)
+    # Magnet SC system authority (TF/PF/CS family margins; optional caps)
     if outputs.get("magnet_v410_enabled") and "magnet_v410_system_margin" in outputs:
         lim = outputs.get("magnet_system_margin_min_v410", float("nan"))
         if lim == lim:
             ge(
-                "MAG system margin v410",
+                "Magnet SC system margin",
                 outputs["magnet_v410_system_margin"],
                 lim,
                 units="-",
@@ -534,9 +534,9 @@ def evaluate_constraints(
                 group="magnets",
             )
         for fam, key, lim_key, label in (
-            ("TF", "magnet_v410_tf_margin", "tf_family_margin_min_v410", "TF family margin v410"),
-            ("PF", "magnet_v410_pf_margin", "pf_family_margin_min_v410", "PF family margin v410"),
-            ("CS", "magnet_v410_cs_margin", "cs_family_margin_min_v410", "CS family margin v410"),
+            ("TF", "magnet_v410_tf_margin", "tf_family_margin_min_v410", "TF family margin"),
+            ("PF", "magnet_v410_pf_margin", "pf_family_margin_min_v410", "PF family margin"),
+            ("CS", "magnet_v410_cs_margin", "cs_family_margin_min_v410", "CS family margin"),
         ):
             if key not in outputs:
                 continue
@@ -547,16 +547,16 @@ def evaluate_constraints(
                     outputs[key],
                     fam_lim,
                     units="-",
-                    note=f"v410 {fam} family magnet SC/engineering margin (proxy)",
+                    note=f"{fam} family magnet SC/engineering margin (proxy)",
                     group="magnets",
                 )
 
-    # Machine-build / radial closure authority v412 (optional caps)
+    # Machine-build / radial closure authority (optional caps)
     if outputs.get("machine_v412_enabled") and "machine_v412_system_margin" in outputs:
         lim = outputs.get("machine_build_closure_margin_min_v412", float("nan"))
         if lim == lim:
             ge(
-                "Machine-build closure margin v412",
+                "Machine-build closure",
                 outputs["machine_v412_system_margin"],
                 lim,
                 units="-",
@@ -567,7 +567,7 @@ def evaluate_constraints(
             lim_m = outputs.get("machine_build_inboard_margin_min_m_v412", float("nan"))
             if lim_m == lim_m:
                 ge(
-                    "Inboard build clearance v412",
+                    "Inboard build clearance",
                     outputs["machine_v412_inboard_margin_m"],
                     lim_m,
                     units="m",
@@ -578,7 +578,7 @@ def evaluate_constraints(
             lim_g = outputs.get("machine_build_gap_min_m_v412", float("nan"))
             if lim_g == lim_g:
                 ge(
-                    "Build gap clearance v412",
+                    "Build gap clearance",
                     outputs["machine_v412_gap_thickness_m"],
                     lim_g,
                     units="m",
@@ -586,14 +586,14 @@ def evaluate_constraints(
                     group="build",
                 )
 
-    # Plant Sankey-grade ledger authority v419 (optional caps + conservation)
+    # Plant Sankey-grade ledger authority (optional caps + conservation)
     if outputs.get("plant_v419_enabled"):
         # Conservation residual: treat failed checks as soft diagnostic unless
         # caller elevates via governance; always surface when overlay ON.
         cons_ok = outputs.get("plant_v419_conservation_ok")
         if cons_ok is not None:
             ge(
-                "Plant Sankey conservation v419",
+                "Plant Sankey conservation",
                 1.0 if bool(cons_ok) else 0.0,
                 1.0,
                 units="-",
@@ -604,7 +604,7 @@ def evaluate_constraints(
         lim_f = outputs.get("plant_sankey_f_recirc_max_v419", float("nan"))
         if lim_f == lim_f and "plant_v419_f_recirc" in outputs:
             le(
-                "Plant Sankey f_recirc v419",
+                "Plant Sankey f_recirc",
                 outputs["plant_v419_f_recirc"],
                 lim_f,
                 units="-",
@@ -614,7 +614,7 @@ def evaluate_constraints(
         lim_net = outputs.get("plant_sankey_Pe_net_min_MW_v419", float("nan"))
         if lim_net == lim_net and "plant_v419_Pe_net_MW" in outputs:
             ge(
-                "Plant Sankey Pe_net floor v419",
+                "Plant Sankey Pe_net floor",
                 outputs["plant_v419_Pe_net_MW"],
                 lim_net,
                 units="MW",
@@ -1066,7 +1066,7 @@ def evaluate_constraints(
         lim = outputs.get("nm_fragile_margin_frac_v401", float("nan"))
         if lim == lim:
             ge(
-                "NM contract min margin (v401)",
+                "NM contract min margin",
                 outputs["nm_min_margin_frac_v401"],
                 lim,
                 units="-",
@@ -1077,7 +1077,7 @@ def evaluate_constraints(
         lim = outputs.get("nm_fragile_margin_frac_v403", float("nan"))
         if lim == lim:
             ge(
-                "NM library min margin (v403)",
+                "NM library min margin",
                 outputs["nm_min_margin_frac_v403"],
                 lim,
                 units="-",
@@ -1088,7 +1088,7 @@ def evaluate_constraints(
         lim = outputs.get("dpa_fw_max_v403", float("nan"))
         if lim == lim:
             le(
-                "FW DPA (v403)",
+                "FW DPA",
                 outputs["dpa_fw_v403"],
                 lim,
                 units="DPA/FPY",
@@ -1099,7 +1099,7 @@ def evaluate_constraints(
         lim = outputs.get("he_appm_fw_max_v403", float("nan"))
         if lim == lim:
             le(
-                "FW He appm (v403)",
+                "FW He appm",
                 outputs["he_appm_fw_v403"],
                 lim,
                 units="appm/FPY",
@@ -1110,7 +1110,7 @@ def evaluate_constraints(
         lim = outputs.get("cooldown_burden_max_days_v403", float("nan"))
         if lim == lim:
             le(
-                "Cooldown burden (v403)",
+                "Cooldown burden",
                 outputs["cooldown_burden_days_v403"],
                 lim,
                 units="days",
@@ -1121,7 +1121,7 @@ def evaluate_constraints(
         lim = outputs.get("tbr_proxy_min_v403", float("nan"))
         if lim == lim:
             ge(
-                "TBR proxy (v403)",
+                "TBR proxy",
                 outputs["tbr_proxy_v403"],
                 lim,
                 units="-",
@@ -1132,7 +1132,7 @@ def evaluate_constraints(
         lim = outputs.get("fast_attenuation_min_v403", float("nan"))
         if lim == lim:
             ge(
-                "Fast attenuation (v403)",
+                "Fast attenuation",
                 outputs["nm_fast_attenuation_v403"],
                 lim,
                 units="-",
@@ -1146,7 +1146,7 @@ def evaluate_constraints(
             lim = outputs.get("tf_case_fluence_max_n_m2_per_fpy_v392", float("nan"))
         if lim == lim:
             le(
-                "TF case fluence (v407)",
+                "TF case fluence",
                 outputs["tf_case_fluence_n_m2_per_fpy_v407"],
                 lim,
                 units="n/m^2/FPY",

@@ -33,6 +33,6 @@ def test_governance_v403_margin_enforced_when_fragile_key_present() -> None:
     }
     cons = evaluate_constraints(out)
     names = {c.name for c in cons}
-    assert "NM library min margin (v403)" in names
-    row = next(c for c in cons if c.name == "NM library min margin (v403)")
+    assert "NM library min margin" in names
+    row = next(c for c in cons if c.name == "NM library min margin")
     assert row.passed is False

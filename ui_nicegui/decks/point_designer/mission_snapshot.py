@@ -145,10 +145,10 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     v410 = magnet_v410_summary(out)
     if v410:
-        with ui.expansion("Magnet SC system (v410) — TF/PF/CS [PROXY]", icon="hub").classes("w-full"):
+        with ui.expansion("Magnet SC system / TF/PF/CS SC [PROXY]", icon="hub").classes("w-full"):
             ui.badge("PROXY overlay").props("color=orange")
             ui.label(
-                "Per-family TF/PF/CS superconducting & engineering margins beyond v400."
+                "Per-family TF/PF/CS superconducting & engineering margins beyond magnet technology margins."
             ).classes("text-caption q-mb-sm")
             kpi_row([
                 ("System margin", fmt_num(v410["system_margin"])),
@@ -163,7 +163,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     v412 = machine_v412_summary(out)
     if v412:
-        with ui.expansion("Machine-build / radial closure (v412) [PROXY]", icon="view_timeline").classes("w-full"):
+        with ui.expansion("Machine build closure / Radial machine-build [PROXY]", icon="view_timeline").classes("w-full"):
             ui.badge("PROXY overlay").props("color=orange")
             ui.label(
                 "Layer-stack consistency, clearances, and outboard envelope narrative."
@@ -181,16 +181,18 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     v419 = plant_v419_summary(out)
     if v419:
-        with ui.expansion("Plant Sankey ledger (v419) [PROXY]", icon="account_tree").classes("w-full"):
+        with ui.expansion("Plant Sankey ledger [PROXY]", icon="account_tree").classes("w-full"):
             ui.badge("PROXY overlay — Pe_net watermarked").props("color=orange")
             ui.label(
                 "Source→sink thermal/electric flows with recirculating breakdown and conservation checks."
             ).classes("text-caption q-mb-sm")
+            from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+
             kpi_row([
                 ("System tier", str(v419["system_tier"])),
                 ("Conservation", "OK" if v419.get("conservation_ok") else "FAIL"),
                 ("f_recirc", fmt_num(v419.get("f_recirc"))),
-                ("Pe_net PROXY [MW]", fmt_num(v419.get("Pe_net_MW"))),
+                ("Pe_net [MW]", pe_net_display(out, artifact=art, design_intent=str(session.design_intent))),
             ])
             if v419.get("recirc_breakdown"):
                 ui.label("Recirc breakdown [MW(e)]").classes("text-subtitle2")
@@ -200,17 +202,19 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     v420 = avail_v420_summary(out)
     if v420:
-        with ui.expansion("Availability→OPEX/LCOE coupling (v420) [PROXY]", icon="timeline").classes("w-full"):
+        with ui.expansion("Availability–OPEX–LCOE [PROXY]", icon="timeline").classes("w-full"):
             ui.badge("PROXY overlay — LCOE watermarked").props("color=orange")
             ui.label(
                 "One availability chain feeds operating hours, annual energy, OPEX, and LCOE consistently."
             ).classes("text-caption q-mb-sm")
+            from ui_nicegui.lib.plant_kpi_honesty_ui import lcoe_display
+
             kpi_row([
                 ("Availability", fmt_num(v420.get("availability"))),
                 ("A source", str(v420.get("availability_source", "-"))),
                 ("E_net [MWh/y]", fmt_num(v420.get("E_net_MWh_per_y"))),
                 ("OPEX [MUSD/y]", fmt_num(v420.get("OPEX_total_MUSD_per_y"))),
-                ("LCOE PROXY [USD/MWh]", fmt_num(v420.get("LCOE_USD_per_MWh"))),
+                ("LCOE [USD/MWh]", lcoe_display(out, artifact=art, design_intent=str(session.design_intent))),
                 ("Consistency", "OK" if v420.get("consistency_ok") else "FAIL"),
             ])
             if v420.get("opex_breakdown_MUSD_per_y"):

@@ -49,18 +49,23 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
         ).props("flat dense")
 
     ui.label("Key results (last solve)").classes("text-subtitle2 q-mt-sm")
+    from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+
     with ui.row().classes("gap-2 flex-wrap"):
         for label, key in (
             ("Q", "Q_DT_eqv"),
             ("H98", "H98"),
-            ("P_net [MW]", "P_e_net_MW"),
+            ("Pe_net [MW]", "P_e_net_MW"),
             ("q_div", "q_div_MW_m2"),
             ("β_N", "beta_N"),
             ("q95", "q95"),
         ):
             with ui.card().classes("p-2"):
                 ui.label(label).classes("text-caption text-grey")
-                ui.label(fmt(out.get(key))).classes("text-body1")
+                if key == "P_e_net_MW":
+                    ui.label(pe_net_display(out, artifact=art)).classes("text-body1")
+                else:
+                    ui.label(fmt(out.get(key))).classes("text-body1")
 
     _render_constraints_dashboard(out)
     render_post_solve_authority(session, out, ins if isinstance(ins, dict) else {}, on_refresh=on_refresh)

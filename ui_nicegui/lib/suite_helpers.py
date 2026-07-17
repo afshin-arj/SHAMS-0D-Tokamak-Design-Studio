@@ -47,16 +47,16 @@ def authority_version_badges(out: dict) -> List[str]:
     if not isinstance(out, dict):
         return []
     checks = [
-        ("magnet_v400_enabled", "v400 magnets"),
-        ("magnet_v410_enabled", "v410 TF/PF/CS SC"),
-        ("machine_v412_enabled", "v412 machine-build"),
-        ("plant_v419_enabled", "v419 plant Sankey"),
-        ("avail_v420_enabled", "v420 availability→OPEX/LCOE"),
-        ("nm_authority_v401_enabled", "v401 neutronics"),
-        ("nuclear_data_authority_v407_enabled", "v407 nuclear data"),
-        ("structural_stress_v389_enabled", "v389 structural"),
-        ("tritium_authority_v405_enabled", "v405 tritium"),
-        ("cd_mix_plant_ledger_v408_enabled", "v408 plant ledger"),
+        ("magnet_v400_enabled", "Magnet technology"),
+        ("magnet_v410_enabled", "Magnet SC system"),
+        ("machine_v412_enabled", "Machine build"),
+        ("plant_v419_enabled", "Plant Sankey"),
+        ("avail_v420_enabled", "Availability–OPEX–LCOE"),
+        ("nm_authority_v401_enabled", "Neutronics"),
+        ("nuclear_data_authority_v407_enabled", "Nuclear data"),
+        ("structural_stress_v389_enabled", "Structural"),
+        ("tritium_authority_v405_enabled", "Tritium"),
+        ("cd_mix_plant_ledger_v408_enabled", "Plant ledger"),
     ]
     return [label for key, label in checks if bool(out.get(key))]
 
@@ -422,55 +422,55 @@ def render_authority_ledger(
     mag = magnet_v400_summary(point_out)
     if mag:
         kpi_row([
-            ("Magnet v400 tier", str(mag.get("tier", "-"))),
+            ("Magnet technology tier", str(mag.get("tier", "-"))),
             ("Combined margin", _fin(mag.get("combined_margin"), ".3f")),
             ("Dominant limiter", str(mag.get("dominant", "-"))),
         ])
     else:
-        ui.label("Magnet v400 authority not enabled on this point.").classes("text-caption text-grey")
+        ui.label("Magnet technology margins not enabled on this point.").classes("text-caption text-grey")
 
     mag410 = magnet_v410_summary(point_out)
     if mag410:
-        ui.badge("v410 PROXY — TF/PF/CS SC system").props("color=orange outline")
+        ui.badge("PROXY — Magnet SC system / TF/PF/CS SC").props("color=orange outline")
         kpi_row([
-            ("v410 system tier", str(mag410.get("system_tier", "-"))),
+            ("System tier", str(mag410.get("system_tier", "-"))),
             ("System margin", _fin(mag410.get("system_margin"), ".3f")),
             ("Dominant family", str(mag410.get("dominant_family", "-"))),
         ])
     else:
-        ui.label("Magnet v410 TF/PF/CS SC system overlay not enabled on this point.").classes(
+        ui.label("Magnet SC system overlay not enabled on this point.").classes(
             "text-caption text-grey"
         )
 
     mb412 = machine_v412_summary(point_out)
     if mb412:
-        ui.badge("v412 PROXY — radial / machine-build").props("color=orange outline")
+        ui.badge("PROXY — Machine build / Radial machine-build").props("color=orange outline")
         kpi_row([
-            ("v412 system tier", str(mb412.get("system_tier", "-"))),
+            ("System tier", str(mb412.get("system_tier", "-"))),
             ("System margin", _fin(mb412.get("system_margin"), ".3f")),
             ("Dominant aspect", str(mb412.get("dominant_aspect", "-"))),
             ("Inboard margin [m]", _fin(mb412.get("inboard_margin_m"), ".3f")),
         ])
     else:
-        ui.label("Machine-build v412 radial closure overlay not enabled on this point.").classes(
+        ui.label("Machine build closure overlay not enabled on this point.").classes(
             "text-caption text-grey"
         )
 
     pl419 = plant_v419_summary(point_out)
     if pl419:
-        ui.badge("v419 PROXY — plant Sankey ledger").props("color=orange outline")
+        ui.badge("PROXY — Plant Sankey ledger").props("color=orange outline")
         kpi_row([
-            ("v419 tier", str(pl419.get("system_tier", "-"))),
+            ("System tier", str(pl419.get("system_tier", "-"))),
             ("Conservation", "OK" if pl419.get("conservation_ok") else "FAIL"),
             ("f_recirc", _fin(pl419.get("f_recirc"), ".3f")),
-            ("Pe_net (raw PROXY)", _fin(pl419.get("Pe_net_MW"), ".3f")),
+            ("Pe_net (watermarked)", pe_net_display(point_out, artifact=artifact, design_intent=design_intent)),
         ])
         ui.label(
-            "Pe_net display above uses plant_kpi_honesty watermark — raw v419 value is PROXY bookkeeping."
+            "Pe_net uses plant_kpi_honesty watermark — ledger Pe_net is PROXY bookkeeping."
         ).classes("text-caption text-orange")
         ft = pl419.get("flow_table")
         if isinstance(ft, list) and ft:
-            with ui.expansion("v419 source→sink flow table (PROXY)", icon="account_tree").classes("w-full"):
+            with ui.expansion("Source→sink flow table (PROXY)", icon="account_tree").classes("w-full"):
                 ui.table(
                     columns=[
                         {"name": "source", "label": "Source", "field": "source", "align": "left"},
@@ -482,23 +482,23 @@ def render_authority_ledger(
                     row_key="source",
                 ).classes("w-full")
     else:
-        ui.label("Plant Sankey v419 overlay not enabled on this point.").classes(
+        ui.label("Plant Sankey ledger overlay not enabled on this point.").classes(
             "text-caption text-grey"
         )
 
     av420 = avail_v420_summary(point_out)
     if av420:
-        ui.badge("v420 PROXY — availability→OPEX/LCOE coupling").props("color=orange outline")
+        ui.badge("PROXY — Availability–OPEX–LCOE").props("color=orange outline")
         kpi_row([
             ("Availability", _fin(av420.get("availability"), ".3f")),
             ("A source", str(av420.get("availability_source", "-"))),
             ("E_net [MWh/y]", _fin(av420.get("E_net_MWh_per_y"), ".3g")),
             ("OPEX [MUSD/y]", _fin(av420.get("OPEX_total_MUSD_per_y"), ".3g")),
-            ("LCOE (raw PROXY)", _fin(av420.get("LCOE_USD_per_MWh"), ".3g")),
+            ("LCOE (watermarked)", lcoe_display(point_out, artifact=artifact, design_intent=design_intent)),
             ("Consistency", "OK" if av420.get("consistency_ok") else "FAIL"),
         ])
         ui.label(
-            "LCOE display above uses plant_kpi_honesty watermark — raw v420 value is PROXY bookkeeping "
+            "LCOE uses plant_kpi_honesty watermark — coupling LCOE is PROXY bookkeeping "
             f"(dominant OPEX driver: {av420.get('dominant_opex_driver', '-')})."
         ).classes("text-caption text-orange")
         try:
@@ -512,7 +512,7 @@ def render_authority_ledger(
         chain = availability_lcoe_chain_rows(point_out)
         if chain:
             with ui.expansion(
-                "v420 availability→energy→OPEX→LCOE chain (PROXY)", icon="timeline"
+                "Availability→energy→OPEX→LCOE chain (PROXY)", icon="timeline"
             ).classes("w-full"):
                 ui.table(
                     columns=[
@@ -528,7 +528,7 @@ def render_authority_ledger(
                 ).classes("w-full")
     else:
         ui.label(
-            "Availability→OPEX/LCOE v420 overlay not enabled on this point."
+            "Availability–OPEX–LCOE overlay not enabled on this point."
         ).classes("text-caption text-grey")
 
     exh = build_exhaust_authority_bundle(point_out)
@@ -541,8 +541,8 @@ def render_authority_ledger(
     kpi_row([
         ("TBR", _fin(point_out.get("TBR", point_out.get("tbr_proxy")))),
         ("FW dpa/yr", _fin(point_out.get("fw_dpa_per_year"))),
-        ("TF struct margin v389", _fin(point_out.get("tf_struct_margin_v389"), ".3f")),
-        ("NM margin v401", _fin(point_out.get("nm_min_margin_frac_v401"), ".3f")),
+        ("TF structural margin", _fin(point_out.get("tf_struct_margin_v389"), ".3f")),
+        ("Neutronics materials margin", _fin(point_out.get("nm_min_margin_frac_v401"), ".3f")),
     ])
 
     if expert:

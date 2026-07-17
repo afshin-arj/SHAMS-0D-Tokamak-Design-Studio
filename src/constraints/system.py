@@ -206,85 +206,85 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         description="Optional cap on PROCESS-style component CAPEX proxy total. Diagnostic only; no hidden weighting.")
 
     # Plant Economics & Cost Authority 2.0 (v383.0.0) — optional caps (NaN disables)
-    add("Structured CAPEX (v383)", "CAPEX_structured_v383_MUSD", hi_key="CAPEX_structured_max_MUSD", units="MUSD",
+    add("Structured CAPEX", "CAPEX_structured_v383_MUSD", hi_key="CAPEX_structured_max_MUSD", units="MUSD",
         description="Optional cap on structured CAPEX proxy used by LCOE-lite (v383).")
-    add("Structured OPEX (v383)", "OPEX_structured_v383_MUSD_per_y", hi_key="OPEX_structured_max_MUSD_per_y", units="MUSD/y",
+    add("Structured OPEX", "OPEX_structured_v383_MUSD_per_y", hi_key="OPEX_structured_max_MUSD_per_y", units="MUSD/y",
         description="Optional cap on structured OPEX proxy (v383).")
-    add("LCOE-lite (v383)", "LCOE_lite_v383_USD_per_MWh", hi_key="LCOE_lite_max_USD_per_MWh", units="USD/MWh",
+    add("LCOE-lite", "LCOE_lite_v383_USD_per_MWh", hi_key="LCOE_lite_max_USD_per_MWh", units="USD/MWh",
         description="Optional cap on deterministic LCOE-lite proxy (v383).")
 
 
     # Cost Authority 3.0 — Industrial Depth (v388.0.0) — optional caps (NaN disables)
-    add("Industrial CAPEX (v388)", "CAPEX_industrial_v388_MUSD", hi_key="CAPEX_industrial_max_MUSD", units="MUSD",
+    add("Industrial CAPEX", "CAPEX_industrial_v388_MUSD", hi_key="CAPEX_industrial_max_MUSD", units="MUSD",
         description="Optional cap on industrial-depth CAPEX envelope (v388).")
-    add("Industrial OPEX (v388)", "OPEX_industrial_v388_MUSD_per_y", hi_key="OPEX_industrial_max_MUSD_per_y", units="MUSD/y",
+    add("Industrial OPEX", "OPEX_industrial_v388_MUSD_per_y", hi_key="OPEX_industrial_max_MUSD_per_y", units="MUSD/y",
         description="Optional cap on industrial-depth OPEX envelope (v388).")
-    add("LCOE-lite (v388)", "LCOE_lite_v388_USD_per_MWh", hi_key="LCOE_lite_v388_max_USD_per_MWh", units="USD/MWh",
+    add("LCOE-lite", "LCOE_lite_v388_USD_per_MWh", hi_key="LCOE_lite_v388_max_USD_per_MWh", units="USD/MWh",
         description="Optional cap on deterministic LCOE-lite proxy computed from v388 industrial envelopes.")
 
 
     # Structural Stress Authority (v389.0.0) — optional minima (only present when enabled)
-    add("TF structural margin (v389)", "tf_struct_margin_v389", lo_key="tf_struct_margin_min_v389", units="-",
+    add("TF structural margin", "tf_struct_margin_v389", lo_key="tf_struct_margin_min_v389", units="-",
         description="TF structural margin (allowable/applied). Only computed when Structural Stress Authority is enabled (v389).")
-    add("CS/PF structural margin (v389)", "cs_struct_margin_v389", lo_key="cs_struct_margin_min_v389", units="-",
+    add("CS/PF structural margin", "cs_struct_margin_v389", lo_key="cs_struct_margin_min_v389", units="-",
         description="CS/PF structural margin from magnetic-pressure thin-shell proxy. Only computed when enabled (v389).")
-    add("VV structural margin (v389)", "vv_struct_margin_v389", lo_key="vv_struct_margin_min_v389", units="-",
+    add("VV structural margin", "vv_struct_margin_v389", lo_key="vv_struct_margin_min_v389", units="-",
         description="Vacuum vessel external-pressure structural margin (thin-shell proxy). Only computed when enabled (v389).")
 
     # Neutronics & Activation Authority 3.0 (v390.0.0) — optional caps/minima (NaN disables)
-    add("Shield margin (v390)", "shield_margin_cm_v390", lo_key="shield_margin_min_cm_v390", units="cm",
+    add("Shield margin", "shield_margin_cm_v390", lo_key="shield_margin_min_cm_v390", units="cm",
         description="Effective shielding thickness margin (t_eff - t_req) for activation/shielding envelope (v390).")
-    add("FW DPA rate (v390)", "dpa_per_fpy_v390", hi_key="dpa_per_fpy_max_v390", units="DPA/FPY",
+    add("FW DPA rate", "dpa_per_fpy_v390", hi_key="dpa_per_fpy_max_v390", units="DPA/FPY",
         description="First-wall DPA-lite rate proxy (v390). Optional cap.")
-    add("FW lifetime (v390)", "fw_life_fpy_v390", lo_key="fw_life_min_fpy_v390", units="FPY",
+    add("FW lifetime", "fw_life_fpy_v390", lo_key="fw_life_min_fpy_v390", units="FPY",
         description="First-wall lifetime proxy in full-power-years derived from DPA-lite (v390). Optional minimum.")
-    add("Activation index (v390)", "activation_index_v390", hi_key="activation_index_max_v390", units="-",
+    add("Activation index", "activation_index_v390", hi_key="activation_index_max_v390", units="-",
         description="Activation index proxy controlling cooldown/maintenance bin (v390). Optional cap.")
 
     # Neutronics Shield Attenuation Authority (v392.0.0) — optional caps (NaN disables)
-    add("TF case fluence (v392)", "tf_case_fluence_n_m2_per_fpy_v392", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392",
+    add("TF case fluence", "tf_case_fluence_n_m2_per_fpy_v392", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392",
         units="n/m^2/FPY", description="Ex-vessel fluence proxy at TF case boundary using attenuation lengths (v392).")
-    add("Cryostat fluence (v392)", "cryostat_fluence_n_m2_per_fpy_v392", hi_key="cryostat_fluence_max_n_m2_per_fpy_v392",
+    add("Cryostat fluence", "cryostat_fluence_n_m2_per_fpy_v392", hi_key="cryostat_fluence_max_n_m2_per_fpy_v392",
         units="n/m^2/FPY", description="Ex-vessel fluence proxy at cryostat boundary using attenuation lengths (v392).")
-    add("Bioshield dose rate (v392)", "bioshield_dose_rate_uSv_h_v392", hi_key="bioshield_dose_rate_max_uSv_h_v392",
+    add("Bioshield dose rate", "bioshield_dose_rate_uSv_h_v392", hi_key="bioshield_dose_rate_max_uSv_h_v392",
         units="uSv/h", description="Dose-rate proxy outside biological shield (v392). Optional cap.")
 
     # Magnet Technology Authority (v400.0.0) — optional minima when enabled
-    add("MAG min margin (v400)", "magnet_v400_margin", lo_key="magnet_margin_min_v400", units="-",
+    add("MAG min margin", "magnet_v400_margin", lo_key="magnet_margin_min_v400", units="-",
         description="Minimum normalized margin across v400 magnet technology contract items when enabled.")
 
     # Structural Life Authority (v404.0.0) — optional minima when enabled
-    add("Struct min margin (v404)", "struct_global_min_margin_v404", lo_key="struct_min_margin_frac_v404", units="-",
+    add("Struct min margin", "struct_global_min_margin_v404", lo_key="struct_min_margin_frac_v404", units="-",
         description="Global minimum structural life margin (fatigue/creep/buckling) when v404 is enabled.")
 
     # Neutronics & Materials Authority 3.0 — Contract Tiers (v401.0.0) — governance overlay
     # Note: v401 does not introduce new truth quantities; it scores margins on existing proxies.
-    add("NM contract min margin (v401)", "nm_min_margin_frac_v401", lo_key="nm_fragile_margin_frac_v401", units="-",
+    add("NM contract min margin", "nm_min_margin_frac_v401", lo_key="nm_fragile_margin_frac_v401", units="-",
         description="Minimum normalized margin across tiered neutronics/materials contract items (v401). Values <0 infeasible; <fragile threshold indicates fragile.")
 
     # Neutronics & Materials Authority 4.0 — Library Stack (v403.0.0) — governance overlay
     # Deterministic multi-layer + 3-group attenuation + derived DPA/He/activation + TBR-lite.
-    add("NM library min margin (v403)", "nm_min_margin_frac_v403", lo_key="nm_fragile_margin_frac_v403", units="-",
+    add("NM library min margin", "nm_min_margin_frac_v403", lo_key="nm_fragile_margin_frac_v403", units="-",
         description="Minimum normalized margin across v403 library stack contract items (DPA/He/cooldown/TBR/fast attenuation when enabled).")
-    add("FW DPA (v403)", "dpa_fw_v403", hi_key="dpa_fw_max_v403", units="DPA/FPY",
+    add("FW DPA", "dpa_fw_v403", hi_key="dpa_fw_max_v403", units="DPA/FPY",
         description="First-wall DPA proxy derived from 3-group attenuation + material coefficients (v403). Optional cap.")
-    add("FW He appm (v403)", "he_appm_fw_v403", hi_key="he_appm_fw_max_v403", units="appm/FPY",
+    add("FW He appm", "he_appm_fw_v403", hi_key="he_appm_fw_max_v403", units="appm/FPY",
         description="First-wall helium production proxy (appm/FPY) (v403). Optional cap.")
-    add("Cooldown burden (v403)", "cooldown_burden_days_v403", hi_key="cooldown_burden_max_days_v403", units="days",
+    add("Cooldown burden", "cooldown_burden_days_v403", hi_key="cooldown_burden_max_days_v403", units="days",
         description="Cooldown/maintenance burden proxy derived from activation severity index (v403). Optional cap.")
-    add("TBR proxy (v403)", "tbr_proxy_v403", lo_key="tbr_proxy_min_v403", units="-",
+    add("TBR proxy", "tbr_proxy_v403", lo_key="tbr_proxy_min_v403", units="-",
         description="TBR-lite proxy from breeder layers in the v403 stack library. Optional minimum.")
-    add("Fast attenuation (v403)", "nm_fast_attenuation_v403", lo_key="fast_attenuation_min_v403", units="-",
+    add("Fast attenuation", "nm_fast_attenuation_v403", lo_key="fast_attenuation_min_v403", units="-",
         description="Transmitted fast-group fraction after the declared stack. Optional minimum (screening for adequate shielding).")
 
     # Availability 2.0 — Reliability Envelope Authority (v391.0.0) — optional caps/minima (NaN disables)
-    add("Availability certified (v391)", "availability_cert_v391", lo_key="availability_min_v391", units="-",
+    add("Availability certified", "availability_cert_v391", lo_key="availability_min_v391", units="-",
         description="Certified availability envelope from MTBF/MTTR product proxy + planned/maintenance downtime (v391).")
-    add("Planned outage fraction (v391)", "planned_outage_frac_v391", hi_key="planned_outage_max_frac_v391", units="-",
+    add("Planned outage fraction", "planned_outage_frac_v391", hi_key="planned_outage_max_frac_v391", units="-",
         description="Planned outage fraction from explicit planned_outage_days_per_y_v391 input (v391). Optional cap.")
-    add("Unplanned downtime fraction (v391)", "unplanned_downtime_frac_v391", hi_key="unplanned_downtime_max_frac_v391", units="-",
+    add("Unplanned downtime fraction", "unplanned_downtime_frac_v391", hi_key="unplanned_downtime_max_frac_v391", units="-",
         description="Unplanned downtime fraction from product of per-subsystem availability factors A_i=MTBF/(MTBF+MTTR) (v391). Optional cap.")
-    add("Maintenance downtime fraction (v391)", "maint_downtime_frac_v391", hi_key="maint_downtime_max_frac_v391", units="-",
+    add("Maintenance downtime fraction", "maint_downtime_frac_v391", hi_key="maint_downtime_max_frac_v391", units="-",
         description="Maintenance downtime fraction: replacement downtime (v368/v359) scaled by burden + cooldown (v390) (v391). Optional cap.")
     # Fuel-cycle / tritium (optional; NaN disables)
     add("Fuel-cycle TBR requirement", "TBR", lo_key="TBR_required_fuelcycle", units="-",
@@ -312,11 +312,11 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
 
     # v372.0: Neutronics–Materials Coupling Authority 2.0 (governance-only)
     # These constraints are active only when the corresponding caps are explicitly set (NaN disables).
-    add("Eff. DPA rate (v372)", "dpa_rate_eff_per_fpy_v372", hi_key="dpa_rate_eff_max_v372", units="DPA/FPY",
+    add("Eff. DPA rate", "dpa_rate_eff_per_fpy_v372", hi_key="dpa_rate_eff_max_v372", units="DPA/FPY",
         description="Material+ spectrum-conditioned effective DPA rate proxy (screening).")
-    add("Damage margin (v372)", "damage_margin_v372", lo_key="damage_margin_min_v372", units="-",
+    add("Damage margin", "damage_margin_v372", lo_key="damage_margin_min_v372", units="-",
         description="Normalized margin against the explicit DPA cap (>=0 is feasible).")
-    add_bool("Materials temp window (v372)", "nm_temp_window_ok_v372",
+    add_bool("Materials temp window", "nm_temp_window_ok_v372",
         description="If operating temperature is provided, 1 indicates within material window; outside triggers conservative penalty.")
 
     # Nuclear heating / materials replacement (optional; NaN disables)
@@ -370,20 +370,20 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="Availability proxy from scheduled replacements and trips.")
 
     # --- (v359.0) Availability & replacement ledger authority (optional) ---
-    add("Availability (v359)", "availability_v359", lo_key="availability_v359_min", units="-",
+    add("Availability", "availability_v359", lo_key="availability_v359_min", units="-",
         description="Availability including planned/forced baselines and replacement downtime (v359).")
-    add("LCOE proxy (v359)", "LCOE_proxy_v359_USD_per_MWh", hi_key="LCOE_max_USD_per_MWh", units="USD/MWh",
+    add("LCOE proxy", "LCOE_proxy_v359_USD_per_MWh", hi_key="LCOE_max_USD_per_MWh", units="USD/MWh",
         description="Lifecycle-style LCOE proxy using CAPEX/OPEX proxies and v359 replacement cost rate.")
 
     # --- (v368.0) Maintenance Scheduling Authority 1.0 (optional) ---
-    add("Availability (v368)", "availability_v368", lo_key="availability_v368_min", units="-",
+    add("Availability", "availability_v368", lo_key="availability_v368_min", units="-",
         description="Maintenance-schedule-dominated availability including bundled replacements and trip model (v368).")
-    add("Total outage fraction (v368)", "outage_total_frac_v368", hi_key="outage_fraction_v368_max", units="-",
+    add("Total outage fraction", "outage_total_frac_v368", hi_key="outage_fraction_v368_max", units="-",
         description="Optional cap on planned+forced+replacement outage fraction from v368 schedule closure.")
     # --- (v360.0) Plant Economics Authority 1.0 (optional) ---
-    add("OPEX (v360)", "OPEX_v360_total_MUSD_per_y", hi_key="OPEX_max_MUSD_per_y", units="MUSD/y",
+    add("OPEX", "OPEX_v360_total_MUSD_per_y", hi_key="OPEX_max_MUSD_per_y", units="MUSD/y",
         description="Total OPEX decomposition including recirc+cryo+CD electricity, tritium processing, maintenance, and fixed OPEX (v360).")
-    add("LCOE proxy (v360)", "LCOE_proxy_v360_USD_per_MWh", hi_key="LCOE_max_USD_per_MWh", units="USD/MWh",
+    add("LCOE proxy", "LCOE_proxy_v360_USD_per_MWh", hi_key="LCOE_max_USD_per_MWh", units="USD/MWh",
         description="Availability-coupled LCOE proxy using CAPEX component proxy (v356), replacement cost rate (v359), and OPEX decomposition (v360).")
     add("Tritium inventory proxy", "T_inventory_proxy_g", hi_key="tritium_inventory_max_g", units="g",
     description="Tritium inventory proxy derived from burn rate and processing reserve.")
@@ -410,7 +410,7 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="TF coil strain proxy must be below allowable (screening). Optional cap.")
 
     # --- (v288.0) Magnet authority 2.0 ---
-    add("TF peak field (v288)", "tf_Bpeak_T", hi_key="B_peak_allow_T", units="T",
+    add("TF peak field", "tf_Bpeak_T", hi_key="B_peak_allow_T", units="T",
     description="TF peak field at winding pack (proxy) must be below allowable.")
     add("HTS margin", "tf_hts_margin", lo_key="hts_margin_min", units="-",
     description="HTS critical-surface margin Jc(B,T,ε)/Jop must exceed minimum if enabled.")
@@ -426,35 +426,35 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
     description="Plant availability proxy must exceed minimum.")
 
     # --- Mirror governance pipeline caps (PROPOSAL-010) ---
-    add("Transport spread (v396)", "transport_spread_ratio_v396", hi_key="transport_spread_max_v396", units="-",
+    add("Transport spread", "transport_spread_ratio_v396", hi_key="transport_spread_max_v396", units="-",
         description="Transport envelope spread cap tauE_max/tauE_min when enabled.")
-    add("Profile peaking f_p0 (v397)", "profile_peaking_p_v397", hi_key="profile_peaking_p_max_v397", units="-",
+    add("Profile peaking f_p0", "profile_peaking_p_v397", hi_key="profile_peaking_p_max_v397", units="-",
         description="v397 profile proxy pressure peaking cap.")
-    add("q95 proxy (v397)", "q95_proxy_v397", lo_key="q95_proxy_min_v397", units="-",
+    add("q95 proxy", "q95_proxy_v397", lo_key="q95_proxy_min_v397", units="-",
         description="v397 proxy q95 lower bound when set.")
-    add("q0 proxy (v397)", "q0_proxy_v397", lo_key="q0_proxy_min_v397", units="-",
+    add("q0 proxy", "q0_proxy_v397", lo_key="q0_proxy_min_v397", units="-",
         description="v397 on-axis safety factor proxy lower bound when set.")
-    add("Bootstrap localization (v397)", "bootstrap_localization_index_v397", hi_key="bootstrap_localization_max_v397", units="-",
+    add("Bootstrap localization", "bootstrap_localization_index_v397", hi_key="bootstrap_localization_max_v397", units="-",
         description="v397 bootstrap localization index upper bound when set.")
-    add("Divertor lifetime (v384)", "divertor_lifetime_yr_v384", lo_key="divertor_lifetime_min_yr_v384", units="yr",
+    add("Divertor lifetime", "divertor_lifetime_yr_v384", lo_key="divertor_lifetime_min_yr_v384", units="yr",
         description="Divertor lifetime proxy minimum when v384 enabled.")
-    add("Magnet lifetime (v384)", "magnet_lifetime_yr_v384", lo_key="magnet_lifetime_min_yr_v384", units="yr",
+    add("Magnet lifetime", "magnet_lifetime_yr_v384", lo_key="magnet_lifetime_min_yr_v384", units="yr",
         description="Magnet lifetime proxy minimum when v384 enabled.")
-    add("Replacement cost (v384)", "replacement_cost_MUSD_per_year_v384", hi_key="replacement_cost_max_MUSD_per_y_v384", units="MUSD/y",
+    add("Replacement cost", "replacement_cost_MUSD_per_year_v384", hi_key="replacement_cost_max_MUSD_per_y_v384", units="MUSD/y",
         description="Annualized replacement cost cap when v384 enabled.")
-    add("Capacity factor (v384)", "capacity_factor_used_v384", lo_key="capacity_factor_min_v384", units="-",
+    add("Capacity factor", "capacity_factor_used_v384", lo_key="capacity_factor_min_v384", units="-",
         description="Replacement-coupled capacity factor minimum when v384 enabled.")
     # Control & Stability Ledger Authority (v398) — mirror governance caps
-    add("VS budget margin (v398)", "vs_budget_margin_v398", lo_key="vs_budget_margin_min_v398", units="-",
+    add("VS budget margin", "vs_budget_margin_v398", lo_key="vs_budget_margin_min_v398", units="-",
         description="CS volt-second budget margin lower bound when v398 enabled.")
-    add("VDE headroom (v398)", "vde_headroom_v398", lo_key="vde_headroom_min_v398", units="-",
+    add("VDE headroom", "vde_headroom_v398", lo_key="vde_headroom_min_v398", units="-",
         description="Vertical control headroom lower bound when v398 enabled.")
-    add("RWM proximity (v398)", "rwm_proximity_index_v398", hi_key="rwm_proximity_index_max_v398", units="-",
+    add("RWM proximity", "rwm_proximity_index_v398", hi_key="rwm_proximity_index_max_v398", units="-",
         description="RWM proximity index upper bound when v398 enabled.")
     # Multi-species impurity / radiation (v399) — mirror governance caps
-    add("Zeff (v399)", "impurity_v399_zeff", hi_key="zeff_max_v399", units="-",
+    add("Zeff", "impurity_v399_zeff", hi_key="zeff_max_v399", units="-",
         description="v399 Zeff proxy cap when impurity authority enabled.")
-    add("Detachment margin (v399)", "detachment_margin_v399", lo_key="detachment_margin_min_v399", units="-",
+    add("Detachment margin", "detachment_margin_v399", lo_key="detachment_margin_min_v399", units="-",
         description="v399 detachment margin lower bound when impurity authority enabled.")
     if float(_safe(out, "include_impurity_v399")) > 0.5:
         Pin = _safe(out, "Pin_MW")
@@ -464,7 +464,7 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         f_core_max = _safe(out, "prad_core_frac_max_v399")
         if Pin == Pin and Pin > 0.0 and prad_core == prad_core and f_core_max == f_core_max:
             cs.append(Constraint(
-                name="Prad core fraction (v399)",
+                name="Prad core fraction",
                 value=float(prad_core / Pin),
                 lo=None,
                 hi=float(f_core_max),
@@ -475,14 +475,14 @@ def build_constraints_from_outputs(out: Dict[str, float], design_intent: Optiona
         f_tot_max = _safe(out, "prad_total_frac_max_v399")
         if Pin == Pin and Pin > 0.0 and prad_total == prad_total and f_tot_max == f_tot_max:
             cs.append(Constraint(
-                name="Prad total fraction (v399)",
+                name="Prad total fraction",
                 value=float(prad_total / Pin),
                 lo=None,
                 hi=float(f_tot_max),
                 units="-",
                 description="v399 Prad_total/Pin cap (radiative collapse screening).",
             ))
-    add("TF case fluence (v407)", "tf_case_fluence_n_m2_per_fpy_v407", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392", units="n/m^2/FPY",
+    add("TF case fluence", "tf_case_fluence_n_m2_per_fpy_v407", hi_key="tf_case_fluence_max_n_m2_per_fpy_v392", units="n/m^2/FPY",
         description="TF case fluence proxy cap when v407 enabled (uses v392 cap key when set).")
 
     return cs

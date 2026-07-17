@@ -16,7 +16,7 @@ from shams_io.run_artifact import build_run_artifact
 def _infeas_cons() -> list:
     return [
         {
-            "name": "Transport spread (v396)",
+            "name": "Transport spread",
             "value": 5.0,
             "limit": 1.5,
             "sense": "<=",

@@ -47,5 +47,5 @@ def render_frontier_dashboard(summary: dict | None) -> None:
     ui.badge(f"Sampling confidence: {conf}", color=conf_color).props("outline").classes("q-mt-xs")
     ui.label(
         "Margin-robust mix = Pareto points with min_constraint_margin ≥ threshold (not UQ robustness). "
-        "Mirage mix = feasible but credibility-fragile (v402) — screening only."
+        "Mirage mix = feasible but credibility-fragile — screening only."
     ).classes("text-caption text-grey q-mt-xs")

@@ -486,7 +486,7 @@ def machine_v412_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def plant_v419_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Summary dict for plant Sankey ledger v419 (None when disabled)."""
+    """Summary dict for plant Sankey ledger (None when disabled)."""
     if not bool(out.get("plant_v419_enabled", False)):
         return None
     return {
@@ -519,7 +519,7 @@ def plant_v419_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def avail_v420_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Summary dict for availability→OPEX/LCOE coupling v420 (None when disabled)."""
+    """Summary dict for availability→OPEX/LCOE coupling (None when disabled)."""
     if not bool(out.get("avail_v420_enabled", False)):
         return None
     return {

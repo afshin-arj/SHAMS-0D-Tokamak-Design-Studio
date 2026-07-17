@@ -46,11 +46,14 @@ AUTHORITY_OVERLAY_NAMES: dict[str, str] = {
     "v397": "Profile transport authority",
     "v398": "Vertical stability & VDE",
     "v399": "Multi-species impurity mix",
-    "v400": "Magnet stress tiers",
+    "v400": "Magnet technology margins",
     "v402": "Authority dominance",
     "v405": "Multi-objective Pareto frontier",
     "v408": "Nuclear dataset intake",
-    "v410": "TF/PF/CS SC system depth",
+    "v410": "Magnet SC system / TF/PF/CS SC",
+    "v412": "Machine build closure / Radial machine-build",
+    "v419": "Plant Sankey ledger",
+    "v420": "Availability–OPEX–LCOE",
 }
 
 # Legacy aliases → canonical (session state / old presets)

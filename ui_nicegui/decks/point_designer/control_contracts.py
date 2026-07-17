@@ -218,7 +218,7 @@ def render_control_contracts(session: DesignSession) -> None:
     from ui_nicegui.lib.pd_parity_helpers import magnet_v410_summary
 
     v410 = magnet_v410_summary(out)
-    with ui.expansion("Magnet SC system (v410) — TF / PF / CS depth [PROXY]", icon="hub").classes(
+    with ui.expansion("Magnet SC system / TF/PF/CS SC [PROXY]", icon="hub").classes(
         "w-full q-mt-md"
     ):
         if v410:
@@ -237,13 +237,13 @@ def render_control_contracts(session: DesignSession) -> None:
                 ui.label(str(v410["provenance"])).classes("text-caption q-mt-sm")
         else:
             ui.label(
-                "TF/PF/CS SC system depth (v410) is OFF — enable include_magnet_sc_system_authority_v410."
+                "Magnet SC system is OFF — enable Magnet SC system overlay."
             ).classes("text-caption")
 
     from ui_nicegui.lib.pd_parity_helpers import machine_v412_summary
 
     v412 = machine_v412_summary(out)
-    with ui.expansion("Machine-build / radial closure (v412) [PROXY]", icon="view_timeline").classes(
+    with ui.expansion("Machine build closure / Radial machine-build [PROXY]", icon="view_timeline").classes(
         "w-full q-mt-md"
     ):
         if v412:
@@ -262,13 +262,13 @@ def render_control_contracts(session: DesignSession) -> None:
                 ui.label(str(v412["provenance"])).classes("text-caption")
         else:
             ui.label(
-                "Machine-build / radial closure (v412) is OFF — enable include_machine_build_authority_v412."
+                "Machine build closure is OFF — enable Machine build closure overlay."
             ).classes("text-caption")
 
     from ui_nicegui.lib.pd_parity_helpers import plant_v419_summary
 
     v419 = plant_v419_summary(out)
-    with ui.expansion("Plant Sankey ledger (v419) [PROXY]", icon="account_tree").classes(
+    with ui.expansion("Plant Sankey ledger [PROXY]", icon="account_tree").classes(
         "w-full q-mt-md"
     ):
         if v419:
@@ -287,26 +287,28 @@ def render_control_contracts(session: DesignSession) -> None:
             if v419.get("provenance"):
                 ui.label(str(v419["provenance"])).classes("text-caption")
             ui.label(
-                "Pe_net display must use plant_kpi_honesty.v1 watermark on hard-infeasible points."
+                "Pe_net display must use plant KPI honesty watermark on hard-infeasible points."
             ).classes("text-caption text-orange")
         else:
             ui.label(
-                "Plant Sankey ledger (v419) is OFF — enable include_plant_sankey_ledger_authority_v419."
+                "Plant Sankey ledger is OFF — enable Plant Sankey ledger overlay."
             ).classes("text-caption")
 
     from ui_nicegui.lib.pd_parity_helpers import avail_v420_summary
 
     v420 = avail_v420_summary(out)
-    with ui.expansion("Availability→OPEX/LCOE coupling (v420) [PROXY]", icon="timeline").classes(
+    with ui.expansion("Availability–OPEX–LCOE [PROXY]", icon="timeline").classes(
         "w-full q-mt-md"
     ):
         if v420:
             ui.badge("PROXY overlay — not PROCESS MFILE parity").props("color=orange")
+            from ui_nicegui.lib.plant_kpi_honesty_ui import lcoe_display
+
             kpi_row([
                 ("Availability", fmt_num(v420.get("availability"))),
                 ("A source", str(v420.get("availability_source", "-"))),
                 ("OPEX [MUSD/y]", fmt_num(v420.get("OPEX_total_MUSD_per_y"))),
-                ("LCOE PROXY [USD/MWh]", fmt_num(v420.get("LCOE_USD_per_MWh"))),
+                ("LCOE [USD/MWh]", lcoe_display(out)),
             ])
             kpi_row([
                 ("Dominant OPEX", str(v420.get("dominant_opex_driver", "-"))),
@@ -322,9 +324,9 @@ def render_control_contracts(session: DesignSession) -> None:
             if v420.get("provenance"):
                 ui.label(str(v420["provenance"])).classes("text-caption")
             ui.label(
-                "LCOE display must use plant_kpi_honesty.v1 watermark on hard-infeasible points."
+                "LCOE display must use plant KPI honesty watermark on hard-infeasible points."
             ).classes("text-caption text-orange")
         else:
             ui.label(
-                "Availability→OPEX/LCOE coupling (v420) is OFF — enable include_availability_opex_lcoe_authority_v420."
+                "Availability–OPEX–LCOE is OFF — enable Availability–OPEX–LCOE overlay."
             ).classes("text-caption")
