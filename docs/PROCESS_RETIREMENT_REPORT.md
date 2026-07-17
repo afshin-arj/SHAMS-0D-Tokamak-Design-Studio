@@ -2,7 +2,7 @@
 
 **Schema:** `shams.process_retirement_report.v1`  
 **SHAMS VERSION:** `v418.1.0`  
-**Report SHA-256:** `4e485546a1108d7b5a0395e2ebb9fb80896cd8028a1c57775adadd425a74c161`  
+**Report SHA-256:** `e7f31d9121244996509947086162876ec51d4f025181c6848764556793e39a08`  
 **Independence ticket:** 4.1 (Phase 4)
 
 ## Verdict (scoped — not a blanket claim)
@@ -162,14 +162,14 @@ Outside SHAMS tokamak 0-D mission (IGNORE unless explicitly requested).
 ## Evidence index highlights
 
 - VERSION file SHA-256: `44d7ed0923d8da81fac41b088363afca2ef724f3b8ef917fc3b69b4583378d2a`
-- Champion pack SHA-256: `d948be3951f221e06a86f9e40f7fe0200cf1d9cba41de94fd9222a28ae13f8f2` (4 cases; 2 feasible / 2 infeasible)
+- Champion pack SHA-256: `1af6a6d18c28dee4deb0c91d98fc768f653eb8f799b93d39e709ae00fa7a9a07` (4 cases; 2 feasible / 2 infeasible)
 - Parity corpus status: **METHOD-ONLY** (corpus SHA-256: `eff27468bfb62bef260b503ef82a58f3809345f1e9a9ac4bb58b4c9414cd1e95`)
 
 | Champion case | Hard feasible | Citation SHA-256 |
 |---------------|---------------|------------------|
-| `champion.reactor_conservative.iter_like` | True | `28866e03facdd8a99baae2fe60870442bac868d4b4f2d61bf42a020e502799c8` |
-| `champion.sparc_class.burning_plasma` | True | `d5cc1383020f6af5ddbf6a3d73f884240cbd56c60baf70fa4f7f40d4ab797d55` |
-| `champion.sparc_class.overdriven_nosolution` | False | `f326c462bdbe32c4f30fffbd70f56c775573685c6ae5042e269eca4a0053bad6` |
+| `champion.reactor_conservative.iter_like` | True | `5235bb163ace13ce1764e4621890c00c5ba210a38b0b1925c8953e84b82dbcc8` |
+| `champion.sparc_class.burning_plasma` | True | `b90d8912d54d33f50f0c8e15815009aee5566fcda7cb92745d903767675480ad` |
+| `champion.sparc_class.overdriven_nosolution` | False | `ed40ba1ed234b2d57b77611af44b0c95a411865d654bbf0f869a7e8bfe70f0a5` |
 | `champion.step_like.st_baseline` | False | `10f72a61268e8042a0efdf93d1102b42ed117c2e58ace19063913a321c750d3e` |
 
 | Parity dossier | Status | File SHA-256 | Hash match |

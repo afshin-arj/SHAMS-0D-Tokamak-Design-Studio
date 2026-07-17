@@ -2,7 +2,7 @@
 
 **Version:** see `VERSION`  
 **Authority:** Honesty over false confidence — these limitations ship with every scientific handoff.  
-**Related:** `docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md` (community migration), `docs/PROCESS_RETIREMENT_REPORT.md` (scoped retirement evidence — never a blanket claim), `docs/PROCESS_SURPASS_ROADMAP.md`, `GOVERNANCE.md`, Phase 1 release gate report under `docs/validation/reports/`.
+**Related:** `docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md` (community migration), `docs/PROCESS_RETIREMENT_REPORT.md` (scoped retirement evidence — never a blanket claim), `docs/PARITY_CONTRIBUTION.md` (lab PROCESS-ref intake), `docs/INDEPENDENCE_EXIT_EVIDENCE.md` (Phase 4 exit checklist — EXTERNAL adoption not claimed), `docs/PROCESS_SURPASS_ROADMAP.md`, `GOVERNANCE.md`, Phase 1 release gate report under `docs/validation/reports/`.
 
 This document is the public limitations list for CONDITIONAL scientific release. It does **not** claim that UKAEA PROCESS is retired or that SHAMS is a drop-in numeric clone of PROCESS.
 
@@ -46,4 +46,4 @@ This document is the public limitations list for CONDITIONAL scientific release.
 
 ## Citation posture
 
-Cite `VERSION` + artifact SHA-256 hashes for feasibility studies. Use `CITATION.cff` for software citation metadata. Prefer the **Cite-SHAMS handoff pack** (`docs/CITE_SHAMS_HANDOFF.md` — Point Designer / Control Room export) as the default handoff for new studies; PROCESS import remains optional. For PROCESS comparisons, attach a parity dossier (METHOD-ONLY or NUMERIC) and declare assumptions — never soft-land infeasibility to look like solver convergence.
+Cite `VERSION` + artifact SHA-256 hashes for feasibility studies. Use `CITATION.cff` for software citation metadata. Prefer the **Cite-SHAMS handoff pack** (`docs/CITE_SHAMS_HANDOFF.md` — Point Designer / Control Room export) as the default handoff for new studies; PROCESS import remains optional. For PROCESS comparisons, use the **parity contribution process** (`docs/PARITY_CONTRIBUTION.md`) or attach a parity dossier (METHOD-ONLY or NUMERIC) and declare assumptions — never soft-land infeasibility to look like solver convergence. Phase 4 exit evidence: `docs/INDEPENDENCE_EXIT_EVIDENCE.md` (community adoption remains EXTERNAL).

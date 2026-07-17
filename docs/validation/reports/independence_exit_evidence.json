@@ -1,0 +1,318 @@
+{
+  "campaign": {
+    "name": "PROCESS independence",
+    "phase": 4,
+    "ticket": "4.3",
+    "title": "Parity contribution process + independence exit evidence"
+  },
+  "checklist": [
+    {
+      "anchors": [
+        {
+          "bytes": 26965,
+          "exists": true,
+          "label": "src/reports/cite_shams_handoff_pack.py",
+          "path": "src/reports/cite_shams_handoff_pack.py",
+          "sha256": "c035c185f96a86b0b1ab0dfca65bbc91737108f8288818083f1eaae75d11a229"
+        },
+        {
+          "bytes": 2447,
+          "exists": true,
+          "label": "docs/CITE_SHAMS_HANDOFF.md",
+          "path": "docs/CITE_SHAMS_HANDOFF.md",
+          "sha256": "a04b61f58dfc6def07d0aa55b0f5c8cceb9fa6ff1aaa9a81ac18b48636c4521b"
+        },
+        {
+          "bytes": 10060,
+          "exists": true,
+          "label": "tests/test_cite_shams_handoff_pack.py",
+          "path": "tests/test_cite_shams_handoff_pack.py",
+          "sha256": "d4987f76f9e28aa567658c9a90ea2d142cafdde689a7a0c78fd7bb23f9eea092"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "cite_shams_handoff_pack",
+      "status": "DONE",
+      "title": "Cite-SHAMS citation unit shipped",
+      "why": "New studies can export VERSION + artifact SHA-256 packs without PROCESS."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 41566,
+          "exists": true,
+          "label": "src/reports/process_retirement_report.py",
+          "path": "src/reports/process_retirement_report.py",
+          "sha256": "8417360ae2ac12b96525606e18a75e0fcbb62e347a3108f1ba3391d39732cd79"
+        },
+        {
+          "bytes": 9981,
+          "exists": true,
+          "label": "docs/PROCESS_RETIREMENT_REPORT.md",
+          "path": "docs/PROCESS_RETIREMENT_REPORT.md",
+          "sha256": "0c404057953da0f2cc15b41c26f15b22c84c5b9b165ddc6e4d8bad0a8cd9f302"
+        },
+        {
+          "bytes": 21630,
+          "exists": true,
+          "label": "docs/validation/reports/process_retirement_report.json",
+          "path": "docs/validation/reports/process_retirement_report.json",
+          "sha256": "7c3e5a1c895de8fc16afd67917585c2560daec623262970c914e4bcb5742487b"
+        },
+        {
+          "bytes": 8408,
+          "exists": true,
+          "label": "tests/test_process_retirement_report.py",
+          "path": "tests/test_process_retirement_report.py",
+          "sha256": "d0205a25e7340b61da28ef731ad026bc7961705cf9c476a206083f7381c055c0"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "scoped_retirement_report",
+      "status": "DONE",
+      "title": "Scoped PROCESS retirement evidence report",
+      "why": "Domain coverage is evidence-backed; blanket retirement is refused."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 12391,
+          "exists": true,
+          "label": "docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md",
+          "path": "docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md",
+          "sha256": "64db3c508e6edaefaa5c3d26d0debdec2c301ce33fbaa9b264143e8bebaa2287"
+        },
+        {
+          "bytes": 3436,
+          "exists": true,
+          "label": "tests/test_process_migration_guide.py",
+          "path": "tests/test_process_migration_guide.py",
+          "sha256": "0339e508d61ea5cc68bb696e235922db8b7e1322506577e5088d5ce47169dc21"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "migration_guide",
+      "status": "DONE",
+      "title": "PROCESS \u2192 SHAMS migration path live",
+      "why": "Labs can map IN.DAT/MFILE workflows onto Cases and artifacts."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 3799,
+          "exists": true,
+          "label": "docs/CHAMPION_CASES.md",
+          "path": "docs/CHAMPION_CASES.md",
+          "sha256": "013fd2b4cd6136aa52601dfea6d13d640d769ad769313a736ed91b93b98ac68d"
+        },
+        {
+          "bytes": 2146,
+          "exists": true,
+          "label": "benchmarks/champions/cases.json",
+          "path": "benchmarks/champions/cases.json",
+          "sha256": "e1d5dfc8e148e59345a7221a4e608ec3c419445df350a97959658c8183ca43aa"
+        },
+        {
+          "bytes": 13943,
+          "exists": true,
+          "label": "src/studies/champion_cases.py",
+          "path": "src/studies/champion_cases.py",
+          "sha256": "5881d0bb58a539ef921fde6e780a3c3347246946374c6763e0557dab36c2821c"
+        },
+        {
+          "bytes": 4103,
+          "exists": true,
+          "label": "tests/test_champion_cases.py",
+          "path": "tests/test_champion_cases.py",
+          "sha256": "6e78655e7e5154c202f1bd3631f280e21b891ffcaae55c8e18f8a58a08bd2abf"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "champion_templates",
+      "status": "DONE",
+      "title": "Champion feasibility templates",
+      "why": "SHAMS-only reproducible studies with citation hashes and NO-SOLUTION stories."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 4260,
+          "exists": true,
+          "label": "docs/PARITY_CONTRIBUTION.md",
+          "path": "docs/PARITY_CONTRIBUTION.md",
+          "sha256": "b5723afab63fffe0f2d498cf3fa5d320389529619e146d6242d2c5217a0c3e69"
+        },
+        {
+          "bytes": 15957,
+          "exists": true,
+          "label": "src/parity_harness/contribution.py",
+          "path": "src/parity_harness/contribution.py",
+          "sha256": "a867f30149a8a20a71368858ac48c31acad872a04fda5cabfd1aef8dd3a7598c"
+        },
+        {
+          "bytes": 1338,
+          "exists": true,
+          "label": "benchmarks/parity/contributions/submission_template.json",
+          "path": "benchmarks/parity/contributions/submission_template.json",
+          "sha256": "fa769802926d1aa89b5f1915c7aa0a7989b22a4b669dfbc5f92ec25140b0fe7c"
+        },
+        {
+          "bytes": 9395,
+          "exists": true,
+          "label": "tests/test_parity_contribution_and_exit_evidence.py",
+          "path": "tests/test_parity_contribution_and_exit_evidence.py",
+          "sha256": "dfb7cb94a0f66db7ffde585f691ed55b41055064906b15198c5eced26a48468d"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "parity_contribution_channel",
+      "status": "DONE",
+      "title": "Parity contribution channel open",
+      "why": "Labs can submit licensed PROCESS refs and receive hashed SHAMS delta dossiers."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 11989,
+          "exists": true,
+          "label": "src/extopt/certified_solve.py",
+          "path": "src/extopt/certified_solve.py",
+          "sha256": "5eb991e4df4dfc51b1f73faf71dbaa4b4c2028bb58709a3b3483da97ceea1b42"
+        },
+        {
+          "bytes": 11533,
+          "exists": true,
+          "label": "tests/test_ccfs_verified_hard_gate.py",
+          "path": "tests/test_ccfs_verified_hard_gate.py",
+          "sha256": "cba5a6511ad71d66ec8cd12976b9b65768ddbaac55745c355b47d7aa7e8c507e"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "ccfs_firewall",
+      "status": "DONE",
+      "title": "CCFS propose-only firewall",
+      "why": "Optimizers (including PROCESS) propose inputs only; SHAMS re-certifies."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 3493,
+          "exists": true,
+          "label": "src/diagnostics/no_solution_atlas.py",
+          "path": "src/diagnostics/no_solution_atlas.py",
+          "sha256": "adcb9b465430e86038c872261b7e2bd62131dd789d5bc44e959c48258a1a17d1"
+        },
+        {
+          "bytes": 3729,
+          "exists": true,
+          "label": "tests/test_no_solution_atlas.py",
+          "path": "tests/test_no_solution_atlas.py",
+          "sha256": "d8c9c22c446d0973b227eb6629abc2cca7a3f7298a0b4d2cd39972d78c95c861"
+        }
+      ],
+      "evidence_class": "shipped",
+      "item_id": "no_solution_atlas",
+      "status": "DONE",
+      "title": "NO-SOLUTION atlas on infeasible artifacts",
+      "why": "Infeasibility is attributed, not negotiated away."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 13559,
+          "exists": true,
+          "label": "docs/validation/reports/scientific_release_readiness_20260716.md",
+          "path": "docs/validation/reports/scientific_release_readiness_20260716.md",
+          "sha256": "20e2b9a4d0f1b43578999e5ea4665fe9839c265063a9f046af30ffebc8df8e36"
+        },
+        {
+          "bytes": 4286,
+          "exists": true,
+          "label": "docs/LIMITATIONS.md",
+          "path": "docs/LIMITATIONS.md",
+          "sha256": "4708925ed7a7594c5005e216ec1a84bb64b1869148c411fb822ad9b304f18dd1"
+        },
+        {
+          "bytes": 2533,
+          "exists": true,
+          "label": "tests/test_scientific_release_gate.py",
+          "path": "tests/test_scientific_release_gate.py",
+          "sha256": "1697bf79f56e786478d33033c4255c881eea597dcdadd32868dda2648db241cf"
+        }
+      ],
+      "evidence_class": "conditional",
+      "item_id": "scientific_release_conditional",
+      "note": "Release remains CONDITIONAL \u2014 not APPROVED.",
+      "status": "CONDITIONAL",
+      "title": "Scientific release gate (CONDITIONAL)",
+      "why": "Community-facing release is CONDITIONAL with documented limitations \u2014 not APPROVED."
+    },
+    {
+      "anchors": [
+        {
+          "bytes": 5428,
+          "exists": true,
+          "label": "docs/RELEASE_ARCHIVAL_CHECKLIST.md",
+          "path": "docs/RELEASE_ARCHIVAL_CHECKLIST.md",
+          "sha256": "368979043f36c1fd9b6d474069c3cff348fedf9e7f8143c101a1711b316e80eb"
+        },
+        {
+          "bytes": 1689,
+          "exists": true,
+          "label": ".zenodo.json",
+          "path": ".zenodo.json",
+          "sha256": "330e0442ba7e39d97543856b90b53975a43cb439fe18ec4e6d7f9eab0b3b7f7e"
+        },
+        {
+          "bytes": 1243,
+          "exists": true,
+          "label": "CITATION.cff",
+          "path": "CITATION.cff",
+          "sha256": "cc807fe2f4a90ae26babb0bed800a542f12adc2472ad0c157cb8746f29624284"
+        }
+      ],
+      "evidence_class": "external",
+      "item_id": "approved_zenodo_doi",
+      "note": "Packaging/checklist anchors present; adoption/DOI still EXTERNAL.",
+      "status": "EXTERNAL",
+      "title": "APPROVED release + Zenodo DOI",
+      "why": "Packaging exists; DOI mint and APPROVED verdict require external archival evidence."
+    },
+    {
+      "anchors": [],
+      "evidence_class": "external",
+      "item_id": "community_adoption",
+      "note": "Requires outside-world evidence; cannot be marked DONE by code.",
+      "status": "EXTERNAL",
+      "title": "Community adoption (new studies cite SHAMS by default)",
+      "why": "Whether labs actually start new studies in SHAMS is EXTERNAL evidence \u2014 shipping code cannot claim adoption."
+    }
+  ],
+  "created_unix": 0.0,
+  "honesty": {
+    "approved_doi_claimed": false,
+    "community_adoption_claimed": false,
+    "invented_mfile": false,
+    "numeric_parity_requires_lab_mfile": true,
+    "process_retired_claimed": false,
+    "statement": "This report records engineering evidence only. EXTERNAL checklist items cannot be marked DONE by regenerating this artifact."
+  },
+  "report_sha256": "b626d0f7b062c833c83f00f40b87438e96a366fb24a2b99d99334ff4ff56ba64",
+  "schema": "shams.independence_exit_evidence.v1",
+  "shams_version": "v418.1.0",
+  "summary": {
+    "n_conditional": 1,
+    "n_done": 7,
+    "n_external": 2,
+    "n_items": 10,
+    "n_pending": 0,
+    "shipped_gates_met": true
+  },
+  "verdict": {
+    "blanket_process_retired": false,
+    "phase4_engineering_complete": true,
+    "phase4_exit_complete": false,
+    "release_status": "CONDITIONAL",
+    "statement": "In-repo independence engineering for Phase 4.3 is evidence-backed (citation unit, scoped retirement report, migration, champions, parity contribution channel, CCFS, atlas). Full Phase-4 *exit* (new studies default to citing SHAMS in the wild) remains open: community adoption and APPROVED DOI are EXTERNAL. Do not claim PROCESS retired."
+  }
+}

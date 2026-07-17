@@ -1,0 +1,41 @@
+{
+  "case_id": "lab_example_method_only_001",
+  "honesty": {
+    "no_invented_mfile": true,
+    "statement": "NUMERIC status is refused unless real PROCESS KPIs and provenance are attached."
+  },
+  "inputs": {
+    "Bt_T": 12.0,
+    "Ip_MA": 10.0,
+    "Paux_MW": 50.0,
+    "R0_m": 2.6,
+    "Ti_keV": 18.0,
+    "a_m": 0.9,
+    "delta": 0.35,
+    "fG": 0.28,
+    "include_profile_family_v358": true,
+    "kappa": 2.0
+  },
+  "intent": "reactor",
+  "label": "Example lab contribution (METHOD-ONLY)",
+  "license_attestation": {
+    "holds_process_license_or_permission": false,
+    "may_share_extracts_with_shams_maintainers": false,
+    "statement": "METHOD-ONLY submission: no PROCESS numeric extracts attached. Submitter asserts SHAMS inputs are theirs to share."
+  },
+  "process_reference": {
+    "P_aux_MW": null,
+    "P_fus_MW": null,
+    "Pe_net_MW": null,
+    "Q_plasma": null
+  },
+  "provenance": {
+    "notes": "Replace with real lab metadata before submitting.",
+    "process_reference_reason": "No licensed MFILE attached; METHOD-ONLY contribution for mapping review.",
+    "process_reference_source": null,
+    "shams_inputs_source": "lab-supplied PointInputs (example)",
+    "submitter": "example_lab"
+  },
+  "requested_status": "METHOD-ONLY",
+  "schema": "shams.parity_contribution.v1"
+}

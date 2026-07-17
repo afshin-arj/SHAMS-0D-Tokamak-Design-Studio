@@ -1,0 +1,6 @@
+# Outbox for parity contribution receipts / dossiers (generated).
+# Keep submission_template.json; ignore generated artifacts.
+*
+!.gitignore
+!submission_template.json
+!README.md

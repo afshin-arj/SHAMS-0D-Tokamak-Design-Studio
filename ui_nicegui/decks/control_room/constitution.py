@@ -8,7 +8,9 @@ from ui_nicegui.lib.control_room_helpers import (
     CHAMPION_CASES_DOC,
     CITE_SHAMS_HANDOFF_DOC,
     CONST_TABS,
+    INDEPENDENCE_EXIT_DOC,
     MIGRATION_GUIDE_DOC,
+    PARITY_CONTRIBUTION_DOC,
     RETIREMENT_REPORT_DOC,
     list_docs,
     read_capability_matrix,
@@ -61,6 +63,8 @@ def _panel(session: DesignSession) -> None:
             "Champion templates: CHAMPION_CASES.md (SHAMS-only feasibility + NO-SOLUTION stories). "
             "Scoped retirement evidence: PROCESS_RETIREMENT_REPORT.md (no blanket retirement claim). "
             "Cite-SHAMS handoff: CITE_SHAMS_HANDOFF.md (VERSION + artifact hashes; PROCESS import optional). "
+            "Parity contribution: PARITY_CONTRIBUTION.md. "
+            "Independence exit evidence: INDEPENDENCE_EXIT_EVIDENCE.md (EXTERNAL adoption not claimed). "
             "Cite VERSION + hashes — no invented MFILE numbers."
         ).classes("text-caption q-mb-sm")
         docs = list_docs()
@@ -76,6 +80,10 @@ def _panel(session: DesignSession) -> None:
                 session.cr_docs_sel = RETIREMENT_REPORT_DOC
             elif CITE_SHAMS_HANDOFF_DOC in docs:
                 session.cr_docs_sel = CITE_SHAMS_HANDOFF_DOC
+            elif PARITY_CONTRIBUTION_DOC in docs:
+                session.cr_docs_sel = PARITY_CONTRIBUTION_DOC
+            elif INDEPENDENCE_EXIT_DOC in docs:
+                session.cr_docs_sel = INDEPENDENCE_EXIT_DOC
             else:
                 session.cr_docs_sel = docs[0]
         ui.select(

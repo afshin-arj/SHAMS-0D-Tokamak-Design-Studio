@@ -22,7 +22,7 @@ Living campaign document.
 | 1 Trust the verdict | **DONE** 2026-07-16 | Tickets 1.1–1.4 complete (atlas, plant KPI honesty, METHOD-ONLY parity, scientific release gate **CONDITIONAL**) |
 | 2 DEMO MATCH | **DONE** 2026-07-17 | 2.1–2.3 DONE 2026-07-16 (v410 magnets; v412 radial/machine-build; v419 plant Sankey ledger); 2.4 DONE 2026-07-17 (**v420** availability → OPEX/LCOE coupling); 2.5 DONE 2026-07-17 (**v421** bottom-up modular costing — not 1990 Generomak) |
 | 3 Community default | **DONE** 2026-07-17 | 3.1 migration guide; 3.2 Zenodo/CITATION/paper pitch; 3.3 champion cases; 3.4 Studio default entry — all **DONE** 2026-07-17 |
-| 4 Independence | **In progress** | 4.1 scoped retirement evidence **DONE**; 4.2 Cite-SHAMS handoff pack **DONE** 2026-07-17 — next: 4.3 parity contribution process / effective independence exit |
+| 4 Independence | **Engineering complete; exit open** | 4.1–4.3 **DONE** 2026-07-17 — citation unit, scoped retirement, parity contribution + exit evidence shipped; full Phase-4 *exit* still open (community adoption + APPROVED DOI = **EXTERNAL**) |
 
 ## Stance (do not blur)
 
@@ -126,7 +126,17 @@ Derived from audit `docs/validation/reports/audit_report_20260703.md` + 2026-07-
 14. ~~**Next (Phase 3.4):** Studio as default entry — NiceGUI/Streamlit verdict-first UX for systems studies~~ **DONE** 2026-07-17 — verdict-first landing card on the default deck (Point Designer renders "Start a systems study" until first evaluation: what SHAMS answers, NO-SOLUTION as first-class outcome, three-step path to a certified verdict); champion templates (3.3) load as one-click starting points via `ui_nicegui/lib/studio_entry.py` (deterministic PointInputs, propose-only — user still clicks Evaluate); onboarding doc buttons deep-link Control Room Docs Library (migration guide + champion cases); Launchpad champion path now routes to Point Designer; Streamlit parity getting-started block on Point Designer. No version tags in user-facing labels. Lock tests: `tests/test_studio_default_entry.py`. No PROCESS-retired claim. **Phase 3 (Community default) complete.**
 15. ~~**Next (Phase 4.1):** Scoped PROCESS retirement evidence report~~ **DONE** 2026-07-17 — `src/reports/process_retirement_report.py` (`shams.process_retirement_report.v1`); artifacts `docs/PROCESS_RETIREMENT_REPORT.md` + `docs/validation/reports/process_retirement_report.json`; cites VERSION + champion citation SHA-256 + parity dossier hashes + DEMO MATCH overlay hashes + CONDITIONAL release gate; 8 SCOPED_COVERED/PROXY domains + 6 explicit NOT_COVERED; honesty gate refuses blanket “PROCESS retired” and METHOD-ONLY→numeric overclaim. Docs Library + Studio entry link (version-tag-free label). Lock tests: `tests/test_process_retirement_report.py`. L0 untouched.
 16. ~~**Next (Phase 4.2):** Cite-SHAMS handoff pack~~ **DONE** 2026-07-17 — `src/reports/cite_shams_handoff_pack.py` (`shams.cite_shams_handoff_pack.v1`); one-click/CLI ZIP bundling VERSION, optional git describe, PointInputs, run artifact + SHA-256, evaluation export (reuses `ui.export_bundle`), NO-SOLUTION atlas when infeasible, CITATION.cff-derived `citation.txt`/`citation.bib`, CONDITIONAL `release_gate.json`, `HONESTY.md` (PROCESS import optional; METHOD-ONLY; no blanket retirement). Doc: `docs/CITE_SHAMS_HANDOFF.md`. UI: NiceGUI Point Designer + Control Room Export & Share + Streamlit PD Export Bay; Studio/Docs Library links. Lock tests: `tests/test_cite_shams_handoff_pack.py`. L0 untouched.
-17. **Next (Phase 4.3):** Parity contribution process + independence exit evidence — labs can submit PROCESS refs + SHAMS deltas; close Phase 4 when new studies default to citing SHAMS VERSION + artifact hashes only (`/process-specialist`, `/documentation`)
+17. ~~**Next (Phase 4.3):** Parity contribution process + independence exit evidence~~ **DONE** 2026-07-17 — `src/parity_harness/contribution.py` (`shams.parity_contribution.v1` intake + honesty: NUMERIC only with real KPIs/provenance/license); CLI `contribute`; template `benchmarks/parity/contributions/submission_template.json`; doc `docs/PARITY_CONTRIBUTION.md`. Exit evidence: `src/reports/independence_exit_evidence.py` (`shams.independence_exit_evidence.v1`) → `docs/INDEPENDENCE_EXIT_EVIDENCE.md` + `docs/validation/reports/independence_exit_evidence.json` (shipped gates DONE; release CONDITIONAL; adoption/DOI EXTERNAL; refuses blanket retirement). Docs Library + Studio links (version-tag-free). Lock tests: `tests/test_parity_contribution_and_exit_evidence.py`. L0 untouched. **Phase 4 engineering complete; full exit remains open on EXTERNAL items.**
+
+### Campaign status after 4.3
+
+In-repo PROCESS-independence **engineering** for Phases 0–4 is complete. Remaining for *effective* independence in the wild:
+
+1. **EXTERNAL** — community adoption (new studies cite SHAMS by default)
+2. **EXTERNAL** — APPROVED scientific release + Zenodo DOI
+3. Optional BEAT/MATCH backlog items (exhaust depth, UQ, etc.) are **not** Phase-4 exit blockers — see ranked backlog above
+
+**Next independence invoke:** no further Phase-4 tickets; use `/shams-process-independence` only to re-verify exit evidence or pick a post-campaign BEAT item (e.g. exhaust / divertor authority) if the user requests continued surpass work.
 
 ### Minimum DEMO MATCH overlays (reactor-systems)
 

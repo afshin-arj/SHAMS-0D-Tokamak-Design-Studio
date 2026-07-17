@@ -17,10 +17,14 @@ with schema:
     "constraint_margins": { "name": margin, ... }
   }
 
+Lab contribution intake (Phase 4.3):
+  python -m src.parity_harness.cli contribute --submission path/to/submission.json
+
 © 2026 Afshin Arjhangmehr
 """
 
 import argparse
+import json
 from pathlib import Path
 
 from .runner import run_benchmark_suite
@@ -38,6 +42,23 @@ def _build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--profile_contract_preset", default="C16", type=str)
     pr.add_argument("--profile_contract_tier", default="robust", type=str)
     pr.add_argument("--include_full_artifact", action="store_true")
+
+    pc = sub.add_parser(
+        "contribute",
+        help="Validate a lab parity contribution and write a hashed delta dossier receipt",
+    )
+    pc.add_argument("--submission", required=True, type=str, help="Path to shams.parity_contribution.v1 JSON")
+    pc.add_argument(
+        "--out_dir",
+        default="benchmarks/parity/contributions/outbox",
+        type=str,
+        help="Directory for dossier + receipt",
+    )
+    pc.add_argument(
+        "--no-evaluate",
+        action="store_true",
+        help="Skip Evaluator (honesty classify only; not for production receipts)",
+    )
     return p
 
 
@@ -56,6 +77,19 @@ def main(argv: list[str] | None = None) -> int:
             include_full_artifact=bool(args.include_full_artifact),
         )
         return 0
+
+    if args.cmd == "contribute":
+        from .contribution import load_submission, process_contribution
+
+        sub = load_submission(Path(str(args.submission)))
+        receipt = process_contribution(
+            sub,
+            out_dir=Path(str(args.out_dir)),
+            write=True,
+            evaluate=not bool(args.no_evaluate),
+        )
+        print(json.dumps(receipt, indent=2, sort_keys=True))
+        return 0 if receipt.get("accepted") else 1
 
     raise SystemExit(2)
 

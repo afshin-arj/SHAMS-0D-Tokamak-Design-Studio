@@ -304,7 +304,9 @@ Details: `docs/patch_notes/PATCH_NOTES_v418.md`
 **Migrating a PROCESS study:** start with [`docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`](docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md) (IN.DAT→`PointInputs`, MFILE→artifacts, CCFS propose-only, citation + METHOD-ONLY honesty). Short crosswalk: `docs/PROCESS_CROSSWALK.md`.
 
 **Champion templates (Phase 3.3):** [`docs/CHAMPION_CASES.md`](docs/CHAMPION_CASES.md) — SPARC-class / STEP-like / conservative feasibility templates with NO-SOLUTION atlas stories (`python benchmarks/champions/run_champions.py`).  
-**Scoped PROCESS retirement evidence (Phase 4.1):** [`docs/PROCESS_RETIREMENT_REPORT.md`](docs/PROCESS_RETIREMENT_REPORT.md) — domain coverage with VERSION + SHA-256 hashes; **not** a blanket “PROCESS retired” claim.
+**Scoped PROCESS retirement evidence (Phase 4.1):** [`docs/PROCESS_RETIREMENT_REPORT.md`](docs/PROCESS_RETIREMENT_REPORT.md) — domain coverage with VERSION + SHA-256 hashes; **not** a blanket “PROCESS retired” claim.  
+**Parity contribution (Phase 4.3):** [`docs/PARITY_CONTRIBUTION.md`](docs/PARITY_CONTRIBUTION.md) — labs submit licensed PROCESS refs; SHAMS returns hashed delta dossiers (METHOD-ONLY or NUMERIC with honesty gates).  
+**Independence exit evidence (Phase 4.3):** [`docs/INDEPENDENCE_EXIT_EVIDENCE.md`](docs/INDEPENDENCE_EXIT_EVIDENCE.md) — Phase 4 checklist; community adoption and APPROVED DOI remain **EXTERNAL**.
 
 For the full comparison table, see the [extended comparison section](#extended-comparison-shams-vs-process) below.
 
