@@ -33,6 +33,28 @@ def render_point_designer(_app_module) -> None:
     # "About this mode"expander below the sub-deck selector.
     render_point_designer_hero(st.session_state)
 
+    # Studio default entry (Independence 3.4) — Streamlit parity of the NiceGUI
+    # landing card: what SHAMS answers, NO-SOLUTION as first-class, onboarding docs.
+    if st.session_state.get("last_point_out") is None:
+        with st.expander("Start a systems study (getting started)", expanded=False):
+            st.markdown(
+                "Evaluate one operating point under frozen truth and read the certified "
+                "verdict — feasible with margins, or **NO-SOLUTION** with the mechanism "
+                "that blocks it. NO-SOLUTION is a first-class result, not an error.\n\n"
+                "**What SHAMS answers**\n"
+                "- Is this design admissible under the declared hard constraints?\n"
+                "- Why did it fail — which mechanism and constraint dominate?\n"
+                "- What breaks first under uncertainty?\n"
+                "- Can I cite and reproduce this verdict without trusting an optimization path?\n\n"
+                "**Starting points**\n"
+                "- Champion templates (one-click load) live in the NiceGUI studio "
+                "(`run_ui_nicegui.cmd` → Point Designer entry card) or via CLI: "
+                "`python benchmarks/champions/run_champions.py` — see `docs/CHAMPION_CASES.md`.\n"
+                "- Migrating from PROCESS? See `docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md` "
+                "(IN.DAT → PointInputs, MFILE → artifacts, propose-only optimizers).\n"
+                "- Cite `VERSION` + artifact SHA-256 for any published verdict."
+            )
+
     # Point Designer deck selector (v280+): Truth Console vs outer-loop envelopes/contracts.
     _pd_deck = st.radio(
         "Point Designer deck",

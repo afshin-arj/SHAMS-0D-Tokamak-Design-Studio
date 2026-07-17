@@ -70,6 +70,14 @@ def render_point_designer(session: DesignSession) -> None:
         )
         return
 
+    # Studio default entry (Independence 3.4): verdict-first landing card until
+    # the first evaluation (or dismiss). Propose-only — user still clicks Evaluate.
+    if not (session.pd_last_outputs or session.last_eval) and not session.studio_entry_dismissed:
+        from ui_nicegui.components.studio_entry_panel import render_studio_entry
+        from ui_nicegui.lib.navigation import refresh_active_deck
+
+        render_studio_entry(session, on_loaded=refresh_active_deck)
+
     with ui.expansion("About this mode", icon="info").classes("w-full q-mb-sm"):
         ui.markdown(
             "**Point Designer is frozen** — single operating point, constraint-authoritative, "

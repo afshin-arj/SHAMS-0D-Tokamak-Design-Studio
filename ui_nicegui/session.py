@@ -40,6 +40,9 @@ class DesignSession:
     overlay: dict[str, Any] = field(default_factory=lambda: {
         "include_magnet_technology_authority_v400": True,
     })
+    # Studio default entry (Independence 3.4): landing card shown until first
+    # evaluation or explicit dismiss (per-session, never persisted).
+    studio_entry_dismissed: bool = False
     last_eval: Optional[dict[str, Any]] = None
     pd_last_outputs: Optional[dict[str, Any]] = None
     pd_last_artifact: Optional[dict[str, Any]] = None

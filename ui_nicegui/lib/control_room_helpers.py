@@ -60,7 +60,7 @@ CHAMPION_CASES_DOC = "CHAMPION_CASES.md"
 
 LAUNCHPAD_DECK: Dict[str, str] = {
     "Migrate a PROCESS study to SHAMS": "Control Room",
-    "Run a champion feasibility template": "Control Room",
+    "Run a champion feasibility template": "Point Designer",
     "Understand feasibility limits (cartography)": "Scan Lab",
     "Explore reactor concepts (Forge)": "Reactor Design Forge",
     "Review a finished case (Review Room)": "Reactor Design Forge",
@@ -77,9 +77,9 @@ LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
     ),
     (
         "Run a champion feasibility template",
-        "Recommended: Control Room → Constitution → Docs Library → Champion cases; or CLI runner.",
-        "- Open **`docs/CHAMPION_CASES.md`** (SPARC-class / STEP-like / conservative templates + NO-SOLUTION stories)\n"
-        "- Reproduce with `python benchmarks/champions/run_champions.py`\n"
+        "Recommended: Point Designer → 'Start a systems study' card → load a champion template, then Evaluate Point.",
+        "- One-click load from the **Point Designer** entry card (SPARC-class / STEP-like / conservative + NO-SOLUTION stories)\n"
+        "- Reproduce from the CLI with `python benchmarks/champions/run_champions.py`\n"
         "- Cite `VERSION` + case `citation_sha256` — class/like inspiration only; no PROCESS-retired claim.",
     ),
     (
