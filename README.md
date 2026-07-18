@@ -1,77 +1,50 @@
 # SHAMS — Tokamak 0-D Design Studio
 
-**Version:** v418.1.0  
-**Posture:** Feasibility-authoritative · Frozen deterministic truth · NO-SOLUTION is valid science
+[![Version](https://img.shields.io/badge/version-v418.1.0-0B3D5C)](VERSION)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](requirements.txt)
+[![UI](https://img.shields.io/badge/UI-NiceGUI-00C853)](ui_nicegui/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Posture](https://img.shields.io/badge/truth-frozen%20L0-important)](GOVERNANCE.md)
+
+**Feasibility-authoritative** tokamak design studio for fusion engineers, reviewers, and researchers.
+
+> **Same inputs → same outputs.** NO-SOLUTION is valid science. Optimizers propose; SHAMS certifies.
 
 ---
 
-## What SHAMS is
+## What SHAMS answers
 
-**SHAMS** (*Systematic Hot-ion Analysis for Magnetic confinement Systems*) is a **tokamak 0-D design studio and governance platform** for fusion engineers, program reviewers, and researchers who need to know:
-
-- which designs are **physically admissible** under explicit constraints,
-- **why** feasibility breaks (dominant mechanism, not solver noise),
-- where design space is **robust, fragile, mirage, or empty**,
-- and how **confident** a conclusion is given declared model authority.
-
-SHAMS is deliberately **not** an optimizer inside physics truth. It is a **single-pass, deterministic evaluator** with explicit hard / diagnostic / ignored constraints, full artifact provenance, and reviewer-grade export paths.
-
-> **Same inputs → same outputs.** No hidden iteration, smoothing, or penalty negotiation in frozen truth (L0).
-
----
-
-## Why the community should care
-
-| Question | Typical system codes | SHAMS |
-|----------|---------------------|-------|
-| What if the design is infeasible? | Often obscured by solver failure | **Reported, attributed, preserved** |
-| Can I replay this for a review? | Ad hoc | **Hash-manifested artifacts & packs** |
-| Does empty design space exist? | Discouraged implicitly | **Explicit NO-SOLUTION atlas** |
-| Can an optimizer change physics? | Sometimes coupled | **Firewalled — optimizers propose inputs only** |
-
-SHAMS complements codes like **PROCESS** where you need **feasibility authority** and auditability rather than negotiated convergence to an objective.
-
----
-
-## Studio UI — NiceGUI (recommended)
-
-The primary interface is the **NiceGUI design studio** — a verdict-first, deck-based workflow aligned with how fusion experts actually study a machine:
-
-| Step | Deck | Purpose |
-|------|------|---------|
-| 1 | **Point Designer** | Anchor one operating point; read feasibility verdict |
-| 2 | **Scan Lab** | Map feasible regions (cartography) |
-| 3 | **Systems Mode** | Integrated plant / systems closure |
-| 4 | **Compare** | Baseline vs scenario artifact diffs |
-| 5 | **Pareto Lab** | Nondominated feasible frontiers |
-| 6 | **Trade Study Studio** | Certified trade studies & robust lanes |
-| 7 | **Reactor Design Forge** | Concept families, casebook, dossiers |
-| 8 | **Publication Benchmarks** | Constitutional atlas, reviewer packs |
-| 9 | **System Suite** | Batch campaigns |
-| 10 | **Control Room** | Governance, provenance, export, audit |
-
-**Launch (Windows):**
-```cmd
-run_ui_nicegui.cmd
+```mermaid
+mindmap
+  root((SHAMS))
+    Admissible?
+      Hard / diagnostic / ignored constraints
+      Explicit dominant blocker
+    Why not?
+      NO-SOLUTION atlas
+      Mechanism attribution
+    How robust?
+      Scan cartography
+      Pareto · mirage filters
+    Can I defend it?
+      Hash-manifested artifacts
+      Reviewer / licensing packs
 ```
 
-**Launch (Linux / macOS):**
-```bash
-./run_ui_nicegui.sh
-```
+| You need… | SHAMS gives you… |
+|-----------|------------------|
+| Know if a point can exist | **FEASIBLE / INFEASIBLE** with margins |
+| Know *why* it fails | Dominant constraint + mechanism (not solver noise) |
+| Map empty vs fragile space | Scan Lab · Pareto · NO-SOLUTION atlas |
+| Replay for a review | Immutable run artifacts + hashed export packs |
+| Use an optimizer safely | **Propose-only** firewall — physics never negotiated |
 
-**Launch (Python):**
-```bash
-cd SHAMS-0D
-pip install -r requirements.txt
-python ui_nicegui/app.py
-```
-
-The legacy Streamlit shell (`run_ui.cmd`) remains for compatibility but **redirects fully ported decks** to NiceGUI.
+**SHAMS** = *Systematic Hot-ion Analysis for Magnetic confinement Systems*  
+A **0-D / volume-averaged / steady-state** screening studio — not a time-domain transport code, and **not** an optimizer inside frozen truth.
 
 ---
 
-## Quick start (first evaluation)
+## 60-second start
 
 ```bash
 git clone https://github.com/afshin-arj/SHAMS-0D-Tokamak-Design-Studio.git
@@ -81,309 +54,239 @@ python -m venv .venv
 # Unix:    source .venv/bin/activate
 pip install -r requirements.txt
 pytest tests/test_smoke.py -q
-run_ui_nicegui.cmd    # or ./run_ui_nicegui.sh
 ```
 
-1. Open **Point Designer** → configure geometry & plasma → **Evaluate**.  
-2. If feasible, explore **Scan Lab** or **Systems Mode**.  
-3. Use **Compare** / **Pareto Lab** for design decisions.  
-4. Seal the study in **Control Room** (protocol, repro lock, export).
+| OS | Launch studio |
+|----|----------------|
+| Windows | `run_ui_nicegui.cmd` |
+| Linux / macOS | `./run_ui_nicegui.sh` |
+| Any | `python ui_nicegui/app.py` |
+
+Then: **Point Designer → Evaluate →** read the verdict → continue with Scan / Systems → seal in **Control Room**.
 
 ---
 
-## Architecture
+## Study workflow (10 decks)
 
-SHAMS is organized as a **layered authority stack**: one frozen physics core (L0), read-only overlays and exports above it (L1–L4), and a **NiceGUI studio** that routes every evaluation through a single choke point. External optimizers and batch tools **propose inputs only** — SHAMS re-evaluates and records evidence.
+Use the **Helm Console** (left drawer) to follow the numbered expert path.
 
-### System overview
+```mermaid
+flowchart LR
+  A["① Point Designer<br/>anchor + verdict"] --> B["② Scan Lab<br/>map space"]
+  B --> C["③ Systems Mode<br/>close plant"]
+  C --> D["④ Compare<br/>A vs B"]
+  D --> E["⑤ Pareto · ⑥ Trade<br/>frontiers"]
+  E --> F["⑦ Forge<br/>concepts"]
+  F --> G["⑧ Pub · ⑨ Suite · ⑩ Control Room<br/>evidence & audit"]
+
+  style A fill:#0B3D5C,color:#fff
+  style G fill:#1B5E20,color:#fff
+```
+
+| # | Deck | One-line job |
+|---|------|----------------|
+| 1 | **Point Designer** | One operating point → feasibility verdict |
+| 2 | **Scan Lab** | 2-D cartography of feasible / first-failure regions |
+| 3 | **Systems Mode** | Monte Carlo precheck + Newton solve (*proposes* inputs) |
+| 4 | **Compare** | Diff baseline vs scenario artifacts |
+| 5 | **Pareto Lab** | Feasible-only frontiers; mirage filter |
+| 6 | **Trade Study Studio** | Certified trade studies & robust lanes |
+| 7 | **Reactor Design Forge** | Intent → machine families → dossiers |
+| 8 | **Publication Benchmarks** | Constitutional atlas & reviewer packs |
+| 9 | **System Suite** | Read-only L1 overlays on a Point Designer artifact |
+| 10 | **Control Room** | Provenance, protocol, repro lock, export |
+
+> **Systems Mode ≠ System Suite** — Mode *solves* (propose-only); Suite *reviews* overlays on frozen truth.
+
+---
+
+## Architecture at a glance
+
+Every evaluation goes through **one choke point**. UI and external optimizers never rewrite L0 physics.
 
 ```mermaid
 flowchart TB
-  subgraph UI["NiceGUI Studio · ui_nicegui/"]
-    HC[Helm Console<br/>workflow compass · resize · ☰ toggle]
-    PD[Point Designer]
-    SL[Scan Lab]
-    SM[Systems Mode]
-    CP[Compare]
-    PL[Pareto Lab]
-    TS[Trade Study Studio]
-    RF[Reactor Design Forge]
-    PB[Publication Benchmarks]
-    SS[System Suite]
-    CR[Control Room]
-    HC --> PD & SL & SM & CP & PL & TS & RF & PB & SS & CR
+  subgraph Studio["NiceGUI Studio"]
+    Helm[Helm Console]
+    Decks[10 decks]
+    Helm --> Decks
   end
 
-  subgraph L0["L0 — Frozen truth (never mutated by UI)"]
-    SCH[PointInputs schema]
-    EV[Evaluator.evaluate]
-    HI[hot_ion_point]
-    CON[constraints hard / diagnostic / ignored]
-    SCH --> EV --> HI --> CON
+  subgraph L0["L0 — Frozen truth"]
+    PI[PointInputs]
+    EV["Evaluator.evaluate()"]
+    HI["hot_ion_point()"]
+    CON[Constraints<br/>hard · diagnostic · ignored]
+    PI --> EV --> HI --> CON
   end
 
-  subgraph OUT["Immutable outputs"]
-    ART[shams_run_artifact.json]
-    LED[constraint_ledger]
-    OVL[authority overlays post-truth]
-    ART --- LED & OVL
+  subgraph Out["Immutable evidence"]
+    ART[(shams_run_artifact.json)]
+    PACK[Reviewer / licensing packs]
   end
 
-  subgraph EXT["External · firewalled"]
-    OPT[NSGA-II · CMA-ES · BO · custom]
-    OPT -. propose inputs only .-> EV
-  end
-
-  PD & SL & SM & CP & PL & TS & RF & SS -->|ui_evaluate| EV
-  EV --> ART
-  ART --> CP & PL & TS & CR & PB
-  CR & PB -->|protocol · repro lock · packs| EXP[Reviewer / regulatory exports]
+  OPT[External optimizers] -. propose inputs only .-> EV
+  Decks -->|ui_evaluate| EV
+  CON --> ART
+  ART --> Decks
+  ART --> PACK
 ```
 
-### Layer model
-
-Higher layers **read** L0 artifacts and **write new** derived artifacts — they never rewrite physics results.
+### Layer stack (read-down, write-new)
 
 ```mermaid
 flowchart BT
-  L4["L4 · Explainability<br/>narratives · forensics · mechanism labels"]
-  L3["L3 · Mission context<br/>scenarios · design intent · TRL contracts"]
-  L2["L2 · Engineering interfaces<br/>handoff packs · export adapters · cross-code parity"]
-  L1["L1 · Authority & reference<br/>citation · governance · reproducibility lock"]
-  L0["L0 · Frozen physics + constraints<br/>evaluator · hot_ion · NO-SOLUTION valid"]
-
+  L4["L4 Explainability"]
+  L3["L3 Mission / intent / TRL"]
+  L2["L2 Exports & parity packs"]
+  L1["L1 Authority overlays"]
+  L0["L0 Frozen physics + constraints"]
   L4 --> L3 --> L2 --> L1 --> L0
 ```
 
-| Layer | Code anchor | What it does |
-|-------|-------------|--------------|
-| **L0** | `src/evaluator/core.py` → `src/physics/hot_ion.py` | Single-pass deterministic evaluation; constraint ledger; run artifacts |
-| **L1** | `analysis/` authority overlays, `GOVERNANCE.md` | Confidence tiers, dominance, epoch feasibility, constitutional docs |
-| **L2** | `src/campaign/`, `tools/` export builders | Benchmark packs, reviewer ZIPs, licensing bundles, case decks |
-| **L3** | Helm Console design contract, mission profiles | Reactor / research / pilot / HFS intent; enforcement tiering |
-| **L4** | Chronicle instruments, Compare diffs, Scan interpret | Sensitivity, feasibility maps, scenario delta, local forensics |
+| Layer | Lives in | Role |
+|-------|----------|------|
+| **L0** | `src/evaluator/` · `src/physics/hot_ion.py` | Single-pass deterministic truth |
+| **L1** | `analysis/` | Post-truth authority overlays |
+| **L2** | `tools/` · campaigns | Export adapters, packs |
+| **L3** | Helm design contract | Reactor / Research / Pilot / HFS intent |
+| **L4** | Compare · Scan interpret · Chronicle | Narratives & forensics |
 
-### Expert workflow — all ten decks
-
-Decks follow the **numbered sidebar workflow** (Helm Console → Navigation). Each deck is verdict-first; none iterates inside L0 truth.
-
-```mermaid
-flowchart LR
-  subgraph P1["1 · Anchor"]
-    PD2[Point Designer<br/>configure · evaluate · constraints atlas]
-  end
-  subgraph P2["2 · Map & close"]
-    SL2[Scan Lab<br/>2D cartography · interpret · signature atlas]
-    SM2[Systems Mode<br/>plant closure · feasibility map · recovery]
-  end
-  subgraph P3["3 · Compare & trade"]
-    CP2[Compare<br/>A/B artifacts · structural diff · export]
-    PL2[Pareto Lab<br/>feasible frontier · robust lanes · packs]
-    TS2[Trade Study Studio<br/>frontier atlas · certification · surrogate]
-  end
-  subgraph P4["4 · Concepts"]
-    RF2[Reactor Design Forge<br/>intent compiler · casebook · dossiers]
-  end
-  subgraph P5["5 · Evidence & audit"]
-    PB2[Publication Benchmarks<br/>constitutional atlas · cross-code · licensing]
-    SS2[System Suite<br/>phase cockpit · campaigns · UQ bounds]
-    CR2[Control Room<br/>provenance · run audit · chronicle · export]
-  end
-
-  P1 --> P2 --> P3 --> P4 --> P5
-  PD2 -. artifacts .-> SL2 & SM2 & CP2 & PL2
-  CP2 & PL2 & TS2 -. artifacts .-> CR2 & PB2
-```
-
-### Deck feature map
-
-| Deck | Primary tabs / sections | Key capabilities |
-|------|-------------------------|------------------|
-| **Point Designer** | Configure · Telemetry · Constraints · Mission | Single-point evaluate; solver modes; NO-SOLUTION atlas; constraint diff dossier |
-| **Scan Lab** | Setup · Cartography · Interpret · Artifact restore | 2D feasible-region maps; first-failure topology; scan atlas capsules |
-| **Systems Mode** | Workflow tabs + plant authority | Integrated systems solve; power-balance diagram; feasibility heatmap; reproduce/diff |
-| **Compare** | Load · Performance · Constraints · Inputs & Structure · Export | Metric/input/structural diffs; scenario delta; comparison bundles |
-| **Pareto Lab** | Explore · Interpret · Audit · Publication · External | Nondominated feasible frontier; mirage filtering; optimistic vs robust lanes |
-| **Trade Study Studio** | Setup · Frontier · Robust · Surrogate · Optimizer kits | Certified trade studies; interval narrowing; external optimizer handoff |
-| **Reactor Design Forge** | Intent · Explore · Casebook · Archive · Dossier | 67 expert instruments; staged runs; collaboration sessions |
-| **Publication Benchmarks** | Atlas · Pack · Cross-Code · Governance · Evidence | Constitutional preset atlas; reviewer/regulatory/licensing ZIPs |
-| **System Suite** | Workflow + phase cockpit | Batch campaigns; mode contracts; parity suite; absolute UQ bounds |
-| **Control Room** | Orient · Constitution · Provenance · Artifacts · Diagnostics · Chronicle | Run audit overlays; case deck runner; scenario delta; constraint cockpit; repro lock |
-
-**Helm Console** (always visible in the left drawer): session posture, design contract (intent + TRL + q95/Greenwald enforcement), reference machine presets, fidelity declarations, calibration multipliers, integrity gatecheck, activity chronicle, and deck navigation.
-
-### Evaluation choke point
-
-Every UI path that needs physics calls **`ui_evaluate()`** → **`Evaluator.evaluate()`** → **`hot_ion_point()`**. No deck bypasses this chain.
+### Evaluation sequence
 
 ```mermaid
 sequenceDiagram
-  participant User
-  participant Deck as Any deck UI
+  actor U as User
+  participant D as Deck
   participant UI as ui_evaluate()
-  participant EV as Evaluator.evaluate()
-  participant HI as hot_ion_point()
-  participant CON as evaluate_constraints
-  participant ART as shams_run_artifact.json
+  participant E as Evaluator
+  participant H as hot_ion_point()
+  participant A as Artifact
 
-  User->>Deck: configure / scan / compare / …
-  Deck->>UI: PointInputs (+ origin tag)
-  UI->>EV: evaluate(inputs)
-  EV->>HI: frozen physics (L0)
-  HI->>CON: hard / diagnostic / ignored
-  CON->>ART: ledger + overlays + inputs hash
-  ART-->>Deck: verdict · margins · provenance
-  Note over EV,HI: Same inputs → same outputs<br/>NO-SOLUTION is a valid outcome
+  U->>D: Configure / run
+  D->>UI: PointInputs
+  UI->>E: evaluate()
+  E->>H: frozen physics
+  H-->>E: outputs
+  E->>A: ledger + hash + overlays
+  A-->>D: verdict · margins · provenance
+  Note over E,H: No hidden iteration in L0
 ```
 
-### Artifact & governance flow
+---
 
-Artifacts are **immutable** once written. Downstream decks consume them read-only; exports append new hashed bundles.
+## SHAMS vs PROCESS (short)
 
 ```mermaid
 flowchart LR
-  EVAL[Point / scan / systems evaluate]
-  ART[(shams_run_artifact.json)]
-  PROTO[study_protocol]
-  REPRO[repro_lock]
-  PACK[publication / reviewer pack]
-  DIFF[Compare · scenario delta]
-  AUDIT[Control Room run audit]
-
-  EVAL --> ART
-  ART --> PROTO & REPRO & DIFF & AUDIT
-  ART --> PACK
-  PROTO & REPRO --> ZIP[hashed export ZIP]
-  PACK --> ZIP
+  subgraph PROCESS
+    P1[Optimize FoM] --> P2[Negotiate constraints]
+  end
+  subgraph SHAMS
+    S1[Evaluate point] --> S2[Attribute feasibility]
+    S2 --> S3[NO-SOLUTION allowed]
+  end
+  PROCESS -. propose-only .-> SHAMS
 ```
 
-### Repository map
+| | **PROCESS** | **SHAMS** |
+|---|-------------|-----------|
+| Core question | What optimizes my objective? | What is physically admissible — and why not? |
+| Infeasibility | Often avoided / obscured | **First-class result** |
+| Iteration in truth | Central | **Forbidden in L0** |
+| Optimizers | Coupled | **Firewalled (CCFS)** |
 
-| Area | Path |
-|------|------|
-| Frozen evaluator | `src/evaluator/` · `src/physics/hot_ion.py` |
-| Constraints | `src/constraints/` · `authority_caps.json` |
-| Authority overlays | `analysis/` |
-| NiceGUI studio | `ui_nicegui/` (`app.py`, `decks/`, `session.py`) |
-| Legacy UI (redirects) | `ui/app.py` |
-| Tests & golden baselines | `tests/` · `tests/golden/` |
-| Verification gate | `verification/run_verification.py` |
-| Governance | `GOVERNANCE.md` · `VERSION` |
+Migration & independence docs:  
+[`PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`](docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md) · [`PROCESS_CROSSWALK.md`](docs/PROCESS_CROSSWALK.md) · [`CHAMPION_CASES.md`](docs/CHAMPION_CASES.md) · [`LIMITATIONS.md`](docs/LIMITATIONS.md)
 
-**Validation:** `pytest` · `python verification/run_verification.py`
+<details>
+<summary><strong>Extended comparison tables</strong> (philosophy · numerics · constraints · governance)</summary>
 
----
+### Purpose
 
-## Scientific scope (honest limits)
+| Dimension | SHAMS | PROCESS |
+|-----------|-------|---------|
+| Primary role | Feasibility authority & governance | Design optimization |
+| Empty design space | Explicitly allowed | Implicitly discouraged |
+| Scientific posture | Constraint-first, mechanism-explicit | Objective-first, solver-driven |
 
-SHAMS is a **0-D / volume-averaged / steady-state** screening studio with explicit engineering proxies (magnets, exhaust, neutronics tiers, plant ledger). It does **not** implement:
+### Numerics
 
-- time-domain transport solvers,
-- Monte Carlo inside truth,
-- internal optimization or Newton negotiation in L0.
+| Aspect | SHAMS | PROCESS |
+|--------|-------|---------|
+| Evaluator | Frozen deterministic algebraic | Coupled nonlinear solver |
+| Same inputs → same outputs | Guaranteed | Solver-path dependent |
 
-Those belong **outside** the evaluator, with SHAMS re-evaluating every proposed input set.
+### Constraints & optimization
 
----
+| Topic | SHAMS | PROCESS |
+|-------|-------|---------|
+| Classification | Hard / Diagnostic / Ignored | Often via penalties |
+| Negotiation in truth | Not allowed | Common |
+| Internal L0 optimization | Forbidden | Core feature |
+| External optimization | Certified & firewalled | N/A |
 
-## Latest release notes (v418.x)
+### Governance
 
-- **NiceGUI studio complete** — all primary decks ported with expert workflow navigation, guided modes, and Streamlit redirects.
-- Point Designer solver/envelope wiring fixes, run_summary on artifacts, Configure refresh after solve.
-- H-mode scalings, ELM duty-cycle availability, tritium reactor preset; overlay dashboard refresh.
+| Feature | SHAMS | PROCESS |
+|---------|-------|---------|
+| Audit trail | Hash-manifested evidence packs | Limited |
+| Reviewer artifacts | One-click packs | Manual |
 
-Details: `docs/patch_notes/PATCH_NOTES_v418.md`
-
----
-
-## SHAMS vs PROCESS (one paragraph)
-
-**PROCESS** asks: *what design optimizes my objective if constraints can be negotiated?*  
-**SHAMS** asks: *which tokamak designs are admissible, how robust are they, why do others fail, and what evidence supports the claim?*
-
-**Migrating a PROCESS study:** start with [`docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`](docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md) (IN.DAT→`PointInputs`, MFILE→artifacts, CCFS propose-only, citation + METHOD-ONLY honesty). Short crosswalk: `docs/PROCESS_CROSSWALK.md`.
-
-**Champion templates (Phase 3.3):** [`docs/CHAMPION_CASES.md`](docs/CHAMPION_CASES.md) — SPARC-class / STEP-like / conservative feasibility templates with NO-SOLUTION atlas stories (`python benchmarks/champions/run_champions.py`).  
-**Scoped PROCESS retirement evidence (Phase 4.1):** [`docs/PROCESS_RETIREMENT_REPORT.md`](docs/PROCESS_RETIREMENT_REPORT.md) — domain coverage with VERSION + SHA-256 hashes; **not** a blanket “PROCESS retired” claim.  
-**Parity contribution (Phase 4.3):** [`docs/PARITY_CONTRIBUTION.md`](docs/PARITY_CONTRIBUTION.md) — labs submit licensed PROCESS refs; SHAMS returns hashed delta dossiers (METHOD-ONLY or NUMERIC with honesty gates).  
-**Independence exit evidence (Phase 4.3):** [`docs/INDEPENDENCE_EXIT_EVIDENCE.md`](docs/INDEPENDENCE_EXIT_EVIDENCE.md) — Phase 4 checklist; community adoption and APPROVED DOI remain **EXTERNAL**.
-
-For the full comparison table, see the [extended comparison section](#extended-comparison-shams-vs-process) below.
+</details>
 
 ---
 
-## Known limitations
+## Repository map
 
-Honest scope for scientific handoff (proxies, METHOD-ONLY PROCESS parity, what SHAMS does **not** claim): **`docs/LIMITATIONS.md`**.  
-Phase 1 scientific release readiness (CONDITIONAL): `docs/validation/reports/scientific_release_readiness_20260716.md`.
+```text
+SHAMS-0D/
+├── ui_nicegui/          # NiceGUI studio (primary UI)
+├── ui/                  # Legacy Streamlit (redirects to NiceGUI)
+├── src/
+│   ├── evaluator/       # L0 choke point
+│   ├── physics/         # hot_ion_point (frozen)
+│   ├── constraints/     # hard / diagnostic / ignored
+│   └── …                # solvers, extopt, diagnostics (call L0)
+├── analysis/            # Authority overlays (L1)
+├── tests/ · tests/golden/
+├── verification/
+├── docs/
+├── GOVERNANCE.md
+└── VERSION
+```
 
-## Citing SHAMS
+**Validate:** `pytest` · `python verification/run_verification.py`
 
-Use `CITATION.cff` for software citation metadata, and cite the exact `VERSION` plus the SHA-256 hashes of your exported run artifacts so reviewers can re-evaluate the same inputs against the same frozen truth. Zenodo archival metadata is prepared in `.zenodo.json`; the tagging / deposit / DOI procedure and the documented CONDITIONAL→APPROVED release gates live in **`docs/RELEASE_ARCHIVAL_CHECKLIST.md`** (no DOI is minted yet). Software-paper skeleton: `docs/SOFTWARE_PAPER_PITCH.md`.
+---
 
-## Contributing & governance
+## Scientific honesty
 
-- Physics / constraint changes: explicit request + versioning (`GOVERNANCE.md`)
-- Additive UI, schemas, docs: welcome without altering L0 behavior
-- Run `pytest` and `python verification/run_verification.py` before PRs
+SHAMS screens with **engineering proxies** (e.g. divertor heat-flux, TBR, plant ledger). It does **not** claim:
+
+- validated SOLPS divertor design margins,
+- time-domain transport solutions,
+- Monte Carlo neutronics inside L0,
+- or automatic “best design” selection.
+
+See [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md). Physics changes require explicit versioning per [`GOVERNANCE.md`](GOVERNANCE.md).
+
+---
+
+## Cite & contribute
+
+- Cite `CITATION.cff` + exact `VERSION` + SHA-256 hashes of exported artifacts  
+- Zenodo metadata: `.zenodo.json` · archival checklist: [`docs/RELEASE_ARCHIVAL_CHECKLIST.md`](docs/RELEASE_ARCHIVAL_CHECKLIST.md)  
+- Additive UI / docs welcome; L0 changes need governance + tests green  
 
 ---
 
 ## Contact
 
-**Dr. Afshin Arjhangmehr**  
-📧 ms.arjangmehr@gmail.com
-
----
-
-## Extended comparison: SHAMS vs PROCESS
-
-### 1. Purpose & Philosophy
-
-| Dimension | SHAMS | PROCESS |
-|---------|-------|---------|
-| Primary role | **Feasibility authority & governance system** | Design optimization system |
-| Core question | *What machines can physically exist, and why others cannot?* | *What machine optimizes a chosen objective?* |
-| Treatment of failure | **First-class scientific result** | Avoided if possible |
-| Empty design space | **Explicitly allowed** | Implicitly discouraged |
-| Scientific posture | Constraint-first, mechanism-explicit | Objective-first, solver-driven |
-| Intended use | Review, feasibility authority, governance | Parametric design optimization |
-
-### 2. Numerical & Algorithmic Discipline
-
-| Aspect | SHAMS | PROCESS |
-|------|-------|---------|
-| Evaluator type | **Frozen deterministic algebraic evaluator** | Coupled nonlinear solver system |
-| Iteration | **Forbidden in L0 truth** | Central |
-| Determinism | **Bitwise reproducible** | Solver-path dependent |
-| Same inputs → same outputs | **Guaranteed** | Not guaranteed |
-
-### 3. Constraint Handling
-
-| Topic | SHAMS | PROCESS |
-|------|-------|---------|
-| Constraint classification | **Hard / Diagnostic / Ignored (explicit)** | Implicit via penalties |
-| Constraint negotiation | **Not allowed in truth** | Common |
-| Dominant failure mechanism | **Explicitly identified** | Often obscured |
-
-### 4. Optimization (critical distinction)
-
-| Aspect | SHAMS | PROCESS |
-|------|-------|---------|
-| Internal optimization | **Forbidden in L0** | Core feature |
-| External optimization | **Yes (certified & firewalled)** | N/A |
-| Feasibility enforcement | **Absolute** | Negotiable |
-
-### 5. Governance & Review
-
-| Feature | SHAMS | PROCESS |
-|------|-------|---------|
-| Audit trail | **Hash-manifested evidence packs** | None |
-| Replayability | **Guaranteed** | Not guaranteed |
-| Reviewer artifacts | **One-click reviewer packs** | Manual |
+**Dr. Afshin Arjhangmehr** · ms.arjangmehr@gmail.com
 
 ---
 
 ## License
 
-See repository license file. Cite SHAMS version and artifact hashes when publishing results derived from this studio.
+[Apache License 2.0](LICENSE)
