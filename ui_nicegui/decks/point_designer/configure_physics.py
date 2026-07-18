@@ -73,6 +73,10 @@ def render_model_options(session: DesignSession, *, embedded: bool = False) -> N
                 "confinement_scaling", _CONFINEMENT_REVERSE.get(str(e.value), "IPB98y2")
             ),
         ).classes("w-full")
+        ui.label(
+            "H98 is always vs IPB98(y,2). This menu sets H_scaling / τE_scaling only — "
+            "it does not redefine the H98 basis."
+        ).classes("text-caption text-grey q-mb-sm")
 
         # transport contracts
         with ui.expansion("Transport feasibility contracts", icon="route").classes("w-full"):

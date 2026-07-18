@@ -20,7 +20,7 @@ HELM_NAV_GROUPS: list[tuple[str, str, list[str]]] = [
     ),
     (
         "2 · Map and close",
-        "Cartography (Scan Lab) then integrated closure (Systems Mode solver — not System Suite).",
+        "Scan Lab = cartography. Systems Mode = Newton/MC solver (proposes inputs). Not System Suite.",
         ["Scan Lab", "Systems Mode"],
     ),
     (
@@ -35,7 +35,7 @@ HELM_NAV_GROUPS: list[tuple[str, str, list[str]]] = [
     ),
     (
         "5 · Evidence and audit",
-        "Reference benchmarks, L1 overlay suite (read-only), provenance, and export.",
+        "Benchmarks + System Suite (read-only L1 overlays on a PD point — not the Systems Mode solver) + audit.",
         ["Publication Benchmarks", "System Suite", "Control Room"],
     ),
 ]

@@ -253,7 +253,7 @@ def regime_compass_rows(
         ("fG", "fG", "–", "Authoritative"),
         ("nGW", "nGW", "×1e20 m⁻³", "Diagnostic"),
         ("βN", "betaN_proxy", "–", "Proxy"),
-        ("q95", "q95_proxy", "–", "Authoritative"),
+        ("q95", "q95_proxy", "–", "Proxy"),
         ("P_SOL/R", "P_SOL_over_R_MW_m", "MW/m", "Proxy"),
         ("Bootstrap f_bs", "f_bs_proxy", "–", "Proxy"),
         ("n̄e", "ne20", "×1e20 m⁻³", "Authoritative"),

@@ -83,6 +83,11 @@ def _run_artifact_picker(session: DesignSession):
     runs = list_session_run_artifacts(session)
     if not runs:
         empty_state("Run **Point Designer** (Evaluate) first to create a run artifact.", kind="info")
+        from ui_nicegui.lib.navigation import switch_deck
+
+        ui.button("Open Point Designer", icon="open_in_new", on_click=lambda: switch_deck("Point Designer")).props(
+            "outline dense"
+        )
         return None, None
     labels = [r["label"] for r in runs]
     if session.cr_selected_run_id not in [r["id"] for r in runs]:

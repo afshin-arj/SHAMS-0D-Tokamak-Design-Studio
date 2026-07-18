@@ -64,13 +64,32 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
             if v == "Regime & Confinement":
                 kpi_row([
                     ("Regime label", str(out.get("confinement_regime", "unknown"))),
-                    ("H98", _fmt(_sf(out, "H98"))),
+                    ("H98(y,2)", _fmt(_sf(out, "H98"))),
                     ("H_regime", _fmt(_sf(out, "H_regime"))),
                     ("P_LH (MW)", _fmt(_sf(out, "P_LH_MW"), 1)),
                 ])
                 ui.label(
-                    "H_regime is reported only when couple_regime_to_confinement=True."
+                    "H_regime is reported only when couple_regime_to_confinement=True. "
+                    "H98 is always vs IPB98(y,2)."
                 ).classes("text-caption")
+                kpi_row([
+                    ("H_scaling", _fmt(_sf(out, "H_scaling"))),
+                    ("τE_eff (s)", _fmt(_sf(out, "tauE_eff") if out.get("tauE_eff") is not None else _sf(out, "tauE_s"))),
+                    ("H_required", _fmt(_sf(out, "H_required"))),
+                    ("τIPB98 (s)", _fmt(_sf(out, "tauIPB") if out.get("tauIPB") is not None else _sf(out, "tauE_IPB98_s"))),
+                ])
+                spread = _sf(out, "transport_spread_ratio_v396")
+                tier = str(out.get("transport_credibility_tier_v396", "") or "")
+                if (spread == spread) or tier:
+                    ui.label(
+                        "v396 is a multi-scaling screening envelope (not a transport solver)."
+                    ).classes("text-caption text-grey q-mb-xs")
+                    kpi_row([
+                        ("v396 spread τE_max/τE_min", _fmt(spread, 2) if spread == spread else "—"),
+                        ("v396 credibility tier", tier or "—"),
+                        ("τE env min (s)", _fmt(_sf(out, "tauE_envelope_min_s_v396"))),
+                        ("τE env max (s)", _fmt(_sf(out, "tauE_envelope_max_s_v396"))),
+                    ])
 
             elif v == "Global Dominance & Regime":
                 if not bool(out.get("include_authority_dominance_v402", False)):
@@ -235,7 +254,7 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
             elif v == "Neutronics & Nuclear Loads":
                 kpi_row([
                     ("n-wall load (MW/m²)", _fmt(_sf(out, "neutron_wall_load_MW_m2"))),
-                    ("TBR", _fmt(_sf(out, "TBR"))),
+                    ("TBR (proxy)", _fmt(_sf(out, "TBR"))),
                     ("HTS lifetime (yr)", _fmt(_sf(out, "hts_lifetime_yr"), 1)),
                     ("FW dpa/y", _fmt(_sf(out, "fw_dpa_per_year"))),
                 ])

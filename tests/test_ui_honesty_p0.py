@@ -71,3 +71,17 @@ def test_v396_spread_knob_optional_min_one() -> None:
     assert hi <= 20.0
     assert "optional" in label.lower()
     assert "transport_spread_max_v396" in _OPTIONAL_CAP_KNOBS
+
+
+def test_regime_compass_q95_is_proxy() -> None:
+    from ui_nicegui.lib.pd_parity_helpers import regime_compass_rows
+
+    rows = {r["key"]: r for r in regime_compass_rows({})}
+    assert rows["q95_proxy"]["type"] == "Proxy"
+
+
+def test_deck_nav_disambiguates_systems_mode_vs_suite() -> None:
+    from ui_nicegui.lib.deck_workflow import deck_nav_short_label
+
+    assert "Close" in deck_nav_short_label("Systems Mode")
+    assert "L1" in deck_nav_short_label("System Suite")
