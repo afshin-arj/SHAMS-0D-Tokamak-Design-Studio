@@ -56,3 +56,9 @@ dist/
 
 # macOS AppleDouble files
 ._*
+
+# Agent / local scratch
+_commit_msg.txt
+_pytest_out.txt
+_audit_*
+benchmarks/publication/out_ui/
