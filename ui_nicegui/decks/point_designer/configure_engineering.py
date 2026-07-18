@@ -152,10 +152,38 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
             with ui.expansion("Divertor / SOL limits", icon="whatshot").classes("w-full"):
                 preset = _CONFIDENCE_PRESETS.get(confidence, _CONFIDENCE_PRESETS["Nominal"])
                 ui.number(
-                    "Max divertor heat flux (MW/m²)",
+                    "Max divertor heat flux proxy (MW/m²)",
                     value=_num_knob(session, "q_div_max_MW_m2", preset["q_div_max_MW_m2"]),
                     min=0.1, step=0.5,
                     on_change=lambda e: session.knobs.__setitem__("q_div_max_MW_m2", e.value),
+                )
+                ui.label(
+                    "Eich λq / wetted-area screening limit — not an absolute SOLPS design margin."
+                ).classes("text-caption text-grey q-mb-xs")
+
+        with ui.expansion("βN / Troyon screening caps", icon="speed").classes("w-full"):
+            ui.label(
+                "Optional PointInputs caps (NaN/blank = off). Does not change L0 equations — "
+                "only constraint limits when set."
+            ).classes("text-caption q-mb-sm")
+            with ui.grid(columns=2).classes("w-full gap-2"):
+                ui.number(
+                    "βN max (optional)",
+                    value=finite_ui_number(inp.get("betaN_max", float("nan"))),
+                    min=0.0, max=10.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("betaN_max", e.value),
+                )
+                ui.number(
+                    "βN Troyon max (optional)",
+                    value=finite_ui_number(inp.get("betaN_troyon_max", float("nan"))),
+                    min=0.0, max=10.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("betaN_troyon_max", e.value),
+                )
+                ui.number(
+                    "H98 allow (optional ceiling)",
+                    value=finite_ui_number(inp.get("H98_allow", 9.99e9), unset=9.99e9),
+                    min=0.5, max=20.0, step=0.05,
+                    on_change=lambda e: inp.__setitem__("H98_allow", e.value),
                 )
 
         with ui.expansion("Exhaust & performance screening caps", icon="filter_alt").classes("w-full"):
@@ -199,7 +227,7 @@ def render_engineering_plant(session: DesignSession, *, embedded: bool = False) 
                 preset = _CONFIDENCE_PRESETS.get(confidence, _CONFIDENCE_PRESETS["Nominal"])
                 with ui.grid(columns=2).classes("w-full gap-2"):
                     ui.number(
-                        "Minimum TBR",
+                        "Minimum TBR (proxy)",
                         value=_num_knob(session, "TBR_min", preset["TBR_min"]),
                         min=0.0, step=0.01,
                         on_change=lambda e: session.knobs.__setitem__("TBR_min", e.value),

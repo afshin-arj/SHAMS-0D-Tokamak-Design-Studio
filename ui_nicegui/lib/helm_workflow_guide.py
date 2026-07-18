@@ -160,7 +160,10 @@ def suggest_next_deck(session: Any, active_deck: str) -> tuple[Optional[str], st
         isinstance(getattr(session, "scan_cartography_report", None), dict)
         or isinstance(getattr(session, "scan_cartography_artifact", None), dict)
     ):
-        return (None, "Run a cartography scan or continue to Systems Mode when ready.")
+        return (
+            "Systems Mode",
+            "Cartography optional — continue to Systems Mode to close plant/systems, or run a scan first.",
+        )
 
     if active_deck == "Systems Mode":
         if not has_systems_closure(session):

@@ -143,11 +143,15 @@ def _render_workflow_chrome(session: DesignSession) -> None:
         ui.markdown(banner).classes("text-caption q-mb-sm")
 
     with ui.row().classes("w-full items-end gap-2 q-mb-xs"):
-        ui.input(
+        qj = ui.input(
             "Quick jump (D/F/I/C)",
             value="",
             on_change=lambda e: _handle_quick_jump(session, str(e.value or "").strip().upper()),
         ).props("dense clearable").classes("flex-none").style("max-width: 180px")
+        qj.tooltip(
+            "D = Design map (cartography) · F = Feasibility interpret · "
+            "I = Intent compare · C = Causality / dominance workbench"
+        )
         ui.label("D=map · F=interpret · I=compare intents · C=causality").classes(
             "text-caption text-grey"
         )

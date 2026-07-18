@@ -34,6 +34,8 @@ def test_deck_workflow_captions() -> None:
     assert DECK_WORKFLOW_STEP["Control Room"] == len(DECK_LABELS)
     assert "Workflow step 1" in deck_workflow_caption("Point Designer")
     assert deck_nav_short_label("Scan Lab").startswith("2.")
+    assert "Close" in deck_nav_short_label("Systems Mode")
+    assert "L1" in deck_nav_short_label("System Suite")
 
 
 def test_helm_workflow_guide() -> None:
@@ -50,6 +52,9 @@ def test_helm_workflow_guide() -> None:
     s.pd_last_outputs = {"outputs": {"Q": 1.0}}
     nxt2, _ = suggest_next_deck(s, "Point Designer")
     assert nxt2 == "Scan Lab"
+    nxt3, reason3 = suggest_next_deck(s, "Scan Lab")
+    assert nxt3 == "Systems Mode"
+    assert "systems" in reason3.lower()
     assert len(DECK_NOW_ACTIONS["Control Room"]) >= 2
     assert deck_phase("Compare") == 3
 
@@ -256,7 +261,9 @@ def test_switch_deck_same_deck_skips_without_force() -> None:
     mod_src = inspect.getsource(ng_app)
     assert "_CONTENT =" not in mod_src
     assert "global _CONTENT" not in mod_src
-    assert "_render_deck.refresh()" in src
+    # Remount goes through coalesced helper (leading-edge + trailing debounce).
+    assert "_remount_active_deck" in src
+    assert "_render_deck.refresh()" in inspect.getsource(ng_app._remount_active_deck)
     assert "DECK_RENDERERS.get" in mod_src
     # Settings panel must not remount on every deck switch (heavy).
     assert "refresh_helm_settings" not in src

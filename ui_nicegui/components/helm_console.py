@@ -408,10 +408,22 @@ def _render_calibration(session: DesignSession) -> None:
         ).props("outline dense")
         ui.label("τE · divertor · bootstrap").classes("text-caption")
 
-    for attr, title in (
-        ("calib_confinement", "Confinement (τE / H-like)"),
-        ("calib_divertor", "Divertor / exhaust proxy"),
-        ("calib_bootstrap", "Bootstrap current I_bs"),
+    for attr, title, hint in (
+        (
+            "calib_confinement",
+            "Confinement (τE multiplier)",
+            "Multiplies τE for reference calibration — not a claimed H98.",
+        ),
+        (
+            "calib_divertor",
+            "Divertor / exhaust proxy",
+            "Scales divertor/exhaust proxy screening — not a SOLPS design margin.",
+        ),
+        (
+            "calib_bootstrap",
+            "Bootstrap current I_bs",
+            "Scales bootstrap current for calibration against references.",
+        ),
     ):
         ui.slider(
             min=0.5, max=1.5, step=0.01,
@@ -421,7 +433,8 @@ def _render_calibration(session: DesignSession) -> None:
                 ui.notify("Reference calibration changed — re-evaluate Point Designer.", type="info"),
             ),
         ).props('label color="primary"').classes("w-full")
-        ui.label(title).classes("text-caption q-mb-sm")
+        ui.label(title).classes("text-caption")
+        ui.label(hint).classes("text-caption text-grey q-mb-sm")
 
 
 def _render_benchmark_vault(session: DesignSession) -> None:

@@ -45,18 +45,29 @@ from ui_nicegui.session import DesignSession
 # Module-level session (single-user desktop; replace with per-client storage for multi-user)
 _SESSION = DesignSession()
 
+# Rapid Helm clicks: leading-edge remount (instant) + coalesce trailing remounts (NAV-RACE-001).
+_DECK_SWITCH_DEBOUNCE_S = 0.06
+_pending_deck_remount: dict[str, object] = {"timer": None, "name": None, "coalesced": False}
 
-def _switch_deck(name: str, *, force: bool = False) -> None:
-    """Navigate to a deck and always remount the main panel when the target changes.
 
-    NAV-001: deck body must live in ``_render_deck``'s refreshable slot (not a
-    sibling ``_CONTENT`` column). Writing into an external container while the
-    refreshable slot stayed empty left Helm/`active_deck` updated and the
-    previous deck DOM still visible after handoffs and nav clicks.
+def _cancel_pending_deck_remount() -> None:
+    timer = _pending_deck_remount.get("timer")
+    if timer is not None:
+        try:
+            timer.cancel()  # type: ignore[union-attr]
+        except Exception:
+            pass
+        _pending_deck_remount["timer"] = None
+    _pending_deck_remount["coalesced"] = False
 
-    Order: update session → DSG tag → remount deck → light Helm/status refresh.
-    Same-deck clicks no-op unless ``force=True`` (handoffs that mutate session).
-    """
+
+def _remount_active_deck() -> None:
+    """Remount the current active deck body (NAV-001 refreshable slot)."""
+    _render_deck.refresh()
+
+
+def _apply_deck_switch(name: str, *, force: bool = False) -> None:
+    """Immediate full switch: session + DSG + remount + Helm/status (NAV-001)."""
     same = name == _SESSION.active_deck
     if same and not force:
         return
@@ -65,14 +76,66 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
     from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
 
     apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
-    # Remount deck body first so main title matches Helm selection (NAV-001).
-    # Single remount path: do not also write into an external content column.
-    _render_deck.refresh()
+    _remount_active_deck()
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
-    # Nav/compass + status only — settings panel stays mounted (heavy; unchanged by deck).
     refresh_helm()
     refresh_status()
+
+
+def _switch_deck(name: str, *, force: bool = False) -> None:
+    """Navigate to a deck and remount the main panel when the target changes.
+
+    NAV-001: deck body must live in ``_render_deck``'s refreshable slot (not a
+    sibling ``_CONTENT`` column). Writing into an external container while the
+    refreshable slot stayed empty left Helm/`active_deck` updated and the
+    previous deck DOM still visible after handoffs and nav clicks.
+
+    Same-deck clicks no-op unless ``force=True`` (handoffs that mutate session).
+    Rapid non-force clicks: first click remounts immediately; further clicks within
+    ~60 ms update ``active_deck`` + Helm chrome and coalesce to one trailing remount.
+    """
+    same = name == _SESSION.active_deck
+    if same and not force:
+        return
+
+    if force:
+        _cancel_pending_deck_remount()
+        _apply_deck_switch(name, force=True)
+        return
+
+    if not same:
+        _SESSION.active_deck = name
+    from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
+
+    apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
+    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+    refresh_helm()
+    refresh_status()
+
+    _pending_deck_remount["name"] = name
+    in_burst = _pending_deck_remount.get("timer") is not None
+    if in_burst:
+        _pending_deck_remount["coalesced"] = True
+        return
+
+    # Leading edge: remount now so the first click feels instant (and unit tests see it).
+    _remount_active_deck()
+
+    def _end_burst() -> None:
+        coalesced = bool(_pending_deck_remount.get("coalesced"))
+        _pending_deck_remount["timer"] = None
+        _pending_deck_remount["coalesced"] = False
+        target = _pending_deck_remount.get("name")
+        if coalesced and isinstance(target, str) and target == _SESSION.active_deck:
+            _remount_active_deck()
+
+    try:
+        _pending_deck_remount["timer"] = ui.timer(_DECK_SWITCH_DEBOUNCE_S, _end_burst, once=True)
+    except Exception:
+        _pending_deck_remount["timer"] = None
+        _pending_deck_remount["coalesced"] = False
 
 
 @ui.refreshable

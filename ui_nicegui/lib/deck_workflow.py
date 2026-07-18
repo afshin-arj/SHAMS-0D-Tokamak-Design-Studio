@@ -28,9 +28,17 @@ def deck_workflow_caption(deck: str) -> str:
     return cap
 
 
+# Disambiguate near-homonyms in the Helm deck list (Systems Mode ≠ System Suite).
+_DECK_NAV_ALIASES: dict[str, str] = {
+    "Systems Mode": "Systems Mode — Close",
+    "System Suite": "System Suite — L1 overlays",
+}
+
+
 def deck_nav_short_label(deck: str) -> str:
     """Sidebar button label with workflow step prefix."""
     step = DECK_WORKFLOW_STEP.get(deck)
+    label = _DECK_NAV_ALIASES.get(deck, deck)
     if step is None:
-        return deck
-    return f"{step}. {deck}"
+        return label
+    return f"{step}. {label}"
