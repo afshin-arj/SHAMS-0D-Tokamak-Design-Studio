@@ -123,12 +123,11 @@ def test_systems_post_solve_authority_has_magnet_tbr_proxy() -> None:
     from ui_nicegui.decks.systems_mode import post_solve_authority_ui as psa
 
     src = inspect.getsource(psa)
-    assert "Magnets v400" in src
+    assert "Magnet technology margins" in src or "Magnets" in src
     assert "Tritium / TBR" in src
     assert "magnet_v400_summary" in src
-    assert 'ui.markdown(\n                "TBR is a breeding-ratio **proxy**' in src or (
-        "breeding-ratio **proxy**" in src and "ui.markdown" in src
-    )
+    assert "breeding-ratio **proxy**" in src and "ui.markdown" in src
+    assert "ELM transient heat" in src
 
 
 def test_control_room_orient_empty_has_pd_cta() -> None:

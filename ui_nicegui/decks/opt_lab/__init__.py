@@ -21,16 +21,14 @@ def render_opt_lab(session: DesignSession) -> None:
     render_mode_scope("opt_lab", default_open=False)
     render_opt_lab_entry(session)
 
-    with ui.expansion("Coming next in Opt Lab", icon="schedule", value=False).classes(
+    with ui.expansion("Scope & next tickets", icon="schedule", value=False).classes(
         "w-full q-mt-md"
     ):
         ui.markdown(
-            "- **SLSQP SearchDriver** — propose-only continuous FoM search "
-            "(best + neighborhood always re-certified by CCFS)\n"
-            "- **NSGA-II SearchDriver** — propose-only multi-objective front "
-            "(feasible-first; CCFS-certify shortlist; atlas dominatees next)\n"
-            "- **Pareto Lab unify** — one certified-front viewer (Phase 3.3)\n\n"
-            "Champion warm-start, run stamps, honesty copy, and neighborhood "
-            "re-certify hooks are on this hub. Every path still proposes only "
-            "and re-evaluates through frozen truth."
+            "- **SLSQP / NSGA-II SearchDrivers** — propose-only (best + neighborhood / fronts "
+            "always re-certified by CCFS); entry notes and driver ids are on this hub\n"
+            "- **Next:** richer certified-front viewer unify with Pareto Lab; atlas-annotated dominatees\n\n"
+            "Champion warm-start, run stamps, honesty copy, and route handoffs are live. "
+            "Every path still proposes only and re-evaluates through frozen truth — "
+            "Opt Lab does **not** claim an authoritative optimum."
         ).classes("text-caption")

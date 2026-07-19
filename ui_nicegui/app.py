@@ -45,8 +45,8 @@ from ui_nicegui.session import DesignSession
 # Module-level session (single-user desktop; replace with per-client storage for multi-user)
 _SESSION = DesignSession()
 
-# Rapid Helm clicks: leading-edge remount (instant) + coalesce trailing remounts (NAV-RACE-001).
-_DECK_SWITCH_DEBOUNCE_S = 0.06
+# Legacy burst-timer bookkeeping (NAV-IMMEDIATE-001 retired coalesce). Kept only so
+# any in-flight timer from an older session/build can still be cancelled safely.
 _pending_deck_remount: dict[str, object] = {"timer": None, "name": None, "coalesced": False, "gen": 0}
 
 
@@ -66,6 +66,24 @@ def _remount_active_deck() -> None:
     _render_deck.refresh()
 
 
+def _sync_helm_chrome() -> None:
+    """Refresh Helm nav + status caption — always call alongside a body remount.
+
+    NAV-CHROME-001: Helm chrome and the visible deck body must never disagree.
+    Both refresh only via ``_remount_and_sync_chrome``.
+    """
+    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+    refresh_helm()
+    refresh_status()
+
+
+def _remount_and_sync_chrome() -> None:
+    """Remount the deck body and refresh Helm chrome atomically (NAV-CHROME-001)."""
+    _remount_active_deck()
+    _sync_helm_chrome()
+
+
 def _apply_deck_switch(name: str, *, force: bool = False) -> None:
     """Immediate full switch: session + DSG + remount + Helm/status (NAV-001)."""
     same = name == _SESSION.active_deck
@@ -76,11 +94,7 @@ def _apply_deck_switch(name: str, *, force: bool = False) -> None:
     from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
 
     apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
-    _remount_active_deck()
-    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-
-    refresh_helm()
-    refresh_status()
+    _remount_and_sync_chrome()
 
 
 def _switch_deck(name: str, *, force: bool = False) -> None:
@@ -91,57 +105,24 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
     refreshable slot stayed empty left Helm/`active_deck` updated and the
     previous deck DOM still visible after handoffs and nav clicks.
 
+    NAV-IMMEDIATE-001: every target change remounts body + Helm chrome
+    immediately. Debounced coalesce was removed — mid-burst clicks previously
+    left the body on the prior deck for up to ~60 ms (chrome either ahead or
+    also lagged), which users experienced as deck-switch bugs / delay.
+
     Same-deck clicks no-op unless ``force=True`` (handoffs that mutate session).
-    Rapid non-force clicks: first click remounts immediately; further clicks within
-    ~60 ms update ``active_deck`` + Helm chrome and coalesce to one trailing remount.
-    Generation token (NAV-GEN-001) drops obsolete trailing remounts after force switches.
+    Force always cancels any leftover pending timer and bumps generation
+    (NAV-GEN-001) so stale callbacks cannot remount after recovery/handoff.
     """
     same = name == _SESSION.active_deck
     if same and not force:
         return
 
+    _cancel_pending_deck_remount()
     if force:
-        _cancel_pending_deck_remount()
         _pending_deck_remount["gen"] = int(_pending_deck_remount.get("gen") or 0) + 1
-        _apply_deck_switch(name, force=True)
-        return
 
-    if not same:
-        _SESSION.active_deck = name
-    from ui_nicegui.lib.deck_dsg_hooks import apply_deck_dsg_context, deck_edge_kind_for
-
-    apply_deck_dsg_context(_SESSION, deck_edge_kind_for(name))
-    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-
-    refresh_helm()
-    refresh_status()
-
-    gen = int(_pending_deck_remount.get("gen") or 0)
-    _pending_deck_remount["name"] = name
-    in_burst = _pending_deck_remount.get("timer") is not None
-    if in_burst:
-        _pending_deck_remount["coalesced"] = True
-        return
-
-    # Leading edge: remount now so the first click feels instant (and unit tests see it).
-    _remount_active_deck()
-
-    def _end_burst() -> None:
-        coalesced = bool(_pending_deck_remount.get("coalesced"))
-        _pending_deck_remount["timer"] = None
-        _pending_deck_remount["coalesced"] = False
-        # Drop trailing remount if a force-switch advanced the generation.
-        if int(_pending_deck_remount.get("gen") or 0) != gen:
-            return
-        target = _pending_deck_remount.get("name")
-        if coalesced and isinstance(target, str) and target == _SESSION.active_deck:
-            _remount_active_deck()
-
-    try:
-        _pending_deck_remount["timer"] = ui.timer(_DECK_SWITCH_DEBOUNCE_S, _end_burst, once=True)
-    except Exception:
-        _pending_deck_remount["timer"] = None
-        _pending_deck_remount["coalesced"] = False
+    _apply_deck_switch(name, force=force)
 
 
 @ui.refreshable
@@ -150,8 +131,17 @@ def _render_status_header(session: DesignSession) -> None:
 
 
 def _recover_to_point_designer() -> None:
-    _SESSION.active_deck = "Point Designer"
-    _apply_deck_switch("Point Designer", force=True)
+    """Error-boundary recovery CTA — must go through ``_switch_deck`` (NAV-GEN-001).
+
+    Applying the deck switch directly (bypassing the public entry point, as
+    this used to) skipped the generation-token bump / pending-timer cancel
+    that force switches normally get. A rapid-click burst still in flight
+    when a deck crashed could then fire its stale trailing remount *after*
+    recovery, coalescing back to whatever deck that burst was originally
+    headed to instead of staying on Point Designer, or silently swallowing
+    the next ordinary nav click into that stale burst.
+    """
+    _switch_deck("Point Designer", force=True)
 
 
 @ui.refreshable
