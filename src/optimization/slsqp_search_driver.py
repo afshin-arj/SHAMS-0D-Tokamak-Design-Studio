@@ -1,4 +1,4 @@
-"""SLSQP / SQP-style SearchDriver — Certified Optimizer Phase 2.1.
+"""SLSQP / SQP-style SearchDriver — Certified Optimizer Phase 2.1–2.2.
 
 Bound-constrained continuous search **outside** L0. The driver:
 
@@ -8,9 +8,10 @@ Bound-constrained continuous search **outside** L0. The driver:
   (governance hard-feasible). **No soft negotiation**, no VaryRun-in-L0.
 * Uses SciPy ``SLSQP`` when available; otherwise a deterministic pure-Python
   coordinate-descent fallback (``slsqp_fallback``).
-* Emits a stamp-ready shortlist + CCFS bundle hook (neighborhood re-certify
-  is Phase 2.2; this module may lightly attach ``opt_run_stamp`` meta with
-  ``n_verified=0`` until CCFS runs).
+* Emits a stamp-ready shortlist + CCFS hooks.
+* Phase 2.2: ``certify_best_and_neighborhood`` always re-certifies the
+  reported best **and** a seeded local neighborhood through CCFS
+  (``opt_run_stamp.v1`` attached; REJECTED rows carry ``no_solution_atlas.v1``).
 
 Driver ids: ``slsqp`` | ``slsqp_fallback``.
 """
@@ -36,6 +37,7 @@ from src.optimization.opt_run_stamp import (
 )
 
 SCHEMA = "slsqp_search_result.v1"
+NEIGHBORHOOD_CERTIFY_SCHEMA = "neighborhood_certify.v1"
 
 # Large finite barrier for hard-infeasible proposals (never softens limits).
 _HARD_INFEASIBLE_PENALTY = 1.0e12
@@ -46,6 +48,10 @@ DEFAULT_VARIABLE_BOUNDS: Dict[str, Tuple[float, float]] = {
     "fG": (0.4, 1.1),
     "Paux_MW": (5.0, 80.0),
 }
+
+# Phase 2.2 — local neighborhood around reported best (deterministic, seeded).
+DEFAULT_NEIGHBORHOOD_SIZE = 8
+DEFAULT_NEIGHBORHOOD_STEP_FRAC = 0.05
 
 
 class SlsqpSearchDriverError(ValueError):
@@ -678,10 +684,10 @@ def lightly_certify_shortlist(
     *,
     attach_opt_run_stamp: bool = True,
 ) -> Dict[str, Any]:
-    """Optional light CCFS pass on the proposal shortlist (hook for Phase 2.2).
+    """Light CCFS pass on the proposal shortlist (no neighborhood expansion).
 
-    Does not expand to a neighborhood — that is ticket 2.2. Returns the
-    ``ccfs_verified.v1`` dict from ``verify_ccfs_bundle``.
+    Prefer ``certify_best_and_neighborhood`` for Phase 2.2 publication paths.
+    Returns the ``ccfs_verified.v1`` dict from ``verify_ccfs_bundle``.
     """
     bundle = result.to_ccfs_bundle()
     if not bundle.get("candidates"):
@@ -696,6 +702,264 @@ def lightly_certify_shortlist(
         opt_run=bundle.get("opt_run"),
         attach_opt_run_stamp=attach_opt_run_stamp,
     )
+
+
+def _x_from_inputs(
+    inputs: Mapping[str, Any],
+    names: Sequence[str],
+    bounds: Mapping[str, Tuple[float, float]],
+) -> List[float]:
+    x: List[float] = []
+    for n in names:
+        lo, hi = bounds[n]
+        try:
+            v = float(inputs[n])  # type: ignore[index]
+        except Exception:
+            v = 0.5 * (lo + hi)
+        x.append(min(hi, max(lo, v)))
+    return x
+
+
+def _inputs_key(inputs: Mapping[str, Any], names: Sequence[str]) -> Tuple[float, ...]:
+    vals: List[float] = []
+    for n in names:
+        try:
+            vals.append(round(float(inputs[n]), 8))  # type: ignore[index]
+        except Exception:
+            vals.append(float("nan"))
+    return tuple(vals)
+
+
+def build_neighborhood_proposals(
+    result: SlsqpSearchResult,
+    *,
+    neighborhood_size: int = DEFAULT_NEIGHBORHOOD_SIZE,
+    step_frac: float = DEFAULT_NEIGHBORHOOD_STEP_FRAC,
+    seed: Optional[int] = None,
+) -> Tuple[ProposedCandidate, ...]:
+    """Deterministic local perturbations of the reported best (propose-only).
+
+    Policy
+    ------
+    * Center = ``result.best`` (required).
+    * Continuous vars = ``result.variable_names`` clipped to ``result.bounds``.
+    * Always include axis-aligned ± ``step_frac * span`` steps (when span > 0).
+    * Fill remaining slots with seeded random offsets in ``[-step_frac, +step_frac]``
+      of each span (``random.Random(seed)`` — same seed → same neighbors).
+    * Deduplicate by rounded x-vector; never softens bounds.
+
+    Returns neighbors **excluding** the center (caller adds best separately).
+    """
+    if result.best is None:
+        raise SlsqpSearchDriverError("result.best is required for neighborhood proposals")
+    names = tuple(result.variable_names)
+    if not names:
+        raise SlsqpSearchDriverError("result.variable_names must be non-empty")
+    bounds = dict(result.bounds)
+    for n in names:
+        if n not in bounds:
+            raise SlsqpSearchDriverError(f"missing bounds for variable {n!r}")
+
+    n_want = max(0, int(neighborhood_size))
+    if n_want == 0:
+        return tuple()
+
+    frac = float(step_frac)
+    if not math.isfinite(frac) or frac <= 0.0:
+        raise SlsqpSearchDriverError("step_frac must be a positive finite float")
+
+    seed_i = int(result.seed if seed is None else seed)
+    rng = random.Random(seed_i)
+
+    center_inputs = dict(result.best.inputs)
+    x0 = _x_from_inputs(center_inputs, names, bounds)
+    bound_pairs = [bounds[n] for n in names]
+    spans = [hi - lo for (lo, hi) in bound_pairs]
+
+    # Template base: best inputs, then overlay continuous knobs.
+    try:
+        base_pt = _as_point_inputs(center_inputs)
+    except Exception as exc:
+        raise SlsqpSearchDriverError(
+            f"best.inputs must map to PointInputs: {exc}"
+        ) from exc
+
+    seen = {_inputs_key(center_inputs, names)}
+    neighbors: List[ProposedCandidate] = []
+
+    def _try_add(x_trial: Sequence[float], tag: str) -> None:
+        if len(neighbors) >= n_want:
+            return
+        xc = _clip(x_trial, bound_pairs)
+        inp = _apply_x(base_pt, names, xc)
+        d = _point_to_dict(inp)
+        key = _inputs_key(d, names)
+        if key in seen:
+            return
+        seen.add(key)
+        neighbors.append(
+            ProposedCandidate(
+                id=f"nbr_{len(neighbors):04d}_{tag}",
+                inputs=d,
+                proposed_metric=None,
+                hard_feasible_filter=False,
+                minimize_score=_HARD_INFEASIBLE_PENALTY,
+                rank=len(neighbors),
+            )
+        )
+
+    # Axis-aligned ± steps first (deterministic, seed-independent order).
+    for j, span in enumerate(spans):
+        if len(neighbors) >= n_want:
+            break
+        delta = span * frac
+        if delta <= 0.0:
+            continue
+        for sign, tag in ((+1.0, f"p{j}"), (-1.0, f"m{j}")):
+            trial = list(x0)
+            trial[j] = trial[j] + sign * delta
+            _try_add(trial, tag)
+            if len(neighbors) >= n_want:
+                break
+
+    # Seeded random fill for remaining slots.
+    guard = 0
+    while len(neighbors) < n_want and guard < n_want * 40:
+        guard += 1
+        trial = list(x0)
+        for j, span in enumerate(spans):
+            if span <= 0.0:
+                continue
+            trial[j] = trial[j] + (2.0 * rng.random() - 1.0) * span * frac
+        _try_add(trial, f"r{guard}")
+
+    return tuple(neighbors)
+
+
+def best_and_neighborhood_bundle(
+    result: SlsqpSearchResult,
+    *,
+    neighborhood_size: int = DEFAULT_NEIGHBORHOOD_SIZE,
+    step_frac: float = DEFAULT_NEIGHBORHOOD_STEP_FRAC,
+    seed: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Build ``ccfs_bundle.v1`` with reported best + local neighborhood proposals."""
+    if result.best is None:
+        raise SlsqpSearchDriverError("result.best is required for neighborhood certify")
+
+    neighbors = build_neighborhood_proposals(
+        result,
+        neighborhood_size=neighborhood_size,
+        step_frac=step_frac,
+        seed=seed,
+    )
+    cands: List[Dict[str, Any]] = [
+        {
+            "id": result.best.id,
+            "inputs": dict(result.best.inputs),
+            "claims": {
+                "role": "best",
+                "proposed_metric": result.best.proposed_metric,
+                "hard_feasible_filter": result.best.hard_feasible_filter,
+                "search_driver_id": result.search_driver_id,
+                "status": "PROPOSED",
+            },
+        }
+    ]
+    for nbr in neighbors:
+        cands.append(
+            {
+                "id": nbr.id,
+                "inputs": dict(nbr.inputs),
+                "claims": {
+                    "role": "neighborhood",
+                    "proposed_metric": nbr.proposed_metric,
+                    "search_driver_id": result.search_driver_id,
+                    "status": "PROPOSED",
+                },
+            }
+        )
+    return {
+        "schema_version": "ccfs_bundle.v1",
+        "candidates": cands,
+        "opt_run": {
+            "objective_contract": dict(result.objective_contract),
+            "objective_contract_hash": result.objective_contract_hash,
+            "seed": int(result.seed if seed is None else seed),
+            "search_driver_id": result.search_driver_id,
+        },
+        "neighborhood_policy": {
+            "schema": NEIGHBORHOOD_CERTIFY_SCHEMA,
+            "neighborhood_size": int(neighborhood_size),
+            "step_frac": float(step_frac),
+            "n_neighbors_emitted": len(neighbors),
+            "variable_names": list(result.variable_names),
+            "deterministic": True,
+        },
+    }
+
+
+def certify_best_and_neighborhood(
+    result: SlsqpSearchResult,
+    *,
+    neighborhood_size: int = DEFAULT_NEIGHBORHOOD_SIZE,
+    step_frac: float = DEFAULT_NEIGHBORHOOD_STEP_FRAC,
+    seed: Optional[int] = None,
+    attach_opt_run_stamp: bool = True,
+) -> Dict[str, Any]:
+    """CCFS-certify reported best **and** a local neighborhood (Phase 2.2).
+
+    Every proposal goes through ``verify_ccfs_bundle`` (frozen ``Evaluator``).
+    REJECTED rows carry ``no_solution_atlas.v1`` via existing CCFS paths.
+    ``opt_run_stamp.v1`` is attached by default.
+
+    Returns ``ccfs_verified.v1`` plus ``neighborhood_certify`` summary meta
+    (not a parallel firewall — CCFS remains the sole certifier).
+    """
+    bundle = best_and_neighborhood_bundle(
+        result,
+        neighborhood_size=neighborhood_size,
+        step_frac=step_frac,
+        seed=seed,
+    )
+    policy = dict(bundle.get("neighborhood_policy") or {})
+    try:
+        from extopt.certified_solve import verify_ccfs_bundle  # type: ignore
+    except ImportError:
+        from src.extopt.certified_solve import verify_ccfs_bundle  # type: ignore
+
+    verified = verify_ccfs_bundle(
+        bundle,
+        opt_run=bundle.get("opt_run"),
+        attach_opt_run_stamp=attach_opt_run_stamp,
+    )
+    rows = list(verified.get("verified") or [])
+    best_id = result.best.id if result.best is not None else None
+    best_row = next((r for r in rows if r.get("id") == best_id), None)
+    n_rej = int(verified.get("n_status_rejected") or 0)
+    atlas_on_rejects = all(
+        isinstance(r.get("no_solution_atlas"), Mapping)
+        and str((r.get("no_solution_atlas") or {}).get("schema", "")).startswith(
+            "no_solution_atlas"
+        )
+        for r in rows
+        if r.get("status") == "REJECTED"
+    )
+    verified["neighborhood_certify"] = {
+        "schema": NEIGHBORHOOD_CERTIFY_SCHEMA,
+        "best_id": best_id,
+        "best_status": None if best_row is None else best_row.get("status"),
+        "n_certified": len(rows),
+        "n_neighbors": int(policy.get("n_neighbors_emitted") or 0),
+        "neighborhood_size_requested": int(neighborhood_size),
+        "step_frac": float(step_frac),
+        "atlas_on_all_rejects": bool(atlas_on_rejects) if n_rej > 0 else True,
+        "opt_run_stamp_attached": "opt_run_stamp" in verified,
+        "propose_only_search": True,
+        "certifier": "CCFS",
+        "policy": policy,
+    }
+    return verified
 
 
 # Re-export contract builder for callers that want a one-liner FoM setup.

@@ -74,7 +74,7 @@ SearchDrivers consume the contract; they never rewrite physics to chase the FoM.
 
 ---
 
-## SLSQP / SQP SearchDriver (Phase 2.1)
+## SLSQP / SQP SearchDriver (Phase 2.1–2.2)
 
 Bound-constrained continuous FoM search **outside** L0:
 
@@ -85,9 +85,11 @@ Bound-constrained continuous FoM search **outside** L0:
 | API | `run_slsqp_search(base, objective_contract, variables=..., seed=..., force_fallback=...)` |
 | Output | `slsqp_search_result.v1` shortlist + `to_ccfs_bundle()` + `stamp_ready()` |
 | Hard constraints | SHAMS-evaluated filters / inequalities — **no soft negotiation** |
-| Certification | Propose-only; light hook `lightly_certify_shortlist` → CCFS (neighborhood re-certify = Phase 2.2) |
+| Certification | `lightly_certify_shortlist` (shortlist) · **`certify_best_and_neighborhood`** (Phase 2.2: best + seeded local neighborhood → CCFS; stamp + atlas on rejects) |
 
-Lock tests: `tests/test_slsqp_search_driver.py`.
+Neighborhood policy (`neighborhood_certify.v1`): axis-aligned ±`step_frac`×span steps, then seeded random fill; default size 8; clipped to bounds; deterministic for a fixed seed.
+
+Lock tests: `tests/test_slsqp_search_driver.py`, `tests/test_neighborhood_certify.py`.
 
 ---
 

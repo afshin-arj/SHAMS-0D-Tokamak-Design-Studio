@@ -79,7 +79,8 @@ OPT_LAB_SLSQP_DRIVER_IDS: Tuple[str, ...] = ("slsqp", "slsqp_fallback")
 OPT_LAB_SLSQP_HOOK_NOTE = (
     "Single-objective SLSQP/SQP-style search proposes PointInputs only "
     "(SciPy when available, pure-Python fallback otherwise); "
-    "certify the shortlist with CCFS — never treat driver scores as VERIFIED."
+    "certify the reported best and a local neighborhood with CCFS — "
+    "never treat driver scores as VERIFIED."
 )
 
 # Phrases that must appear in the entry contract (honesty lock).

@@ -43,7 +43,7 @@ ObjectiveContract (hashed, outside L0)
 |-------|--------|-------|
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
 | 1 Opt Lab productization | **DONE** | 1.1–1.4 complete (entry + stamp + honesty + champion warm-start) |
-| 2 Single-objective certified solver | **OPEN** | 2.1 DONE; next 2.2 neighborhood re-certify |
+| 2 Single-objective certified solver | **OPEN** | 2.1–2.2 DONE; next 2.3 determinism locks |
 | 3 Multi-objective certified front | **OPEN** | NSGA-class + atlas-annotated dominatees |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
 | 5 Cite, robust lanes, exit | **OPEN** | Handoff packs; mirage-safe UQ; campaign exit evidence |
@@ -73,7 +73,7 @@ ObjectiveContract (hashed, outside L0)
 | Opt-run stamp | `src/optimization/opt_run_stamp.py` | **1.2 DONE** — `opt_run_stamp.v1` (VERSION, contract hash, driver, counts, stamp SHA); CCFS attaches by default |
 | UI honesty copy | `ui_nicegui/lib/certified_opt_honesty.py` | **1.3 DONE** — shared honesty phrases + deck banners; lock tests |
 | Anti L0-opt guards | `src/optimization/l0_opt_guards.py` | **0.3 DONE** — AST forbidden-import scan; lock tests |
-| SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1 DONE** — bound-constrained SLSQP / pure-Python fallback; propose-only shortlist + CCFS hook |
+| SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1–2.2 DONE** — bound-constrained SLSQP / fallback; `certify_best_and_neighborhood` (best + seeded local neighborhood → CCFS + stamp + atlas) |
 | Surrogate accel | `src/extopt/surrogate_accel.py` | Propose-only acceleration |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Citation unit for verified set |
 | Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Surfaces to unify into Opt Lab |
@@ -120,7 +120,7 @@ ObjectiveContract (hashed, outside L0)
 | # | Ticket | Done when |
 |---|--------|-----------|
 | 2.1 | SLSQP/SQP SearchDriver | **DONE** (2026-07-19) — `src/optimization/slsqp_search_driver.py`: bound-constrained continuous SearchDriver (`slsqp` via SciPy SLSQP; `slsqp_fallback` pure-Python coordinate descent). Hard constraints = SHAMS-evaluated filters/inequalities (governance feasible + margin ineq); **no soft negotiation**. Wires `ObjectiveContract` + stamp-ready shortlist (`stamp_ready` / `to_ccfs_bundle` / optional `lightly_certify_shortlist`). Driver ids on `opt_run_stamp.KNOWN_DRIVER_IDS`. Minimal Opt Lab hook note. Lock tests: `tests/test_slsqp_search_driver.py`. L0 untouched. |
-| 2.2 | Best + neighborhood re-certify | Reported best **and** local neighborhood always go through CCFS; atlas on rejects |
+| 2.2 | Best + neighborhood re-certify | **DONE** (2026-07-19) — `certify_best_and_neighborhood` / `build_neighborhood_proposals` / `best_and_neighborhood_bundle` in `slsqp_search_driver.py`. Reported best + seeded local neighborhood (axis ±`step_frac`×span then random fill; default size 8) always through existing CCFS (`verify_ccfs_bundle`); `opt_run_stamp.v1` attached; REJECTED rows carry `no_solution_atlas.v1`. Meta schema `neighborhood_certify.v1`. Opt Lab hook note + deck copy updated. Lock tests: `tests/test_neighborhood_certify.py`. L0 untouched. |
 | 2.3 | Lock tests + determinism | Same seed + contract + bounds → same certified shortlist hashes (within documented float policy) |
 
 **Delegates:** `/developer`, `/architect`, `/debugger`, `/fusion-performance`
@@ -179,9 +179,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **2.2** — Best + neighborhood re-certify  
-2. **2.3** — Lock tests + determinism  
-3. **3.1** — NSGA-class / MOEA SearchDriver
+1. **2.3** — Lock tests + determinism  
+2. **3.1** — NSGA-class / MOEA SearchDriver  
+3. **3.2** — Atlas-annotated dominatees
 
 ## Overclaim check
 
