@@ -5,7 +5,7 @@ from nicegui import ui
 
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.decks.point_designer.pd_physics_deepening import DEEP_VIEWS, render_physics_deepening
-from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes
+from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes, hero_kpi_cells
 from ui_nicegui.lib.pd_parity_helpers import (
     assumptions_snapshot,
     authority_contract_rows,
@@ -17,7 +17,6 @@ from ui_nicegui.lib.pd_parity_helpers import (
     fmt_num,
     fuel_cycle_caps_caption,
     fuel_cycle_metric_groups,
-    headline_kpi_pairs,
     infeasibility_trace,
     magnet_card_metrics,
     avail_v420_summary,
@@ -51,11 +50,20 @@ def render_mission_snapshot(session: DesignSession) -> None:
         fuel_mode=str(session.inputs.get("fuel_mode", "DT")),
         headline=headline,
     ):
-        ui.label(note).classes("text-caption text-orange q-mb-sm")
+        ui.markdown(note).classes("text-caption text-orange q-mb-sm")
 
-    kpis = headline_kpi_pairs(out)
-    for i in range(0, len(kpis), 4):
-        kpi_row([(lab, val) for lab, val in kpis[i : i + 4]])
+    # PHYS-KPI-001: use hero cells (suppress Q/H98/Pfus/P_net claims on INFEASIBLE).
+    cells = hero_kpi_cells(
+        out,
+        summary,
+        design_intent=str(session.design_intent),
+        fuel_mode=str(session.inputs.get("fuel_mode", "DT")),
+        headline=headline,
+    )
+    kpi_row([(c.label, c.display) for c in cells])
+    ui.label(
+        "Q = Pfus / P_aux (auxiliary heating only). n·T is a pressure proxy, not Lawson n·T·τE."
+    ).classes("text-caption text-grey q-mb-sm")
 
     trace = infeasibility_trace(out)
     if trace:

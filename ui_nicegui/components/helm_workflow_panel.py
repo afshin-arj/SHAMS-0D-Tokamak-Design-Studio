@@ -6,6 +6,7 @@ from typing import Callable
 from nicegui import ui
 
 from ui_nicegui.lib.deck_workflow import DECK_WORKFLOW_STEP, deck_nav_short_label
+from ui_nicegui.decks.labels import DECK_LABELS
 from ui_nicegui.lib.helm_labels import HELM_NAV_GROUPS
 from ui_nicegui.lib.helm_workflow_guide import (
     DECK_NOW_ACTIONS,
@@ -31,7 +32,9 @@ def render_workflow_compass(
     progress = workflow_progress(session)
 
     ui.label("Study workflow").classes("text-subtitle2 text-weight-bold q-mb-xs")
-    ui.label(f"Phase {phase} · {phase_title(phase)} · deck {step}/10").classes("text-caption q-mb-sm")
+    ui.label(
+        f"Phase {phase} · {phase_title(phase)} · deck {step}/{len(DECK_LABELS)}"
+    ).classes("text-caption q-mb-sm")
 
     with ui.row().classes("w-full gap-1 q-mb-sm flex-wrap items-center"):
         for i, (title, _) in enumerate(WORKFLOW_PHASES, start=1):

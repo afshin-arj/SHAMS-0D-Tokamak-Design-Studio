@@ -86,6 +86,11 @@ def _render_templates(session: DesignSession, *, on_refresh=None) -> None:
             on_refresh()
 
     ui.button("Load template into Point Designer", on_click=_load_template).classes("q-mt-sm")
+    ui.label(
+        "Industrial templates apply a **partial merge** of listed keys only — residual "
+        "inputs (e.g. Zeff, δ, confinement scaling) from the prior machine are retained. "
+        "For a full clean basis, load a Champion / reference preset from Helm or Studio entry."
+    ).classes("text-caption text-orange q-mb-sm")
 
 
 def _render_section_body(session: DesignSession, section_id: str) -> None:
@@ -249,11 +254,36 @@ def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) ->
     seed_overlay_defaults(session.overlay)
 
     ui.label("Control Deck").classes("text-subtitle1")
-    ui.button(
-        "New machine (clear Point Designer)",
-        icon="delete_sweep",
-        on_click=lambda: (clear_point_designer(session), ui.notify("Point Designer cleared.", type="info")),
-    ).props("outline").classes("q-mb-sm")
+    with ui.row().classes("w-full items-center gap-2 q-mb-sm flex-wrap"):
+        ui.checkbox(
+            "Confirm clear evaluation history",
+            value=bool(getattr(session, "pd_clear_confirm", False)),
+            on_change=lambda e: setattr(session, "pd_clear_confirm", bool(e.value)),
+        )
+
+        def _clear_pd() -> None:
+            if not bool(getattr(session, "pd_clear_confirm", False)):
+                ui.notify("Check Confirm clear evaluation history first.", type="warning")
+                return
+            clear_point_designer(session)
+            session.pd_clear_confirm = False
+            ui.notify(
+                "Cleared Point Designer evaluation history (outputs/artifacts). "
+                "Machine inputs were not reset.",
+                type="info",
+            )
+            if on_refresh:
+                on_refresh()
+
+        ui.button(
+            "Clear evaluation history",
+            icon="delete_sweep",
+            on_click=_clear_pd,
+        ).props("outline")
+    ui.label(
+        "Clears last evaluate outputs, artifacts, and forensics — does **not** reset machine inputs. "
+        "Use Templates / presets for a clean basis."
+    ).classes("text-caption text-grey q-mb-sm")
 
     render_design_governance(session)
 

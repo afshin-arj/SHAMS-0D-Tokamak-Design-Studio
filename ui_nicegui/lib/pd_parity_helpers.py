@@ -78,8 +78,13 @@ def failed_hard_names(out: Dict[str, Any]) -> List[str]:
     ]
 
 
-def headline_kpi_pairs(out: Dict[str, Any]) -> List[Tuple[str, str]]:
-    return headline_kpis(out)
+def headline_kpi_pairs(
+    out: Dict[str, Any],
+    *,
+    hard_feasible: Optional[bool] = None,
+) -> List[Tuple[str, str]]:
+    """Compatibility wrapper — prefer hero_kpi_cells for PHYS-KPI-001 surfaces."""
+    return headline_kpis(out, hard_feasible=hard_feasible)
 
 
 def infeasibility_trace(out: Dict[str, Any]) -> List[Dict[str, Any]]:

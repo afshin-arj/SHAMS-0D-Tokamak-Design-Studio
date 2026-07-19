@@ -683,9 +683,32 @@ def _render_chronicle(session: DesignSession) -> None:
         if not session.shams_exit_confirm:
             ui.notify("Check Confirm exit first.", type="warning")
             return
+        locked, task, _holder = runlock_global_status()
+        busy = bool(
+            session.evaluating
+            or session.forge_mf_running
+            or session.suite_running
+            or session.pub_running
+            or session.pub_atlas_running
+            or session.pub_atlas_fragility_running
+            or session.pub_bench_running
+            or locked
+        )
+        if busy and not bool(getattr(session, "shams_exit_force_busy", False)):
+            ui.notify(
+                f"A run is still active ({task or 'evaluation'}). "
+                "Check 'Force exit while busy' to kill the process anyway.",
+                type="warning",
+            )
+            return
         log_ui_event(session, "UI", "ExitRequested", {})
         os._exit(0)
 
+    ui.checkbox(
+        "Force exit while busy (kills in-flight runs)",
+        value=bool(getattr(session, "shams_exit_force_busy", False)),
+        on_change=lambda e: setattr(session, "shams_exit_force_busy", bool(e.value)),
+    )
     ui.button(
         "Exit SHAMS",
         on_click=_exit,

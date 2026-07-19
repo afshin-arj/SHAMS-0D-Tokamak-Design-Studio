@@ -668,7 +668,7 @@ def _inst_economics_deck(ctx: ForgeContext) -> InstrumentView:
                 else "LCOE watermarked — candidate is INFEASIBLE (proxy bookkeeping only)."
             ),
             kpis=[
-                ("CAPEX MUSD", f"{derived.get('CAPEX_MUSD', float('nan')):.3g}"),
+                ("CAPEX MUSD (proxy)", f"{derived.get('CAPEX_MUSD', float('nan')):.3g}"),
                 ("LCOE", lcoe_disp),
             ],
             json_blob={"envelope": env, "base": base},

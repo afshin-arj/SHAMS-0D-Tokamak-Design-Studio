@@ -88,7 +88,7 @@ def render_posture_strip(
         "feasible": str(verdict).upper() in ("FEASIBLE", "PASS", "PASS+DIAG"),
         "verdict": str(verdict or "UNKNOWN"),
         "q_label": f"Q={fmt(kpis.get('Q'))}",
-        "nt_label": "nτE=n/a",
+        "nt_label": "n·T=n/a",
     }
     cells = hero_kpi_cells(
         out if out else {

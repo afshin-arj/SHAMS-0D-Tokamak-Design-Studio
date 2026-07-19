@@ -86,12 +86,16 @@ def render_hero(session: DesignSession) -> None:
 
     beta = out.get("betaN", out.get("beta_N"))
     fg = out.get("fG", out.get("greenwald_fraction"))
-    q95 = out.get("q95")
+    # L0 writes q95_proxy (cylindrical screening), not a plain "q95" key.
+    q95 = out.get("q95", out.get("q95_proxy"))
     kpi_row([
         ("β_N", _fmt_num(beta) + _constraint_headroom(out, ["betaN", "beta_n", "betaN_proxy"])),
         ("f_G", _fmt_num(fg) + _constraint_headroom(out, ["fG", "fg", "greenwald"])),
         ("q95 (cyl. proxy)", _fmt_num(q95) + _constraint_headroom(out, ["q95", "q95_min"])),
     ])
+    ui.label(
+        "Q uses Pfus / P_aux (auxiliary heating only). q95 is a cylindrical proxy, not an equilibrium solve."
+    ).classes("text-caption text-grey q-mb-xs")
 
     for note in hero_diagnostic_notes(
         out,

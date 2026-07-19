@@ -18,7 +18,7 @@ def render_governance_verdict(summary: dict) -> None:
         ("Verdict", summary.get("point_verdict", "-")),
         ("Dominant", summary.get("dominant", "-")),
         ("Mechanism", summary.get("mechanism", "-")),
-        ("Q / nτE", summary.get("q_label", "-")),
+        ("Q / n·T", summary.get("q_label", "-")),
         ("Pfus", summary.get("pfus_label", "-")),
         ("Design class", summary.get("design_class", "-")),
         ("Hard feasible", fh_label),

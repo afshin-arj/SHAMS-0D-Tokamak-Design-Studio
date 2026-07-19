@@ -345,7 +345,9 @@ class DesignSession:
     helm_verify_dt: Optional[float] = None
     helm_verify_running: bool = False
     shams_exit_confirm: bool = False
+    shams_exit_force_busy: bool = False
     shams_clear_log_confirm: bool = False
+    pd_clear_confirm: bool = False
     _activity_logger: Optional[Any] = field(default=None, repr=False)
     _activity_log_inited: bool = field(default=False, repr=False)
     # Design State Graph (exploration layer)

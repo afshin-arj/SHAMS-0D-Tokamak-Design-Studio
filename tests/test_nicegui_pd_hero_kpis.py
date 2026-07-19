@@ -14,7 +14,7 @@ def _summary_infeasible() -> dict:
         "verdict": "INFEASIBLE",
         "dominant": "q_div",
         "q_label": "Q=679",
-        "nt_label": "nτE≈1.2e21",
+        "nt_label": "n·T≈1.2e21",
         "subsystems": {},
     }
 
@@ -74,7 +74,7 @@ def test_hero_shows_kpis_when_feasible() -> None:
         "feasible": True,
         "verdict": "FEASIBLE",
         "q_label": "Q=2.50",
-        "nt_label": "nτE≈1e21",
+        "nt_label": "n·T≈1e21",
         "subsystems": {},
     }
     cells = hero_kpi_cells(out, summary, design_intent="Power Reactor (net-electric)")
@@ -83,6 +83,7 @@ def test_hero_shows_kpis_when_feasible() -> None:
     assert by_label["H98(y,2)"].suppressed is False
     assert "120" in by_label["P_net,e"].display
     assert "400" in by_label["Pfus"].display
+    assert "n·T (pressure proxy)" in by_label
 
 
 def test_confidence_preset_overwrites_knobs() -> None:
