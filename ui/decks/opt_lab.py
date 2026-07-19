@@ -25,6 +25,10 @@ def render_opt_lab(st_module: Any) -> None:
     st.caption(OPT_LAB_TAGLINE)
     st.info(OPT_LAB_PITCH)
     st.warning(OPT_LAB_HONESTY_LINE)
+    st.caption(
+        "Run stamps (opt_run_stamp.v1) attach on CCFS verify — "
+        "VERSION + ObjectiveContract hash + VERIFIED/REJECTED counts."
+    )
 
     st.subheader("Three steps to a certified search")
     for idx, step in enumerate(OPT_LAB_STEPS, start=1):

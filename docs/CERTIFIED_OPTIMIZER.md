@@ -5,7 +5,7 @@
 
 This page is the studio contract for **philosophy-safe optimization**. Optimization is a **studio capability**, not a truth capability. L0 remains frozen: `Evaluator.evaluate()` → `hot_ion_point()` — same inputs → same outputs; NO-SOLUTION is valid.
 
-**Related:** `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` · `src/extopt/certified_solve.py` (CCFS) · `src/optimization/objective_contract.py` (`objective_contract.v1`) · `docs/CITE_SHAMS_HANDOFF.md` · independence campaign `docs/PROCESS_SURPASS_ROADMAP.md` (orthogonal — do not blur)
+**Related:** `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` · `src/extopt/certified_solve.py` (CCFS) · `src/optimization/objective_contract.py` (`objective_contract.v1`) · `src/optimization/opt_run_stamp.py` (`opt_run_stamp.v1`) · `docs/CITE_SHAMS_HANDOFF.md` · independence campaign `docs/PROCESS_SURPASS_ROADMAP.md` (orthogonal — do not blur)
 
 ---
 

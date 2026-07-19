@@ -42,7 +42,7 @@ ObjectiveContract (hashed, outside L0)
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
-| 1 Opt Lab productization | **OPEN** | 1.1 DONE — entry surface; 1.2–1.4 remain |
+| 1 Opt Lab productization | **OPEN** | 1.1–1.2 DONE; 1.3–1.4 remain |
 | 2 Single-objective certified solver | **OPEN** | SQP/SLSQP propose-only; neighborhood re-certify |
 | 3 Multi-objective certified front | **OPEN** | NSGA-class + atlas-annotated dominatees |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
@@ -69,6 +69,7 @@ ObjectiveContract (hashed, outside L0)
 | Lightweight opt | `src/solvers/optimize.py` | LHS / random / Pareto helpers |
 | Objectives registry | `src/optimization/objectives.py` | FoM names (bridge via `from_registry_name`) |
 | ObjectiveContract | `src/optimization/objective_contract.py` | **0.1 DONE** — `objective_contract.v1` + SHA-256 stamp |
+| Opt-run stamp | `src/optimization/opt_run_stamp.py` | **1.2 DONE** — `opt_run_stamp.v1` (VERSION, contract hash, driver, counts, stamp SHA); CCFS attaches by default |
 | Anti L0-opt guards | `src/optimization/l0_opt_guards.py` | **0.3 DONE** — AST forbidden-import scan; lock tests |
 | Surrogate accel | `src/extopt/surrogate_accel.py` | Propose-only acceleration |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Citation unit for verified set |
@@ -99,7 +100,7 @@ ObjectiveContract (hashed, outside L0)
 | # | Ticket | Done when |
 |---|--------|-----------|
 | 1.1 | Opt Lab entry surface | **DONE** (2026-07-19) — NiceGUI deck **Opt Lab** + Streamlit cheap parity: three-step propose→CCFS path, honesty copy (**Proposed — SHAMS-certified**, never true minimum), routes into Systems Mode / Pareto Lab / Control Room Certified Search (no deck duplication); Launchpad + Helm nav; mode scope `opt_lab`; lock tests `tests/test_opt_lab_entry.py`. L0 untouched. |
-| 1.2 | Run artifact stamp | Every opt run stores VERSION, objective-contract hash, seed, search driver id, candidate count, VERIFIED/REJECTED counts, pack SHA |
+| 1.2 | Run artifact stamp | **DONE** (2026-07-19) — `src/optimization/opt_run_stamp.py`: `opt_run_stamp.v1` (SHAMS VERSION, `objective_contract.v1` hash, seed, search driver id, candidate/VERIFIED/REJECTED counts, stamp SHA-256 + optional pack SHA); CCFS `verify_ccfs_bundle` attaches stamp by default (`ccfs_verify` driver); Opt Lab entry surfaces last-run stamp summary; Streamlit Control Room CCFS caption; lock tests `tests/test_opt_run_stamp_v1.py`. L0 untouched. |
 | 1.3 | UI honesty copy | Labels/tooltips never claim true minimum; VERIFIED vs REJECTED + atlas for rejects; no `vNNN` in labels |
 | 1.4 | Champion warm-start | One-click load champion `PointInputs` as search seed (propose-only; user/run still certifies) |
 
@@ -175,9 +176,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **1.2** — Run artifact stamp  
-2. **1.3** — UI honesty copy  
-3. **1.4** — Champion warm-start  
+1. **1.3** — UI honesty copy  
+2. **1.4** — Champion warm-start  
+3. **2.1** — SLSQP/SQP SearchDriver  
 
 ## Overclaim check
 

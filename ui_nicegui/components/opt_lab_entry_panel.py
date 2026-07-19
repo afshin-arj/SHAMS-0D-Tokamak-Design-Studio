@@ -17,6 +17,7 @@ from ui_nicegui.lib.opt_lab_entry import (
     OPT_LAB_TAGLINE,
     OPT_LAB_TITLE,
     apply_opt_lab_route_session,
+    opt_lab_last_run_stamp_summary,
 )
 from ui_nicegui.session import DesignSession
 
@@ -47,6 +48,9 @@ def render_opt_lab_entry(session: DesignSession) -> None:
         ui.label(OPT_LAB_TAGLINE).classes("text-body2 q-mb-xs")
         ui.label(OPT_LAB_PITCH).classes("text-caption text-grey q-mb-sm")
         ui.label(OPT_LAB_HONESTY_LINE).classes("text-caption text-orange q-mb-sm")
+        ui.label(opt_lab_last_run_stamp_summary(session)).classes(
+            "text-caption text-grey q-mb-sm"
+        )
 
         ui.label("Three steps to a certified search").classes("text-subtitle2")
         for idx, step in enumerate(OPT_LAB_STEPS, start=1):

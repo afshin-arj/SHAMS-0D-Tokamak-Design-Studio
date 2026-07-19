@@ -1,18 +1,18 @@
-"""Opt Lab entry contract — Certified Optimizer Phase 1.1.
+"""Opt Lab entry contract — Certified Optimizer Phase 1.1–1.2.
 
 Pure helpers (no NiceGUI imports) so the entry surface is lock-testable:
-deck identity, three-step certified-search path, honesty phrases, and
+deck identity, three-step certified-search path, honesty phrases,
 route targets into existing Systems Mode / Pareto Lab / Control Room
-Certified Search surfaces. Does not implement SearchDrivers or run stamps
-(those are later Phase 1–2 tickets).
+Certified Search surfaces, and a cheap last-run stamp summary (Phase 1.2).
 
-L0 risk: none — navigation and copy only; certification remains CCFS /
-frozen Evaluator. No user-facing label may carry internal version tags
-(``vNNN``). Does not claim PROCESS retirement or an authoritative optimum.
+L0 risk: none — navigation, copy, and stamp display only; certification
+remains CCFS / frozen Evaluator. No user-facing label may carry internal
+version tags (``vNNN``). Does not claim PROCESS retirement or an
+authoritative optimum.
 """
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 
 # Deck display name — registered in DECK_LABELS / Helm nav.
 OPT_LAB_DECK = "Opt Lab"
@@ -109,3 +109,20 @@ def apply_opt_lab_route_session(session: object, hook_id: str) -> None:
         session.systems_workflow_step = "3 · Alternatives"  # type: ignore[attr-defined]
     elif hook_id == "pareto_lab":
         session.pareto_workflow_step = "1 · Setup & Run"  # type: ignore[attr-defined]
+
+
+def store_opt_lab_last_run_stamp(session: object, stamp: Mapping[str, Any]) -> None:
+    """Persist last ``opt_run_stamp.v1`` dict on the UI session (propose-only meta)."""
+    session.opt_lab_last_run_stamp = dict(stamp)  # type: ignore[attr-defined]
+
+
+def get_opt_lab_last_run_stamp(session: object) -> Optional[Mapping[str, Any]]:
+    raw = getattr(session, "opt_lab_last_run_stamp", None)
+    return dict(raw) if isinstance(raw, Mapping) else None
+
+
+def opt_lab_last_run_stamp_summary(session: object) -> str:
+    """Cheap one-line summary for the Opt Lab entry panel."""
+    from src.optimization.opt_run_stamp import format_opt_run_stamp_summary
+
+    return format_opt_run_stamp_summary(get_opt_lab_last_run_stamp(session))

@@ -298,3 +298,37 @@ def test_integration_sparc_neighborhood_not_verified_when_hard_fails():
         if out["verified"][0]["status"] == "VERIFIED":
             assert out["verified"][0]["constraints_summary"]["feasible"] is True
             assert out["verified"][0]["constraints_summary"]["n_hard_failed"] == 0
+
+
+def test_ccfs_attaches_opt_run_stamp_by_default(patch_ccfs):
+    """Phase 1.2: every CCFS verify result carries opt_run_stamp.v1."""
+    out = verify_ccfs_bundle(_bundle())
+    stamp = out["opt_run_stamp"]
+    assert stamp["schema"] == "opt_run_stamp.v1"
+    assert stamp["search_driver_id"] == "ccfs_verify"
+    assert stamp["n_candidates"] == 1
+    assert stamp["n_verified"] + stamp["n_rejected"] == 1
+    assert len(stamp["objective_contract_hash"]) == 64
+    assert len(stamp["stamp_sha256"]) == 64
+    assert stamp["shams_version"]
+
+
+def test_ccfs_opt_run_meta_links_contract_hash(patch_ccfs):
+    from src.optimization.objective_contract import from_registry_name
+
+    contract = from_registry_name("max_Pnet", seed=11, seed_policy="fixed")
+    out = verify_ccfs_bundle(
+        _bundle(),
+        opt_run={
+            "objective_contract": contract.to_dict(),
+            "seed": 11,
+            "search_driver_id": "ccfs_verify",
+        },
+    )
+    assert out["opt_run_stamp"]["objective_contract_hash"] == contract.hash_sha256()
+    assert out["opt_run_stamp"]["seed"] == 11
+
+
+def test_ccfs_can_skip_opt_run_stamp(patch_ccfs):
+    out = verify_ccfs_bundle(_bundle(), attach_opt_run_stamp=False)
+    assert "opt_run_stamp" not in out

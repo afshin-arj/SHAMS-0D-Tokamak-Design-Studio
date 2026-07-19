@@ -109,6 +109,7 @@ def test_opt_lab_nicegui_and_streamlit_surfaces() -> None:
     )
     assert "OPT_LAB_STEPS" in panel
     assert "OPT_LAB_ROUTES" in panel
+    assert "opt_lab_last_run_stamp_summary" in panel
 
     streamlit = (ROOT / "ui" / "decks" / "opt_lab.py").read_text(encoding="utf-8")
     assert "OPT_LAB_STEPS" in streamlit
@@ -135,10 +136,51 @@ def test_opt_lab_launchpad_and_workflow() -> None:
     assert "opt_lab" in MODE_SCOPE
 
 
+def test_opt_lab_last_run_stamp_helpers() -> None:
+    from ui_nicegui.lib.opt_lab_entry import (
+        get_opt_lab_last_run_stamp,
+        opt_lab_last_run_stamp_summary,
+        store_opt_lab_last_run_stamp,
+    )
+    from ui_nicegui.session import DesignSession
+    from src.optimization.opt_run_stamp import build_opt_run_stamp
+    from src.optimization.objective_contract import from_registry_name
+
+    session = DesignSession()
+    empty = opt_lab_last_run_stamp_summary(session)
+    assert "No opt-run stamp" in empty
+    assert get_opt_lab_last_run_stamp(session) is None
+
+    stamp = build_opt_run_stamp(
+        search_driver_id="ccfs_verify",
+        n_candidates=2,
+        n_verified=1,
+        n_rejected=1,
+        objective_contract=from_registry_name("max_Pnet", seed=1, seed_policy="fixed"),
+        seed=1,
+        shams_version="test.0.0",
+    ).to_dict()
+    store_opt_lab_last_run_stamp(session, stamp)
+    assert get_opt_lab_last_run_stamp(session)["stamp_sha256"] == stamp["stamp_sha256"]
+    summary = opt_lab_last_run_stamp_summary(session)
+    assert "VERIFIED=1" in summary
+    assert "REJECTED=1" in summary
+    assert not _VERSION_TAG.search(summary)
+
+
 def test_roadmap_marks_1_1() -> None:
     roadmap = (ROOT / "docs" / "CERTIFIED_OPTIMIZER_ROADMAP.md").read_text(encoding="utf-8")
     assert "1.1" in roadmap
     # After ship this test expects DONE; written to pass once roadmap is updated.
     assert re.search(r"1\.1\s*\|[^|]*\|\s*\*\*DONE\*\*", roadmap) or (
         "**DONE**" in roadmap and "Opt Lab entry" in roadmap
+    )
+
+
+def test_roadmap_marks_1_2() -> None:
+    roadmap = (ROOT / "docs" / "CERTIFIED_OPTIMIZER_ROADMAP.md").read_text(encoding="utf-8")
+    assert "1.2" in roadmap
+    assert "opt_run_stamp" in roadmap or "Run artifact stamp" in roadmap
+    assert re.search(r"1\.2\s*\|[^|]*\|\s*\*\*DONE\*\*", roadmap) or (
+        "**DONE**" in roadmap and "Run artifact stamp" in roadmap
     )

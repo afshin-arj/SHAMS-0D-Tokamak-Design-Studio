@@ -41,7 +41,8 @@ The JSON bundle is intentionally lightweight and stable:
 Returns:
 {
   "schema_version": "ccfs_verified.v1",
-  "verified": [ {"id":..., "status": "VERIFIED|REJECTED", ... } ]
+  "verified": [ {"id":..., "status": "VERIFIED|REJECTED", ... } ],
+  "opt_run_stamp": { ... opt_run_stamp.v1 ... }   # Phase 1.2 (default)
 }
 """
 
@@ -135,7 +136,13 @@ def _decision_status(
     return "VERIFIED", ""
 
 
-def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def verify_ccfs_bundle(
+    bundle: Dict[str, Any],
+    *,
+    default_request: Optional[Dict[str, Any]] = None,
+    opt_run: Optional[Dict[str, Any]] = None,
+    attach_opt_run_stamp: bool = True,
+) -> Dict[str, Any]:
     """Verify a CCFS candidate bundle against frozen truth.
 
     Firewall invariants
@@ -144,6 +151,13 @@ def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict
     - VERIFIED implies hard-feasible under governance constraints
       (`constraints_summary.feasible is True` and `n_hard_failed == 0`).
     - Soft-only failures may still be VERIFIED.
+
+    Opt Lab Phase 1.2: when ``attach_opt_run_stamp`` is True (default), the
+    result includes ``opt_run_stamp`` (``opt_run_stamp.v1``) with VERSION,
+    ObjectiveContract hash, driver id ``ccfs_verify``, counts, and stamp SHA.
+    Pass ``opt_run`` (or ``bundle['opt_run']``) with optional keys
+    ``objective_contract`` / ``objective_contract_hash`` / ``seed`` /
+    ``search_driver_id`` / ``shams_version``. FoM never enters L0.
     """
     if not isinstance(bundle, dict):
         raise TypeError("bundle must be a dict")
@@ -283,7 +297,7 @@ def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict
     n_verified = sum(1 for v in verified if str(v.get("status")) == "VERIFIED")
     n_rejected = int(len(verified) - n_verified)
 
-    return {
+    out: Dict[str, Any] = {
         "schema_version": "ccfs_verified.v1",
         "n_candidates": int(len(cands)),
         "n_status_verified": int(n_verified),
@@ -295,3 +309,28 @@ def verify_ccfs_bundle(bundle: Dict[str, Any], *, default_request: Optional[Dict
         },
         "verified": verified,
     }
+
+    if attach_opt_run_stamp:
+        try:
+            from src.optimization.opt_run_stamp import (
+                DRIVER_CCFS_VERIFY,
+                resolve_opt_run_meta_from_bundle,
+                stamp_ccfs_verified,
+            )
+        except ImportError:
+            from optimization.opt_run_stamp import (  # type: ignore
+                DRIVER_CCFS_VERIFY,
+                resolve_opt_run_meta_from_bundle,
+                stamp_ccfs_verified,
+            )
+        meta = resolve_opt_run_meta_from_bundle(bundle, opt_run=opt_run)
+        stamp_ccfs_verified(
+            out,
+            objective_contract=meta.get("objective_contract"),
+            objective_contract_hash=meta.get("objective_contract_hash"),
+            seed=meta.get("seed"),
+            search_driver_id=str(meta.get("search_driver_id") or DRIVER_CCFS_VERIFY),
+            shams_version=meta.get("shams_version"),
+        )
+
+    return out

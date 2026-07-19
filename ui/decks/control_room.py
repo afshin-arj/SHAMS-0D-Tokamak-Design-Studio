@@ -3755,8 +3755,19 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 if st.button("Verify CCFS bundle", use_container_width=True, key="ccfs_btn_v294"):
                     try:
                         from extopt.certified_solve import verify_ccfs_bundle
-                        res = verify_ccfs_bundle(b, default_request={"phase_envelope": bool(do_phase), "uq_contracts": bool(do_uq)})
+                        from src.optimization.opt_run_stamp import format_opt_run_stamp_summary
+
+                        res = verify_ccfs_bundle(
+                            b,
+                            default_request={
+                                "phase_envelope": bool(do_phase),
+                                "uq_contracts": bool(do_uq),
+                            },
+                        )
                         st.success("CCFS verification complete.")
+                        stamp = res.get("opt_run_stamp") if isinstance(res, dict) else None
+                        if isinstance(stamp, dict):
+                            st.caption(format_opt_run_stamp_summary(stamp))
                         st.json(res, expanded=False)
                         _v98_record_run("ccfs_verify", res, mode="ControlRoom/Diagnostics")
                     except Exception as e:
