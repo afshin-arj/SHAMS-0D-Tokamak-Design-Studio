@@ -1,8 +1,8 @@
-"""Opt Lab deck — certified-search entry surface (Certified Optimizer 1.1–2.2).
+"""Opt Lab deck — certified-search entry surface (Certified Optimizer 1.1–3.1).
 
 Thin hub: three-step path + honesty copy + champion warm-start + routes into
 Systems Mode, Pareto Lab, and Control Room Certified Search. SearchDrivers
-propose only; best + neighborhood re-certify via CCFS (Phase 2.2).
+propose only; SLSQP neighborhood and NSGA-II fronts re-certify via CCFS.
 This deck does not claim an authoritative optimum.
 """
 from __future__ import annotations
@@ -27,7 +27,9 @@ def render_opt_lab(session: DesignSession) -> None:
         ui.markdown(
             "- **SLSQP SearchDriver** — propose-only continuous FoM search "
             "(best + neighborhood always re-certified by CCFS)\n"
-            "- **NSGA / multi-objective** — feasible certified front (Phase 3)\n\n"
+            "- **NSGA-II SearchDriver** — propose-only multi-objective front "
+            "(feasible-first; CCFS-certify shortlist; atlas dominatees next)\n"
+            "- **Pareto Lab unify** — one certified-front viewer (Phase 3.3)\n\n"
             "Champion warm-start, run stamps, honesty copy, and neighborhood "
             "re-certify hooks are on this hub. Every path still proposes only "
             "and re-evaluates through frozen truth."

@@ -37,7 +37,7 @@ from src.optimization.objective_contract import (
 
 SCHEMA = "opt_run_stamp.v1"
 
-# Known propose-only driver identifiers (Phase 1–2; NSGA arrives in Phase 3).
+# Known propose-only driver identifiers (Phase 1–3).
 DRIVER_CCFS_VERIFY = "ccfs_verify"
 DRIVER_LHS = "lhs"
 DRIVER_PARETO = "pareto"
@@ -46,6 +46,8 @@ DRIVER_BUDGETED_SEARCH = "budgeted_search"
 DRIVER_CERTIFIED_SEARCH = "certified_search"
 DRIVER_SLSQP = "slsqp"
 DRIVER_SLSQP_FALLBACK = "slsqp_fallback"
+DRIVER_NSGA2 = "nsga2"
+DRIVER_NSGA2_FALLBACK = "nsga2_fallback"
 
 KNOWN_DRIVER_IDS = frozenset(
     {
@@ -57,6 +59,8 @@ KNOWN_DRIVER_IDS = frozenset(
         DRIVER_CERTIFIED_SEARCH,
         DRIVER_SLSQP,
         DRIVER_SLSQP_FALLBACK,
+        DRIVER_NSGA2,
+        DRIVER_NSGA2_FALLBACK,
     }
 )
 
@@ -421,6 +425,10 @@ __all__ = [
     "DRIVER_RANDOM_SEARCH",
     "DRIVER_BUDGETED_SEARCH",
     "DRIVER_CERTIFIED_SEARCH",
+    "DRIVER_SLSQP",
+    "DRIVER_SLSQP_FALLBACK",
+    "DRIVER_NSGA2",
+    "DRIVER_NSGA2_FALLBACK",
     "OptRunStamp",
     "OptRunStampError",
     "ObjectiveContractError",

@@ -11,6 +11,7 @@ from nicegui import ui
 from ui_nicegui.components.opt_lab_warm_start_panel import render_champion_warm_start
 from ui_nicegui.lib.opt_lab_entry import (
     OPT_LAB_HONESTY_LINE,
+    OPT_LAB_NSGA2_HOOK_NOTE,
     OPT_LAB_PITCH,
     OPT_LAB_ROUTES,
     OPT_LAB_SLSQP_HOOK_NOTE,
@@ -61,6 +62,7 @@ def render_opt_lab_entry(session: DesignSession) -> None:
             ui.label(f"{idx}. {step}").classes("text-caption")
 
         ui.label(OPT_LAB_SLSQP_HOOK_NOTE).classes("text-caption text-grey q-mt-sm")
+        ui.label(OPT_LAB_NSGA2_HOOK_NOTE).classes("text-caption text-grey q-mt-xs")
 
         ui.separator().classes("q-my-sm")
         ui.label("Continue on an existing certified path").classes("text-subtitle2")

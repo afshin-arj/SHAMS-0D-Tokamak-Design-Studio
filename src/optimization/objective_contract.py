@@ -17,7 +17,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from src.optimization.objectives import ObjectiveSpec, get_objective, list_objectives
 
@@ -318,3 +318,126 @@ def from_registry_name(
 def list_registry_contract_names() -> List[str]:
     """FoM names that can resolve via ``from_registry_name``."""
     return sorted(k for k in _LEGACY_METRIC_KEYS if get_objective(k) is not None)
+
+
+# ---------------------------------------------------------------------------
+# Multi-objective contract bundle (Phase 3.1 — FoM list outside L0)
+# ---------------------------------------------------------------------------
+
+MULTI_SCHEMA = "multi_objective_contract.v1"
+
+
+@dataclass(frozen=True)
+class MultiObjectiveContract:
+    """Hashed list of ``objective_contract.v1`` FoMs for MOEA SearchDrivers.
+
+    Lives outside L0. Metric senses stay on each child contract; the combined
+    SHA-256 stamps Opt Lab / CCFS runs without putting FoM inside ``hot_ion``.
+    """
+
+    name: str
+    objectives: Tuple[ObjectiveContract, ...]
+    bounds_policy: str = BOUNDS_USER_SUPPLIED
+    seed_policy: str = SEED_REQUIRED
+    seed: Optional[int] = None
+    notes: str = ""
+    schema: str = MULTI_SCHEMA
+
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "schema": MULTI_SCHEMA,
+            "name": self.name,
+            "objectives": [o.to_dict() for o in self.objectives],
+            "bounds_policy": self.bounds_policy,
+            "seed_policy": self.seed_policy,
+            "notes": self.notes,
+        }
+        if self.seed is not None:
+            d["seed"] = int(self.seed)
+        return d
+
+    def hash_sha256(self) -> str:
+        return sha256_hex(self.to_dict())
+
+    def metric_senses(self) -> Dict[str, str]:
+        """Map primary metric key → sense for nondominated sort / crowding."""
+        out: Dict[str, str] = {}
+        for oc in self.objectives:
+            key = oc.primary_metric_key()
+            if key in out and out[key] != oc.sense:
+                raise ObjectiveContractError(
+                    f"conflicting sense for metric {key!r}: {out[key]!r} vs {oc.sense!r}"
+                )
+            out[key] = oc.sense
+        return out
+
+    def primary_metric_keys(self) -> Tuple[str, ...]:
+        return tuple(oc.primary_metric_key() for oc in self.objectives)
+
+
+def build_multi_objective_contract(
+    objectives: Sequence[Union[ObjectiveContract, Mapping[str, Any]]],
+    *,
+    name: str = "multi_objective",
+    bounds_policy: str = BOUNDS_USER_SUPPLIED,
+    seed_policy: str = SEED_REQUIRED,
+    seed: Optional[int] = None,
+    notes: str = "",
+) -> MultiObjectiveContract:
+    """Validate and construct a ``multi_objective_contract.v1`` bundle."""
+    if not objectives:
+        raise ObjectiveContractError("multi-objective contract needs >= 1 objective")
+    parsed: List[ObjectiveContract] = []
+    for raw in objectives:
+        if isinstance(raw, ObjectiveContract):
+            parsed.append(raw)
+        elif isinstance(raw, Mapping):
+            parsed.append(parse_objective_contract(raw))
+        else:
+            raise ObjectiveContractError(
+                "each objective must be ObjectiveContract or objective_contract.v1 mapping"
+            )
+    if len(parsed) < 2:
+        raise ObjectiveContractError(
+            "multi-objective contract requires at least two ObjectiveContracts"
+        )
+    n = str(name).strip()
+    if not n:
+        raise ObjectiveContractError("name must be a non-empty string")
+    bp = _normalize_bounds_policy(bounds_policy)
+    sp = _normalize_seed_policy(seed_policy)
+    seed_n = _normalize_seed(seed, sp)
+    bundle = MultiObjectiveContract(
+        name=n,
+        objectives=tuple(parsed),
+        bounds_policy=bp,
+        seed_policy=sp,
+        seed=seed_n,
+        notes=str(notes) if notes is not None else "",
+        schema=MULTI_SCHEMA,
+    )
+    # Validate metric sense map early (duplicate keys with conflicting sense).
+    _ = bundle.metric_senses()
+    return bundle
+
+
+def parse_multi_objective_contract(payload: Mapping[str, Any]) -> MultiObjectiveContract:
+    """Parse and validate a dict as ``multi_objective_contract.v1``."""
+    if not isinstance(payload, Mapping):
+        raise ObjectiveContractError("multi-objective contract must be a mapping")
+    schema = str(payload.get("schema", "")).strip()
+    if schema != MULTI_SCHEMA:
+        raise ObjectiveContractError(
+            f"unsupported schema {schema!r}; expected {MULTI_SCHEMA!r}"
+        )
+    raw_objs = payload.get("objectives")
+    if not isinstance(raw_objs, (list, tuple)):
+        raise ObjectiveContractError("objectives must be a list of contracts")
+    return build_multi_objective_contract(
+        list(raw_objs),
+        name=str(payload.get("name", "multi_objective")),
+        bounds_policy=str(payload.get("bounds_policy", BOUNDS_USER_SUPPLIED)),
+        seed_policy=str(payload.get("seed_policy", SEED_REQUIRED)),
+        seed=payload.get("seed"),
+        notes=str(payload.get("notes", "") or ""),
+    )

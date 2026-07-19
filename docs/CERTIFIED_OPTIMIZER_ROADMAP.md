@@ -44,7 +44,7 @@ ObjectiveContract (hashed, outside L0)
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
 | 1 Opt Lab productization | **DONE** | 1.1–1.4 complete (entry + stamp + honesty + champion warm-start) |
 | 2 Single-objective certified solver | **DONE** | 2.1–2.3 complete (SLSQP + neighborhood CCFS + determinism locks) |
-| 3 Multi-objective certified front | **OPEN** | next 3.1 NSGA-class SearchDriver |
+| 3 Multi-objective certified front | **OPEN** | 3.1 DONE; next 3.2 atlas-annotated dominatees |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
 | 5 Cite, robust lanes, exit | **OPEN** | Handoff packs; mirage-safe UQ; campaign exit evidence |
 
@@ -74,6 +74,7 @@ ObjectiveContract (hashed, outside L0)
 | UI honesty copy | `ui_nicegui/lib/certified_opt_honesty.py` | **1.3 DONE** — shared honesty phrases + deck banners; lock tests |
 | Anti L0-opt guards | `src/optimization/l0_opt_guards.py` | **0.3 DONE** — AST forbidden-import scan; lock tests |
 | SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1–2.3 DONE** — SLSQP / fallback; neighborhood CCFS; determinism locks (`tests/test_slsqp_determinism.py`; float policy: lock `force_fallback` + neighborhood + stamp) |
+| NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1 DONE** — NSGA-II / fallback; `multi_objective_contract.v1`; feasible-first; CCFS bundle + stamp; atlas dominatee hook for 3.2 |
 | Surrogate accel | `src/extopt/surrogate_accel.py` | Propose-only acceleration |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Citation unit for verified set |
 | Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Surfaces to unify into Opt Lab |
@@ -135,7 +136,7 @@ ObjectiveContract (hashed, outside L0)
 
 | # | Ticket | Done when |
 |---|--------|-----------|
-| 3.1 | NSGA-class / MOEA SearchDriver | Propose-only multi-objective; feasible-first; wires existing frontier intake |
+| 3.1 | NSGA-class / MOEA SearchDriver | **DONE** (2026-07-19) — `src/optimization/nsga2_search_driver.py`: propose-only NSGA-II (`nsga2` via optional pymoo; `nsga2_fallback` pure-Python). Feasible-first constrained domination; reuses `solvers.optimize.dominates` / `pareto_front`. `multi_objective_contract.v1` (hashed FoM list outside L0). Stamp-ready + `to_ccfs_bundle` / `to_frontier_candidate_rows`. Atlas dominatee hook reserved for 3.2. Minimal Opt Lab honesty note. Zero new required deps. Lock tests: `tests/test_nsga2_search_driver.py`. L0 untouched. |
 | 3.2 | Atlas-annotated dominatees | Rejected / dominated rows carry dominant hard mechanism from `no_solution_atlas.v1` |
 | 3.3 | Pareto Lab ↔ Opt Lab unify | One certified-front viewer; `/pareto-frontier-check` gates green |
 
@@ -179,9 +180,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **3.1** — NSGA-class / MOEA SearchDriver  
-2. **3.2** — Atlas-annotated dominatees  
-3. **3.3** — Pareto Lab ↔ Opt Lab unify
+1. **3.2** — Atlas-annotated dominatees  
+2. **3.3** — Pareto Lab ↔ Opt Lab unify  
+3. **4.1** — Surrogate propose-only path
 
 ## Overclaim check
 

@@ -13,8 +13,10 @@ def render_opt_lab(st_module: Any) -> None:
     st = st_module
     from ui_nicegui.lib.opt_lab_entry import (
         OPT_LAB_HONESTY_LINE,
+        OPT_LAB_NSGA2_HOOK_NOTE,
         OPT_LAB_PITCH,
         OPT_LAB_ROUTES,
+        OPT_LAB_SLSQP_HOOK_NOTE,
         OPT_LAB_STANCE_DOC,
         OPT_LAB_STEPS,
         OPT_LAB_TAGLINE,
@@ -54,6 +56,9 @@ def render_opt_lab(st_module: Any) -> None:
     st.subheader("Three steps to a certified search")
     for idx, step in enumerate(OPT_LAB_STEPS, start=1):
         st.markdown(f"{idx}. {step}")
+
+    st.caption(OPT_LAB_SLSQP_HOOK_NOTE)
+    st.caption(OPT_LAB_NSGA2_HOOK_NOTE)
 
     st.subheader("Certified paths (NiceGUI)")
     st.markdown(

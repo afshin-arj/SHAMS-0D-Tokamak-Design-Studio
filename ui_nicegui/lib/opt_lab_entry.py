@@ -83,6 +83,16 @@ OPT_LAB_SLSQP_HOOK_NOTE = (
     "never treat driver scores as VERIFIED."
 )
 
+# Phase 3.1 — propose-only multi-objective SearchDriver ids.
+OPT_LAB_NSGA2_DRIVER_IDS: Tuple[str, ...] = ("nsga2", "nsga2_fallback")
+
+OPT_LAB_NSGA2_HOOK_NOTE = (
+    "Multi-objective NSGA-II / MOEA search proposes PointInputs only "
+    "(pure-Python NSGA-II fallback; optional pymoo when installed); "
+    "feasible-first shortlist must be CCFS-certified — never an authoritative optimum; "
+    "atlas-annotated dominatees arrive in the next Opt Lab ticket."
+)
+
 # Phrases that must appear in the entry contract (honesty lock).
 OPT_LAB_REQUIRED_PHRASES: List[str] = list(REQUIRED_PHRASES) + [
     "propose",
@@ -105,6 +115,7 @@ def opt_lab_user_facing_texts() -> List[str]:
         OPT_LAB_PITCH,
         OPT_LAB_STANCE_DOC[0],
         OPT_LAB_SLSQP_HOOK_NOTE,
+        OPT_LAB_NSGA2_HOOK_NOTE,
     ]
     texts.extend(OPT_LAB_STEPS)
     texts.extend(label for label, _, _ in OPT_LAB_ROUTES)
@@ -114,6 +125,11 @@ def opt_lab_user_facing_texts() -> List[str]:
 def opt_lab_slsqp_driver_ids() -> Tuple[str, ...]:
     """Propose-only SLSQP SearchDriver ids exposed to Opt Lab (Phase 2.1)."""
     return OPT_LAB_SLSQP_DRIVER_IDS
+
+
+def opt_lab_nsga2_driver_ids() -> Tuple[str, ...]:
+    """Propose-only NSGA-II SearchDriver ids exposed to Opt Lab (Phase 3.1)."""
+    return OPT_LAB_NSGA2_DRIVER_IDS
 
 
 def apply_opt_lab_route_session(session: object, hook_id: str) -> None:

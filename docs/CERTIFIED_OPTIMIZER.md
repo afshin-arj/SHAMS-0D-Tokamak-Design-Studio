@@ -103,6 +103,29 @@ Lock tests: `tests/test_slsqp_search_driver.py`, `tests/test_neighborhood_certif
 
 ---
 
+## NSGA-II / MOEA SearchDriver (Phase 3.1)
+
+Propose-only multi-objective search **outside** L0:
+
+| Item | Detail |
+|------|--------|
+| Module | `src/optimization/nsga2_search_driver.py` |
+| Driver ids | `nsga2` (optional pymoo) · `nsga2_fallback` (pure-Python NSGA-II) |
+| Contract | `multi_objective_contract.v1` — hashed list of `objective_contract.v1` FoMs |
+| API | `run_nsga2_search(base, objective_contracts, variables=..., seed=..., force_fallback=...)` |
+| Output | `nsga2_search_result.v1` shortlist + proposed front + `to_ccfs_bundle()` + `stamp_ready()` |
+| Hard constraints | Feasible-first constrained domination — **no soft negotiation** |
+| Pareto algebra | Reuses `solvers.optimize.dominates` / `pareto_front` |
+| Atlas dominatees | Hook reserved (`atlas_dominatee_hook.v1`); full ship is Phase 3.2 |
+
+**Deps:** pure-Python path needs no new packages. `pymoo` is optional; not added to `requirements.txt`.
+
+Float / determinism policy: publication locks use ``force_fallback=True`` (`nsga2_fallback`) + fixed seed → identical shortlist identity (8 dp knobs) and `stamp_sha256`.
+
+Lock tests: `tests/test_nsga2_search_driver.py`.
+
+---
+
 ## Anti L0-opt guardrails (Phase 0.3)
 
 Hard gate: no optimizer / SearchDriver **import path** into frozen truth.
@@ -142,6 +165,7 @@ When reviewing Opt Lab / Systems Mode / extopt / solvers changes, confirm:
 | Frontier intake | `src/extopt/frontier_intake_v406.py` |
 | Lightweight propose helpers | `src/solvers/optimize.py` |
 | SLSQP SearchDriver (2.1–2.3) | `src/optimization/slsqp_search_driver.py` · `tests/test_slsqp_search_driver.py` · `tests/test_neighborhood_certify.py` · `tests/test_slsqp_determinism.py` |
+| NSGA-II SearchDriver (3.1) | `src/optimization/nsga2_search_driver.py` · `tests/test_nsga2_search_driver.py` |
 | Anti L0-opt import guards | `src/optimization/l0_opt_guards.py` · `tests/test_l0_opt_import_guard.py` |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` · `docs/CITE_SHAMS_HANDOFF.md` |
 | Living roadmap | `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` |
