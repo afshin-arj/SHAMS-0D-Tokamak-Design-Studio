@@ -1,6 +1,6 @@
 # SHAMS Certified Optimizer (stance)
 
-**Campaign:** Opt Lab / Certified Optimizer Phase 0.2 (`docs/CERTIFIED_OPTIMIZER_ROADMAP.md`)  
+**Campaign:** Opt Lab / Certified Optimizer Phase 0 (`docs/CERTIFIED_OPTIMIZER_ROADMAP.md`)  
 **Pitch:** PROCESS optimizes-and-believes; SHAMS searches-and-certifies.
 
 This page is the studio contract for **philosophy-safe optimization**. Optimization is a **studio capability**, not a truth capability. L0 remains frozen: `Evaluator.evaluate()` → `hot_ion_point()` — same inputs → same outputs; NO-SOLUTION is valid.
@@ -72,6 +72,36 @@ SearchDrivers consume the contract; they never rewrite physics to chase the FoM.
 
 ---
 
+## Anti L0-opt guardrails (Phase 0.3)
+
+Hard gate: no optimizer / SearchDriver **import path** into frozen truth.
+
+| Scanned L0 consumers | Forbidden import prefixes |
+|----------------------|---------------------------|
+| `src/evaluator/core.py` (+ sibling evaluator modules) | `optimization` / `src.optimization` |
+| `src/physics/hot_ion.py` | `solvers.optimize` / `src.solvers.optimize` |
+| | `scipy.optimize` (incl. `from scipy import optimize`) |
+| | `extopt` / `src.extopt` (SearchDrivers / CCFS proposers) |
+
+**Allowed:** `src/optimization/`, `src/solvers/`, `src/extopt/` may import and call `Evaluator` / `hot_ion` (propose → certify direction).  
+**Forbidden:** the reverse — L0 importing those packages.
+
+| Artifact | Role |
+|----------|------|
+| `src/optimization/l0_opt_guards.py` | Forbidden-prefix inventory + AST scanner |
+| `tests/test_l0_opt_import_guard.py` | Lock tests — **FAIL** if a forbidden import is added to L0 |
+
+### Reviewer checklist (optimizer-in-L0 lens)
+
+When reviewing Opt Lab / Systems Mode / extopt / solvers changes, confirm:
+
+1. No new import of `optimization.*`, `solvers.optimize`, `scipy.optimize`, or `extopt.*` inside `evaluator/` or `hot_ion.py`.
+2. `tests/test_l0_opt_import_guard.py` is green (hard gate; docs alone are not enough).
+3. SearchDrivers still **propose** `PointInputs` only; certification remains CCFS / frozen `Evaluator`.
+4. UI / docs do not claim “true minimum” or PROCESS retirement from this campaign.
+
+---
+
 ## Building blocks (reuse, do not rewrite)
 
 | Piece | Path |
@@ -80,6 +110,7 @@ SearchDrivers consume the contract; they never rewrite physics to chase the FoM.
 | Extopt orchestrator | `src/extopt/orchestrator.py` |
 | Frontier intake | `src/extopt/frontier_intake_v406.py` |
 | Lightweight propose helpers | `src/solvers/optimize.py` |
+| Anti L0-opt import guards | `src/optimization/l0_opt_guards.py` · `tests/test_l0_opt_import_guard.py` |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` · `docs/CITE_SHAMS_HANDOFF.md` |
 | Living roadmap | `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` |
 
@@ -104,4 +135,4 @@ PROCESS may appear in Opt Lab only as an **optional proposer** → CCFS. This st
 - Launchpad path: “Read certified optimizer stance”
 - Point Designer studio entry card → onboarding doc link (version-tag-free label)
 
-Lock tests: `tests/test_certified_optimizer_stance.py`.
+Lock tests: `tests/test_certified_optimizer_stance.py` · `tests/test_l0_opt_import_guard.py`.

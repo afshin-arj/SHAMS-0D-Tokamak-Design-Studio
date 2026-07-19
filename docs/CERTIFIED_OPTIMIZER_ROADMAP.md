@@ -41,7 +41,7 @@ ObjectiveContract (hashed, outside L0)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 Stance & contract | **IN PROGRESS** | 0.1–0.2 DONE; anti L0-opt guards remain |
+| 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
 | 1 Opt Lab productization | **OPEN** | Unify Systems Mode / Pareto / CCFS packaging |
 | 2 Single-objective certified solver | **OPEN** | SQP/SLSQP propose-only; neighborhood re-certify |
 | 3 Multi-objective certified front | **OPEN** | NSGA-class + atlas-annotated dominatees |
@@ -69,6 +69,7 @@ ObjectiveContract (hashed, outside L0)
 | Lightweight opt | `src/solvers/optimize.py` | LHS / random / Pareto helpers |
 | Objectives registry | `src/optimization/objectives.py` | FoM names (bridge via `from_registry_name`) |
 | ObjectiveContract | `src/optimization/objective_contract.py` | **0.1 DONE** — `objective_contract.v1` + SHA-256 stamp |
+| Anti L0-opt guards | `src/optimization/l0_opt_guards.py` | **0.3 DONE** — AST forbidden-import scan; lock tests |
 | Surrogate accel | `src/extopt/surrogate_accel.py` | Propose-only acceleration |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Citation unit for verified set |
 | Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Surfaces to unify into Opt Lab |
@@ -83,11 +84,11 @@ ObjectiveContract (hashed, outside L0)
 |---|--------|-----------|
 | 0.1 | ObjectiveContract schema + hash | **DONE** (2026-07-19) — `src/optimization/objective_contract.py`: stable `objective_contract.v1` (name, sense, metric_keys, bounds_policy, seed_policy, optional notes/provenance/seed); deterministic SHA-256 of canonical JSON; registry bridge via `from_registry_name`; lock tests in `tests/test_objective_contract_v1.py`. Ready to stamp into opt-run artifacts (Phase 1.2). L0 untouched. |
 | 0.2 | Certified-optimizer stance docs | **DONE** (2026-07-19) — `docs/CERTIFIED_OPTIMIZER.md`: propose→CCFS contract, anti-patterns (optimizer-in-truth forbidden), UI honesty (“Proposed — SHAMS-certified,” never true minimum), ObjectiveContract pointer, pipeline diagram; linked from README, LIMITATIONS, Docs Library, Launchpad, Studio entry. Lock tests: `tests/test_certified_optimizer_stance.py`. L0 untouched; no PROCESS-retired claim. |
-| 0.3 | Anti L0-opt guardrails | Tests/docs assert no optimizer import path into `evaluator/core.py` / `hot_ion` truth path; reviewer checklist item |
+| 0.3 | Anti L0-opt guardrails | **DONE** (2026-07-19) — `src/optimization/l0_opt_guards.py`: forbidden prefixes (`optimization` / `solvers.optimize` / `scipy.optimize` / `extopt`); AST scan of `src/evaluator/*` + `hot_ion.py`; lock tests `tests/test_l0_opt_import_guard.py` FAIL on forbidden L0 imports; reviewer checklist in `docs/CERTIFIED_OPTIMIZER.md`. Packages themselves allowed; L0 consumers forbidden. L0 untouched. |
 
 **Delegates:** `/architect`, `/documentation`, `/developer`, `/reviewer`
 
-**Exit:** A lab can read one page and know SHAMS will never negotiate constraints inside L0.
+**Exit:** A lab can read one page and know SHAMS will never negotiate constraints inside L0. **Phase 0 complete.**
 
 ---
 
@@ -174,9 +175,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **0.3** — Anti L0-opt guardrails  
-2. **1.1** — Opt Lab entry surface  
-3. **1.2** — Run artifact stamp  
+1. **1.1** — Opt Lab entry surface  
+2. **1.2** — Run artifact stamp  
+3. **1.3** — UI honesty copy  
 
 ## Overclaim check
 

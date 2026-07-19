@@ -43,6 +43,8 @@ def test_stance_required_honesty_phrases() -> None:
         "Anti-patterns",
         "UI honesty",
         "ObjectiveContract",
+        "Anti L0-opt",
+        "Reviewer checklist",
         "Orthogonality",
     ]:
         assert topic.lower() in lower, f"missing section topic: {topic}"
@@ -101,7 +103,10 @@ def test_roadmap_marks_0_2() -> None:
     assert re.search(r"0\.2\s*\|[^|]*\|\s*\*\*DONE\*\*", roadmap) or (
         "**DONE**" in roadmap and "0.2" in roadmap and "stance" in roadmap.lower()
     )
-    assert "0.3" in roadmap  # next ticket still open
+    # 0.3 complete (Phase 0 exit); Top next is Opt Lab entry
+    assert "0.3" in roadmap
+    assert "l0_opt_guards" in roadmap.lower() or "Anti L0-opt" in roadmap
+    assert "1.1" in roadmap
 
 
 def test_docs_library_and_launchpad_surfaces() -> None:
