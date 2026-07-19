@@ -56,10 +56,11 @@ def tier_badges(out: Dict[str, Any]) -> Tuple[str, str]:
     except (TypeError, ValueError):
         q_s = "Q=n/a"
     try:
+        # n·T pressure proxy only — NOT Lawson n·T·τE (no τE in this product).
         nt = float(n20) * float(ti) if n20 == n20 and ti == ti else float("nan")
-        nt_s = f"nτE≈{nt:.2e}" if nt == nt else "nτE=n/a"
+        nt_s = f"n·T≈{nt:.2e}" if nt == nt else "n·T=n/a"
     except (TypeError, ValueError):
-        nt_s = "nτE=n/a"
+        nt_s = "n·T=n/a"
     return q_s, nt_s
 
 

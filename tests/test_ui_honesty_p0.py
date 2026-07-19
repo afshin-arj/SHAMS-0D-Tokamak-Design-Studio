@@ -152,4 +152,34 @@ def test_pareto_external_tools_purpose_caption() -> None:
     # Nested router caption at top of External Tools tab.
     assert "_render_external_router" in src
     router_src = inspect.getsource(pareto_lab._render_external_router)
-    assert "ui.markdown" in router_src
+    assert "propose-only" in router_src.lower() or "L0" in router_src
+
+
+def test_pd_hero_reads_q95_proxy_fallback() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import hero
+
+    src = inspect.getsource(hero)
+    assert 'out.get("q95", out.get("q95_proxy"))' in src
+
+
+def test_tier_badges_use_n_dot_t_not_ntauE() -> None:
+    from ui_nicegui.lib.verdict_core import tier_badges
+
+    q_s, nt_s = tier_badges({"Q_DT_eqv": 5.0, "ne20": 1.0, "Ti_keV": 10.0})
+    assert "Q=5.00" in q_s
+    assert "n·T" in nt_s
+    assert "nτE" not in nt_s
+
+
+def test_workflow_compass_deck_count_matches_labels() -> None:
+    import inspect
+
+    from ui_nicegui.components import helm_workflow_panel
+    from ui_nicegui.decks.labels import DECK_LABELS
+
+    src = inspect.getsource(helm_workflow_panel.render_workflow_compass)
+    assert "len(DECK_LABELS)" in src
+    assert len(DECK_LABELS) == 11
+    assert "/10" not in src

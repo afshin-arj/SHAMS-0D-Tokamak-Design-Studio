@@ -240,6 +240,11 @@ def main_page() -> None:
             render_drawer_resize_handle()
 
     with ui.column().classes("w-full p-4"):
+        # Desktop single-session notice — shared module-level DesignSession (NAV multi-tab).
+        ui.label(
+            "Desktop single-session: open only one browser tab. A second tab shares the same "
+            "machine state and can overwrite evaluations or fight over the active deck."
+        ).classes("text-caption text-orange q-mb-sm")
         # Deck body must be the refreshable slot itself — see _switch_deck / NAV-001.
         _render_deck()
 

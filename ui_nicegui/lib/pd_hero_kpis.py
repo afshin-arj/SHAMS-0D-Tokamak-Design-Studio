@@ -170,7 +170,7 @@ def hero_kpi_cells(
     else:
         pfus_display = "n/a"
 
-    nt_label = summary.get("nt_label", "nτE=n/a")
+    nt_label = summary.get("nt_label", "n·T=n/a")
     if not feasible and (q_sup or h98_sup):
         nt_label = "— (diagnostic)"
 
@@ -184,7 +184,7 @@ def hero_kpi_cells(
         ),
         HeroKpiCell("H98(y,2)", h98_display, suppressed=h98_sup, raw_value=h98_raw if math.isfinite(h98_raw) else None, note=h98_note),
         HeroKpiCell("P_net,e", pnet_display, suppressed=pnet_sup, raw_value=pnet_raw if math.isfinite(pnet_raw) else None),
-        HeroKpiCell("Triple product proxy", nt_label, suppressed=bool(q_sup or h98_sup)),
+        HeroKpiCell("n·T (pressure proxy)", nt_label, suppressed=bool(q_sup or h98_sup)),
     ]
     return cells
 

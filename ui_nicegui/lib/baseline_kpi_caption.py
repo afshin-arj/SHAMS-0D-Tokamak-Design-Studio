@@ -57,7 +57,7 @@ def baseline_kpi_caption(
 
     beta = point_out.get("betaN", point_out.get("beta_N"))
     fg = point_out.get("fG", point_out.get("greenwald_fraction"))
-    q95 = point_out.get("q95")
+    q95 = point_out.get("q95", point_out.get("q95_proxy"))
     if beta is not None:
         bits.append(f"β_N≈{beta}")
     if fg is not None:
