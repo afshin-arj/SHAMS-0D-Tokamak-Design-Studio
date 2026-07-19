@@ -61,9 +61,11 @@ RETIREMENT_REPORT_DOC = "PROCESS_RETIREMENT_REPORT.md"
 CITE_SHAMS_HANDOFF_DOC = "CITE_SHAMS_HANDOFF.md"
 PARITY_CONTRIBUTION_DOC = "PARITY_CONTRIBUTION.md"
 INDEPENDENCE_EXIT_DOC = "INDEPENDENCE_EXIT_EVIDENCE.md"
+CERTIFIED_OPTIMIZER_DOC = "CERTIFIED_OPTIMIZER.md"
 
 LAUNCHPAD_DECK: Dict[str, str] = {
     "Migrate a PROCESS study to SHAMS": "Control Room",
+    "Read certified optimizer stance": "Control Room",
     "Run a champion feasibility template": "Point Designer",
     "Understand feasibility limits (cartography)": "Scan Lab",
     "Explore reactor concepts (Forge)": "Reactor Design Forge",
@@ -78,6 +80,13 @@ LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
         "- Open **`docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`** (IN.DAT→PointInputs, MFILE→artifacts, CCFS propose-only)\n"
         "- Map knobs in **Point Designer**; treat NO-SOLUTION as valid\n"
         "- Cite `VERSION` + artifact SHA-256 — do **not** invent MFILE numbers or claim PROCESS retired.",
+    ),
+    (
+        "Read certified optimizer stance",
+        "Recommended: Control Room → Constitution → Docs Library → Certified Optimizer stance.",
+        "- Open **`docs/CERTIFIED_OPTIMIZER.md`** (propose→CCFS; optimizer-in-truth forbidden)\n"
+        "- UI honesty: **Proposed — SHAMS-certified**, never true minimum\n"
+        "- FoM lives in ObjectiveContract outside L0 — do **not** claim PROCESS retired.",
     ),
     (
         "Run a champion feasibility template",

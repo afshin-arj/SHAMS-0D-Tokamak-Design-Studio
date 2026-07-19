@@ -41,7 +41,7 @@ ObjectiveContract (hashed, outside L0)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 Stance & contract | **IN PROGRESS** | 0.1 DONE; stance docs + anti L0-opt guards remain |
+| 0 Stance & contract | **IN PROGRESS** | 0.1–0.2 DONE; anti L0-opt guards remain |
 | 1 Opt Lab productization | **OPEN** | Unify Systems Mode / Pareto / CCFS packaging |
 | 2 Single-objective certified solver | **OPEN** | SQP/SLSQP propose-only; neighborhood re-certify |
 | 3 Multi-objective certified front | **OPEN** | NSGA-class + atlas-annotated dominatees |
@@ -82,7 +82,7 @@ ObjectiveContract (hashed, outside L0)
 | # | Ticket | Done when |
 |---|--------|-----------|
 | 0.1 | ObjectiveContract schema + hash | **DONE** (2026-07-19) — `src/optimization/objective_contract.py`: stable `objective_contract.v1` (name, sense, metric_keys, bounds_policy, seed_policy, optional notes/provenance/seed); deterministic SHA-256 of canonical JSON; registry bridge via `from_registry_name`; lock tests in `tests/test_objective_contract_v1.py`. Ready to stamp into opt-run artifacts (Phase 1.2). L0 untouched. |
-| 0.2 | Certified-optimizer stance docs | `docs/CERTIFIED_OPTIMIZER.md` — propose→CCFS contract, anti-patterns, UI copy rules; linked from README / Studio docs |
+| 0.2 | Certified-optimizer stance docs | **DONE** (2026-07-19) — `docs/CERTIFIED_OPTIMIZER.md`: propose→CCFS contract, anti-patterns (optimizer-in-truth forbidden), UI honesty (“Proposed — SHAMS-certified,” never true minimum), ObjectiveContract pointer, pipeline diagram; linked from README, LIMITATIONS, Docs Library, Launchpad, Studio entry. Lock tests: `tests/test_certified_optimizer_stance.py`. L0 untouched; no PROCESS-retired claim. |
 | 0.3 | Anti L0-opt guardrails | Tests/docs assert no optimizer import path into `evaluator/core.py` / `hot_ion` truth path; reviewer checklist item |
 
 **Delegates:** `/architect`, `/documentation`, `/developer`, `/reviewer`
@@ -174,9 +174,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **0.2** — Stance docs (`CERTIFIED_OPTIMIZER.md`)  
-2. **0.3** — Anti L0-opt guardrails  
-3. **1.1** — Opt Lab entry surface  
+1. **0.3** — Anti L0-opt guardrails  
+2. **1.1** — Opt Lab entry surface  
+3. **1.2** — Run artifact stamp  
 
 ## Overclaim check
 

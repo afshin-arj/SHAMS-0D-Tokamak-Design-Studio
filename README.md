@@ -199,6 +199,9 @@ flowchart LR
 Migration & independence docs:  
 [`PROCESS_TO_SHAMS_MIGRATION_GUIDE.md`](docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md) · [`PROCESS_CROSSWALK.md`](docs/PROCESS_CROSSWALK.md) · [`CHAMPION_CASES.md`](docs/CHAMPION_CASES.md) · [`LIMITATIONS.md`](docs/LIMITATIONS.md)
 
+Certified Optimizer (search-and-certify; never optimizer-in-truth):  
+[`CERTIFIED_OPTIMIZER.md`](docs/CERTIFIED_OPTIMIZER.md) · [`CERTIFIED_OPTIMIZER_ROADMAP.md`](docs/CERTIFIED_OPTIMIZER_ROADMAP.md)
+
 <details>
 <summary><strong>Extended comparison tables</strong> (philosophy · numerics · constraints · governance)</summary>
 

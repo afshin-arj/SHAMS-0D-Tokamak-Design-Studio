@@ -71,6 +71,7 @@ STUDIO_DOC_LINKS: List[Tuple[str, str]] = [
     ("Cite-SHAMS handoff pack", "docs/CITE_SHAMS_HANDOFF.md"),
     ("PROCESS parity contribution process", "docs/PARITY_CONTRIBUTION.md"),
     ("Independence exit evidence", "docs/INDEPENDENCE_EXIT_EVIDENCE.md"),
+    ("Certified Optimizer stance", "docs/CERTIFIED_OPTIMIZER.md"),
 ]
 
 # Map champion Design Intent onto the Helm Console mission-profile options.

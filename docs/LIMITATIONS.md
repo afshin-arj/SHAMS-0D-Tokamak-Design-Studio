@@ -2,7 +2,7 @@
 
 **Version:** see `VERSION`  
 **Authority:** Honesty over false confidence — these limitations ship with every scientific handoff.  
-**Related:** `docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md` (community migration), `docs/PROCESS_RETIREMENT_REPORT.md` (scoped retirement evidence — never a blanket claim), `docs/PARITY_CONTRIBUTION.md` (lab PROCESS-ref intake), `docs/INDEPENDENCE_EXIT_EVIDENCE.md` (Phase 4 exit checklist — EXTERNAL adoption not claimed), `docs/PROCESS_SURPASS_ROADMAP.md`, `GOVERNANCE.md`, Phase 1 release gate report under `docs/validation/reports/`.
+**Related:** `docs/PROCESS_TO_SHAMS_MIGRATION_GUIDE.md` (community migration), `docs/PROCESS_RETIREMENT_REPORT.md` (scoped retirement evidence — never a blanket claim), `docs/PARITY_CONTRIBUTION.md` (lab PROCESS-ref intake), `docs/INDEPENDENCE_EXIT_EVIDENCE.md` (Phase 4 exit checklist — EXTERNAL adoption not claimed), `docs/CERTIFIED_OPTIMIZER.md` (Opt Lab search-and-certify stance), `docs/PROCESS_SURPASS_ROADMAP.md`, `GOVERNANCE.md`, Phase 1 release gate report under `docs/validation/reports/`.
 
 This document is the public limitations list for CONDITIONAL scientific release. It does **not** claim that UKAEA PROCESS is retired or that SHAMS is a drop-in numeric clone of PROCESS.
 

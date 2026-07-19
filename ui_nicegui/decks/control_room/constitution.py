@@ -5,6 +5,7 @@ from nicegui import ui
 
 from ui_nicegui.decks.control_room import assumptions_panel, constraint_provenance, constraints_governance
 from ui_nicegui.lib.control_room_helpers import (
+    CERTIFIED_OPTIMIZER_DOC,
     CHAMPION_CASES_DOC,
     CITE_SHAMS_HANDOFF_DOC,
     CONST_TABS,
@@ -65,6 +66,7 @@ def _panel(session: DesignSession) -> None:
             "Cite-SHAMS handoff: CITE_SHAMS_HANDOFF.md (VERSION + artifact hashes; PROCESS import optional). "
             "Parity contribution: PARITY_CONTRIBUTION.md. "
             "Independence exit evidence: INDEPENDENCE_EXIT_EVIDENCE.md (EXTERNAL adoption not claimed). "
+            "Certified Optimizer stance: CERTIFIED_OPTIMIZER.md (propose→CCFS; Proposed — SHAMS-certified). "
             "Cite VERSION + hashes — no invented MFILE numbers."
         ).classes("text-caption q-mb-sm")
         docs = list_docs()
@@ -84,6 +86,8 @@ def _panel(session: DesignSession) -> None:
                 session.cr_docs_sel = PARITY_CONTRIBUTION_DOC
             elif INDEPENDENCE_EXIT_DOC in docs:
                 session.cr_docs_sel = INDEPENDENCE_EXIT_DOC
+            elif CERTIFIED_OPTIMIZER_DOC in docs:
+                session.cr_docs_sel = CERTIFIED_OPTIMIZER_DOC
             else:
                 session.cr_docs_sel = docs[0]
         ui.select(
