@@ -6,6 +6,11 @@ PROCESS-style work typically defines objectives (min R0, min Bpeak, min COE, max
 and uses them consistently across studies, Pareto exploration, and optimization.
 
 SHAMS keeps this transparent: objectives are just named functions of the model output dict.
+
+Opt Lab / Certified Optimizer: FoM identity for stamped runs lives in
+``src.optimization.objective_contract`` (``objective_contract.v1`` + SHA-256).
+Use ``from_registry_name`` to bridge registry FoM names into a hashed contract.
+This registry never feeds ``hot_ion`` / L0.
 """
 
 from dataclasses import dataclass
