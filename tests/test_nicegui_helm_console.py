@@ -362,6 +362,35 @@ def test_phase_two_requires_scan_or_systems() -> None:
     assert phase_completion(2, progress2) is True
 
 
+def test_forge_phase_uses_workbench_and_capsule_fields() -> None:
+    """Helm compass phase 4 must track real Forge session fields (not dead legacy names)."""
+    from ui_nicegui.lib.helm_workflow_guide import phase_completion, workflow_progress
+
+    s = DesignSession()
+    assert workflow_progress(s)["forged"] is False
+    assert phase_completion(4, workflow_progress(s)) is False
+    s.forge_workbench_run = {"n_archive": 3, "n_feasible_archive": 1}
+    assert workflow_progress(s)["forged"] is True
+    assert phase_completion(4, workflow_progress(s)) is True
+    s2 = DesignSession()
+    s2.forge_capsule_zip_bytes = b"PK\x03\x04"
+    assert workflow_progress(s2)["forged"] is True
+
+
+def test_systems_default_tab_is_targets() -> None:
+    from ui_nicegui.lib.systems_labels import DEFAULT_TAB, SYSTEMS_TABS
+
+    s = DesignSession()
+    assert s.systems_workflow_step == "1 · Targets"
+    assert DEFAULT_TAB == "1 · Targets"
+    assert SYSTEMS_TABS[0] == "1 · Targets"
+
+
+def test_suite_teaching_mode_defaults_on() -> None:
+    s = DesignSession()
+    assert s.suite_teaching_mode is True
+
+
 def test_hygiene_scan_is_cached() -> None:
     from ui_nicegui.lib import control_room_helpers as crh
 

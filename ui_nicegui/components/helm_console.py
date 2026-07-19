@@ -233,7 +233,7 @@ def _render_posture(session: DesignSession) -> None:
     ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
 
     locked, task, holder = runlock_global_status()
-    if (
+    busy = bool(
         session.evaluating
         or session.forge_mf_running
         or session.suite_running
@@ -242,16 +242,14 @@ def _render_posture(session: DesignSession) -> None:
         or session.pub_atlas_fragility_running
         or session.pub_bench_running
         or locked
-    ):
-        label = task or ("Machine Finder…" if session.forge_mf_running else "Evaluating…")
-        if holder:
-            _, _, is_owner = runlock_status(holder)
-            if not is_owner:
-                label = f"Busy: {label} ({holder})"
-        ui.label(f"Run status: {label}").classes("text-caption text-orange")
-    else:
+    )
+    # Busy detail lives in the run-lock banner above (single source of truth + force-clear).
+    if not busy:
         ui.label("Run status: Ready — frozen evaluator armed.").classes("text-caption")
-
+    else:
+        ui.label("Run status: see banner above (force-clear available after 45s).").classes(
+            "text-caption text-grey"
+        )
     out = session.pd_last_outputs or session.last_eval
     if isinstance(out, dict) and out:
         from ui_nicegui.lib.pd_hero_kpis import hero_kpi_cells
@@ -651,16 +649,25 @@ def _render_chronicle(session: DesignSession) -> None:
     ).classes("w-full q-mt-sm")
 
     def _clear() -> None:
+        if not bool(getattr(session, "shams_clear_log_confirm", False)):
+            ui.notify("Check Confirm clear log first.", type="warning")
+            return
         try:
             log_ui_event(session, "UI", "ClearLog", {})
             _activity_logger(session).clear()
         except Exception:
             pass
+        session.shams_clear_log_confirm = False
         _render_chronicle_tail.refresh()
+        _helm_settings_section.refresh()
         ui.notify("Activity log cleared.", type="info")
 
+    ui.checkbox(
+        "Confirm clear log",
+        value=bool(getattr(session, "shams_clear_log_confirm", False)),
+        on_change=lambda e: setattr(session, "shams_clear_log_confirm", bool(e.value)),
+    )
     ui.button("Clear log", on_click=_clear).props("outline").classes("w-full q-mt-xs")
-
     ui.separator().classes("q-my-sm")
     ui.label("Session shutdown").classes("text-caption text-weight-bold")
     ui.checkbox(

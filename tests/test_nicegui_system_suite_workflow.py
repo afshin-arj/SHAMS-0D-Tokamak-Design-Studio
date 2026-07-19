@@ -30,9 +30,10 @@ def test_decision_maps_to_tab() -> None:
 
 def test_teaching_banner() -> None:
     s = DesignSession()
-    assert teaching_banner(s) is None
-    s.suite_teaching_mode = True
+    assert s.suite_teaching_mode is True
     assert teaching_banner(s) is not None
+    s.suite_teaching_mode = False
+    assert teaching_banner(s) is None
 
 
 def test_overlay_status_rows() -> None:

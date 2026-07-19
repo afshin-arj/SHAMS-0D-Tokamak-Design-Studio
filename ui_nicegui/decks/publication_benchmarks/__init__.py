@@ -133,22 +133,16 @@ def render_publication_benchmarks(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_mode_switches(session: DesignSession) -> None:
-    """Guided and Expert are mutually exclusive — refresh widgets when either flips."""
+    """Guided and Expert are independent (parity with Point Designer / Scan / Forge)."""
 
     def _on_guided(e) -> None:
         session.pub_teaching_mode = bool(e.value)
-        if session.pub_teaching_mode:
-            session.pub_expert_view = False
-        _render_mode_switches.refresh()
         _render_decision_chrome.refresh()
         _render_tab_body.refresh()
         _render_deck_status.refresh()
 
     def _on_expert(e) -> None:
         session.pub_expert_view = bool(e.value)
-        if session.pub_expert_view:
-            session.pub_teaching_mode = False
-        _render_mode_switches.refresh()
         _render_decision_chrome.refresh()
         _render_tab_body.refresh()
         _render_deck_status.refresh()

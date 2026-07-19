@@ -98,27 +98,14 @@ def render_systems_mode(session: DesignSession) -> None:
     render_mode_scope("systems_eval", default_open=False)
     ui.label(policy_caption(session.design_intent)).classes("text-caption q-mb-sm")
 
-    with ui.expansion("About this mode", icon="info").classes("w-full q-mb-sm"):
-        ui.markdown(
-            "**Systems Mode is an explanation layer** around frozen Point Designer truth — "
-            "it proposes inputs and narratives, but **never modifies** L0 physics or constraints."
-        )
-        with ui.row().classes("w-full gap-4"):
-            with ui.column().classes("flex-1"):
-                ui.markdown(
-                    "**What this mode does**\n"
-                    "- Monte Carlo precheck over declared variable bounds\n"
-                    "- Newton target solve via frozen `Evaluator.evaluate()`\n"
-                    "- Recovery, feasible search, apply-to-baseline with undo"
-                )
-            with ui.column().classes("flex-1"):
-                ui.markdown(
-                    "**What this mode does not do**\n"
-                    "- Change physics, relax hard constraints, or hide NO-SOLUTION\n"
-                    "- Auto-apply designs without your explicit action\n"
-                    "- Replace Scan Lab / Pareto for broad trade-space exploration"
-                )
-        ui.label("Apply actions are reversible (undo/redo on tab 4 · Apply).").classes("text-caption text-grey")
+    from ui_nicegui.lib.artifact_access import get_point_artifact_triple
+
+    _art, _, _point_out = get_point_artifact_triple(session)
+    if not isinstance(_point_out, dict):
+        ui.label(
+            "No Point Designer evaluation loaded — solve still runs against machine defaults "
+            "(propose-only). Evaluate a baseline in Point Designer for a grounded seed."
+        ).classes("text-caption text-orange q-mb-sm")
 
     def _on_decision(e) -> None:
         state = str(e.value)
