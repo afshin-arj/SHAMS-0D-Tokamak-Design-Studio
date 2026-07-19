@@ -74,6 +74,23 @@ SearchDrivers consume the contract; they never rewrite physics to chase the FoM.
 
 ---
 
+## SLSQP / SQP SearchDriver (Phase 2.1)
+
+Bound-constrained continuous FoM search **outside** L0:
+
+| Item | Detail |
+|------|--------|
+| Module | `src/optimization/slsqp_search_driver.py` |
+| Driver ids | `slsqp` (SciPy SLSQP) · `slsqp_fallback` (pure-Python coordinate descent) |
+| API | `run_slsqp_search(base, objective_contract, variables=..., seed=..., force_fallback=...)` |
+| Output | `slsqp_search_result.v1` shortlist + `to_ccfs_bundle()` + `stamp_ready()` |
+| Hard constraints | SHAMS-evaluated filters / inequalities — **no soft negotiation** |
+| Certification | Propose-only; light hook `lightly_certify_shortlist` → CCFS (neighborhood re-certify = Phase 2.2) |
+
+Lock tests: `tests/test_slsqp_search_driver.py`.
+
+---
+
 ## Anti L0-opt guardrails (Phase 0.3)
 
 Hard gate: no optimizer / SearchDriver **import path** into frozen truth.
@@ -112,6 +129,7 @@ When reviewing Opt Lab / Systems Mode / extopt / solvers changes, confirm:
 | Extopt orchestrator | `src/extopt/orchestrator.py` |
 | Frontier intake | `src/extopt/frontier_intake_v406.py` |
 | Lightweight propose helpers | `src/solvers/optimize.py` |
+| SLSQP SearchDriver (2.1) | `src/optimization/slsqp_search_driver.py` · `tests/test_slsqp_search_driver.py` |
 | Anti L0-opt import guards | `src/optimization/l0_opt_guards.py` · `tests/test_l0_opt_import_guard.py` |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` · `docs/CITE_SHAMS_HANDOFF.md` |
 | Living roadmap | `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` |

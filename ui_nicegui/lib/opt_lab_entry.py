@@ -72,6 +72,16 @@ OPT_LAB_ROUTES: List[Tuple[str, str, str]] = [
 
 OPT_LAB_STANCE_DOC = ("Certified Optimizer stance", "docs/CERTIFIED_OPTIMIZER.md")
 
+# Phase 2.1 — propose-only continuous SearchDriver ids (core lives in
+# ``src.optimization.slsqp_search_driver``; UI polish is secondary).
+OPT_LAB_SLSQP_DRIVER_IDS: Tuple[str, ...] = ("slsqp", "slsqp_fallback")
+
+OPT_LAB_SLSQP_HOOK_NOTE = (
+    "Single-objective SLSQP/SQP-style search proposes PointInputs only "
+    "(SciPy when available, pure-Python fallback otherwise); "
+    "certify the shortlist with CCFS — never treat driver scores as VERIFIED."
+)
+
 # Phrases that must appear in the entry contract (honesty lock).
 OPT_LAB_REQUIRED_PHRASES: List[str] = list(REQUIRED_PHRASES) + [
     "propose",
@@ -93,10 +103,16 @@ def opt_lab_user_facing_texts() -> List[str]:
         OPT_LAB_HONESTY_LINE,
         OPT_LAB_PITCH,
         OPT_LAB_STANCE_DOC[0],
+        OPT_LAB_SLSQP_HOOK_NOTE,
     ]
     texts.extend(OPT_LAB_STEPS)
     texts.extend(label for label, _, _ in OPT_LAB_ROUTES)
     return texts
+
+
+def opt_lab_slsqp_driver_ids() -> Tuple[str, ...]:
+    """Propose-only SLSQP SearchDriver ids exposed to Opt Lab (Phase 2.1)."""
+    return OPT_LAB_SLSQP_DRIVER_IDS
 
 
 def apply_opt_lab_route_session(session: object, hook_id: str) -> None:

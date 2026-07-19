@@ -13,6 +13,7 @@ from ui_nicegui.lib.opt_lab_entry import (
     OPT_LAB_HONESTY_LINE,
     OPT_LAB_PITCH,
     OPT_LAB_ROUTES,
+    OPT_LAB_SLSQP_HOOK_NOTE,
     OPT_LAB_STANCE_DOC,
     OPT_LAB_STEPS,
     OPT_LAB_TAGLINE,
@@ -58,6 +59,8 @@ def render_opt_lab_entry(session: DesignSession) -> None:
         ui.label("Three steps to a certified search").classes("text-subtitle2")
         for idx, step in enumerate(OPT_LAB_STEPS, start=1):
             ui.label(f"{idx}. {step}").classes("text-caption")
+
+        ui.label(OPT_LAB_SLSQP_HOOK_NOTE).classes("text-caption text-grey q-mt-sm")
 
         ui.separator().classes("q-my-sm")
         ui.label("Continue on an existing certified path").classes("text-subtitle2")
