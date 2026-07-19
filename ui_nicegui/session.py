@@ -56,7 +56,7 @@ class DesignSession:
     suite_availability: float = 0.75
     profile_contracts_v362_last: Optional[dict[str, Any]] = None
     # Systems Mode
-    systems_workflow_step: str = "2 · Check & Solve"
+    systems_workflow_step: str = "1 · Targets"
     systems_workflow_power_user: bool = False
     systems_block_solve: bool = False
     systems_do_precheck: bool = True
@@ -345,6 +345,7 @@ class DesignSession:
     helm_verify_dt: Optional[float] = None
     helm_verify_running: bool = False
     shams_exit_confirm: bool = False
+    shams_clear_log_confirm: bool = False
     _activity_logger: Optional[Any] = field(default=None, repr=False)
     _activity_log_inited: bool = field(default=False, repr=False)
     # Design State Graph (exploration layer)
@@ -407,7 +408,7 @@ class DesignSession:
     suite_parity_last_report: Optional[dict[str, Any]] = None
     suite_workflow_step: str = "1 · Plant & Power"
     suite_decision_state: str = "Plant closure & duty"
-    suite_teaching_mode: bool = False
+    suite_teaching_mode: bool = True
     suite_expert_view: bool = False
     suite_running: bool = False
     suite_pareto_bridge_meta: Optional[dict[str, Any]] = None

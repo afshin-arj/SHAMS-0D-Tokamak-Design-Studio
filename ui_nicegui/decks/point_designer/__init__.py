@@ -49,12 +49,16 @@ def render_point_designer(session: DesignSession) -> None:
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("point", default_open=False)
 
-    with ui.row().classes("w-full q-mb-md"):
+    with ui.row().classes("w-full q-mb-xs items-center gap-2 flex-wrap"):
         ui.toggle(
             ["Truth Console", "Phase Envelopes", "Uncertainty Contracts"],
             value=session.pd_subdeck,
             on_change=lambda e: _set_subdeck(session, e.value),
         )
+    ui.label(
+        "Workspace mode (not a workflow tab): Truth Console = evaluate one point; "
+        "Phase Envelopes / Uncertainty Contracts = outer-loop diagnostics."
+    ).classes("text-caption text-grey q-mb-sm")
 
     if session.pd_subdeck == "Phase Envelopes":
         render_phase_envelopes(session)
@@ -77,27 +81,6 @@ def render_point_designer(session: DesignSession) -> None:
         from ui_nicegui.lib.navigation import refresh_active_deck
 
         render_studio_entry(session, on_loaded=refresh_active_deck)
-
-    with ui.expansion("About this mode", icon="info").classes("w-full q-mb-sm"):
-        ui.markdown(
-            "**Point Designer is frozen** — single operating point, constraint-authoritative, "
-            "no optimization. Cartography belongs in **Scan Lab**; systems closure/recovery in **Systems Mode**."
-        )
-        with ui.row().classes("w-full gap-4"):
-            with ui.column().classes("flex-1"):
-                ui.markdown(
-                    "**What this mode does**\n"
-                    "- Evaluates one point via `Evaluator.evaluate()` → `hot_ion_point()`\n"
-                    "- Reports pass/fail margins and subsystem contracts\n"
-                    "- Produces reproducible artifacts for Compare / Control Room"
-                )
-            with ui.column().classes("flex-1"):
-                ui.markdown(
-                    "**What this mode does not do**\n"
-                    "- Optimize, relax, or negotiate constraints inside L0\n"
-                    "- Apply designs or suggest parameter changes automatically\n"
-                    "- Modify frozen physics without governance versioning"
-                )
 
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         out = session.pd_last_outputs or session.last_eval

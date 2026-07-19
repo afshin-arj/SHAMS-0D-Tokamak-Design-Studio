@@ -84,21 +84,15 @@ def render_control_room(session: DesignSession) -> None:
 
 @ui.refreshable
 def _render_mode_switches(session: DesignSession) -> None:
-    """Guided and Expert are mutually exclusive — refresh widgets when either flips."""
+    """Guided and Expert are independent (parity with Point Designer / Scan / Forge)."""
 
     def _on_guided(e) -> None:
         session.cr_teaching_mode = bool(e.value)
-        if session.cr_teaching_mode:
-            session.cr_expert_view = False
-        _render_mode_switches.refresh()
         _render_decision_chrome.refresh()
         _render_section.refresh()
 
     def _on_expert(e) -> None:
         session.cr_expert_view = bool(e.value)
-        if session.cr_expert_view:
-            session.cr_teaching_mode = False
-        _render_mode_switches.refresh()
         _render_decision_chrome.refresh()
         _render_section.refresh()
 

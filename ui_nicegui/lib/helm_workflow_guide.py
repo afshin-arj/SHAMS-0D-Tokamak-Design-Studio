@@ -189,8 +189,10 @@ def workflow_progress(session: Any) -> dict[str, bool]:
     )
     systems_closed = has_systems_closure(session)
     compared = has_compare_slots(session)
-    forged = isinstance(getattr(session, "forge_mf_last_run", None), dict) or isinstance(
-        getattr(session, "forge_last_capsule", None), dict
+    # Real session fields (Machine Finder archive + exported capsule bytes).
+    # Legacy names forge_mf_last_run / forge_last_capsule never existed on DesignSession.
+    forged = isinstance(getattr(session, "forge_workbench_run", None), dict) or bool(
+        getattr(session, "forge_capsule_zip_bytes", None)
     )
     sealed = isinstance(getattr(session, "cr_study_protocol_last", None), dict)
     return {

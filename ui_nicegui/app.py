@@ -47,7 +47,7 @@ _SESSION = DesignSession()
 
 # Rapid Helm clicks: leading-edge remount (instant) + coalesce trailing remounts (NAV-RACE-001).
 _DECK_SWITCH_DEBOUNCE_S = 0.06
-_pending_deck_remount: dict[str, object] = {"timer": None, "name": None, "coalesced": False}
+_pending_deck_remount: dict[str, object] = {"timer": None, "name": None, "coalesced": False, "gen": 0}
 
 
 def _cancel_pending_deck_remount() -> None:
@@ -94,6 +94,7 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
     Same-deck clicks no-op unless ``force=True`` (handoffs that mutate session).
     Rapid non-force clicks: first click remounts immediately; further clicks within
     ~60 ms update ``active_deck`` + Helm chrome and coalesce to one trailing remount.
+    Generation token (NAV-GEN-001) drops obsolete trailing remounts after force switches.
     """
     same = name == _SESSION.active_deck
     if same and not force:
@@ -101,6 +102,7 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
 
     if force:
         _cancel_pending_deck_remount()
+        _pending_deck_remount["gen"] = int(_pending_deck_remount.get("gen") or 0) + 1
         _apply_deck_switch(name, force=True)
         return
 
@@ -114,6 +116,7 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
     refresh_helm()
     refresh_status()
 
+    gen = int(_pending_deck_remount.get("gen") or 0)
     _pending_deck_remount["name"] = name
     in_burst = _pending_deck_remount.get("timer") is not None
     if in_burst:
@@ -127,6 +130,9 @@ def _switch_deck(name: str, *, force: bool = False) -> None:
         coalesced = bool(_pending_deck_remount.get("coalesced"))
         _pending_deck_remount["timer"] = None
         _pending_deck_remount["coalesced"] = False
+        # Drop trailing remount if a force-switch advanced the generation.
+        if int(_pending_deck_remount.get("gen") or 0) != gen:
+            return
         target = _pending_deck_remount.get("name")
         if coalesced and isinstance(target, str) and target == _SESSION.active_deck:
             _remount_active_deck()
