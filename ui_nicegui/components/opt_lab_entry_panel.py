@@ -33,7 +33,7 @@ def _open_stance_doc(session: DesignSession) -> None:
     session.cr_section = "Constitution"
     session.cr_const_tab = "Docs Library"
     session.cr_docs_sel = doc_name
-    switch_deck("Control Room")
+    switch_deck("Control Room", force=True)
     ui.notify(f"Opened Docs Library: {doc_name}", type="info")
 
 
@@ -41,7 +41,8 @@ def _goto_route(session: DesignSession, deck: str, hook_id: str) -> None:
     from ui_nicegui.lib.navigation import switch_deck
 
     apply_opt_lab_route_session(session, hook_id)
-    switch_deck(deck)
+    # force=True: route mutates session (hook + tab seeds) before leave — remount target.
+    switch_deck(deck, force=True)
     ui.notify(f"Opened {deck} (certified search entry).", type="info")
 
 

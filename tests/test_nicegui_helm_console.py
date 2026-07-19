@@ -261,8 +261,8 @@ def test_switch_deck_same_deck_skips_without_force() -> None:
     mod_src = inspect.getsource(ng_app)
     assert "_CONTENT =" not in mod_src
     assert "global _CONTENT" not in mod_src
-    # Remount goes through coalesced helper (leading-edge + trailing debounce).
-    assert "_remount_active_deck" in src
+    # Remount goes through atomic body+chrome helper (NAV-CHROME-001 / NAV-IMMEDIATE-001).
+    assert "_remount_and_sync_chrome" in src or "_apply_deck_switch" in inspect.getsource(ng_app)
     assert "_render_deck.refresh()" in inspect.getsource(ng_app._remount_active_deck)
     assert "DECK_RENDERERS.get" in mod_src
     # Settings panel must not remount on every deck switch (heavy).
@@ -795,13 +795,119 @@ def test_deck_renderers_are_lazy_cached() -> None:
     assert len(decks_mod._RENDERER_CACHE) >= before
 
 
-def test_switch_deck_coalesce_leading_edge() -> None:
-    """Leading-edge remount + trailing coalesce flags present (NAV-RACE-001)."""
+def test_switch_deck_immediate_remount() -> None:
+    """NAV-IMMEDIATE-001: every target change remounts body + chrome together (no debounce)."""
     import inspect
 
     from ui_nicegui import app as ng_app
 
     src = inspect.getsource(ng_app._switch_deck)
-    assert "coalesced" in src
-    assert "_remount_active_deck" in src
-    assert "_DECK_SWITCH_DEBOUNCE_S" in inspect.getsource(ng_app)
+    assert "_remount_and_sync_chrome" in src or "_apply_deck_switch" in src
+    assert "NAV-IMMEDIATE-001" in (ng_app._switch_deck.__doc__ or "")
+    assert not hasattr(ng_app, "_DECK_SWITCH_DEBOUNCE_S")
+
+
+class _FakeDeckTimer:
+    """Stand-in for ``ui.timer`` — used only to prove leftover timers are cancelled."""
+
+    def __init__(self, interval: float = 0.0, callback=None, once: bool = True) -> None:
+        self.callback = callback
+        self.cancelled = False
+
+    def cancel(self) -> None:
+        self.cancelled = True
+
+
+def test_switch_deck_rapid_clicks_remount_every_target() -> None:
+    """Rapid clicks must remount each new target immediately — no mid-burst lag."""
+    from unittest.mock import MagicMock
+
+    from ui_nicegui import app as ng_app
+    from ui_nicegui.lib import navigation as nav
+
+    deck_calls: list[str] = []
+    helm_calls: list[str] = []
+    status_calls: list[str] = []
+    orig_refresh = ng_app._render_deck.refresh
+    ng_app._render_deck.refresh = MagicMock(side_effect=lambda: deck_calls.append("deck"))  # type: ignore[method-assign]
+    nav.register_helm_refresh(lambda: helm_calls.append("helm"))
+    nav.register_status_refresh(lambda: status_calls.append("status"))
+    try:
+        s = ng_app._SESSION
+        s.active_deck = "Point Designer"
+        ng_app._pending_deck_remount.update({"timer": None, "name": None, "coalesced": False, "gen": 0})
+
+        ng_app._switch_deck("Scan Lab")
+        assert s.active_deck == "Scan Lab"
+        assert deck_calls == ["deck"]
+        assert helm_calls == ["helm"]
+        assert status_calls == ["status"]
+
+        ng_app._switch_deck("Compare")
+        assert s.active_deck == "Compare"
+        assert deck_calls == ["deck", "deck"]
+        assert helm_calls == ["helm", "helm"]
+        assert status_calls == ["status", "status"]
+
+        ng_app._switch_deck("Opt Lab")
+        assert s.active_deck == "Opt Lab"
+        assert deck_calls == ["deck", "deck", "deck"]
+    finally:
+        ng_app._render_deck.refresh = orig_refresh  # type: ignore[method-assign]
+        nav.register_helm_refresh(lambda: None)
+        nav.register_status_refresh(lambda: None)
+        ng_app._SESSION.active_deck = "Point Designer"
+        ng_app._pending_deck_remount.update({"timer": None, "name": None, "coalesced": False, "gen": 0})
+
+
+def test_switch_deck_force_cancels_leftover_timer() -> None:
+    """NAV-GEN-001: force switch cancels any leftover pending timer and remounts."""
+    from unittest.mock import MagicMock
+
+    from ui_nicegui import app as ng_app
+    from ui_nicegui.lib import navigation as nav
+
+    deck_calls: list[str] = []
+    orig_refresh = ng_app._render_deck.refresh
+    ng_app._render_deck.refresh = MagicMock(side_effect=lambda: deck_calls.append("deck"))  # type: ignore[method-assign]
+    nav.register_helm_refresh(lambda: None)
+    nav.register_status_refresh(lambda: None)
+    try:
+        s = ng_app._SESSION
+        s.active_deck = "Point Designer"
+        leftover = _FakeDeckTimer()
+        ng_app._pending_deck_remount.update(
+            {"timer": leftover, "name": "Scan Lab", "coalesced": True, "gen": 0}
+        )
+
+        ng_app._switch_deck("Reactor Design Forge", force=True)
+        assert leftover.cancelled is True
+        assert ng_app._pending_deck_remount["timer"] is None
+        assert s.active_deck == "Reactor Design Forge"
+        assert deck_calls == ["deck"]
+        assert int(ng_app._pending_deck_remount["gen"]) >= 1
+
+        deck_calls.clear()
+        ng_app._switch_deck("Compare")
+        assert deck_calls == ["deck"]
+    finally:
+        ng_app._render_deck.refresh = orig_refresh  # type: ignore[method-assign]
+        nav.register_helm_refresh(lambda: None)
+        nav.register_status_refresh(lambda: None)
+        ng_app._SESSION.active_deck = "Point Designer"
+        ng_app._pending_deck_remount.update({"timer": None, "name": None, "coalesced": False, "gen": 0})
+
+
+def test_recover_to_point_designer_routes_through_switch_deck() -> None:
+    """UI-DECK-CRASH-001 recovery CTA must use ``_switch_deck`` (NAV-GEN-001).
+
+    Calling ``_apply_deck_switch`` directly skipped the pending-timer cancel /
+    generation bump that force switches otherwise always get.
+    """
+    import inspect
+
+    from ui_nicegui import app as ng_app
+
+    src = inspect.getsource(ng_app._recover_to_point_designer)
+    assert '_switch_deck("Point Designer", force=True)' in src
+    assert "_apply_deck_switch" not in src
