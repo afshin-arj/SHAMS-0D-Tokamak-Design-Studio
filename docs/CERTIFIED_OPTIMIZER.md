@@ -74,7 +74,7 @@ SearchDrivers consume the contract; they never rewrite physics to chase the FoM.
 
 ---
 
-## SLSQP / SQP SearchDriver (Phase 2.1–2.2)
+## SLSQP / SQP SearchDriver (Phase 2.1–2.3)
 
 Bound-constrained continuous FoM search **outside** L0:
 
@@ -89,7 +89,17 @@ Bound-constrained continuous FoM search **outside** L0:
 
 Neighborhood policy (`neighborhood_certify.v1`): axis-aligned ±`step_frac`×span steps, then seeded random fill; default size 8; clipped to bounds; deterministic for a fixed seed.
 
-Lock tests: `tests/test_slsqp_search_driver.py`, `tests/test_neighborhood_certify.py`.
+### Float policy (Phase 2.3)
+
+SciPy SLSQP may be **platform-sensitive** (SciPy / BLAS / OS). Publication-grade determinism locks prefer:
+
+1. **`force_fallback=True`** → driver id `slsqp_fallback` (pure-Python, seeded)
+2. Seeded **neighborhood** proposals (`random.Random(seed)`)
+3. **CCFS shortlist / stamp identity** — same seed + `ObjectiveContract` + bounds → same rounded continuous knobs (**8 decimal places**) and same `opt_run_stamp.v1` `stamp_sha256`
+
+The SciPy path (`force_fallback=False`) is smoke-tested only; it is **not** bit-locked across platforms. Cross-platform citeable shortlists should use the fallback driver (or accept platform-local SciPy proposals and always re-certify via CCFS).
+
+Lock tests: `tests/test_slsqp_search_driver.py`, `tests/test_neighborhood_certify.py`, `tests/test_slsqp_determinism.py`.
 
 ---
 
@@ -131,7 +141,7 @@ When reviewing Opt Lab / Systems Mode / extopt / solvers changes, confirm:
 | Extopt orchestrator | `src/extopt/orchestrator.py` |
 | Frontier intake | `src/extopt/frontier_intake_v406.py` |
 | Lightweight propose helpers | `src/solvers/optimize.py` |
-| SLSQP SearchDriver (2.1) | `src/optimization/slsqp_search_driver.py` · `tests/test_slsqp_search_driver.py` |
+| SLSQP SearchDriver (2.1–2.3) | `src/optimization/slsqp_search_driver.py` · `tests/test_slsqp_search_driver.py` · `tests/test_neighborhood_certify.py` · `tests/test_slsqp_determinism.py` |
 | Anti L0-opt import guards | `src/optimization/l0_opt_guards.py` · `tests/test_l0_opt_import_guard.py` |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` · `docs/CITE_SHAMS_HANDOFF.md` |
 | Living roadmap | `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` |

@@ -1,4 +1,4 @@
-"""SLSQP / SQP-style SearchDriver — Certified Optimizer Phase 2.1–2.2.
+"""SLSQP / SQP-style SearchDriver — Certified Optimizer Phase 2.1–2.3.
 
 Bound-constrained continuous search **outside** L0. The driver:
 
@@ -12,6 +12,10 @@ Bound-constrained continuous search **outside** L0. The driver:
 * Phase 2.2: ``certify_best_and_neighborhood`` always re-certifies the
   reported best **and** a seeded local neighborhood through CCFS
   (``opt_run_stamp.v1`` attached; REJECTED rows carry ``no_solution_atlas.v1``).
+* Phase 2.3 float policy: SciPy SLSQP may be platform-sensitive; publication
+  locks prefer ``force_fallback=True`` + seeded neighborhood + stamp/shortlist
+  identity (8 dp knobs). See ``docs/CERTIFIED_OPTIMIZER.md`` and
+  ``tests/test_slsqp_determinism.py``.
 
 Driver ids: ``slsqp`` | ``slsqp_fallback``.
 """
