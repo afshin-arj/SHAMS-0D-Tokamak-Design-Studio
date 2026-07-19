@@ -48,12 +48,26 @@ def render_pareto_lab(session: DesignSession) -> None:
     )
 
     render_certified_opt_honesty_banner("pareto_lab")
+    from ui_nicegui.components.opt_lab_warm_start_panel import render_champion_warm_start
+
+    with ui.expansion("Champion warm-start (search seed)", icon="bolt", value=False).classes(
+        "w-full q-mb-sm"
+    ):
+        render_champion_warm_start(
+            session,
+            compact=True,
+            on_loaded=lambda: ui.notify(
+                "Seed loaded — Evaluate Point in Point Designer before running Pareto.",
+                type="info",
+            ),
+        )
     render_mode_scope("pareto", default_open=False)
 
     art, _, point_out = get_point_artifact_triple(session)
     if not isinstance(point_out, dict):
         pd_prerequisite_gate(
-            "Run **Point Designer → Evaluate Point** first — Pareto Lab uses that frozen baseline.",
+            "Run **Point Designer → Evaluate Point** first — Pareto Lab uses that frozen baseline "
+            "(or load a champion warm-start seed above, then Evaluate).",
         )
         return
 

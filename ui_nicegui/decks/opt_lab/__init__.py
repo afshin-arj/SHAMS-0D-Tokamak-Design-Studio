@@ -1,8 +1,8 @@
-"""Opt Lab deck — certified-search entry surface (Certified Optimizer 1.1).
+"""Opt Lab deck — certified-search entry surface (Certified Optimizer 1.1–1.4).
 
-Thin hub: three-step path + honesty copy + routes into Systems Mode,
-Pareto Lab, and Control Room Certified Search. SearchDrivers, run stamps,
-and warm-start are later tickets — this deck does not claim an authoritative optimum.
+Thin hub: three-step path + honesty copy + champion warm-start + routes into
+Systems Mode, Pareto Lab, and Control Room Certified Search. SearchDrivers
+are Phase 2 — this deck does not claim an authoritative optimum.
 """
 from __future__ import annotations
 
@@ -24,10 +24,8 @@ def render_opt_lab(session: DesignSession) -> None:
         "w-full q-mt-md"
     ):
         ui.markdown(
-            "- **Run stamp** — VERSION + ObjectiveContract hash + seed on every opt run\n"
-            "- **Honesty polish** — VERIFIED / REJECTED + atlas tooltips on results viewers\n"
-            "- **Champion warm-start** — one-click seed from champion PointInputs\n"
-            "- **SearchDrivers** — SLSQP / NSGA propose-only (still certified by CCFS)\n\n"
-            "Until then, use the routes above — every path still proposes only and "
-            "re-evaluates through frozen truth."
+            "- **SearchDrivers** — SLSQP / NSGA propose-only (still certified by CCFS)\n"
+            "- **Neighborhood re-certify** — best + local neighborhood always through CCFS\n\n"
+            "Champion warm-start, run stamps, and honesty copy are already on this hub. "
+            "Every path still proposes only and re-evaluates through frozen truth."
         ).classes("text-caption")

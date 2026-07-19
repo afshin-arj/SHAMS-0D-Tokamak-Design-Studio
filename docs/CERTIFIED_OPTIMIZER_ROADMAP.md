@@ -42,7 +42,7 @@ ObjectiveContract (hashed, outside L0)
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
-| 1 Opt Lab productization | **OPEN** | 1.1–1.3 DONE; 1.4 remains |
+| 1 Opt Lab productization | **DONE** | 1.1–1.4 complete (entry + stamp + honesty + champion warm-start) |
 | 2 Single-objective certified solver | **OPEN** | SQP/SLSQP propose-only; neighborhood re-certify |
 | 3 Multi-objective certified front | **OPEN** | NSGA-class + atlas-annotated dominatees |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
@@ -104,11 +104,11 @@ ObjectiveContract (hashed, outside L0)
 | 1.1 | Opt Lab entry surface | **DONE** (2026-07-19) — NiceGUI deck **Opt Lab** + Streamlit cheap parity: three-step propose→CCFS path, honesty copy (**Proposed — SHAMS-certified**, never true minimum), routes into Systems Mode / Pareto Lab / Control Room Certified Search (no deck duplication); Launchpad + Helm nav; mode scope `opt_lab`; lock tests `tests/test_opt_lab_entry.py`. L0 untouched. |
 | 1.2 | Run artifact stamp | **DONE** (2026-07-19) — `src/optimization/opt_run_stamp.py`: `opt_run_stamp.v1` (SHAMS VERSION, `objective_contract.v1` hash, seed, search driver id, candidate/VERIFIED/REJECTED counts, stamp SHA-256 + optional pack SHA); CCFS `verify_ccfs_bundle` attaches stamp by default (`ccfs_verify` driver); Opt Lab entry surfaces last-run stamp summary; Streamlit Control Room CCFS caption; lock tests `tests/test_opt_run_stamp_v1.py`. L0 untouched. |
 | 1.3 | UI honesty copy | **DONE** (2026-07-19) — shared `ui_nicegui/lib/certified_opt_honesty.py` + NiceGUI banner; honesty strip on Systems Mode / Pareto Lab / Control Room Certified Search (+ Opt Lab via shared phrases); VERIFIED vs REJECTED + atlas reject note; Streamlit parity on those decks; stripped user-facing `vNNN` labels on Systems Mode post-solve PROXY panels; lock tests `tests/test_certified_opt_honesty_copy.py`. L0 untouched. |
-| 1.4 | Champion warm-start | One-click load champion `PointInputs` as search seed (propose-only; user/run still certifies) |
+| 1.4 | Champion warm-start | **DONE** (2026-07-19) — `ui_nicegui/lib/opt_lab_warm_start.py`: one-click champion → search seed (reuse `studio_entry.apply_champion_template` / `champion_cases`); forces PD Ip/fG bounds; clears Systems Mode bound overrides + recovery seed = PD baseline; refreshes Pareto sampling bounds; meta `opt_lab_warm_start.v1` (propose-only, not certified). UI: Opt Lab entry + Systems Mode / Pareto Lab expansions + Streamlit catalogue parity. Honesty: not a true minimum; no `vNNN`. Lock tests: `tests/test_opt_lab_champion_warm_start.py`. L0 untouched. |
 
 **Delegates:** `/architect`, `/developer`, `/nicegui-specialist`, `/ui-specialist`, `/shams-qa-explorer`
 
-**Exit:** User reaches a certified front in minimal clicks without touching PROCESS.
+**Exit:** User reaches a certified front in minimal clicks without touching PROCESS. **Phase 1 complete.**
 
 ---
 
@@ -178,9 +178,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **1.4** — Champion warm-start  
-2. **2.1** — SLSQP/SQP SearchDriver  
-3. **2.2** — Best + neighborhood re-certify  
+1. **2.1** — SLSQP/SQP SearchDriver  
+2. **2.2** — Best + neighborhood re-certify  
+3. **2.3** — Lock tests + determinism  
 
 ## Overclaim check
 

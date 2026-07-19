@@ -110,10 +110,12 @@ def test_opt_lab_nicegui_and_streamlit_surfaces() -> None:
     assert "OPT_LAB_STEPS" in panel
     assert "OPT_LAB_ROUTES" in panel
     assert "opt_lab_last_run_stamp_summary" in panel
+    assert "render_champion_warm_start" in panel
 
     streamlit = (ROOT / "ui" / "decks" / "opt_lab.py").read_text(encoding="utf-8")
     assert "OPT_LAB_STEPS" in streamlit
     assert "Proposed — SHAMS-certified" in streamlit or "SHAMS-certified" in streamlit
+    assert "WARM_START_TITLE" in streamlit
 
     app = (ROOT / "ui" / "app.py").read_text(encoding="utf-8")
     assert '"Opt Lab"' in app

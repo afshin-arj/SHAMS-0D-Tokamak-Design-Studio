@@ -100,6 +100,12 @@ def render_systems_mode(session: DesignSession) -> None:
     )
 
     render_certified_opt_honesty_banner("systems_mode")
+    from ui_nicegui.components.opt_lab_warm_start_panel import render_champion_warm_start
+
+    with ui.expansion("Champion warm-start (search seed)", icon="bolt", value=False).classes(
+        "w-full q-mb-sm"
+    ):
+        render_champion_warm_start(session, compact=True)
     render_mode_scope("systems_eval", default_open=False)
     ui.label(policy_caption(session.design_intent)).classes("text-caption q-mb-sm")
 

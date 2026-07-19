@@ -1,4 +1,4 @@
-"""Opt Lab entry contract — Certified Optimizer Phase 1.1–1.3.
+"""Opt Lab entry contract — Certified Optimizer Phase 1.1–1.4.
 
 Pure helpers (no NiceGUI imports) so the entry surface is lock-testable:
 deck identity, three-step certified-search path, honesty phrases,

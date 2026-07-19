@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.opt_lab_warm_start_panel import render_champion_warm_start
 from ui_nicegui.lib.opt_lab_entry import (
     OPT_LAB_HONESTY_LINE,
     OPT_LAB_PITCH,
@@ -51,6 +52,8 @@ def render_opt_lab_entry(session: DesignSession) -> None:
         ui.label(opt_lab_last_run_stamp_summary(session)).classes(
             "text-caption text-grey q-mb-sm"
         )
+
+        render_champion_warm_start(session)
 
         ui.label("Three steps to a certified search").classes("text-subtitle2")
         for idx, step in enumerate(OPT_LAB_STEPS, start=1):
