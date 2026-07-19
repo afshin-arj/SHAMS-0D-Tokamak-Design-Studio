@@ -39,6 +39,9 @@ def render_systems_mode(_app_module) -> None:
 
     st.header("Systems Mode")
     st.caption("Feasibility-first system explanation around the frozen Point Designer truth. Deterministic, audit-safe, no hidden solvers.")
+    from ui_nicegui.lib.certified_opt_honesty import SYSTEMS_MODE_HONESTY
+
+    st.warning(SYSTEMS_MODE_HONESTY)
     render_mode_scope("systems")
 
     # --- Systems Mode solver parameter discipline (UI stabilization Phase 1) ---

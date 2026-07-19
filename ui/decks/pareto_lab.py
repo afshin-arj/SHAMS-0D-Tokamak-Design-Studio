@@ -21,6 +21,9 @@ def render_pareto_lab(_app_module) -> None:
 
     st.header("Pareto Lab")
     st.caption("Trade-off observatory over the feasible set. External optimization is firewalled; truth remains frozen.")
+    from ui_nicegui.lib.certified_opt_honesty import PARETO_LAB_HONESTY
+
+    st.warning(PARETO_LAB_HONESTY)
     render_mode_scope("pareto")
     # --- Pareto freeze (read-only semantics) ---
     st.info(PARETO_LOCK_LINE)

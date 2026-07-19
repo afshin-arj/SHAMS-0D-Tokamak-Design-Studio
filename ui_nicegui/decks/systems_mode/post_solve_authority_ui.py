@@ -86,10 +86,10 @@ def _authority_body(
         for k in ("B_peak_T", "hts_margin", "sc_margin_v410", "sc_margin", "magnet_technology", "magnet_tech")
     ) or v400 is not None
     if has_magnet_proxy:
-        with ui.expansion("Magnets v400 (read-only PROXY)", icon="bolt").classes("w-full"):
+        with ui.expansion("Magnet technology margins (read-only PROXY)", icon="bolt").classes("w-full"):
             ui.markdown(
                 "PROXY / screening fields from frozen outputs — enable magnet technology "
-                "authority (v400) in Point Designer for full margins."
+                "margins authority in Point Designer for full margins."
             ).classes("text-caption text-grey q-mb-xs")
             b_peak = outs.get("B_peak_T")
             b_allow = outs.get("B_peak_allow_T")
@@ -115,9 +115,9 @@ def _authority_body(
             ])
             if v400:
                 kpi_row([
-                    ("v400 combined margin", _fmt(v400.get("combined_margin"), digits=3)),
-                    ("v400 tier", str(v400.get("tier") or "—")),
-                    ("v400 dominant", str(v400.get("dominant") or "—")),
+                    ("Combined magnet margin", _fmt(v400.get("combined_margin"), digits=3)),
+                    ("Magnet margin tier", str(v400.get("tier") or "—")),
+                    ("Dominant magnet limit", str(v400.get("dominant") or "—")),
                     ("Dominant margin", _fmt(v400.get("dominant_margin"), digits=3)),
                 ])
 
@@ -143,7 +143,7 @@ def _authority_body(
     except (TypeError, ValueError):
         _elm_qf = float("nan")
     if elm_on or _elm_qf == _elm_qf:
-        with ui.expansion("ELM transient heat (v409 screening)", icon="flash_on").classes("w-full"):
+        with ui.expansion("ELM transient heat (screening)", icon="flash_on").classes("w-full"):
             ui.label(
                 "Transient parallel heat-flux screening proxy — not a SOLPS ELM model."
             ).classes("text-caption text-grey q-mb-xs")

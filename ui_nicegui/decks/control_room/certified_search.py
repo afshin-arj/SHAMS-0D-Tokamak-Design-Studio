@@ -1,10 +1,24 @@
-"""Control Room — certified search orchestrator (Chronicle)."""
+"""Control Room — certified search orchestrator (Chronicle).
+
+Honesty: Proposed — SHAMS-certified (Phase 1.3); VERIFIED vs REJECTED + atlas note.
+"""
 from __future__ import annotations
 
 from nicegui import run, ui
 
+from ui_nicegui.components.certified_opt_honesty_banner import (
+    render_atlas_reject_note,
+    render_certified_opt_honesty_banner,
+)
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.lib.certified_opt_honesty import (
+    BEST_PROPOSED_LABEL,
+    REJECTED_KPI_LABEL,
+    VERIFIED_KPI_LABEL,
+    counts_from_pass_fail_rows,
+    format_verified_rejected_counts,
+)
 from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.lib.cr_chronicle_helpers import (
     flatten_certified_search_table_rows,
@@ -32,6 +46,7 @@ def render_certified_search(session: DesignSession) -> None:
     ui.label(
         "Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator."
     ).classes("text-caption q-mb-sm")
+    render_certified_opt_honesty_banner("certified_search")
 
     try:
         base = session.build_point_inputs()
@@ -57,7 +72,7 @@ def render_certified_search(session: DesignSession) -> None:
     ).classes("w-full")
     objective = ui.select(
         ["Q_DT_eqv", "P_fus_MW", "P_e_net_MW"],
-        label="Score objective (PASS-only)",
+        label="Score objective (VERIFIED / PASS-only ranking)",
         value="Q_DT_eqv",
     ).classes("w-full")
 
@@ -125,8 +140,9 @@ def render_certified_search(session: DesignSession) -> None:
                 recs = stg.get("records") or []
                 n_tot += len(recs)
                 n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
+            n_rej = max(0, n_tot - n_pass)
             ui.notify(
-                f"Certified search done — PASS {n_pass}/{n_tot} · digest {str(art.get('digest', ''))[:12]}",
+                f"Certified search done — {format_verified_rejected_counts(n_verified=n_pass, n_rejected=n_rej, n_candidates=n_tot)}",
                 type="positive",
             )
             _results.refresh(session)
@@ -162,8 +178,24 @@ def _results(session: DesignSession) -> None:
     if not isinstance(art, dict) or not art.get("schema_version"):
         return
     rows = flatten_certified_search_table_rows(art)
-    n_pass = sum(1 for r in rows if r.get("verdict") == "PASS")
-    kpi_row([("Candidates", str(len(rows))), ("PASS", str(n_pass)), ("Digest", str(art.get("digest", "-"))[:12])])
+    n_verified, n_rejected = counts_from_pass_fail_rows(rows)
+    kpi_row(
+        [
+            ("Candidates", str(len(rows))),
+            (VERIFIED_KPI_LABEL, str(n_verified)),
+            (REJECTED_KPI_LABEL, str(n_rejected)),
+            ("Digest", str(art.get("digest", "-"))[:12]),
+        ]
+    )
+    ui.label(
+        format_verified_rejected_counts(
+            n_verified=n_verified,
+            n_rejected=n_rejected,
+            n_candidates=len(rows),
+        )
+    ).classes("text-caption q-mb-xs")
+    if n_rejected > 0:
+        render_atlas_reject_note()
     if rows:
         cols = list(rows[0].keys())[:12]
         ui.table(
@@ -173,7 +205,7 @@ def _results(session: DesignSession) -> None:
         ).classes("w-full q-mb-sm")
     best = art.get("best")
     if isinstance(best, dict):
-        with ui.expansion("Best PASS candidate", icon="star").classes("w-full"):
+        with ui.expansion(BEST_PROPOSED_LABEL, icon="star").classes("w-full"):
             render_json_blob(best)
     ui.button(
         "Download certified search JSON",

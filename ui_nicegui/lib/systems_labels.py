@@ -36,6 +36,7 @@ TAB_HELP = {
 DECK_SUBTITLE = (
     "Target-solve cockpit around frozen Point Designer physics — "
     "Monte Carlo precheck + Newton solve propose inputs only; L0 re-evaluates. "
+    "Proposed — SHAMS-certified (not an authoritative optimum). "
     "Not System Suite (read-only L1 overlays)."
 )
 

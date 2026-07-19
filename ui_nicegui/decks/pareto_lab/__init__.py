@@ -43,6 +43,11 @@ def render_pareto_lab(session: DesignSession) -> None:
     ui.label("Pareto Lab").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     ui.markdown(PARETO_LOCK_LINE).classes("text-body2 q-mb-sm")
+    from ui_nicegui.components.certified_opt_honesty_banner import (
+        render_certified_opt_honesty_banner,
+    )
+
+    render_certified_opt_honesty_banner("pareto_lab")
     render_mode_scope("pareto", default_open=False)
 
     art, _, point_out = get_point_artifact_triple(session)

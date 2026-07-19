@@ -95,6 +95,11 @@ def render_systems_mode(session: DesignSession) -> None:
         "**Systems Mode** — Monte Carlo precheck + Newton solve (proposes inputs; never changes L0). "
         "This is **not System Suite** (read-only L1 overlays on a Point Designer artifact)."
     ).classes("text-caption q-mb-xs")
+    from ui_nicegui.components.certified_opt_honesty_banner import (
+        render_certified_opt_honesty_banner,
+    )
+
+    render_certified_opt_honesty_banner("systems_mode")
     render_mode_scope("systems_eval", default_open=False)
     ui.label(policy_caption(session.design_intent)).classes("text-caption q-mb-sm")
 

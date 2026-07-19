@@ -76,7 +76,9 @@ TEACHING_HINTS = {
 
 PARETO_LOCK_LINE = (
     "**Pareto Lab is frozen** — trade-off cartography over feasible designs only. "
-    "No optimization, relaxation, or recommendations."
+    "No optimization, relaxation, or recommendations. "
+    "Labels say **Proposed — SHAMS-certified** — VERIFIED vs REJECTED with atlas on rejects; "
+    "never a true minimum claim."
 )
 
 ROBUST_MARGIN_HELP = (

@@ -57,6 +57,8 @@ Use these labels (version-tag-free — no `vNNN` in user-facing Opt Lab labels):
 
 A certified front is a **set of proposals that passed frozen re-eval**, not a claim that the design space has been exhaustively solved.
 
+**Implementation (Phase 1.3):** shared strings live in `ui_nicegui/lib/certified_opt_honesty.py` (NiceGUI banner + Streamlit parity on Systems Mode / Pareto Lab / Control Room Certified Search). Lock tests: `tests/test_certified_opt_honesty_copy.py`.
+
 ---
 
 ## ObjectiveContract

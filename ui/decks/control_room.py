@@ -2942,6 +2942,18 @@ This panel also performs a lightweight hygiene scan of the working tree.
     with tab_cert_search:
         st.header("Certified Search")
         st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
+        from ui_nicegui.lib.certified_opt_honesty import (
+            ATLAS_REJECT_NOTE,
+            BEST_PROPOSED_LABEL,
+            CERTIFIED_SEARCH_HONESTY,
+            REJECTED_KPI_LABEL,
+            VERIFIED_KPI_LABEL,
+            VERIFIED_REJECTED_ATLAS_LINE,
+            format_verified_rejected_counts,
+        )
+
+        st.warning(CERTIFIED_SEARCH_HONESTY)
+        st.caption(VERIFIED_REJECTED_ATLAS_LINE)
 
         from dataclasses import replace
         from solvers.budgeted_search import SearchVar
@@ -2985,7 +2997,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 )
             with cols[2]:
                 objective = st.selectbox(
-                    "Score objective (PASS-only)",
+                    "Score objective (VERIFIED / PASS-only ranking)",
                     ["Q_DT_eqv", "P_fus_MW", "P_net_MW"],
                     index=0,
                     key="cs_single_obj",
@@ -3175,7 +3187,11 @@ This panel also performs a lightweight hygiene scan of the working tree.
                             n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
                     except Exception:
                         pass
-                    st.success(f"Done. Digest: {str(art.get('digest',''))[:12]} | PASS found: {n_pass}/{n_tot}")
+                    n_rej = max(0, int(n_tot) - int(n_pass))
+                    st.success(
+                        f"Done. Digest: {str(art.get('digest',''))[:12]} | "
+                        f"{format_verified_rejected_counts(n_verified=n_pass, n_rejected=n_rej, n_candidates=n_tot)}"
+                    )
 
             art = st.session_state.get("v340_cert_search_last")
             if isinstance(art, dict) and art.get("schema_version"):
@@ -3185,11 +3201,26 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 for stg in art.get("stages", []):
                     for r in stg.get("records", []):
                         rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
+                n_verified = sum(1 for r in rows if str(r.get("verdict", "")).upper() == "PASS")
+                n_rejected = max(0, len(rows) - n_verified)
+                c_v, c_r, c_n = st.columns(3)
+                c_v.metric(VERIFIED_KPI_LABEL, n_verified)
+                c_r.metric(REJECTED_KPI_LABEL, n_rejected)
+                c_n.metric("Candidates", len(rows))
+                st.caption(
+                    format_verified_rejected_counts(
+                        n_verified=n_verified,
+                        n_rejected=n_rejected,
+                        n_candidates=len(rows),
+                    )
+                )
+                if n_rejected > 0:
+                    st.caption(ATLAS_REJECT_NOTE)
                 df = pd.DataFrame(rows)
                 with st.expander("Results table", expanded=False):
                     st.dataframe(df, use_container_width=True, hide_index=True)
                 if isinstance(art.get("best"), dict) and art["best"].get("x") is not None:
-                    with st.expander("Best PASS candidate", expanded=False):
+                    with st.expander(BEST_PROPOSED_LABEL, expanded=False):
                         st.json(art.get("best"))
 
                 # v405: frontier candidates (Pareto) with per-candidate evidence packs
