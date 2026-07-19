@@ -131,8 +131,10 @@ PROCESS may appear in Opt Lab only as an **optional proposer** → CCFS. This st
 
 ## Studio entry
 
+- **Opt Lab** deck — three-step certified-search entry (propose→CCFS); routes into Systems Mode / Pareto Lab / Control Room Certified Search
+- Launchpad path: “Start a certified search (Opt Lab)”
 - Control Room → Constitution → **Docs Library** → `CERTIFIED_OPTIMIZER.md`
 - Launchpad path: “Read certified optimizer stance”
 - Point Designer studio entry card → onboarding doc link (version-tag-free label)
 
-Lock tests: `tests/test_certified_optimizer_stance.py` · `tests/test_l0_opt_import_guard.py`.
+Lock tests: `tests/test_certified_optimizer_stance.py` · `tests/test_l0_opt_import_guard.py` · `tests/test_opt_lab_entry.py`.

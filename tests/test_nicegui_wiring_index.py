@@ -4,10 +4,11 @@ from ui_nicegui.decks import DECK_LABELS, DECK_RENDERERS
 
 
 def test_nicegui_deck_registry_complete() -> None:
-    assert len(DECK_LABELS) == 10
+    assert len(DECK_LABELS) == 11
     for deck in DECK_LABELS:
         assert deck in DECK_RENDERERS, f"Missing renderer for deck: {deck}"
         assert callable(DECK_RENDERERS[deck])
+    assert "Opt Lab" in DECK_LABELS
 
 
 def test_nicegui_wiring_index_contains_anchors() -> None:

@@ -20,8 +20,9 @@ HELM_NAV_GROUPS: list[tuple[str, str, list[str]]] = [
     ),
     (
         "2 · Map and close",
-        "Scan Lab = cartography. Systems Mode = Newton/MC solver (proposes inputs). Not System Suite.",
-        ["Scan Lab", "Systems Mode"],
+        "Scan Lab = cartography. Systems Mode = Newton/MC solver (proposes inputs). "
+        "Opt Lab = certified-search entry (propose→CCFS). Not System Suite.",
+        ["Scan Lab", "Systems Mode", "Opt Lab"],
     ),
     (
         "3 · Compare and trade",

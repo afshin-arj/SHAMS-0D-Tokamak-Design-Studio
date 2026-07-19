@@ -3182,6 +3182,7 @@ _DECK_LABELS = [
     "Point Designer",
     "Scan Lab",
     "Systems Mode",
+    "Opt Lab",
     "Compare",
     "Pareto Lab",
     "Trade Study Studio",
@@ -3268,6 +3269,11 @@ if _deck == "Point Designer":
 if _deck == "Systems Mode":
     from ui.decks.systems_mode import render_systems_mode
     render_systems_mode(sys.modules[__name__])
+
+if _deck == "Opt Lab":
+    from ui.decks.opt_lab import render_opt_lab
+    render_opt_lab(st)
+    st.stop()
 
 if _deck == "Scan Lab":
     st.info(

@@ -66,6 +66,7 @@ CERTIFIED_OPTIMIZER_DOC = "CERTIFIED_OPTIMIZER.md"
 LAUNCHPAD_DECK: Dict[str, str] = {
     "Migrate a PROCESS study to SHAMS": "Control Room",
     "Read certified optimizer stance": "Control Room",
+    "Start a certified search (Opt Lab)": "Opt Lab",
     "Run a champion feasibility template": "Point Designer",
     "Understand feasibility limits (cartography)": "Scan Lab",
     "Explore reactor concepts (Forge)": "Reactor Design Forge",
@@ -87,6 +88,13 @@ LAUNCHPAD_PATHS: List[Tuple[str, str, str]] = [
         "- Open **`docs/CERTIFIED_OPTIMIZER.md`** (propose→CCFS; optimizer-in-truth forbidden)\n"
         "- UI honesty: **Proposed — SHAMS-certified**, never true minimum\n"
         "- FoM lives in ObjectiveContract outside L0 — do **not** claim PROCESS retired.",
+    ),
+    (
+        "Start a certified search (Opt Lab)",
+        "Recommended: Opt Lab → three-step path → Systems Mode / Pareto / Certified Search.",
+        "- Open **Opt Lab** for the propose→CCFS entry surface\n"
+        "- Route into **Systems Mode**, **Pareto Lab**, or **Control Room → Certified Search**\n"
+        "- Labels say **Proposed — SHAMS-certified** — never true minimum; no PROCESS-retired claim.",
     ),
     (
         "Run a champion feasibility template",

@@ -42,7 +42,7 @@ ObjectiveContract (hashed, outside L0)
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
-| 1 Opt Lab productization | **OPEN** | Unify Systems Mode / Pareto / CCFS packaging |
+| 1 Opt Lab productization | **OPEN** | 1.1 DONE — entry surface; 1.2–1.4 remain |
 | 2 Single-objective certified solver | **OPEN** | SQP/SLSQP propose-only; neighborhood re-certify |
 | 3 Multi-objective certified front | **OPEN** | NSGA-class + atlas-annotated dominatees |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
@@ -98,7 +98,7 @@ ObjectiveContract (hashed, outside L0)
 
 | # | Ticket | Done when |
 |---|--------|-----------|
-| 1.1 | Opt Lab entry surface | NiceGUI Opt Lab (or Systems Mode “Certified search” tab) with clear 3-step path; Streamlit cheap parity |
+| 1.1 | Opt Lab entry surface | **DONE** (2026-07-19) — NiceGUI deck **Opt Lab** + Streamlit cheap parity: three-step propose→CCFS path, honesty copy (**Proposed — SHAMS-certified**, never true minimum), routes into Systems Mode / Pareto Lab / Control Room Certified Search (no deck duplication); Launchpad + Helm nav; mode scope `opt_lab`; lock tests `tests/test_opt_lab_entry.py`. L0 untouched. |
 | 1.2 | Run artifact stamp | Every opt run stores VERSION, objective-contract hash, seed, search driver id, candidate count, VERIFIED/REJECTED counts, pack SHA |
 | 1.3 | UI honesty copy | Labels/tooltips never claim true minimum; VERIFIED vs REJECTED + atlas for rejects; no `vNNN` in labels |
 | 1.4 | Champion warm-start | One-click load champion `PointInputs` as search seed (propose-only; user/run still certifies) |
@@ -175,9 +175,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **1.1** — Opt Lab entry surface  
-2. **1.2** — Run artifact stamp  
-3. **1.3** — UI honesty copy  
+1. **1.2** — Run artifact stamp  
+2. **1.3** — UI honesty copy  
+3. **1.4** — Champion warm-start  
 
 ## Overclaim check
 

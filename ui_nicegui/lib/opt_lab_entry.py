@@ -1,0 +1,111 @@
+"""Opt Lab entry contract — Certified Optimizer Phase 1.1.
+
+Pure helpers (no NiceGUI imports) so the entry surface is lock-testable:
+deck identity, three-step certified-search path, honesty phrases, and
+route targets into existing Systems Mode / Pareto Lab / Control Room
+Certified Search surfaces. Does not implement SearchDrivers or run stamps
+(those are later Phase 1–2 tickets).
+
+L0 risk: none — navigation and copy only; certification remains CCFS /
+frozen Evaluator. No user-facing label may carry internal version tags
+(``vNNN``). Does not claim PROCESS retirement or an authoritative optimum.
+"""
+from __future__ import annotations
+
+from typing import List, Tuple
+
+# Deck display name — registered in DECK_LABELS / Helm nav.
+OPT_LAB_DECK = "Opt Lab"
+
+OPT_LAB_TITLE = "Opt Lab — Certified search"
+
+OPT_LAB_TAGLINE = (
+    "Search design space outside L0, then certify every claim with frozen truth — "
+    "propose PointInputs, CCFS re-evaluates, and read VERIFIED vs REJECTED with atlas."
+)
+
+OPT_LAB_HONESTY_LINE = (
+    "Results are Proposed — SHAMS-certified proposals that passed frozen re-eval — "
+    "not an authoritative global optimum."
+)
+
+OPT_LAB_PITCH = (
+    "PROCESS optimizes-and-believes; SHAMS searches-and-certifies."
+)
+
+# Three-step path to a certified search entry (user-facing; no version tags).
+OPT_LAB_STEPS: List[str] = [
+    "Anchor a baseline in Point Designer (frozen evaluate) and pick the search path.",
+    "Propose candidates — Systems Mode (targets/solve), Pareto Lab (feasible front), "
+    "or Control Room Certified Search (budgeted multi-knob).",
+    "Read the certified front — VERIFIED vs REJECTED with NO-SOLUTION atlas; "
+    "labels say Proposed — SHAMS-certified (not an authoritative optimum).",
+]
+
+# Unified entry routes into existing surfaces (do not duplicate full decks).
+# (button_label, target_deck, optional session_hook_id)
+OPT_LAB_ROUTES: List[Tuple[str, str, str]] = [
+    (
+        "Systems Mode — target solve / alternatives",
+        "Systems Mode",
+        "systems_mode",
+    ),
+    (
+        "Pareto Lab — feasible certified front",
+        "Pareto Lab",
+        "pareto_lab",
+    ),
+    (
+        "Control Room — Certified Search",
+        "Control Room",
+        "certified_search",
+    ),
+]
+
+OPT_LAB_STANCE_DOC = ("Certified Optimizer stance", "docs/CERTIFIED_OPTIMIZER.md")
+
+# Phrases that must appear in the entry contract (honesty lock).
+OPT_LAB_REQUIRED_PHRASES: List[str] = [
+    "Proposed — SHAMS-certified",
+    "propose",
+    "CCFS",
+    "VERIFIED",
+    "REJECTED",
+]
+
+# Forbidden in user-facing Opt Lab entry copy.
+OPT_LAB_FORBIDDEN_PHRASES: List[str] = [
+    "true minimum",
+    "true global optimum",
+    "true global minimum",
+    "SHAMS found the true",
+    "optimizer-in-truth",
+]
+
+
+def opt_lab_user_facing_texts() -> List[str]:
+    """All user-facing strings in the Opt Lab entry contract (for lock tests)."""
+    texts: List[str] = [
+        OPT_LAB_DECK,
+        OPT_LAB_TITLE,
+        OPT_LAB_TAGLINE,
+        OPT_LAB_HONESTY_LINE,
+        OPT_LAB_PITCH,
+        OPT_LAB_STANCE_DOC[0],
+    ]
+    texts.extend(OPT_LAB_STEPS)
+    texts.extend(label for label, _, _ in OPT_LAB_ROUTES)
+    return texts
+
+
+def apply_opt_lab_route_session(session: object, hook_id: str) -> None:
+    """Prime session fields so the target deck opens on the certified-search surface."""
+    if hook_id == "certified_search":
+        session.cr_workflow_step = "6 · Chronicle"  # type: ignore[attr-defined]
+        session.cr_section = "Chronicle"  # type: ignore[attr-defined]
+        session.cr_chronicle_tab = "Certified Search"  # type: ignore[attr-defined]
+    elif hook_id == "systems_mode":
+        # Alternatives tab hosts budgeted feasible search + frontier panels.
+        session.systems_workflow_step = "3 · Alternatives"  # type: ignore[attr-defined]
+    elif hook_id == "pareto_lab":
+        session.pareto_workflow_step = "1 · Setup & Run"  # type: ignore[attr-defined]

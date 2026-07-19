@@ -66,7 +66,7 @@ Then: **Point Designer → Evaluate →** read the verdict → continue with Sca
 
 ---
 
-## Study workflow (10 decks)
+## Study workflow (11 decks)
 
 Use the **Helm Console** (left drawer) to follow the numbered expert path.
 
@@ -74,10 +74,11 @@ Use the **Helm Console** (left drawer) to follow the numbered expert path.
 flowchart LR
   A["① Point Designer<br/>anchor + verdict"] --> B["② Scan Lab<br/>map space"]
   B --> C["③ Systems Mode<br/>close plant"]
-  C --> D["④ Compare<br/>A vs B"]
-  D --> E["⑤ Pareto · ⑥ Trade<br/>frontiers"]
-  E --> F["⑦ Forge<br/>concepts"]
-  F --> G["⑧ Pub · ⑨ Suite · ⑩ Control Room<br/>evidence & audit"]
+  C --> OL["④ Opt Lab<br/>certified search"]
+  OL --> D["⑤ Compare<br/>A vs B"]
+  D --> E["⑥ Pareto · ⑦ Trade<br/>frontiers"]
+  E --> F["⑧ Forge<br/>concepts"]
+  F --> G["⑨ Pub · ⑩ Suite · ⑪ Control Room<br/>evidence & audit"]
 
   style A fill:#0B3D5C,color:#fff
   style G fill:#1B5E20,color:#fff
@@ -88,13 +89,14 @@ flowchart LR
 | 1 | **Point Designer** | One operating point → feasibility verdict |
 | 2 | **Scan Lab** | 2-D cartography of feasible / first-failure regions |
 | 3 | **Systems Mode** | Monte Carlo precheck + Newton solve (*proposes* inputs) |
-| 4 | **Compare** | Diff baseline vs scenario artifacts |
-| 5 | **Pareto Lab** | Feasible-only frontiers; mirage filter |
-| 6 | **Trade Study Studio** | Certified trade studies & robust lanes |
-| 7 | **Reactor Design Forge** | Intent → machine families → dossiers |
-| 8 | **Publication Benchmarks** | Constitutional atlas & reviewer packs |
-| 9 | **System Suite** | Read-only L1 overlays on a Point Designer artifact |
-| 10 | **Control Room** | Provenance, protocol, repro lock, export |
+| 4 | **Opt Lab** | Certified-search entry (propose→CCFS); routes to Systems / Pareto / Certified Search |
+| 5 | **Compare** | Diff baseline vs scenario artifacts |
+| 6 | **Pareto Lab** | Feasible-only frontiers; mirage filter |
+| 7 | **Trade Study Studio** | Certified trade studies & robust lanes |
+| 8 | **Reactor Design Forge** | Intent → machine families → dossiers |
+| 9 | **Publication Benchmarks** | Constitutional atlas & reviewer packs |
+| 10 | **System Suite** | Read-only L1 overlays on a Point Designer artifact |
+| 11 | **Control Room** | Provenance, protocol, repro lock, export |
 
 > **Systems Mode ≠ System Suite** — Mode *solves* (propose-only); Suite *reviews* overlays on frozen truth.
 
@@ -108,7 +110,7 @@ Every evaluation goes through **one choke point**. UI and external optimizers ne
 flowchart TB
   subgraph Studio["NiceGUI Studio"]
     Helm[Helm Console]
-    Decks[10 decks]
+    Decks[11 decks]
     Helm --> Decks
   end
 

@@ -7,6 +7,7 @@ DECK_LABELS: list[str] = [
     "Point Designer",
     "Scan Lab",
     "Systems Mode",
+    "Opt Lab",
     "Compare",
     "Pareto Lab",
     "Trade Study Studio",

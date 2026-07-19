@@ -8,6 +8,7 @@ DECK_WORKFLOW_CAPTIONS: dict[str, str] = {
     "Point Designer": "Anchor one operating point — geometry, plasma, plant inputs, feasibility verdict.",
     "Scan Lab": "Map feasible regions in parameter space (cartography before commitment).",
     "Systems Mode": "Monte Carlo precheck and Newton target solve — proposes inputs; never changes L0 truth.",
+    "Opt Lab": "Certified-search entry — three-step propose→CCFS path into Systems Mode / Pareto / Certified Search.",
     "Compare": "Diff baseline vs scenario artifacts — performance, constraints, structure.",
     "Pareto Lab": "Extract nondominated feasible frontiers under explicit objectives.",
     "Trade Study Studio": "Run certified trade studies, robust lanes, and surrogate exploration.",
@@ -31,6 +32,7 @@ def deck_workflow_caption(deck: str) -> str:
 # Disambiguate near-homonyms in the Helm deck list (Systems Mode ≠ System Suite).
 _DECK_NAV_ALIASES: dict[str, str] = {
     "Systems Mode": "Systems Mode — Close",
+    "Opt Lab": "Opt Lab — Certified search",
     "System Suite": "System Suite — L1 overlays",
 }
 

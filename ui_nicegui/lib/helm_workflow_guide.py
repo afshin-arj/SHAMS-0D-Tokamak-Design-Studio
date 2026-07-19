@@ -38,6 +38,11 @@ DECK_NOW_ACTIONS: dict[str, list[str]] = {
         "Review candidates and recovery posture on the constraint ledger.",
         "Apply a candidate to Point Designer (frozen re-evaluate) or Compare.",
     ],
+    "Opt Lab": [
+        "Follow the three-step certified-search path (propose→CCFS).",
+        "Open Systems Mode, Pareto Lab, or Control Room Certified Search.",
+        "Read Proposed — SHAMS-certified results; never claim a true minimum.",
+    ],
     "Compare": [
         "Load baseline and scenario artifacts (A & B).",
         "Review performance, constraint, and structural diffs.",
@@ -80,6 +85,7 @@ DECK_SHORT_VERBS: dict[str, str] = {
     "Point Designer": "Evaluate point",
     "Scan Lab": "Map design space",
     "Systems Mode": "Close systems",
+    "Opt Lab": "Certified search",
     "Compare": "Diff A vs B",
     "Pareto Lab": "Build frontier",
     "Trade Study Studio": "Certify trade study",
@@ -168,7 +174,16 @@ def suggest_next_deck(session: Any, active_deck: str) -> tuple[Optional[str], st
     if active_deck == "Systems Mode":
         if not has_systems_closure(session):
             return (None, "Run precheck/solve to close systems, or continue when ready.")
-        return ("Compare", "Systems closed — diff baseline vs scenario artifacts.")
+        return (
+            "Opt Lab",
+            "Systems closed — open Opt Lab for certified-search entry (propose→CCFS).",
+        )
+
+    if active_deck == "Opt Lab":
+        return (
+            "Pareto Lab",
+            "Continue to Pareto Lab for a feasible certified front, or Compare for diffs.",
+        )
 
     if active_deck == "Compare" and not has_compare_slots(session):
         return (None, "Load both comparison artifacts, then review constraint diffs.")

@@ -22,6 +22,7 @@ DECK_NAME_EDGE_KIND: dict[str, str] = {
     "Point Designer": "derived",
     "Scan Lab": "scan",
     "Systems Mode": "systems_eval",
+    "Opt Lab": "extopt",
     "Compare": "derived",
     "Pareto Lab": "pareto",
     "Trade Study Studio": "trade",

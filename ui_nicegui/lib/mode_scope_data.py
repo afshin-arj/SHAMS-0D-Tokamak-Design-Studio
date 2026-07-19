@@ -26,6 +26,18 @@ MODE_SCOPE: dict[str, dict[str, list[str]]] = {
             "Does not claim Newton/MC results are authoritative without a frozen post-apply evaluate.",
         ],
     },
+    "opt_lab": {
+        "does": [
+            "Provides a verdict-first entry to certified search (propose→CCFS).",
+            "Routes into Systems Mode, Pareto Lab, and Control Room Certified Search without duplicating them.",
+            "States honesty copy: Proposed — SHAMS-certified; VERIFIED vs REJECTED with atlas.",
+        ],
+        "does_not": [
+            "Does not put optimizers inside L0 or negotiate hard constraints.",
+            "Does not claim an authoritative global optimum.",
+            "Does not certify surrogate or PROCESS MFILE scores without frozen re-eval.",
+        ],
+    },
     "governance": {
         "does": [
             "Provides governance and operations utilities (run manifests, gatechecks, status).",

@@ -18,6 +18,7 @@ _RENDERER_CACHE: dict[str, Callable[[DesignSession], None]] = {}
 _DECK_SPECS: dict[str, tuple[str, str]] = {
     "Point Designer": ("ui_nicegui.decks.point_designer", "render_point_designer"),
     "Systems Mode": ("ui_nicegui.decks.systems_mode", "render_systems_mode"),
+    "Opt Lab": ("ui_nicegui.decks.opt_lab", "render_opt_lab"),
     "Scan Lab": ("ui_nicegui.decks.scan_lab", "render_scan_lab"),
     "Pareto Lab": ("ui_nicegui.decks.pareto_lab", "render_pareto_lab"),
     "Trade Study Studio": ("ui_nicegui.decks.trade_study_studio", "render_trade_study_studio"),
