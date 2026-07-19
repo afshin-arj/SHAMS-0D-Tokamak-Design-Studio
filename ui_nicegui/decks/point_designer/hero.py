@@ -90,7 +90,7 @@ def render_hero(session: DesignSession) -> None:
     kpi_row([
         ("β_N", _fmt_num(beta) + _constraint_headroom(out, ["betaN", "beta_n", "betaN_proxy"])),
         ("f_G", _fmt_num(fg) + _constraint_headroom(out, ["fG", "fg", "greenwald"])),
-        ("q95", _fmt_num(q95) + _constraint_headroom(out, ["q95", "q95_min"])),
+        ("q95 (cyl. proxy)", _fmt_num(q95) + _constraint_headroom(out, ["q95", "q95_min"])),
     ])
 
     for note in hero_diagnostic_notes(

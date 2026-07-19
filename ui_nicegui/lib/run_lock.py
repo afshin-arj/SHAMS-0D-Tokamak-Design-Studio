@@ -40,3 +40,18 @@ def global_status() -> Tuple[bool, Optional[str], Optional[str]]:
         if _holder is None:
             return False, None, None
         return True, _task, _holder
+
+
+def force_clear() -> Optional[str]:
+    """Unconditionally release the lock (operator recovery from an orphaned holder).
+
+    Use only when a background task's owning coroutine can no longer reach its
+    ``finally: release(...)`` (e.g. a disconnected client mid-run). Returns the
+    holder that was cleared, or ``None`` if the lock was already free.
+    """
+    global _holder, _task
+    with _lock:
+        prev = _holder
+        _holder = None
+        _task = None
+        return prev

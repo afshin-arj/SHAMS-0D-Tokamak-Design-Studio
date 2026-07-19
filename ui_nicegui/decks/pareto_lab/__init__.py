@@ -56,9 +56,15 @@ def render_pareto_lab(session: DesignSession) -> None:
 
     _vs = get_cached_verdict_summary(session, point_out)
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
-            baseline_kpi_classes(point_out, verdict=_vs)
-        )
+        ui.label(
+            baseline_kpi_caption(
+                point_out,
+                artifact=art,
+                verdict=_vs,
+                design_intent=str(session.design_intent),
+                fuel_mode=str((session.inputs or {}).get("fuel_mode", "DT")),
+            )
+        ).classes(baseline_kpi_classes(point_out, verdict=_vs))
 
     with ui.row().classes("w-full items-center justify-end gap-4 q-mb-sm"):
         ui.switch(
@@ -176,6 +182,10 @@ def _render_tab_body(session: DesignSession) -> None:
 
 
 def _render_external_router(session: DesignSession) -> None:
+    ui.markdown(
+        "**External Tools** — propose-only bridges (YAML / campaign / optimizer kits). "
+        "SHAMS always re-evaluates candidates with frozen L0; nothing here negotiates constraints."
+    ).classes("text-caption q-mb-sm")
     groups = list(EXTERNAL_GROUPS.keys())
     if session.pareto_external_group not in groups:
         session.pareto_external_group = groups[0]

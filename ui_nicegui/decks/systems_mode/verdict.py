@@ -126,7 +126,7 @@ def render_posture_strip(
         ("H98", h98_disp),
         ("Pfus [MW]", pfus_disp),
         ("P_net [MW]", p_net_disp),
-        ("q95", fmt(kpis.get("q95"))),
+        ("q95 (cyl. proxy)", fmt(kpis.get("q95"))),
         ("β_N", fmt(kpis.get("beta_N"))),
         ("f_G", fmt(kpis.get("f_G"))),
     ])

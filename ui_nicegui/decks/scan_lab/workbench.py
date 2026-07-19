@@ -263,13 +263,32 @@ def _render_probe_block(session: DesignSession, rep: dict, grid: dict, intent: s
     ).classes("text-body2")
     perf = summary.get("performance") or {}
     if perf:
-        bits = []
-        for k, v in perf.items():
-            try:
-                bits.append(f"{k}={float(v):.4g}")
-            except (TypeError, ValueError):
-                bits.append(f"{k}={v}")
-        ui.label("Operating point: " + ", ".join(bits)).classes("text-caption q-mb-xs")
+        from ui_nicegui.lib.plant_kpi_honesty_ui import honest_performance_caption
+
+        feasible = bool(summary.get("blocking_feasible"))
+        # Prefer cell outputs when present so Pe_net watermark can resolve aliases.
+        cell = grid.get((int(session.scan_wb_i), int(session.scan_wb_j)), {})
+        outs = cell.get("outputs") if isinstance(cell, dict) else None
+        cap = honest_performance_caption(
+            perf,
+            feasible=feasible,
+            point_out=outs if isinstance(outs, dict) else None,
+            design_intent=str(intent),
+        )
+        ui.label(cap).classes(
+            "text-caption text-orange q-mb-xs" if not feasible else "text-caption q-mb-xs"
+        )
+        if not feasible:
+            ui.label(
+                "Q / P_net / LCOE suppressed on blocking-infeasible cells — diagnostic residue only."
+            ).classes("text-caption text-grey q-mb-xs")
+    v396 = summary.get("v396")
+    if isinstance(v396, dict) and v396:
+        from ui_nicegui.lib.scan_v396_display import format_v396_caption
+
+        cap = format_v396_caption(v396)
+        if cap:
+            ui.markdown(f"**v396 (PROXY):** {cap}").classes("text-caption text-grey q-mb-xs")
     failed = summary.get("failed_blocking") or []
     if failed:
         with ui.expansion("Failed blocking constraints", icon="warning").classes("w-full"):

@@ -80,8 +80,77 @@ def test_regime_compass_q95_is_proxy() -> None:
     assert rows["q95_proxy"]["type"] == "Proxy"
 
 
+def test_power_ledger_net_electric_is_proxy() -> None:
+    from ui_nicegui.lib.pd_parity_helpers import power_ledger_badged_rows
+
+    rows = {r["key"]: r for r in power_ledger_badged_rows({})}
+    assert rows["P_net_e_MW"]["type"] == "Proxy"
+
+
+def test_format_claim_kpi_suppresses_on_infeasible() -> None:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
+
+    out = {"P_e_net_MW": 120.0, "Q_DT_eqv": 13.2}
+    assert format_claim_kpi_for_table("Q_DT_eqv", 13.2, feasible=False) == "— (diagnostic)"
+    assert "diagnostic" in format_claim_kpi_for_table(
+        "P_e_net_MW", 120.0, feasible=False, point_out=out
+    )
+    assert format_claim_kpi_for_table("Q_DT_eqv", 13.2, feasible=True) == "13.2"
+
+
 def test_deck_nav_disambiguates_systems_mode_vs_suite() -> None:
     from ui_nicegui.lib.deck_workflow import deck_nav_short_label
 
     assert "Close" in deck_nav_short_label("Systems Mode")
     assert "L1" in deck_nav_short_label("System Suite")
+
+
+def test_forge_next_action_hint_strip() -> None:
+    from ui_nicegui.lib.forge_labels import next_action_hint
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.forge_workflow_step = "1 · Compile Intent"
+    hint = next_action_hint(s)
+    assert "Compile" in hint or "compile" in hint.lower()
+    s.forge_review_mode = True
+    assert "Review Mode" in next_action_hint(s)
+
+
+def test_systems_post_solve_authority_has_magnet_tbr_proxy() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import post_solve_authority_ui as psa
+
+    src = inspect.getsource(psa)
+    assert "Magnets v400" in src
+    assert "Tritium / TBR" in src
+    assert "magnet_v400_summary" in src
+    assert 'ui.markdown(\n                "TBR is a breeding-ratio **proxy**' in src or (
+        "breeding-ratio **proxy**" in src and "ui.markdown" in src
+    )
+
+
+def test_control_room_orient_empty_has_pd_cta() -> None:
+    import inspect
+
+    from ui_nicegui.decks.control_room import orientation
+
+    src = inspect.getsource(orientation.render_orientation)
+    assert "pd_prerequisite_gate" in src
+    assert "Open Point Designer" in inspect.getsource(
+        __import__("ui_nicegui.components.deck_gate", fromlist=["pd_prerequisite_gate"]).pd_prerequisite_gate
+    )
+
+
+def test_pareto_external_tools_purpose_caption() -> None:
+    import inspect
+
+    import ui_nicegui.decks.pareto_lab as pareto_lab
+
+    src = inspect.getsource(pareto_lab)
+    assert "propose-only" in src or "External Tools" in src
+    # Nested router caption at top of External Tools tab.
+    assert "_render_external_router" in src
+    router_src = inspect.getsource(pareto_lab._render_external_router)
+    assert "ui.markdown" in router_src

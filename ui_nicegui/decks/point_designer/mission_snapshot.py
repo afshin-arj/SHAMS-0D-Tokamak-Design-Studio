@@ -398,6 +398,8 @@ def _magnet_card(out: dict) -> None:
     ])
     if mc["tf_note"]:
         ui.label(f"TF_SC policy: {mc['tf_note']}").classes("text-caption")
+    from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+
     kpi_row([
         (
             "SC margin" if mc["tf_sc"] == 1.0 else "TF ohmic [MW]",
@@ -405,5 +407,5 @@ def _magnet_card(out: dict) -> None:
         ),
         ("Lifetime [yr]", fmt_num(mc["hts_lifetime_yr"])),
         ("Vdump [kV]", fmt_num(mc["V_dump_kV"])),
-        ("P_net_e [MW]", fmt_num(mc["P_net_e_MW"])),
+        ("P_net,e [MW]", pe_net_display(out)),
     ])

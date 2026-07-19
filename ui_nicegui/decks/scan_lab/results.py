@@ -4,12 +4,34 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.lib.scan_helpers import dominance_table_rows, report_to_json_bytes, summarize_scan_report
+from ui_nicegui.lib.scan_v396_display import extract_v396_transport, format_v396_caption
 
 
 def render_scan_results(session, rep: dict) -> None:
     summary = summarize_scan_report(rep)
     if not summary.get("loaded"):
         return
+
+    # Optional v396 strip from baseline point outputs and/or sample scan cells.
+    v396_src = None
+    point_out = getattr(session, "pd_last_outputs", None)
+    if isinstance(point_out, dict):
+        v396_src = extract_v396_transport(point_out)
+    if v396_src is None:
+        pts = rep.get("points") or []
+        for p in pts[:40]:
+            if not isinstance(p, dict):
+                continue
+            outs = p.get("outputs")
+            v396_src = extract_v396_transport(outs if isinstance(outs, dict) else None)
+            if v396_src:
+                break
+    if v396_src:
+        cap = format_v396_caption(v396_src)
+        if cap:
+            ui.markdown(
+                f"**v396 transport envelope (PROXY):** {cap} — multi-scaling screening, not a transport solver."
+            ).classes("text-caption text-grey q-mb-xs")
 
     nar_all = rep.get("narrative") or {}
     nar_int = (nar_all.get("intents") or {}) if isinstance(nar_all, dict) else {}

@@ -250,6 +250,23 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                         ("P_rad,SOL+div req (MW)", _fmt(_sf(out, "detachment_prad_sol_div_required_MW"), 1)),
                         ("f_z,required", f"{_sf(out, 'detachment_f_z_required'):.1e}"),
                     ])
+                elm_on = bool(out.get("include_elm_transient_heat_v409"))
+                if elm_on:
+                    elm_q = _sf(out, "elm_transient_q_parallel_MW_m2_v409")
+                    ui.label(
+                        "ELM v409 — transient parallel heat-flux screening proxy "
+                        "(artifact overlay; not a SOLPS ELM model)."
+                    ).classes("text-caption text-grey q-mb-xs")
+                    q_max = _sf(out, "elm_transient_q_parallel_max_MW_m2_v409")
+                    margin = float("nan")
+                    if elm_q == elm_q and q_max == q_max and q_max > 0.0:
+                        margin = (q_max - elm_q) / q_max
+                    kpi_row([
+                        ("ELM overlay", "ON"),
+                        ("ELM q∥ proxy (MW/m²)", _fmt(elm_q, 1)),
+                        ("ELM q∥ max", _fmt(q_max, 1)),
+                        ("ELM margin (frac)", _fmt(margin, 3)),
+                    ])
 
             elif v == "Neutronics & Nuclear Loads":
                 kpi_row([

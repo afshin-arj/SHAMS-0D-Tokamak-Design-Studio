@@ -21,7 +21,7 @@ from ui_nicegui.bootstrap import ensure_import_paths
 
 ensure_import_paths()
 
-from nicegui import ui
+from nicegui import app, ui
 
 from ui_nicegui.lib.navigation import (
     register_deck_change,
@@ -143,17 +143,57 @@ def _render_status_header(session: DesignSession) -> None:
     ui.label(helm_status_caption(session)).classes("text-caption text-grey-4 text-white")
 
 
+def _recover_to_point_designer() -> None:
+    _SESSION.active_deck = "Point Designer"
+    _apply_deck_switch("Point Designer", force=True)
+
+
 @ui.refreshable
 def _render_deck() -> None:
-    """Render active deck into this refreshable's own slot (authoritative remount target)."""
+    """Render active deck into this refreshable's own slot (authoritative remount target).
+
+    UI-DECK-CRASH-001: a deck render raising mid-way used to leave a half-built,
+    unexplained page with no recovery path other than the (still-live) Helm nav —
+    confusing for an expert diagnosing their own inputs. Any renderer exception is
+    now caught here, logged, and surfaced as an explicit recoverable card instead
+    of a silent/partial page (SHAMS error-handling law: explicit, no silent failure).
+    """
     cap = deck_workflow_caption(_SESSION.active_deck)
     if cap:
         ui.label(cap).classes("text-caption text-grey-7 q-mb-sm")
     renderer = DECK_RENDERERS.get(_SESSION.active_deck)
     if renderer is None:
-        ui.label(f"Unknown deck: {_SESSION.active_deck}")
+        ui.label(f"Unknown deck: {_SESSION.active_deck!r} — returning to Point Designer.").classes(
+            "text-negative"
+        )
+        ui.button(
+            "Open Point Designer", icon="design_services", on_click=_recover_to_point_designer
+        ).props("outline color=primary").classes("q-mt-sm")
         return
-    renderer(_SESSION)
+    try:
+        renderer(_SESSION)
+    except Exception as exc:  # noqa: BLE001 - deck-render error boundary, see docstring
+        import traceback
+
+        traceback.print_exc()
+        with ui.card().classes("w-full p-4 bg-red-1"):
+            ui.label(f"{_SESSION.active_deck} failed to render").classes("text-h6 text-negative")
+            ui.label(f"{type(exc).__name__}: {exc}").classes("text-body2 text-negative")
+            ui.label(
+                "This is a UI-layer fault (not a physics result) — no evaluation output was lost. "
+                "Try again, or go back to Point Designer."
+            ).classes("text-caption text-grey")
+            with ui.row().classes("gap-2 q-mt-sm"):
+                ui.button("Retry this deck", icon="refresh", on_click=_render_deck.refresh).props(
+                    "outline dense"
+                )
+                ui.button(
+                    "Open Point Designer",
+                    icon="design_services",
+                    on_click=_recover_to_point_designer,
+                ).props("outline dense color=primary")
+            with ui.expansion("Traceback (for bug report)", icon="bug_report").classes("w-full q-mt-sm"):
+                ui.code("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)), language="text")
 
 
 @ui.page("/")
@@ -245,7 +285,25 @@ def _open_browser(url: str, *, delay_s: float = 1.5) -> None:
     threading.Thread(target=_worker, daemon=True).start()
 
 
+def _notify_on_uncaught_exception(exc: Exception) -> None:
+    """App-wide safety net: NiceGUI's default handler only logs server-side.
+
+    Event handlers outside a deck's own render pass (Helm console toggles, async
+    run callbacks, etc.) had no user-visible failure signal at all — a silent
+    failure the SHAMS error-handling law forbids. This never touches physics
+    state; it only ensures the operator sees that *something* failed.
+    """
+    import traceback
+
+    traceback.print_exc()
+    try:
+        ui.notify(f"Unexpected UI error: {type(exc).__name__}: {exc}", type="negative", timeout=8000)
+    except Exception:
+        pass
+
+
 def main() -> None:
+    app.on_exception(_notify_on_uncaught_exception)
     host = os.environ.get("SHAMS_NICEGUI_HOST", "127.0.0.1")
     preferred = int(os.environ.get("SHAMS_NICEGUI_PORT", "8080"))
     port = _pick_port(host, preferred)

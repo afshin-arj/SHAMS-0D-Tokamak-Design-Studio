@@ -115,3 +115,14 @@ def test_run_precheck_smoke() -> None:
     assert int(report.n_samples) >= 1
 
 
+def test_post_solve_authority_shows_v400_when_keys_present() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import post_solve_authority_ui as mod
+
+    body = inspect.getsource(mod)
+    assert "magnet_v400_summary" in body
+    assert "PROXY" in body
+    assert "Tritium / TBR" in body
+
+

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.deck_gate import pd_prerequisite_gate
+from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.control_room_helpers import (
     LAUNCHPAD_DECK,
     LAUNCHPAD_PATHS,
@@ -17,6 +19,13 @@ from ui_nicegui.session import DesignSession
 def render_orientation(session: DesignSession) -> None:
     if session.cr_orient_tab not in ORIENT_TABS:
         session.cr_orient_tab = ORIENT_TABS[0]
+
+    _, _, point_out = get_point_artifact_triple(session)
+    if not isinstance(point_out, dict):
+        pd_prerequisite_gate(
+            "No Point Designer baseline yet — Orient still offers launchpad/docs, "
+            "but evaluate a point for governance KPIs in the header.",
+        )
 
     ui.toggle(
         ORIENT_TABS,
