@@ -222,3 +222,39 @@ def test_scan_governance_labels_and_imports() -> None:
     assert callable(render_governance_panel)
     assert callable(render_legacy_nested_panel)
     assert callable(render_slice_diagnostics)
+
+
+def test_v396_transport_strip_helpers() -> None:
+    from ui_nicegui.lib.scan_v396_display import extract_v396_transport, format_v396_caption
+
+    assert extract_v396_transport(None) is None
+    assert extract_v396_transport({}) is None
+    info = extract_v396_transport(
+        {"transport_spread_ratio_v396": 1.47, "transport_credibility_tier_v396": "tight"}
+    )
+    assert info is not None
+    assert abs(float(info["spread"]) - 1.47) < 1e-9
+    assert info["tier"] == "tight"
+    cap = format_v396_caption(info)
+    assert "1.47" in cap
+    assert "tight" in cap
+
+
+def test_probe_cell_summary_includes_v396_when_present() -> None:
+    from ui_nicegui.lib.scan_workbench_helpers import probe_cell_summary
+
+    grid = {
+        (0, 0): {
+            "x": 1.0,
+            "y": 2.0,
+            "intent": {"Reactor": {"blocking_feasible": True}},
+            "outputs": {
+                "Q_DT_eqv": 10.0,
+                "transport_spread_ratio_v396": 1.5,
+                "transport_credibility_tier_v396": "comfortable",
+            },
+        }
+    }
+    summary = probe_cell_summary(grid, {}, "Reactor", 0, 0)
+    assert summary.get("v396") is not None
+    assert summary["v396"]["tier"] == "comfortable"

@@ -24,6 +24,7 @@ from ui_nicegui.lib.forge_labels import (
     DECK_SUBTITLE,
     FORGE_TABS,
     TAB_HELP,
+    next_action_hint,
     normalize_forge_tab,
     teaching_banner,
 )
@@ -73,10 +74,17 @@ def render_reactor_design_forge(session: DesignSession) -> None:
     from ui_nicegui.lib.session_store import get_cached_verdict_summary
 
     _vs = get_cached_verdict_summary(session, point_out)
+    fuel = str((session.inputs or {}).get("fuel_mode", "DT"))
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
-            baseline_kpi_classes(point_out, verdict=_vs)
-        )
+        ui.label(
+            baseline_kpi_caption(
+                point_out,
+                artifact=art,
+                verdict=_vs,
+                design_intent=str(session.design_intent),
+                fuel_mode=fuel,
+            )
+        ).classes(baseline_kpi_classes(point_out, verdict=_vs))
         with ui.row().classes("gap-4 flex-wrap"):
             ui.switch(
                 "Guided mode",
@@ -103,6 +111,8 @@ def render_reactor_design_forge(session: DesignSession) -> None:
     from ui_nicegui.lib.pd_intent_policy import policy_caption
 
     ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
+    with ui.card().classes("w-full q-mb-sm q-pa-sm bg-blue-grey-1"):
+        ui.markdown(f"**Do now:** {next_action_hint(session)}").classes("text-body2")
 
     if session.forge_review_mode:
         ui.label("Review Mode: search/compile controls locked; inspect archives and export only.").classes(
@@ -110,7 +120,6 @@ def render_reactor_design_forge(session: DesignSession) -> None:
         )
 
     _render_dashboard(session)
-
     def _on_decision(e) -> None:
         state = str(e.value)
         session.forge_decision_state = state

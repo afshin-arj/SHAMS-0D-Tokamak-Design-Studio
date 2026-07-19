@@ -286,6 +286,10 @@ def _render_table(pareto: list[dict], obj_keys: list[str], focus_keys: list[str]
     if not rows:
         return
     ui.label(f"Pareto table ({len(pareto)} points, showing {len(rows)})").classes("text-subtitle2")
+    ui.label(
+        "Front is feasible-only — Q / P_net / LCOE here are screening KPIs on hard-feasible points. "
+        "Infeasible shadow is plot-only (not in this table)."
+    ).classes("text-caption text-grey q-mb-xs")
     col_names = ["idx"] + [c for c in cols if c in rows[0]]
     ui.table(
         columns=[{"name": k, "label": metric_label(k) if k in OBJ_CATALOG else k, "field": k, "align": "left"} for k in col_names],

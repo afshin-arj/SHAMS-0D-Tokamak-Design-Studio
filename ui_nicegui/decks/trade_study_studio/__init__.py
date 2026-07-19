@@ -61,9 +61,15 @@ def render_trade_study_studio(session: DesignSession) -> None:
 
     _vs = get_cached_verdict_summary(session, point_out)
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
-        ui.label(baseline_kpi_caption(point_out, artifact=art, verdict=_vs)).classes(
-            baseline_kpi_classes(point_out, verdict=_vs)
-        )
+        ui.label(
+            baseline_kpi_caption(
+                point_out,
+                artifact=art,
+                verdict=_vs,
+                design_intent=str(session.design_intent),
+                fuel_mode=str((session.inputs or {}).get("fuel_mode", "DT")),
+            )
+        ).classes(baseline_kpi_classes(point_out, verdict=_vs))
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",

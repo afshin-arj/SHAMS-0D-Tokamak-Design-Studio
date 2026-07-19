@@ -84,3 +84,37 @@ def teaching_banner(session) -> str | None:
     state = str(getattr(session, "forge_decision_state", DECISION_STATES[0]))
     hint = TEACHING_HINTS.get(state, TEACHING_HINTS[DECISION_STATES[0]])
     return f"**Guided mode — {state}:** {hint}"
+
+
+def next_action_hint(session) -> str:
+    """Always-visible 'what to do now' strip (UI-only; does not change Forge physics)."""
+    from ui_nicegui.lib.forge_helpers import summarize_forge_state
+    from ui_nicegui.lib.forge_machine_finder_helpers import summarize_workbench_run
+
+    if getattr(session, "forge_review_mode", False):
+        return "Review Mode — inspect archives, dossiers, and export; run controls locked."
+
+    step = normalize_forge_tab(str(getattr(session, "forge_workflow_step", DEFAULT_TAB) or DEFAULT_TAB))
+    summary = summarize_forge_state(
+        getattr(session, "forge_intent_compiler_last", None),
+        getattr(session, "forge_last_audit", None),
+    )
+    wb = summarize_workbench_run(getattr(session, "forge_workbench_run", None))
+
+    if step == "1 · Compile Intent":
+        if not summary.get("has_candidate"):
+            return "Set Pfus/Q targets and **Compile intent** to a candidate point."
+        if summary.get("audit_verdict") in ("Not audited", None, ""):
+            return "**Audit candidate** under frozen truth, then open **2 · Setup & Search**."
+        return "Open **2 · Setup & Search** to run Machine Finder on the compiled candidate."
+    if step == "2 · Setup & Search":
+        if not wb.get("loaded"):
+            return "Configure Machine Finder bounds and **Run search** (propose-only; L0 re-evaluates)."
+        return "Open **3 · Workbench** to triage feasible archive candidates."
+    if step == "3 · Workbench":
+        if not wb.get("loaded"):
+            return "Return to **2 · Setup & Search** and run Machine Finder first."
+        return "Pin promising candidates, then use **4 · Instruments** or **5 · Capsules & Export**."
+    if step == "4 · Instruments":
+        return "Pick an instrument for dossier diagnostics — results are read-only overlays."
+    return "Export capsules / hand off to Compare or Control Room — re-audit promoted candidates in Point Designer."

@@ -377,6 +377,7 @@ def test_baseline_kpi_caption_includes_stability() -> None:
 
     out = {
         "Q": 10.0,
+        "Q_DT_eqv": 10.0,
         "H98": 1.0,
         "betaN": 2.1,
         "fG": 0.8,
@@ -385,17 +386,44 @@ def test_baseline_kpi_caption_includes_stability() -> None:
         "constraints": [],
         "feasible": True,
     }
-    cap = baseline_kpi_caption(out, max_bits=10)
-    assert "Q≈" in cap
+    cap = baseline_kpi_caption(
+        out,
+        max_bits=10,
+        verdict={"verdict": "FEASIBLE", "feasible": True, "q_label": "Q=10"},
+    )
+    assert "Q≈" in cap or "Q=" in cap
     assert "β_N≈" in cap or "H98≈" in cap
-    assert "Pfus≈" in cap
+    assert "Pfus≈" in cap or "Pfus=" in cap
     assert "MIRAGE" not in cap
-    assert "text-positive" in baseline_kpi_classes(out)
+    assert "text-positive" in baseline_kpi_classes(out, verdict={"feasible": True})
 
     mir = dict(out)
     mir["mirage_flag_v402"] = True
-    assert "MIRAGE" in baseline_kpi_caption(mir, max_bits=10)
-    assert "text-orange" in baseline_kpi_classes(mir)
+    assert "MIRAGE" in baseline_kpi_caption(
+        mir, max_bits=10, verdict={"verdict": "FEASIBLE", "feasible": True}
+    )
+    assert "text-orange" in baseline_kpi_classes(mir, verdict={"feasible": True})
+
+
+def test_baseline_kpi_caption_suppresses_on_infeasible() -> None:
+    from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption
+
+    out = {
+        "Q_DT_eqv": 13.2,
+        "H98": 2.5,
+        "Pfus_total_MW": 400.0,
+        "P_e_net_MW": 114.0,
+        "constraints": [{"name": "q_div", "severity": "hard", "passed": False}],
+    }
+    cap = baseline_kpi_caption(
+        out,
+        max_bits=10,
+        verdict={"verdict": "INFEASIBLE", "feasible": False},
+        design_intent="Experimental Device (research)",
+    )
+    assert "diagnostic" in cap.lower() or "—" in cap
+    assert "Q≈13" not in cap
+    assert "P_net≈114" not in cap
 
 
 def test_presentation_caches_survive_deck_switch_path() -> None:
@@ -719,3 +747,32 @@ def test_switch_deck_tolerates_single_arg_callback() -> None:
         assert seen == ["Compare"]
     finally:
         nav.register_deck_change(lambda name, force=False: None)
+
+
+def test_deck_renderers_are_lazy_cached() -> None:
+    """Deck modules resolve on first use via module-level cache (Suite-style)."""
+    import ui_nicegui.decks as decks_mod
+
+    assert hasattr(decks_mod, "_RENDERER_CACHE")
+    assert hasattr(decks_mod, "_DECK_SPECS")
+    assert "Scan Lab" in decks_mod._DECK_SPECS
+    assert callable(decks_mod.DECK_RENDERERS["Scan Lab"])
+    # Resolve once — cache should retain the real callable.
+    before = len(decks_mod._RENDERER_CACHE)
+    fn1 = decks_mod._resolve_renderer("Compare")
+    fn2 = decks_mod._resolve_renderer("Compare")
+    assert fn1 is fn2
+    assert "Compare" in decks_mod._RENDERER_CACHE
+    assert len(decks_mod._RENDERER_CACHE) >= before
+
+
+def test_switch_deck_coalesce_leading_edge() -> None:
+    """Leading-edge remount + trailing coalesce flags present (NAV-RACE-001)."""
+    import inspect
+
+    from ui_nicegui import app as ng_app
+
+    src = inspect.getsource(ng_app._switch_deck)
+    assert "coalesced" in src
+    assert "_remount_active_deck" in src
+    assert "_DECK_SWITCH_DEBOUNCE_S" in inspect.getsource(ng_app)

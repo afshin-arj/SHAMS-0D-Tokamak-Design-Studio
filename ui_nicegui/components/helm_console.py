@@ -16,6 +16,7 @@ from ui_nicegui.lib.control_room_helpers import read_version
 from ui_nicegui.lib.helm_helpers import (
     apply_legacy_reference_machine_to_session,
     apply_reference_preset_to_session,
+    force_clear_stuck_runs,
     health_snapshot_rows,
     log_ui_event,
     on_design_intent_changed,
@@ -39,6 +40,9 @@ from ui_nicegui.session import DesignSession
 _TRL_TIERS = ["TRL3", "TRL5", "TRL7", "TRL9"]
 _POLICY_ENFORCEMENT = ["hard", "diagnostic"]
 _RUN_START: dict[str, float] = {}
+# Recovery escape hatch: past this age, a "busy" state is more likely orphaned
+# (disconnected client / crashed worker thread) than a genuinely long run.
+_STUCK_RUN_THRESHOLD_S = 45
 
 
 def _activity_logger(session: DesignSession):
@@ -182,6 +186,28 @@ def _render_run_lock_banner(session: DesignSession) -> None:
     ui.html(
         f'<div class="helm-info-banner"><strong>{badge}</strong>: {task or "evaluation"}{owner_hint} · t+{age}s</div>'
     ).classes("w-full q-mb-sm")
+
+    if age >= _STUCK_RUN_THRESHOLD_S:
+        def _force_clear() -> None:
+            cleared = force_clear_stuck_runs(session)
+            _RUN_START.clear()
+            ui.notify(
+                f"Cleared {len(cleared)} stuck flag(s): {', '.join(cleared) or '(none)'}",
+                type="warning",
+            )
+            from ui_nicegui.lib.navigation import refresh_current_deck
+
+            refresh_current_deck()
+
+        with ui.row().classes("w-full items-center gap-2 q-mb-sm"):
+            ui.label(
+                f"Busy for {age}s — if no run is actually in progress, this may be an orphaned lock."
+            ).classes("text-caption text-orange")
+            ui.button(
+                "Force-clear stuck run",
+                icon="lock_open",
+                on_click=_force_clear,
+            ).props("outline dense color=negative")
 
 
 def _refresh_after_truth_contract_change() -> None:
@@ -370,8 +396,11 @@ def _render_mission_policy(session: DesignSession) -> None:
 
 def _render_fidelity(session: DesignSession) -> None:
     ui.label("Declared model fidelity — recorded in artifacts; does not alter L0 physics.").classes(
-        "text-caption q-mb-sm"
+        "text-caption q-mb-xs"
     )
+    ui.label(
+        "Artifact metadata only — choosing “enriched” does **not** switch overlays or unlock denser equations."
+    ).classes("text-caption text-orange q-mb-sm")
     fid = dict(session.fidelity_config or {})
 
     def _set(key: str, val: str) -> None:

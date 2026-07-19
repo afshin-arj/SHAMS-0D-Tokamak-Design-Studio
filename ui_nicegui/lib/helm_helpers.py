@@ -303,6 +303,33 @@ def apply_reference_preset_to_session(session: "DesignSession", ref_key: str) ->
     push_point_inputs_to_session(session, base)
 
 
+def force_clear_stuck_runs(session: "DesignSession") -> list[str]:
+    """Operator recovery: reset orphaned busy flags + the global run lock.
+
+    A background task can be orphaned if its owning coroutine never reaches its
+    ``finally`` release (client disconnect, hard crash in a worker thread). When
+    that happens every deck reads "busy" forever with no in-UI way to recover
+    short of restarting the process. This clears every ``*_running``/``evaluating``
+    dataclass field on the session plus the module-level run lock. It never
+    touches physics state (inputs/outputs/artifacts are untouched).
+    """
+    from ui_nicegui.lib import run_lock
+
+    cleared: list[str] = []
+    for f in fields(session):
+        name = f.name
+        if name != "evaluating" and not name.endswith("_running"):
+            continue
+        if bool(getattr(session, name, False)):
+            setattr(session, name, False)
+            cleared.append(name)
+    holder = run_lock.force_clear()
+    if holder:
+        cleared.append(f"run_lock[{holder}]")
+    log_ui_event(session, "UI", "ForceClearStuckRuns", {"cleared": cleared})
+    return cleared
+
+
 def apply_legacy_reference_machine_to_session(session: "DesignSession", name: str) -> None:
     """Load legacy REFERENCE_MACHINES entry into the NiceGUI session."""
     if name not in REFERENCE_MACHINES:

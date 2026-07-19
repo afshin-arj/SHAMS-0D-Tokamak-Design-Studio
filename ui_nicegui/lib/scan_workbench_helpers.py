@@ -331,6 +331,9 @@ def probe_cell_summary(grid: Dict[Tuple[int, int], dict], rep: dict, intent: str
     for k in ("Q_DT_eqv", "Q", "H98", "Pfus_DT_adj_MW", "P_e_net_MW", "q95", "q_div_MW_m2"):
         if k in outs and outs[k] is not None:
             perf[k] = outs[k]
+    from ui_nicegui.lib.scan_v396_display import extract_v396_transport
+
+    v396 = extract_v396_transport(outs)
     return {
         "x": cell.get("x"),
         "y": cell.get("y"),
@@ -346,6 +349,7 @@ def probe_cell_summary(grid: Dict[Tuple[int, int], dict], rep: dict, intent: str
         "margin_rows": margin_rows[:25],
         "failure_order": list(cell.get("failure_order_any") or [])[:15],
         "performance": perf,
+        "v396": v396,
     }
 
 

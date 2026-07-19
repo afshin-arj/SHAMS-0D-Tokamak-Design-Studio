@@ -416,16 +416,30 @@ def _inst_machine_dossier(ctx: ForgeContext) -> InstrumentView:
     cand = _need_cand(ctx)
     if not cand:
         return InstrumentView(error="No candidate selected.")
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
+
     inp = cand.get("inputs") or {}
     out = cand.get("outputs") or {}
+    feasible = bool(cand.get("feasible", False))
     keys = ["Pfus_total_MW", "P_e_net_MW", "Q_DT_eqv", "q_div_MW_m2", "min_signed_margin"]
-    headline = {k: out.get(k) for k in keys if k in out}
+    headline = {
+        k: format_claim_kpi_for_table(
+            k, out.get(k), feasible=feasible, point_out=out if isinstance(out, dict) else None
+        )
+        for k in keys
+        if k in out
+    }
     md = (
         f"### Machine Dossier — candidate #{ctx.session.forge_inspect_idx}\n\n"
         f"**Regime:** {', '.join(regime_signature(cand)) or '-'}\n\n"
         f"**First kill:** {first_kill(cand).get('name')} (margin {first_kill(cand).get('signed_margin')})\n\n"
         f"**Feasibility:** {cand.get('feasibility_state')} · **Failure:** {cand.get('failure_mode') or 'OK'}"
     )
+    if not feasible:
+        md += (
+            "\n\n*Headline Q / P_net / Pfus shown as diagnostic only — "
+            "candidate is INFEASIBLE.*"
+        )
     spend = constraint_spend_rate(cand, ctx.archive, ctx.run)
     return InstrumentView(
         markdown=md,
@@ -433,8 +447,16 @@ def _inst_machine_dossier(ctx: ForgeContext) -> InstrumentView:
             ("R0", f"{inp.get('R0_m', '-')} m"),
             ("Bt", f"{inp.get('Bt_T', '-')} T"),
             ("Score", str(cand.get("_score", "-"))),
+            ("Q", headline.get("Q_DT_eqv", "n/a")),
+            ("P_net,e", headline.get("P_e_net_MW", "n/a")),
         ],
-        json_blob={"inputs": inp, "outputs_headline": headline, "spend_rate": spend, "constraints": cand.get("constraints")},
+        json_blob={
+            "inputs": inp,
+            "outputs_headline": headline,
+            "spend_rate": spend,
+            "constraints": cand.get("constraints"),
+            "claim_kpi_feasible": feasible,
+        },
     )
 
 
@@ -621,15 +643,33 @@ def _inst_economics_deck(ctx: ForgeContext) -> InstrumentView:
     try:
         from src.models.inputs import PointInputs
         from src.parity import parity_costing_envelope, parity_costing
+        from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
 
         pi = PointInputs(**dict(cand.get("inputs") or {}))
-        outputs = cand.get("outputs") or {}
+        outputs = dict(cand.get("outputs") or {})
         env = parity_costing_envelope(pi, outputs)
         base = parity_costing(pi, outputs)
+        derived = base.get("derived") if isinstance(base.get("derived"), dict) else {}
+        lcoe_raw = derived.get("LCOE_USD_per_MWh", float("nan"))
+        # Stamp derived LCOE onto outputs so plant honesty can resolve it when feasible.
+        if "LCOE_proxy_USD_per_MWh" not in outputs and lcoe_raw == lcoe_raw:
+            outputs = {**outputs, "LCOE_proxy_USD_per_MWh": lcoe_raw}
+        feasible = bool(cand.get("feasible", False))
+        if feasible:
+            lcoe_disp = format_claim_kpi_for_table(
+                "LCOE_USD_per_MWh", lcoe_raw, feasible=True, point_out=outputs
+            )
+        else:
+            lcoe_disp = "— (diagnostic)"
         return InstrumentView(
+            caption=(
+                ""
+                if feasible
+                else "LCOE watermarked — candidate is INFEASIBLE (proxy bookkeeping only)."
+            ),
             kpis=[
-                ("CAPEX MUSD", f"{base.get('derived', {}).get('CAPEX_MUSD', float('nan')):.3g}"),
-                ("LCOE", f"{base.get('derived', {}).get('LCOE_USD_per_MWh', float('nan')):.3g}"),
+                ("CAPEX MUSD", f"{derived.get('CAPEX_MUSD', float('nan')):.3g}"),
+                ("LCOE", lcoe_disp),
             ],
             json_blob={"envelope": env, "base": base},
         )

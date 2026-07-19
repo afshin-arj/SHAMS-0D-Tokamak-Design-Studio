@@ -125,6 +125,102 @@ def render_plant_kpi_watermark_banner(
     return text or None
 
 
+# Keys that must not read as design claims on infeasible study points.
+_CLAIM_KPI_KEYS = frozenset(
+    {
+        "Q",
+        "Q_DT_eqv",
+        "P_e_net_MW",
+        "P_net_e_MW",
+        "Pe_net_MW",
+        "LCOE_proxy_USD_per_MWh",
+        "LCOE_USD_per_MWh",
+        "COE_proxy_USD_per_MWh",
+        "avail_v420_LCOE_USD_per_MWh",
+        "costing_v421_LCOE_USD_per_MWh",
+        "H98",
+        "Pfus_total_MW",
+        "Pfus_MW",
+        "P_fus_MW",
+        "Pfus_DT_adj_MW",
+    }
+)
+_DIAGNOSTIC = "— (diagnostic)"
+
+
+def is_claim_kpi_key(key: str) -> bool:
+    return str(key) in _CLAIM_KPI_KEYS
+
+
+def format_claim_kpi_for_table(
+    key: str,
+    value: Any,
+    *,
+    feasible: bool,
+    point_out: Optional[Mapping[str, Any]] = None,
+    design_intent: Optional[str] = None,
+    digits: int = 4,
+) -> str:
+    """Watermark / suppress pe_net · LCOE · Q (and kin) on infeasible study rows.
+
+    Feasible rows keep a compact numeric display. Infeasible rows never present
+    these as achievement claims (PHYS-KPI-001 / plant_kpi_honesty.v1).
+    """
+    k = str(key)
+    if not is_claim_kpi_key(k):
+        try:
+            return f"{float(value):.{digits}g}"
+        except (TypeError, ValueError):
+            return str(value) if value is not None else "n/a"
+
+    if not feasible:
+        return _DIAGNOSTIC
+
+    # Feasible: prefer plant honesty formatting for economics / Pe_net when outputs exist.
+    if k in (
+        "P_e_net_MW",
+        "P_net_e_MW",
+        "Pe_net_MW",
+    ) and isinstance(point_out, Mapping):
+        return pe_net_display(point_out, design_intent=design_intent)
+    if k in (
+        "LCOE_proxy_USD_per_MWh",
+        "LCOE_USD_per_MWh",
+        "COE_proxy_USD_per_MWh",
+        "avail_v420_LCOE_USD_per_MWh",
+        "costing_v421_LCOE_USD_per_MWh",
+    ) and isinstance(point_out, Mapping):
+        if k.startswith("COE"):
+            return coe_display(point_out, design_intent=design_intent)
+        return lcoe_display(point_out, design_intent=design_intent)
+
+    try:
+        v = float(value)
+        if v != v:  # NaN
+            return "n/a"
+        return f"{v:.{digits}g}"
+    except (TypeError, ValueError):
+        return str(value) if value is not None else "n/a"
+
+
+def honest_performance_caption(
+    performance: Mapping[str, Any],
+    *,
+    feasible: bool,
+    point_out: Optional[Mapping[str, Any]] = None,
+    design_intent: Optional[str] = None,
+    prefix: str = "Operating point: ",
+) -> str:
+    """Single-line caption for Scan/Forge probe strips."""
+    if not performance:
+        return ""
+    bits = [
+        f"{k}={format_claim_kpi_for_table(k, v, feasible=feasible, point_out=point_out, design_intent=design_intent)}"
+        for k, v in performance.items()
+    ]
+    return prefix + ", ".join(bits)
+
+
 __all__ = [
     "SCHEMA",
     "build_plant_kpi_honesty",
@@ -136,4 +232,7 @@ __all__ = [
     "render_plant_kpi_watermark_banner",
     "format_plant_kpi",
     "plant_kpi_banner_text",
+    "is_claim_kpi_key",
+    "format_claim_kpi_for_table",
+    "honest_performance_caption",
 ]

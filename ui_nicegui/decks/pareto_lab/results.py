@@ -92,6 +92,9 @@ def _render_pareto_table(pareto: list[dict], obj_keys: list[str]) -> None:
     if not rows:
         return
     with ui.expansion("Pareto table (first 50)", icon="table_chart").classes("w-full"):
+        ui.label(
+            "Feasible-only front — Q / P_net cells are not claims from infeasible samples."
+        ).classes("text-caption text-grey q-mb-xs")
         ui.table(
             columns=[{"name": k, "label": k, "field": k} for k in ["idx"] + [c for c in cols if c in rows[0]]],
             rows=rows,
