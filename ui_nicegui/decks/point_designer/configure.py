@@ -300,11 +300,22 @@ def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) ->
         ).classes("text-caption text-info q-mb-sm")
         tgt_rows = solver_target_rows(session)
         if tgt_rows:
+            from ui_nicegui.lib.verdict_core import verdict_summary
+
+            feas = bool(verdict_summary(session.pd_last_outputs).get("feasible"))
+            if not feas:
+                ui.label(
+                    "PHYS-KPI-001: target table values are evaluated/diagnostic on an INFEASIBLE point — not design achievements."
+                ).classes("text-caption text-orange q-mb-xs")
             ui.table(
                 columns=[
                     {"name": "quantity", "label": "Quantity", "field": "quantity", "align": "left"},
                     {"name": "target", "label": "Target", "field": "target"},
-                    {"name": "achieved", "label": "Achieved", "field": "achieved"},
+                    {
+                        "name": "achieved",
+                        "label": "Evaluated" if not feas else "Achieved",
+                        "field": "achieved",
+                    },
                     {"name": "status", "label": "Status", "field": "status"},
                 ],
                 rows=tgt_rows,

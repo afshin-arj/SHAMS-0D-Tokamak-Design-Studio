@@ -531,7 +531,7 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
             "Tip: robust-feasible implies envelope-certified; optimistic-only pass is a certification gap (not envelope-certified)."
         ).classes("text-caption text-grey q-mb-sm")
 
-    def _run() -> None:
+    async def _run() -> None:
         if not try_acquire_suite_lock(ctx.session, "System Suite: Profile corners"):
             return
         log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ProfileCornersStart", {"preset": str(preset.value)})
@@ -540,7 +540,12 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
             if force_lib.value:
                 d["include_profile_family_v358"] = True
             inp = PointInputs.from_dict(d)
-            rep = evaluate_profile_contracts_v362(inp, preset=str(preset.value), tier=str(tier.value))
+            rep = await run.io_bound(
+                evaluate_profile_contracts_v362,
+                inp,
+                preset=str(preset.value),
+                tier=str(tier.value),
+            )
             ctx.session.profile_contracts_v362_last = rep.to_dict()
             log_ui_event(
                 ctx.session,

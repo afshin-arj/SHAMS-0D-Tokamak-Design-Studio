@@ -325,6 +325,7 @@ class DesignSession:
     helm_drawer_width: int = 340
     explain_mode: bool = True
     expert_mode: bool = False
+    guided_mode: bool = True
     activity_log_auto: bool = True
     activity_log_tail: int = 200
     ui_last_invalidation_reason: Optional[str] = None

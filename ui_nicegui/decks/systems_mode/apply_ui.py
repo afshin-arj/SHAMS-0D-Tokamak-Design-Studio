@@ -63,9 +63,11 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
     labels = []
     for i, c in enumerate(cands):
         h = c.get("headline") or {}
-        feas = "✓" if c.get("feasible") else "✗"
+        feas = bool(c.get("feasible"))
+        mark = "✓" if feas else "✗"
+        q_disp = h.get("Q", "-") if feas else "— (diag)"
         labels.append(
-            f"#{i + 1} {c['source']} | Q={h.get('Q', '-')} | feasible={feas}"
+            f"#{i + 1} {c['source']} | Q={q_disp} | feasible={mark}"
         )
     ids = [c["id"] for c in cands]
     if session.systems_selected_candidate_id not in ids:
@@ -79,6 +81,11 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
     ).classes("w-full q-mb-sm")
 
     sel = _selected(cands, session.systems_selected_candidate_id)
+    if sel and not bool(sel.get("feasible")):
+        ui.label(
+            "PHYS-KPI-001: selected candidate is INFEASIBLE — Q/H98/Pfus in headlines are diagnostic residue; "
+            "Apply re-evaluates under frozen truth and may remain NO-SOLUTION."
+        ).classes("text-caption text-orange q-mb-sm")
     if sel and isinstance(sel.get("x"), dict) and session.systems_expert_view:
         with ui.expansion("Candidate variables (expert)"):
             render_json_blob(sel["x"])
@@ -90,6 +97,11 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         if not sel_now or not isinstance(sel_now.get("x"), dict):
             ui.notify("No candidate selected", type="warning")
             return
+        if not bool(sel_now.get("feasible")):
+            ui.notify(
+                "Applying INFEASIBLE candidate — KPIs are diagnostic until a feasible re-evaluate.",
+                type="warning",
+            )
         locked, task, is_owner = runlock_status("SystemsMode")
         if locked and not is_owner:
             ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
@@ -147,7 +159,14 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         navigate_to_point_designer(session)
         ui.notify("Opened Point Designer Configure.", type="info")
 
-    ui.button("Apply to PD & re-evaluate", icon="check", on_click=_apply_evaluate).props("color=primary w-full q-mb-sm")
+    apply_props = "color=primary w-full q-mb-sm"
+    if sel and not bool(sel.get("feasible")):
+        apply_props = "outline color=orange w-full q-mb-sm"
+    ui.button(
+        "Apply to PD & re-evaluate" + (" (infeasible seed)" if sel and not bool(sel.get("feasible")) else ""),
+        icon="check",
+        on_click=_apply_evaluate,
+    ).props(apply_props)
     ui.button("Undo last apply", icon="undo", on_click=_undo_apply).props("flat q-mb-sm")
     with ui.row().classes("gap-2 flex-wrap"):
         ui.button("Open Point Designer", icon="design_services", on_click=_open_pd).props("outline color=primary")

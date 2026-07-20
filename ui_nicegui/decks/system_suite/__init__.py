@@ -28,6 +28,7 @@ from ui_nicegui.lib.suite_overlay_helpers import render_overlay_status_panel
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 _SUITE_OVERLAYS: Optional[dict[str, Any]] = None
 
@@ -182,7 +183,7 @@ def render_system_suite(session: DesignSession) -> None:
                 "Guided mode",
                 value=session.suite_teaching_mode,
                 on_change=lambda e: (
-                    setattr(session, "suite_teaching_mode", bool(e.value)),
+                    sync_deck_guided_to_helm(session, bool(e.value), deck_attr="suite_teaching_mode"),
                     _render_tab_content.refresh(),
                 ),
             )

@@ -18,6 +18,7 @@ from ui_nicegui.session import DesignSession
 
 from ui_nicegui.lib.control_room_helpers import CR_SECTIONS, read_version
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 # Legacy section names ported from Streamlit (see test_nicegui_phase18).
 _PORTED = frozenset(CR_SECTIONS)
@@ -88,7 +89,7 @@ def _render_mode_switches(session: DesignSession) -> None:
     """Guided and Expert are independent (parity with Point Designer / Scan / Forge)."""
 
     def _on_guided(e) -> None:
-        session.cr_teaching_mode = bool(e.value)
+        sync_deck_guided_to_helm(session, bool(e.value), deck_attr="cr_teaching_mode")
         _render_decision_chrome.refresh()
         _render_section.refresh()
 

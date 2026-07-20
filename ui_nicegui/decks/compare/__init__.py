@@ -27,6 +27,7 @@ from ui_nicegui.lib.compare_labels import (
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
 def _refresh_all() -> None:
@@ -74,7 +75,7 @@ def render_compare(session: DesignSession) -> None:
                 "Guided mode",
                 value=session.cmp_teaching_mode,
                 on_change=lambda e: (
-                    setattr(session, "cmp_teaching_mode", bool(e.value)),
+                    sync_deck_guided_to_helm(session, bool(e.value), deck_attr="cmp_teaching_mode"),
                     _render_workflow.refresh(),
                     _render_tab_body.refresh(),
                 ),

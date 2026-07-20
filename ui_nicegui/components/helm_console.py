@@ -28,6 +28,7 @@ from ui_nicegui.lib.helm_helpers import (
 )
 from ui_nicegui.components.helm_workflow_panel import render_deck_navigation, render_workflow_compass
 from ui_nicegui.lib.expert_mode import apply_expert_mode
+from ui_nicegui.lib.teaching_mode import apply_guided_mode
 from ui_nicegui.lib.helm_labels import (
     DESIGN_INTENT_OPTIONS,
     HELM_NAV_GROUPS,
@@ -76,6 +77,15 @@ def _on_expert_mode(session: DesignSession, enabled: bool) -> None:
     from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
 
     # Deck bodies that hide expert panels need a remount/refresh to pick up the flag.
+    refresh_active_deck()
+    refresh_helm()
+    refresh_status()
+
+
+def _on_guided_mode(session: DesignSession, enabled: bool) -> None:
+    apply_guided_mode(session, enabled)
+    from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
+
     refresh_active_deck()
     refresh_helm()
     refresh_status()
@@ -151,6 +161,14 @@ def _helm_settings_section(session: DesignSession, *, on_deck_change: Callable[[
     ui.label("Binding reasons in Constraints and forensics.").classes("text-caption q-mb-sm")
 
     with ui.expansion(helm_section_label("Advanced controls"), icon="tune").classes("w-full overflow-hidden"):
+        ui.switch(
+            "Guided mode (teaching banners)",
+            value=bool(getattr(session, "guided_mode", True)),
+            on_change=lambda e: _on_guided_mode(session, bool(e.value)),
+        ).props(helm_dark_props())
+        ui.label(
+            "Carries teaching banners across Systems / Scan / Pareto / Trade / Forge / Suite / Compare / Pub / CR / PD."
+        ).classes("text-caption q-mb-sm")
         ui.switch(
             "Expert solver controls",
             value=session.expert_mode,

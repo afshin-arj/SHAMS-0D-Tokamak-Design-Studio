@@ -220,19 +220,25 @@ def _results(session: DesignSession) -> None:
         if not isinstance(c, dict):
             continue
         h = c.get("headline") or {}
+        feas = bool(c.get("feasible"))
+        diag = "— (diag)"
         rows.append(
             {
                 "rank": i + 1,
-                "feasible": c.get("feasible"),
+                "feasible": feas,
                 "obj": c.get("obj"),
-                "Q": h.get("Q"),
-                "H98": h.get("H98"),
-                "P_net": h.get("P_net"),
-                "Pfus": h.get("Pfus"),
+                "Q": h.get("Q") if feas else diag,
+                "H98": h.get("H98") if feas else diag,
+                "P_net": h.get("P_net") if feas else diag,
+                "Pfus": h.get("Pfus") if feas else diag,
                 "V": c.get("V"),
             }
         )
     if rows:
+        if any(not r.get("feasible") for r in rows):
+            ui.label(
+                "PHYS-KPI-001: Q / H98 / P_net / Pfus on infeasible candidates are diagnostic residue — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         ui.table(
             columns=[
                 {"name": "rank", "label": "#", "field": "rank"},

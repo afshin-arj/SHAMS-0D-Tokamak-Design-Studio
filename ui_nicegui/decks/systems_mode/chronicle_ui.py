@@ -9,7 +9,7 @@ from ui_nicegui.session import DesignSession
 _LIMITER_GRAPH = {
     "q95": "Driven by I_p, B_t, geometry (R₀, a, κ) — safety factor proxy.",
     "q_div": "Driven by P_aux, confinement, exhaust geometry — divertor heat flux.",
-    "TBR": "Driven by blanket, shield, size — tritium breeding.",
+    "TBR": "Driven by blanket, shield, size — tritium breeding ratio (screening proxy, not neutron-transport).",
     "B_peak": "Driven by B_t, TF J_op, magnet technology.",
     "sigma_vm": "Driven by TF stress, size, field — structural envelope.",
 }
