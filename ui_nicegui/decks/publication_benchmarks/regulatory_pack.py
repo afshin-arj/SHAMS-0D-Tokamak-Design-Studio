@@ -27,7 +27,8 @@ PACK_CONTENTS = (
 def render_regulatory_reviewer_pack(session: DesignSession) -> None:
     ui.label("Regulatory & reviewer evidence pack").classes("text-subtitle2")
     ui.label(
-        "Licensing-grade deterministic ZIP with pack validator. Read-only; does not affect truth."
+        "Deterministic reviewer evidence ZIP with pack validator — audit/review support, "
+        "not a licensing determination. Read-only; does not affect truth."
     ).classes("text-caption text-grey q-mb-sm")
 
     art = pick_session_run_artifact(session)

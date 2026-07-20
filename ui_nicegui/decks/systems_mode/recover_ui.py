@@ -175,7 +175,7 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
 
         navigate_to_point_designer(session)
         ui.notify(
-            f"Applied {len(applied)} variables — opened Point Designer Configure.",
+            f"Applied {len(applied)} variables — KPIs STALE until Evaluate Point.",
             type="positive",
         )
 

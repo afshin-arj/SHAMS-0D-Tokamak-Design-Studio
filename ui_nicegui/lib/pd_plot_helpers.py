@@ -116,11 +116,11 @@ def plot_engineering_severity(out: Dict[str, Any]) -> Optional[bytes]:
 def plot_power_balance_bars(out: Dict[str, Any]) -> Optional[bytes]:
     keys = {
         "Paux": out.get("Paux_MW"),
-        "Pfus": out.get("Pfus_DT_adj_MW"),
-        "Pα": out.get("Palpha_dep_MW"),
+        "Pfus": out.get("Pfus_total_MW", out.get("Pfus_DT_adj_MW")),
+        "Pα": out.get("Palpha_MW", out.get("Palpha_dep_MW")),
         "Prad": out.get("Prad_core_MW"),
         "P_SOL": out.get("P_SOL_MW"),
-        "P_net": out.get("P_net_e_MW"),
+        "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW")),
     }
     labs, vals = [], []
     for k, v in keys.items():
@@ -151,7 +151,15 @@ def plot_geometry_build(out: Dict[str, Any]) -> Optional[bytes]:
         ("R0", _sf(out.get("R0_m"))),
         ("a", _sf(out.get("a_m"))),
         ("κ", _sf(out.get("kappa"))),
-        ("A=R/a", _sf(out.get("aspect_ratio", out.get("A")))),
+        ("A=R/a", (
+            _sf(out.get("aspect_ratio", out.get("A")))
+            if out.get("aspect_ratio") is not None or out.get("A") is not None
+            else (
+                (_sf(out.get("R0_m")) / _sf(out.get("a_m")))
+                if _sf(out.get("a_m")) > 0
+                else float("nan")
+            )
+        )),
     ]
     labs, vals = [], []
     for lab, v in pairs:

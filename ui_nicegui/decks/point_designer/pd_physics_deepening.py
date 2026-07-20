@@ -22,11 +22,15 @@ DEEP_VIEWS = [
 ]
 
 
-def _sf(out: Dict[str, Any], key: str) -> float:
-    try:
-        return float(out.get(key, float("nan")))
-    except (TypeError, ValueError):
-        return float("nan")
+def _sf(out: Dict[str, Any], key: str, *alts: str) -> float:
+    for k in (key, *alts):
+        if k not in out or out.get(k) is None:
+            continue
+        try:
+            return float(out.get(k))
+        except (TypeError, ValueError):
+            continue
+    return float("nan")
 
 
 def _fmt(v: float, prec: int = 2) -> str:
@@ -74,9 +78,9 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                 ).classes("text-caption")
                 kpi_row([
                     ("H_scaling", _fmt(_sf(out, "H_scaling"))),
-                    ("τE_eff (s)", _fmt(_sf(out, "tauE_eff") if out.get("tauE_eff") is not None else _sf(out, "tauE_s"))),
+                    ("τE_eff (s)", _fmt(_sf(out, "tauE_eff_s", "tauE_eff", "tauE_s"))),
                     ("H_required", _fmt(_sf(out, "H_required"))),
-                    ("τIPB98 (s)", _fmt(_sf(out, "tauIPB") if out.get("tauIPB") is not None else _sf(out, "tauE_IPB98_s"))),
+                    ("τIPB98 (s)", _fmt(_sf(out, "tauIPB98_s", "tauIPB", "tauE_IPB98_s"))),
                 ])
                 spread = _sf(out, "transport_spread_ratio_v396")
                 tier = str(out.get("transport_credibility_tier_v396", "") or "")
@@ -148,10 +152,11 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                     ("f_bootstrap proxy", _fmt(_sf(out, "profile_f_bootstrap_proxy") or _sf(out, "f_bs_proxy"))),
                     ("f_NI", _fmt(_sf(out, "f_NI"))),
                 ])
+                _eta_cd = _sf(out, "eta_CD_A_W", "cd_eta_A_per_W")
                 kpi_row([
                     ("I_cd (MA)", _fmt(_sf(out, "I_cd_MA"))),
-                    ("P_cd (MW)", _fmt(_sf(out, "P_cd_MW"), 1)),
-                    ("eta_CD (A/W)", f"{_sf(out, 'cd_eta_A_per_W'):.3e}" if _sf(out, "cd_eta_A_per_W") == _sf(out, "cd_eta_A_per_W") else "n/a"),
+                    ("P_cd (MW)", _fmt(_sf(out, "P_CD_MW", "P_cd_MW"), 1)),
+                    ("eta_CD (A/W)", f"{_eta_cd:.3e}" if _eta_cd == _eta_cd else "n/a"),
                     ("Contract hash", str(out.get("current_profile_contract_sha256", ""))[:12]),
                 ])
                 with ui.expansion("Current-profile authority margins", icon="rule").classes("w-full"):
@@ -295,11 +300,18 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                     ("P_nuc,TF (MW)", _fmt(_sf(out, "P_nuc_TF_MW"))),
                     ("FW life (yr)", _fmt(_sf(out, "fw_lifetime_yr"), 1)),
                 ])
+                tbr_val = out.get("TBR_validity")
+                if isinstance(tbr_val, str) and tbr_val.strip():
+                    tbr_disp = tbr_val.strip()
+                else:
+                    # Legacy numeric flag (0=OK, 1=out-of-range) if present.
+                    tv = _sf(out, "TBR_validity")
+                    tbr_disp = "OK" if tv == tv and tv < 0.5 else ("out-of-range" if tv == tv else "—")
                 kpi_row([
                     ("FW material", str(out.get("fw_material", "-"))),
                     ("Blanket material", str(out.get("blanket_material", "-"))),
                     ("Shield material", str(out.get("shield_material", "-"))),
-                    ("TBR validity", "OK" if _sf(out, "TBR_validity") < 0.5 else "out-of-range"),
+                    ("TBR validity", tbr_disp),
                 ])
 
             elif v == "Coupling Narratives":

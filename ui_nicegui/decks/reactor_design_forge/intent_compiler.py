@@ -146,11 +146,17 @@ def render_intent_compiler(
         ui.button("Audit candidate (frozen evaluator)", icon="verified", on_click=_audit).props("outline")
 
         def _apply() -> None:
+            from ui_nicegui.lib.session_store import clear_point_designer
+
+            clear_point_designer(session)
             session.inputs = merge_candidate_to_session_inputs(session.inputs, cand)
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)
-            ui.notify("Opened Point Designer Configure with Forge candidate inputs.", type="positive")
+            ui.notify(
+                "Opened Point Designer with Forge candidate — Evaluate Point to refresh KPIs.",
+                type="positive",
+            )
 
         ui.button("Apply in Point Designer", icon="upload", on_click=_apply).props("outline flat")
 
