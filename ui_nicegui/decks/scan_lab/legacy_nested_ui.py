@@ -49,11 +49,20 @@ def render_legacy_nested_panel(session: DesignSession) -> None:
             ui.label("Grid is large — tighten steps before running.").classes("text-caption text-negative")
 
         async def _run() -> None:
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
             if getattr(session, "scan_legacy_running", False):
                 ui.notify("Legacy scan running", type="warning")
                 return
             if n > 2000:
                 ui.notify("Grid too large (>2000) — tighten bounds/steps.", type="negative")
+                return
+            locked, task, is_owner = runlock_status("ScanLab")
+            if locked and not is_owner:
+                ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+                return
+            if not runlock_acquire("Scan Lab: Legacy nested", "ScanLab"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
             session.scan_legacy_running = True
             ui.notify("Running legacy nested scan…", type="info")
@@ -76,6 +85,7 @@ def render_legacy_nested_panel(session: DesignSession) -> None:
             finally:
                 session.scan_legacy_running = False
                 session.scan_legacy_progress = 0.0
+                runlock_release("ScanLab")
 
         ui.button("Run legacy nested scan", icon="grid_on", on_click=_run).props("outline q-mb-sm")
         _results(session)

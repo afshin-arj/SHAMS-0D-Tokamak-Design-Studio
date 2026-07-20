@@ -349,6 +349,9 @@ def test_power_ledger_and_deepening_use_l0_keys() -> None:
 
     assert ("P_e_net_MW", "Net electric [MW]") in pph.POWER_LEDGER_KEYS
     assert ("Palpha_MW", "Alpha power [MW]") in pph.POWER_LEDGER_KEYS
+    assert ("Pfus_total_MW", "Fusion total [MW]") in pph.POWER_LEDGER_KEYS
+    # DT-adj must not silently alias total fusion.
+    assert pph.power_ledger_rows({"Pfus_total_MW": 100.0})[0]["channel"] == "Fusion total [MW]"
     rows = pph.power_ledger_rows({"P_e_net_MW": 12.5, "Palpha_MW": 40.0})
     channels = {r["channel"] for r in rows}
     assert "Net electric [MW]" in channels

@@ -10,6 +10,10 @@ from ui_nicegui.session import DesignSession
 
 def render_governance_verdict(summary: dict) -> None:
     ui.label("Governance posture").classes("text-subtitle1")
+    if summary.get("inputs_stale"):
+        ui.label(
+            "STALE — inputs changed since last evaluation. Re-evaluate in Point Designer before trusting KPIs."
+        ).classes("text-negative text-weight-medium q-mb-xs")
     fh = summary.get("feasible_hard")
     fh_label = "-" if fh is None else ("YES" if fh else "NO")
     if summary.get("mirage"):

@@ -125,8 +125,17 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
         ).classes("w-28")
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if session.systems_fs_running:
             ui.notify("Search already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status("SystemsMode")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Systems Mode: Feasible search", "SystemsMode"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.systems_fs_running = True
         ui.notify("Running feasible search…", type="info")
@@ -190,6 +199,7 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
             ui.notify(f"Search failed: {exc}", type="negative")
         finally:
             session.systems_fs_running = False
+            runlock_release("SystemsMode")
 
     ui.button("Run feasible search", icon="travel_explore", on_click=_run).props("outline q-mb-sm")
     _results(session)

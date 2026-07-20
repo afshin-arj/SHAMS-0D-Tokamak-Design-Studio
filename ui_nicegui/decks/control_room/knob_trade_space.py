@@ -73,6 +73,15 @@ def render_knob_trade_space(session: DesignSession) -> None:
     ny = ui.number("Y grid points", value=7, min=3, max=15, step=1)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Control Room: Knob trade grid", "ControlRoom"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         try:
             patch = {
                 "R0_m": float(r0.value),
@@ -107,6 +116,8 @@ def render_knob_trade_space(session: DesignSession) -> None:
             _grid_view.refresh()
         except Exception as exc:
             ui.notify(f"Grid failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
 
     ui.button("Evaluate grid", icon="grid_on", on_click=_run).props("color=primary outline")
     _grid_view(session)

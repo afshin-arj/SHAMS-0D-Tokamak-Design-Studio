@@ -93,6 +93,7 @@ def infeasibility_trace(out: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 POWER_LEDGER_KEYS = [
     ("Paux_MW", "Aux heating [MW]"),
+    ("Pfus_total_MW", "Fusion total [MW]"),
     ("Pfus_DT_adj_MW", "Fusion (DT-adj) [MW]"),
     ("Palpha_MW", "Alpha power [MW]"),
     ("Prad_core_MW", "Core radiation [MW]"),
@@ -107,9 +108,10 @@ def power_ledger_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
     rows = []
     # Alias map when L0 uses a different primary key than the ledger label key.
     aliases = {
-        "Palpha_MW": ("Palpha_MW", "Palpha_dep_MW"),
         "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
-        "Pfus_DT_adj_MW": ("Pfus_DT_adj_MW", "Pfus_total_MW"),
+        "Pfus_total_MW": ("Pfus_total_MW",),
+        "Pfus_DT_adj_MW": ("Pfus_DT_adj_MW",),
+        "Palpha_MW": ("Palpha_MW",),
     }
     for key, label in POWER_LEDGER_KEYS:
         val = None
@@ -241,6 +243,7 @@ _REGIME_TYPICAL = {
     "fG": (0.2, 1.2),
     "nGW": (0.1, 2.0),
     "betaN_proxy": (0.5, 4.0),
+    "beta_N": (0.5, 4.0),
     "q95_proxy": (2.5, 6.0),
     "P_SOL_over_R_MW_m": (0.0, 50.0),
     "f_bs_proxy": (0.0, 1.0),
@@ -269,7 +272,7 @@ def regime_compass_rows(
         ("H98", "H98", "–", "Authoritative"),
         ("fG", "fG", "–", "Authoritative"),
         ("nGW", "nGW", "×1e20 m⁻³", "Diagnostic"),
-        ("βN", "betaN_proxy", "–", "Proxy"),
+        ("βN", "beta_N", "–", "Proxy"),
         ("q95", "q95_proxy", "–", "Proxy"),
         ("P_SOL/R", "P_SOL_over_R_MW_m", "MW/m", "Proxy"),
         ("Bootstrap f_bs", "f_bs_proxy", "–", "Proxy"),
@@ -284,7 +287,10 @@ def regime_compass_rows(
     ]
     rows: List[Dict[str, Any]] = []
     for label, key, unit, badge_type in spec:
-        v = _safe_float(out.get(key, float("nan")))
+        raw = out.get(key)
+        if raw is None and key == "beta_N":
+            raw = out.get("betaN_proxy", out.get("betaN"))
+        v = _safe_float(raw if raw is not None else float("nan"))
         lo, hi = _REGIME_TYPICAL.get(key, (float("nan"), float("nan")))
         flag = ""
         if math.isfinite(v) and math.isfinite(lo) and math.isfinite(hi):
@@ -619,7 +625,7 @@ POWER_LEDGER_BADGED = [
 
 _POWER_LEDGER_ALIASES = {
     "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
-    "Palpha_MW": ("Palpha_MW", "Palpha_dep_MW"),
+    "Palpha_MW": ("Palpha_MW",),
 }
 
 
@@ -1136,8 +1142,9 @@ def point_summary_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
 
 _RAW_TELEMETRY_PRIORITY = [
     "Ip_MA", "fG", "Ti_keV", "Paux_MW", "Pfus_total_MW", "H98", "Q_DT_eqv", "tauE_eff_s",
-    "Ploss_MW", "Palpha_MW", "Prad_core_MW", "P_SOL_MW", "P_e_net_MW", "B_peak_T",
-    "q95_proxy", "beta_N", "n_e20", "TBR", "feasible", "mirage_flag_v402",
+    "tauIPB98_s", "Ploss_MW", "Palpha_MW", "Prad_core_MW", "P_SOL_MW", "P_e_net_MW", "B_peak_T",
+    "q95_proxy", "beta_N", "n_e20", "TBR", "TBR_validity", "P_CD_MW", "eta_CD_A_W",
+    "feasible", "mirage_flag_v402",
 ]
 
 

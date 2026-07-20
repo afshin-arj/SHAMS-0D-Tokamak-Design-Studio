@@ -100,8 +100,20 @@ def _result(session: DesignSession) -> None:
         ui.label(f"Hard feasible (artifact KPI): {'YES' if kpis.get('feasible_hard') else 'NO'}").classes(
             "text-caption"
         )
-    keys = ("Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW", "tau_E_s", "betaN", "q95")
+    keys = ("Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW", "tauE_eff_s", "beta_N", "q95_proxy")
     outs = payload.get("outputs") if isinstance(payload.get("outputs"), dict) else payload
     for k in keys:
-        if k in outs:
-            ui.label(f"{k}: {outs[k]}").classes("text-caption")
+        val = outs.get(k) if isinstance(outs, dict) else None
+        if val is None and isinstance(outs, dict):
+            # Legacy aliases for older session dumps only.
+            alts = {
+                "tauE_eff_s": ("tauE_s", "tau_E_s"),
+                "beta_N": ("betaN_proxy", "betaN"),
+                "q95_proxy": ("q95",),
+            }
+            for alt in alts.get(k, ()):
+                if alt in outs:
+                    val = outs[alt]
+                    break
+        if val is not None:
+            ui.label(f"{k}: {val}").classes("text-caption")
