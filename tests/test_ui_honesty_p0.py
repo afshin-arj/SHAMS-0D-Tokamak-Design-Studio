@@ -279,14 +279,43 @@ def test_systems_cockpit_infeasible_not_feas_apply() -> None:
     assert "Apply to Point Designer" in ok
 
 
-def test_cr_governance_suppresses_pfus_on_infeasible() -> None:
+def test_systems_pd_fallback_is_marked() -> None:
+    from ui_nicegui.lib.systems_artifact import fetch_systems_artifact, synthesize_from_point
+    from ui_nicegui.session import DesignSession
+
+    synth = synthesize_from_point({"Q_DT_eqv": 1.0, "q95_proxy": 3.0})
+    assert synth.get("source") == "point_designer_fallback"
+
+    s = DesignSession()
+    s.pd_last_outputs = {"Q_DT_eqv": 2.0, "Pfus_total_MW": 100.0, "q95_proxy": 3.1, "beta_N": 2.0}
+    s.systems_last_solve_artifact = None
+    art = fetch_systems_artifact(s)
+    assert isinstance(art, dict)
+    assert art.get("source") == "point_designer_fallback"
+
+
+def test_systems_verdict_and_suite_prefer_l0_proxy_keys() -> None:
     import inspect
 
+    from ui_nicegui.decks.systems_mode import verdict as sys_verdict
+    from ui_nicegui.decks import system_suite
+    from ui_nicegui.lib import baseline_kpi_caption as bkc
     from ui_nicegui.lib import control_room_helpers as crh
 
-    src = inspect.getsource(crh.governance_summary)
-    assert "diagnostic" in src
-    assert "Pfus_total_MW" in src
+    vsrc = inspect.getsource(sys_verdict._physics_kpis)
+    assert 'out.get("q95_proxy"' in vsrc
+    assert "POINT DESIGNER BASELINE" in inspect.getsource(sys_verdict.render_posture_strip)
+
+    ssrc = inspect.getsource(system_suite)
+    assert 'point_out.get("q95_proxy"' in ssrc
+    assert 'point_out.get("beta_N"' in ssrc
+
+    bsrc = inspect.getsource(bkc.baseline_kpi_caption)
+    assert 'point_out.get("q95_proxy"' in bsrc
+
+    crsrc = inspect.getsource(crh.governance_summary)
+    assert "diagnostic" in crsrc
+    assert "Pfus_total_MW" in crsrc
 
 
 def test_dsg_sidebar_refreshes_on_node_select() -> None:

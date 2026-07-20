@@ -25,11 +25,11 @@ def _physics_kpis(art: dict) -> dict:
     return {
         "Q": out.get("Q_DT_eqv", out.get("Q")),
         "P_fus": out.get("Pfus_total_MW", out.get("Pfus_MW", out.get("P_fus_MW", out.get("P_fusion_MW")))),
-        "P_net": out.get("P_e_net_MW", out.get("P_net_MW")),
+        "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("P_net_MW"))),
         "H98": out.get("H98"),
-        "beta_N": out.get("beta_N", out.get("betaN")),
+        "beta_N": out.get("beta_N", out.get("betaN_proxy", out.get("betaN"))),
         "f_G": out.get("fG", out.get("greenwald_fraction")),
-        "q95": out.get("q95", out.get("q95_proxy")),
+        "q95": out.get("q95_proxy", out.get("q95")),
         "mirage": bool(out.get("mirage_flag_v402")),
     }
 
@@ -110,6 +110,11 @@ def render_posture_strip(
     from ui_nicegui.components.verdict_banner import verdict_banner
 
     detail_bits = []
+    src = str(art.get("source") or "")
+    if src == "point_designer_fallback":
+        detail_bits.append("PD baseline (not a Systems solve)")
+    elif src == "systems_solve":
+        detail_bits.append("Systems target solve")
     if dom:
         detail_bits.append(f"Dominant: {fmt(dom, digits=32)}")
     if mech:
@@ -119,6 +124,11 @@ def render_posture_strip(
     if next_action:
         detail_bits.append(f"Next: {next_action}")
     verdict_banner(str(verdict or "UNKNOWN"), detail=" · ".join(detail_bits))
+    if src == "point_designer_fallback":
+        ui.badge("POINT DESIGNER BASELINE", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "This posture is the Point Designer evaluation — run Precheck / Target solve for a Systems Mode result."
+        ).classes("text-caption text-orange q-mb-xs")
     if kpis.get("mirage"):
         ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
     kpi_row([

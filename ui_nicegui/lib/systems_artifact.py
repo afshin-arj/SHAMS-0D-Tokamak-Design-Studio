@@ -230,23 +230,28 @@ def synthesize_from_point(point_out: Dict[str, Any]) -> dict:
 
 def fetch_systems_artifact(session: DesignSession) -> Optional[dict]:
     if isinstance(session.systems_last_solve_artifact, dict):
-        art = session.systems_last_solve_artifact
+        art = dict(session.systems_last_solve_artifact)
         if pick_first(art, [["verdict"], ["summary", "verdict"]]) or extract_constraints(art):
             if not pick_first(art, [["verdict"], ["summary", "verdict"]]):
                 out = art.get("outputs") if isinstance(art.get("outputs"), dict) else None
                 if isinstance(out, dict):
                     synth = synthesize_from_point(out)
-                    merged = dict(art)
-                    merged.setdefault("verdict", synth["verdict"])
-                    merged.setdefault("dominant_constraint", synth["dominant_constraint"])
-                    return merged
+                    art.setdefault("verdict", synth["verdict"])
+                    art.setdefault("dominant_constraint", synth["dominant_constraint"])
+            art.setdefault("source", "systems_solve")
             return art
 
     art, _, point_out = get_point_artifact_triple(session)
 
     if isinstance(art, dict):
         if pick_first(art, [["verdict"], ["summary", "verdict"], ["ledger", "verdict"]]):
-            return art
+            merged = dict(art)
+            # Point Designer / Suite artifacts are not Systems Mode solves.
+            if not isinstance(session.systems_last_solve_artifact, dict):
+                merged["source"] = "point_designer_fallback"
+            else:
+                merged.setdefault("source", "point_designer_fallback")
+            return merged
         if extract_constraints(art) or isinstance(art.get("outputs"), dict):
             out = art.get("outputs") if isinstance(art.get("outputs"), dict) else point_out
             if isinstance(out, dict) and out:
@@ -256,12 +261,11 @@ def fetch_systems_artifact(session: DesignSession) -> Optional[dict]:
                 merged.setdefault("dominant_constraint", synth["dominant_constraint"])
                 if not extract_constraints(merged):
                     merged["constraints"] = synth["constraints"]
-                merged.setdefault("source", synth.get("source", "point_designer_fallback"))
+                merged["source"] = "point_designer_fallback"
                 return merged
             return art
 
     if isinstance(point_out, dict) and point_out:
-
         return synthesize_from_point(point_out)
 
     return None
