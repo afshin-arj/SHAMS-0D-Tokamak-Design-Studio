@@ -324,6 +324,22 @@ def _render_freeze_qa(session: DesignSession) -> None:
         )
 
         async def _audit() -> None:
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            if session.scan_running:
+                ui.notify("Scan Lab already running.", type="warning")
+                return
+            locked, task, is_owner = runlock_status("ScanLab")
+            if locked and not is_owner:
+                ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+                return
+            if not runlock_acquire("Scan Lab: Replay audit", "ScanLab"):
+                ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+                return
+            session.scan_running = True
+            refresh_status()
+            refresh_helm()
             ui.notify("Running replay audit…", type="info")
             try:
                 result = await run.io_bound(
@@ -340,6 +356,11 @@ def _render_freeze_qa(session: DesignSession) -> None:
                 ui.code(json.dumps(result, indent=2), language="json").classes("w-full q-mt-sm")
             except Exception as exc:
                 ui.notify(str(exc), type="negative")
+            finally:
+                session.scan_running = False
+                runlock_release("ScanLab")
+                refresh_status()
+                refresh_helm()
 
         ui.button("Run quick replay audit", icon="replay", on_click=_audit).props("outline")
         ui.label("Full gate: python scripts/run_scanlab_freeze_qa.py").classes("text-caption text-grey q-mt-sm")

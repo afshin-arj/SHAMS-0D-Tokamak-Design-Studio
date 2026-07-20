@@ -14,9 +14,9 @@ def probe_scan_imports() -> List[str]:
     """Return import error messages for optional Scan Lab engines."""
     errors: List[str] = []
     try:
-        from src.evaluator.core import Evaluator  # noqa: F401
+        from ui_nicegui.evaluate import ui_evaluator  # noqa: F401
     except ImportError as exc:
-        errors.append(f"Evaluator: {exc}")
+        errors.append(f"ui_evaluator: {exc}")
     try:
         from tools.scan_cartography import build_cartography_report  # noqa: F401
     except ImportError as exc:
@@ -104,7 +104,7 @@ def run_replay_determinism_audit(
     import numpy as np
 
     try:
-        from src.evaluator.core import Evaluator
+        from ui_nicegui.evaluate import ui_evaluator
         from tools.scan_cartography import build_cartography_report
         from tools.scan_artifact_schema import stable_hash
     except ImportError as exc:
@@ -114,7 +114,7 @@ def run_replay_determinism_audit(
     by = float(getattr(base, y_key, 1.0) or 1.0)
     xv = list(np.linspace(0.95 * bx, 1.05 * bx, 11))
     yv = list(np.linspace(0.95 * by, 1.05 * by, 9))
-    ev = Evaluator(label="NiceGUI:ScanReplay", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:ScanReplay", cache_enabled=True, cache_max=4096)
     rep_a = build_cartography_report(
         evaluator=ev,
         base_inputs=base,

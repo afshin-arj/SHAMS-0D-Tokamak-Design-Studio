@@ -9,11 +9,9 @@ from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 
 
 def _get_evaluator():
-    try:
-        from src.evaluator.core import Evaluator
-    except ImportError:
-        from evaluator.core import Evaluator  # type: ignore
-    return Evaluator(label="NiceGUI:SystemsAssistant", cache_enabled=True, cache_max=4096)
+    from ui_nicegui.evaluate import ui_evaluator
+
+    return ui_evaluator(origin="NiceGUI:SystemsAssistant", cache_enabled=True, cache_max=4096)
 
 
 def propose_feasibility_changes(

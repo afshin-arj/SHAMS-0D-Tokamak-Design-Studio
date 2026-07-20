@@ -135,10 +135,23 @@ def _grid_view(session: DesignSession) -> None:
         return
     n_feas = sum(1 for r in rows if r.get("feasible"))
     kpi_row([("Points", str(len(rows))), ("Feasible", str(n_feas)), ("X", kx), ("Y", ky)])
+    if n_feas < len(rows):
+        ui.label(
+            "PHYS-KPI-001: Q / Pfus on infeasible grid rows are diagnostic residue — not design claims."
+        ).classes("text-caption text-orange q-mb-xs")
     cols = [kx, ky, "feasible", "top_blocker", "Q", "Pfus_total_MW"]
+    display_rows = []
+    for r in rows:
+        row = {c: r.get(c) for c in cols}
+        if not r.get("feasible"):
+            if row.get("Q") is not None:
+                row["Q"] = f"{row['Q']} (diag)"
+            if row.get("Pfus_total_MW") is not None:
+                row["Pfus_total_MW"] = f"{row['Pfus_total_MW']} (diag)"
+        display_rows.append(row)
     ui.table(
         columns=[{"name": c, "label": c, "field": c, "align": "left"} for c in cols],
-        rows=[{c: r.get(c) for c in cols} for r in rows],
+        rows=display_rows,
         row_key=kx,
     ).classes("w-full q-mb-sm")
     ui.button(

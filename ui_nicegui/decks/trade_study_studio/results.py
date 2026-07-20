@@ -109,6 +109,10 @@ def _render_table(title: str, rows: list[dict], objectives: list[str]) -> None:
     for r in rows:
         table_rows.append({k: r.get(k) for k in cols if k in r})
     with ui.expansion(title, icon="table_chart").classes("w-full"):
+        if any(not bool(r.get("is_feasible")) for r in rows):
+            ui.label(
+                "PHYS-KPI-001: objective columns on infeasible samples are diagnostic residue — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         ui.table(
             columns=[{"name": k, "label": k, "field": k} for k in cols if table_rows and k in table_rows[0]],
             rows=table_rows,

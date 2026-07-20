@@ -42,14 +42,39 @@ def render_assistant_panel(
         )
 
         async def _load_proposals() -> None:
-            props = await run.io_bound(
-                propose_feasibility_changes,
-                session,
-                n_random=session.systems_precheck_n_random,
-                seed=session.systems_precheck_seed,
-            )
-            session.systems_assistant_proposals = props
-            _proposal_list.refresh()
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            locked, task, is_owner = runlock_status("SystemsMode")
+            if locked:
+                ui.notify(
+                    f"Busy: {task} — wait or force-clear from Helm."
+                    if not is_owner
+                    else "Systems Mode already holds the run lock.",
+                    type="warning",
+                )
+                return
+            if not runlock_acquire("Systems Mode: Assistant proposals", "SystemsMode"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
+            refresh_status()
+            refresh_helm()
+            try:
+                props = await run.io_bound(
+                    propose_feasibility_changes,
+                    session,
+                    n_random=session.systems_precheck_n_random,
+                    seed=session.systems_precheck_seed,
+                )
+                session.systems_assistant_proposals = props
+                _proposal_list.refresh()
+                ui.notify(f"Generated {len(props or [])} proposal(s)", type="positive")
+            except Exception as exc:
+                ui.notify(f"Proposal generation failed: {exc}", type="negative")
+            finally:
+                runlock_release("SystemsMode")
+                refresh_status()
+                refresh_helm()
 
         async def _undo() -> None:
             if pop_assistant_undo(session):

@@ -127,13 +127,13 @@ def _render_v351(session: DesignSession) -> None:
             session.v351_atlas_last = atlas
             feas = [r for r in records if r.get("is_feasible")]
             from src.atlas.frontier_atlas_v351 import pareto_front, classify_lanes_for_points, bin_counts
-            from src.evaluator.core import Evaluator
+            from ui_nicegui.evaluate import ui_evaluator
             from src.uq_contracts.spec import optimistic_uncertainty_contract, robust_uncertainty_contract
             from src.uq_contracts.runner import run_uncertainty_contract_for_point
 
             pareto_rows = pareto_front(feas, objectives=objs, senses=senses)
             if pareto_rows and base_inputs:
-                ev = Evaluator(label="NiceGUI:v351", cache_enabled=True)
+                ev = ui_evaluator(origin="NiceGUI:v351", cache_enabled=True)
                 session.v351_lane_rows = await run.io_bound(
                     classify_lanes_for_points,
                     evaluator=ev,
@@ -357,10 +357,10 @@ def _render_surrogate_accel(session: DesignSession) -> None:
         study_obj = cap.get("objectives") or (rep.get("meta") or {}).get("objectives") or [str(primary.value)]
         study_senses = cap.get("objective_senses") or (rep.get("meta") or {}).get("objective_senses") or {}
         try:
-            from src.evaluator.core import Evaluator
+            from ui_nicegui.evaluate import ui_evaluator
             from src.extopt.surrogate_accel import verify_candidates_as_rows
 
-            ev = Evaluator(label="NiceGUI:SurrogateVerify", cache_enabled=True)
+            ev = ui_evaluator(origin="NiceGUI:SurrogateVerify", cache_enabled=True)
             vrows = await run.io_bound(
                 verify_candidates_as_rows,
                 evaluator=ev,

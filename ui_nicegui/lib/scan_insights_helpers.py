@@ -69,9 +69,9 @@ def counterfactual(rep: dict, intent: str, drop_constraint: str) -> dict:
 
 def projection_stability(base, rep: dict, intent: str, i: int, j: int, z_key: str, rel_step: float) -> dict:
     from tools.scan_next_tier import projection_stability_check
-    from src.evaluator.core import Evaluator
+    from ui_nicegui.evaluate import ui_evaluator
 
-    ev = Evaluator(label="NiceGUI:ScanProjStab", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:ScanProjStab", cache_enabled=True, cache_max=4096)
     return projection_stability_check(
         evaluator=ev,
         base_inputs=base,
@@ -86,9 +86,9 @@ def projection_stability(base, rep: dict, intent: str, i: int, j: int, z_key: st
 
 def path_follow_scan(base, rep: dict, *, target_output: str, intent: str = "Reactor") -> dict:
     from tools.scan_next_tier import path_follow_scan as _path
-    from src.evaluator.core import Evaluator
+    from ui_nicegui.evaluate import ui_evaluator
 
-    ev = Evaluator(label="NiceGUI:ScanPath", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:ScanPath", cache_enabled=True, cache_max=4096)
     x_vals = list(rep.get("x_vals") or [])
     return _path(
         evaluator=ev,
@@ -109,7 +109,7 @@ def guided_walkthrough() -> List[dict]:
 
 def time_to_failure(base, rep: dict, intent: str, i: int, j: int, knob: str, rel_step: float) -> dict:
     from tools.scan_insights import time_to_failure_along_knob
-    from src.evaluator.core import Evaluator
+    from ui_nicegui.evaluate import ui_evaluator
     from ui_nicegui.lib.scan_workbench_helpers import build_point_grid, cell_intent_state, _cell_xy_overrides
 
     grid = build_point_grid(rep)
@@ -117,7 +117,7 @@ def time_to_failure(base, rep: dict, intent: str, i: int, j: int, knob: str, rel
     s = cell_intent_state(grid, intent, i, j)
     domc = str(s.get("dominant_blocking") or "").strip()
     overrides = _cell_xy_overrides(rep, cell)
-    ev = Evaluator(label="NiceGUI:ScanTTF", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:ScanTTF", cache_enabled=True, cache_max=4096)
     return time_to_failure_along_knob(
         evaluator=ev,
         base_inputs=base,
@@ -130,13 +130,13 @@ def time_to_failure(base, rep: dict, intent: str, i: int, j: int, knob: str, rel
 
 def uncertainty_stress(base, rep: dict, intent: str, i: int, j: int, *, n_samples: int = 40, seed: int = 1) -> dict:
     from tools.scan_insights import uncertainty_stress_test
-    from src.evaluator.core import Evaluator
+    from ui_nicegui.evaluate import ui_evaluator
     from ui_nicegui.lib.scan_workbench_helpers import build_point_grid, _cell_xy_overrides
 
     grid = build_point_grid(rep)
     cell = grid.get((int(i), int(j)), {})
     overrides = _cell_xy_overrides(rep, cell)
-    ev = Evaluator(label="NiceGUI:ScanUQ", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:ScanUQ", cache_enabled=True, cache_max=4096)
     return uncertainty_stress_test(
         evaluator=ev,
         base_inputs=base,

@@ -426,11 +426,11 @@ def run_causality_trace(
     knobs = list(dict.fromkeys(k for k in knobs if k and hasattr(base, k)))
 
     try:
-        from src.evaluator.core import Evaluator
+        from ui_nicegui.evaluate import ui_evaluator
     except ImportError:
-        from evaluator.core import Evaluator  # type: ignore
+        from ui_nicegui.evaluate import ui_evaluator  # type: ignore
 
-    ev = Evaluator(label="NiceGUI:ScanCausality", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:ScanCausality", cache_enabled=True, cache_max=4096)
     return build_causality_trace(
         evaluator=ev,
         base_inputs=base,

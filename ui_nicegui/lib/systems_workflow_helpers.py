@@ -39,11 +39,9 @@ def recovery_seed(
 
 
 def _get_evaluator():
-    try:
-        from src.evaluator.core import Evaluator
-    except ImportError:
-        from evaluator.core import Evaluator  # type: ignore
-    return Evaluator(label="NiceGUI:Systems", cache_enabled=True, cache_max=8192)
+    from ui_nicegui.evaluate import ui_evaluator
+
+    return ui_evaluator(origin="NiceGUI:Systems", cache_enabled=True, cache_max=8192)
 
 
 def _build_inputs(base, x: Dict[str, float]):

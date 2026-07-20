@@ -118,8 +118,8 @@ RECOMMENDED_SLICES = [
 ]
 
 ROBUSTNESS_GLOSSARY = (
-    "**Robustness verdict** (banner KPI) = fraction of cells blocking-feasible → Robust / Balanced / "
-    "Brittle / Knife-edge. **Cell robustness label** = local neighborhood p-feasible proxy. "
+    "**2-D slice occupancy** (banner KPI) = fraction of cells blocking-feasible → Dense / Moderate / "
+    "Sparse / Near-empty slice. **Cell robustness label** = local neighborhood p-feasible proxy. "
     "**Robustness map** = heatmap of that proxy — not the KPI band."
 )
 
