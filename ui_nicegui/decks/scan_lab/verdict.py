@@ -42,7 +42,7 @@ def render_scan_verdict(rep: dict | None) -> None:
     kpi_row([
         ("Dominant constraint", summary["dominant"]),
         (f"Feasible fraction ({summary['intent']})", summary["feasible_pct"]),
-        ("Robustness verdict", summary["robustness"]),
+        ("2-D slice occupancy", summary["robustness"]),
         ("Cliffiness proxy", f"{summary['cliffiness']:.2f}"),
     ])
     rs = rep.get("run_seconds")

@@ -40,13 +40,13 @@ def run_systems_precheck(
     paux_for_q_mw: float | None = None,
 ) -> Any:
     try:
-        from src.evaluator.core import Evaluator
+        from ui_nicegui.evaluate import ui_evaluator
         from src.systems.feasibility_completion import run_precheck
     except ImportError:
-        from evaluator.core import Evaluator  # type: ignore
+        from ui_nicegui.evaluate import ui_evaluator  # type: ignore
         from systems.feasibility_completion import run_precheck  # type: ignore
 
-    ev = Evaluator(label="NiceGUI:Systems", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:Systems", cache_enabled=True, cache_max=4096)
     if paux_for_q_mw is not None:
         _base_ev = ev
 

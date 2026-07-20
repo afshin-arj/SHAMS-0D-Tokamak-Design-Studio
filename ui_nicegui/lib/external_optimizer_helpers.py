@@ -508,10 +508,10 @@ def run_two_lane_uq(base) -> dict:
 
 
 def run_mirage_path_scan(base, knob: str, lo: float, hi: float, n: int) -> dict:
-    from src.evaluator.core import Evaluator
+    from ui_nicegui.evaluate import ui_evaluator
     from src.trade_studies.pathfinding import one_knob_path_scan
 
-    ev = Evaluator(label="NiceGUI:MiragePath", cache_enabled=True)
+    ev = ui_evaluator(origin="NiceGUI:MiragePath", cache_enabled=True)
     return one_knob_path_scan(ev, base, knob, lo=lo, hi=hi, n=int(n))
 
 

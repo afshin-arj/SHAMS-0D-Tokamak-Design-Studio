@@ -60,13 +60,13 @@ def summarize_scan_report(rep: dict, *, intent: Optional[str] = None) -> Dict[st
     dom = (top[0].get("constraint") if top else None) or "(none)"
     cliff = float(n0.get("cliffiness_proxy", 0.0)) if isinstance(n0, dict) else 0.0
     if feasible >= 0.85:
-        robustness = "Robust"
+        robustness = "Dense slice"
     elif feasible >= 0.55:
-        robustness = "Balanced"
+        robustness = "Moderate slice"
     elif feasible >= 0.25:
-        robustness = "Brittle"
+        robustness = "Sparse slice"
     else:
-        robustness = "Knife-edge"
+        robustness = "Near-empty slice"
     return {
         "loaded": True,
         "intent": it,
@@ -101,10 +101,10 @@ def run_cartography_scan(
     import numpy as np
 
     try:
-        from src.evaluator.core import Evaluator
+        from ui_nicegui.evaluate import ui_evaluator
         from tools.scan_cartography import build_cartography_report
     except ImportError:
-        from evaluator.core import Evaluator  # type: ignore
+        from ui_nicegui.evaluate import ui_evaluator  # type: ignore
         from tools.scan_cartography import build_cartography_report  # type: ignore
 
     base2 = base
@@ -115,7 +115,7 @@ def run_cartography_scan(
         except Exception:
             pass
 
-    ev = Evaluator(label="NiceGUI:Scan", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:Scan", cache_enabled=True, cache_max=4096)
     x_vals = list(np.linspace(float(x_lo), float(x_hi), int(nx)))
     y_vals = list(np.linspace(float(y_lo), float(y_hi), int(ny)))
 

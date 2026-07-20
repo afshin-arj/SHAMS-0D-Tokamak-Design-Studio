@@ -556,11 +556,17 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
 
     from ui_nicegui.lib import cr_provenance_helpers as crph
     from ui_nicegui.lib.pd_parity_helpers import point_summary_rows
+    from ui_nicegui import evaluate as uiev
+    from ui_nicegui.decks.systems_mode import assistant_ui
+    from ui_nicegui.decks.scan_lab import export_archive
 
-    assert crph.replay_check.__doc__ is None or True
     assert "_ui_replay_evaluate" in inspect.getsource(crph)
     assert "evaluate_fn=_ui_replay_evaluate" in inspect.getsource(crph)
     assert "ui_evaluate" in inspect.getsource(crph._ui_replay_evaluate)
+    assert "ui_evaluator" in inspect.getsource(uiev)
+    assert 'setdefault("label"' in inspect.getsource(uiev.ui_evaluate)
+    assert "Systems Mode: Assistant proposals" in inspect.getsource(assistant_ui)
+    assert "Scan Lab: Replay audit" in inspect.getsource(export_archive)
 
     diag_rows = point_summary_rows(
         {"H98": 1.2, "Q_DT_eqv": 5.0, "Pfus_total_MW": 100.0, "P_e_net_MW": 20.0, "Ip_MA": 8.0},

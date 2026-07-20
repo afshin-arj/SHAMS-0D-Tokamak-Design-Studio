@@ -93,8 +93,9 @@ def test_frontier_posture_and_policy_filter() -> None:
 
     msg, tone = frontier_posture({"n_feasible": 0, "n_pareto": 0})
     assert tone == "negative"
-    msg2, _ = frontier_posture({"n_feasible": 10, "n_pareto": 5, "confidence": "High"})
-    assert "High-confidence" in msg2
+    msg2, tone2 = frontier_posture({"n_feasible": 10, "n_pareto": 5, "confidence": "High"})
+    assert tone2 == "info"
+    assert "Sampling-dense" in msg2 or "convergence" in msg2.lower()
 
     feasible = [
         {"TBR": 1.1, "q_div_MW_m2": 10.0, "sigma_vm_MPa": 400.0, "R0_m": 1.8, "P_e_net_MW": 100.0},

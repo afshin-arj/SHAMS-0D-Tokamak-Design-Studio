@@ -70,7 +70,16 @@ def test_run_pareto_study_smoke() -> None:
     assert isinstance(result.get("summary"), dict)
     summary = summarize_pareto_run(result)
     assert "n_feasible" in summary
-    assert summary["confidence"] in ("High", "Moderate", "Low", "Sparse")
+    assert summary["confidence"] in (
+        "High",
+        "Moderate",
+        "Low",
+        "Sparse",
+        "Sampling-dense",
+        "Sampling-moderate",
+        "Sampling-sparse",
+    )
+
 
 
 def test_pareto_artifact_export() -> None:

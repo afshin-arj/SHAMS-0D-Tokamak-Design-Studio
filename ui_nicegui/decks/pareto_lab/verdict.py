@@ -38,14 +38,20 @@ def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") ->
         "warning": "MIXED",
         "negative": "FAIL",
     }.get(tone, "UNKNOWN")
+    # Sampling density must not present as a green PASS achievement.
+    if tone == "info" and banner_posture == "PASS":
+        banner_posture = "READY"
     verdict_banner(banner_posture, detail=posture)
 
     feas_frac = summary.get("feasible_fraction")
     feas_pct = f"{100.0 * float(feas_frac):.1f}%" if isinstance(feas_frac, (int, float)) else "-"
     conf = str(summary.get("confidence") or "-")
     conf_color = {
-        "High": "positive",
+        "Sampling-dense": "info",
+        "High": "info",
+        "Sampling-moderate": "info",
         "Moderate": "info",
+        "Sampling-sparse": "warning",
         "Low": "warning",
         "Sparse": "negative",
     }.get(conf, "grey")
@@ -58,8 +64,9 @@ def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") ->
         ("Margin-robust mix", summary.get("robust_mix", "-")),
         ("Mirage mix", summary.get("mirage_mix", "-")),
     ])
-    ui.badge(f"Sampling confidence: {conf}", color=conf_color).props("outline").classes("q-mt-xs")
+    ui.badge(f"Sample density: {conf}", color=conf_color).props("outline").classes("q-mt-xs")
     ui.label(
-        "Margin-robust mix = Pareto points with min_constraint_margin ≥ threshold (not UQ robustness). "
+        "Sample density is not UQ/resampling confidence. "
+        "Margin-robust mix = Pareto points with min_constraint_margin ≥ threshold. "
         "Mirage mix = feasible but credibility-fragile — screening only."
     ).classes("text-caption text-grey q-mt-xs")

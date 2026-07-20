@@ -96,13 +96,11 @@ def frontier_posture(summary: dict) -> tuple[str, str]:
         return "No feasible designs in sampled bounds — widen bounds or relax intent lens.", "negative"
     if n_pareto == 0:
         return "Feasible samples exist but no non-dominated front — check objective redundancy.", "warning"
-    if conf == "Sparse":
-        return "Sparse Pareto front — increase samples or widen bounds for better coverage.", "warning"
-    if conf == "Low":
-        return "Low-confidence front — treat trade-offs as indicative, not definitive.", "warning"
-    if conf == "Moderate":
-        return "Moderate sampling confidence — front is usable with standard caveats.", "info"
-    return "High-confidence feasible-only front — explore trade-offs on the plot.", "positive"
+    if conf in ("Sparse", "Sampling-sparse", "Low"):
+        return "Sparse sampled front — increase samples or widen bounds; not a certified optimum.", "warning"
+    if conf in ("Sampling-moderate", "Moderate"):
+        return "Moderate sample density — trade-offs are indicative, not UQ-certified.", "info"
+    return "Sampling-dense feasible-only front — explore trade-offs; not a convergence proof.", "info"
 
 
 def default_objective_sense(key: str) -> str:
@@ -347,12 +345,13 @@ def summarize_pareto_run(pareto_last: dict) -> Dict[str, Any]:
     mirage_mix = f"{mirage_n}/{n_pareto}" if n_pareto else "-"
 
     feas_frac = float(n_feasible) / float(total_samples)
+    # Sampling density only — not UQ/resampling confidence.
     if feas_frac >= 0.01 and n_pareto >= 10:
-        confidence = "High"
+        confidence = "Sampling-dense"
     elif feas_frac >= 0.001 and n_pareto >= 3:
-        confidence = "Moderate"
+        confidence = "Sampling-moderate"
     elif n_pareto >= 1:
-        confidence = "Low"
+        confidence = "Sampling-sparse"
     else:
         confidence = "Sparse"
 

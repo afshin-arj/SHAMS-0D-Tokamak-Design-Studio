@@ -8,17 +8,17 @@ from dataclasses import asdict
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
-    from src.evaluator.core import Evaluator
     from src.trade_studies.runner import run_trade_study
     from src.trade_studies.spec import default_knob_sets, KnobSet
     from src.trade_studies.families import attach_families, family_summary
     from src.optimization.objectives import list_objectives
 except ImportError:
-    from evaluator.core import Evaluator  # type: ignore
     from trade_studies.runner import run_trade_study  # type: ignore
     from trade_studies.spec import default_knob_sets, KnobSet  # type: ignore
     from trade_studies.families import attach_families, family_summary  # type: ignore
     from optimization.objectives import list_objectives  # type: ignore
+
+from ui_nicegui.evaluate import ui_evaluator
 
 
 from ui_nicegui.lib.display_labels import (
@@ -88,7 +88,7 @@ def run_studio_trade_study(
     design_intent: str = "Power Reactor (net-electric)",
     include_outputs: bool = False,
 ) -> dict:
-    ev = Evaluator(label="NiceGUI:TradeStudy", cache_enabled=True, cache_max=4096)
+    ev = ui_evaluator(origin="NiceGUI:TradeStudy", cache_enabled=True, cache_max=4096)
     rep = run_trade_study(
         evaluator=ev,
         base_inputs=base,

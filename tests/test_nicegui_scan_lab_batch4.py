@@ -94,7 +94,16 @@ def test_run_cartography_scan_smoke() -> None:
 
     assert summary["loaded"] is True
 
-    assert summary["robustness"] in ("Robust", "Balanced", "Brittle", "Knife-edge")
+    assert summary["robustness"] in (
+        "Robust",
+        "Balanced",
+        "Brittle",
+        "Knife-edge",
+        "Dense slice",
+        "Moderate slice",
+        "Sparse slice",
+        "Near-empty slice",
+    )
 
 
 
