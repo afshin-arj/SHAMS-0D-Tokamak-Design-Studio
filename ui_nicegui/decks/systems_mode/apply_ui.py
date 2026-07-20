@@ -84,9 +84,18 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
             render_json_blob(sel["x"])
 
     async def _apply_evaluate() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         sel_now = _selected(cands, session.systems_selected_candidate_id)
         if not sel_now or not isinstance(sel_now.get("x"), dict):
             ui.notify("No candidate selected", type="warning")
+            return
+        locked, task, is_owner = runlock_status("SystemsMode")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Systems Mode: Apply → Point Designer", "SystemsMode"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         _push_apply_undo(session)
         applied = apply_x_to_session(session, sel_now["x"])
@@ -112,6 +121,8 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         except Exception as exc:
             _pop_apply_undo(session)
             ui.notify(f"Apply failed: {exc}", type="negative")
+        finally:
+            runlock_release("SystemsMode")
 
     def _undo_apply() -> None:
         if _pop_apply_undo(session):

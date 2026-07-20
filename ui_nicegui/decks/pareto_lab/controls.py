@@ -106,12 +106,21 @@ def render_pareto_controls(
         ui.linear_progress(show_value=False).props("indeterminate").classes("w-full q-my-sm")
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if session.pareto_running:
             ui.notify("Pareto study already running", type="warning")
             return
         objectives = _objectives_dict(session)
         if len(objectives) < 2:
             ui.notify("Select at least 2 objectives", type="warning")
+            return
+        locked, task, is_owner = runlock_status("ParetoLab")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Pareto Lab: Study", "ParetoLab"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         bounds = _resolved_bounds(session, bounds_def)
         session.pareto_running = True
@@ -142,6 +151,7 @@ def render_pareto_controls(
             ui.notify(f"Pareto study failed: {exc}", type="negative")
         finally:
             session.pareto_running = False
+            runlock_release("ParetoLab")
 
     btn = ui.button("Run Pareto (feasible-only)", icon="play_arrow", on_click=_run).props("color=primary")
     if session.pareto_running or len(session.pareto_sel_objs) < 2:

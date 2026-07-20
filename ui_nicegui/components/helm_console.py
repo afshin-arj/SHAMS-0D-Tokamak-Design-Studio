@@ -159,10 +159,16 @@ def _helm_settings_section(session: DesignSession, *, on_deck_change: Callable[[
     ui.label(f"SHAMS {_ver}" if _ver.startswith("v") else f"SHAMS v{_ver}").classes("text-caption")
 
 
-def _render_run_lock_banner(session: DesignSession) -> None:
+def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str | None]:
+    """Return (busy, task_label, lock_holder) for Helm banners / status / exit."""
     locked, task, holder = runlock_global_status()
     busy = bool(
         session.evaluating
+        or session.scan_running
+        or session.pareto_running
+        or session.trade_running
+        or session.systems_precheck_running
+        or getattr(session, "systems_recovery_running", False)
         or session.forge_mf_running
         or session.suite_running
         or session.pub_running
@@ -171,6 +177,25 @@ def _render_run_lock_banner(session: DesignSession) -> None:
         or session.pub_bench_running
         or locked
     )
+    if task:
+        return busy, task, holder
+    if session.scan_running:
+        return busy, "Scan Lab cartography", holder
+    if session.pareto_running:
+        return busy, "Pareto Lab study", holder
+    if session.trade_running:
+        return busy, "Trade Study", holder
+    if session.systems_precheck_running:
+        return busy, "Systems Mode: Precheck", holder
+    if getattr(session, "systems_recovery_running", False):
+        return busy, "Systems Mode: Recovery", holder
+    if session.evaluating:
+        return busy, "Point Designer: Evaluate", holder
+    return busy, task, holder
+
+
+def _render_run_lock_banner(session: DesignSession) -> None:
+    busy, task, holder = _session_or_lock_busy(session)
     if not busy:
         return
     if task and task not in _RUN_START:
@@ -234,17 +259,7 @@ def _render_posture(session: DesignSession) -> None:
     ui.label(f"Mission: {session.design_intent}").classes("text-caption q-mt-xs")
     ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
 
-    locked, task, holder = runlock_global_status()
-    busy = bool(
-        session.evaluating
-        or session.forge_mf_running
-        or session.suite_running
-        or session.pub_running
-        or session.pub_atlas_running
-        or session.pub_atlas_fragility_running
-        or session.pub_bench_running
-        or locked
-    )
+    busy, task, holder = _session_or_lock_busy(session)
     # Busy detail lives in the run-lock banner above (single source of truth + force-clear).
     if not busy:
         ui.label("Run status: Ready — frozen evaluator armed.").classes("text-caption")
@@ -697,17 +712,7 @@ def _render_chronicle(session: DesignSession) -> None:
         if not session.shams_exit_confirm:
             ui.notify("Check Confirm exit first.", type="warning")
             return
-        locked, task, _holder = runlock_global_status()
-        busy = bool(
-            session.evaluating
-            or session.forge_mf_running
-            or session.suite_running
-            or session.pub_running
-            or session.pub_atlas_running
-            or session.pub_atlas_fragility_running
-            or session.pub_bench_running
-            or locked
-        )
+        busy, task, _holder = _session_or_lock_busy(session)
         if busy and not bool(getattr(session, "shams_exit_force_busy", False)):
             ui.notify(
                 f"A run is still active ({task or 'evaluation'}). "
@@ -739,8 +744,8 @@ def _render_chronicle_tail(session: DesignSession) -> None:
 
 def helm_status_caption(session: DesignSession) -> str:
     deck = str(getattr(session, "active_deck", "") or "Point Designer")
-    locked, task, is_owner = runlock_status("PointDesigner")
-    if session.evaluating or (locked and task):
-        who = "" if is_owner else " (another task)"
+    busy, task, holder = _session_or_lock_busy(session)
+    if busy:
+        who = f" [{holder}]" if holder else ""
         return f"{deck} · Running: {task or 'evaluation'}{who} · solver actions locked"
     return f"{deck} · Ready · frozen evaluator armed"

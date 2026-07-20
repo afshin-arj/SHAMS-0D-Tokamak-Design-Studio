@@ -89,6 +89,8 @@ def render_precheck_panel(
         ).classes("w-32")
 
     async def _run_precheck() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         blocked, block_msg = assumption_lock_ui.assumption_lock_blocks(session)
         if blocked:
             ui.notify(block_msg, type="negative")
@@ -96,10 +98,18 @@ def render_precheck_panel(
         if session.systems_precheck_running:
             ui.notify("Precheck already running", type="warning")
             return
+        locked, task, is_owner = runlock_status("SystemsMode")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Systems Mode: Precheck", "SystemsMode"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         t0 = time.perf_counter()
         base_now, targets_now, variables_now = resolve_systems_problem(session)
         ok_prob, prob_msg = validate_systems_problem(targets_now, variables_now)
         if not ok_prob:
+            runlock_release("SystemsMode")
             ui.notify(prob_msg, type="warning")
             return
         try:
@@ -146,6 +156,7 @@ def render_precheck_panel(
             ui.notify(f"Precheck failed: {exc}", type="negative")
         finally:
             session.systems_precheck_running = False
+            runlock_release("SystemsMode")
 
     btn = ui.button("Run precheck", icon="play_arrow", on_click=_run_precheck).props("color=primary")
     if disabled:
