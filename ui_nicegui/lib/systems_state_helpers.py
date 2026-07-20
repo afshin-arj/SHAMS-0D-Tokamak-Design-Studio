@@ -71,6 +71,14 @@ def merge_base_overrides_into_session(session: Any, overrides: Dict[str, float])
     hist.append({"base_overrides": dict(getattr(session, "systems_base_overrides", {}) or {}), "source": "apply"})
     session.systems_base_history = hist[-20:]
     session.systems_base_overrides = dict(overrides)
+    # Inputs changed — keep prior PD outputs but refresh Helm so STALE posture is visible.
+    try:
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_helm()
+        refresh_status()
+    except Exception:
+        pass
 
 
 def resolve_systems_problem(session: Any, base=None) -> tuple[Any, Dict[str, float], Dict[str, Tuple[float, float, float]]]:

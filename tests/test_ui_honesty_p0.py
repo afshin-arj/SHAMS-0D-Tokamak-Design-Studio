@@ -414,3 +414,55 @@ def test_pfus_total_does_not_alias_dt_adj() -> None:
     # Missing total must not silently read DT-adjusted fusion as total.
     v = _pick_output({"Pfus_DT_adj_MW": 88.0}, "Pfus_total_MW")
     assert isinstance(v, float) and math.isnan(v)
+
+
+def test_expert_mode_carries_across_decks() -> None:
+    from ui_nicegui.lib.expert_mode import EXPERT_VIEW_ATTRS, apply_expert_mode
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    assert s.expert_mode is False
+    assert s.systems_expert_view is False
+    apply_expert_mode(s, True)
+    assert s.expert_mode is True
+    for attr in EXPERT_VIEW_ATTRS:
+        assert getattr(s, attr) is True
+    apply_expert_mode(s, False)
+    assert s.expert_mode is False
+    assert s.systems_expert_view is False
+
+
+def test_compare_refresh_syncs_helm_chrome() -> None:
+    import inspect
+
+    from ui_nicegui.decks import compare as cmp
+
+    src = inspect.getsource(cmp._refresh_all)
+    assert "refresh_helm" in src
+    assert "refresh_status" in src
+
+
+def test_pareto_external_and_frontier_l0_keys() -> None:
+    import inspect
+
+    from ui_nicegui.decks.pareto_lab import external as pext
+    from ui_nicegui.decks.systems_mode import frontier_ui
+    from ui_nicegui.lib import cr_provenance_helpers as crp
+    from ui_nicegui.lib import scan_workbench_helpers as swh
+    from ui_nicegui.lib import pareto_labels
+
+    assert "_pareto_busy_guard" in inspect.getsource(pext)
+    assert "q95_proxy" in frontier_ui._Y_OPTS
+    assert "Pfus_total_MW" in frontier_ui._Y_OPTS
+    assert "q95" not in frontier_ui._Y_OPTS or "q95_proxy" in frontier_ui._Y_OPTS
+    probe = inspect.getsource(swh.probe_cell_summary)
+    assert "Pfus_total_MW" in probe
+    assert "q95_proxy" in probe
+    prov = inspect.getsource(crp.regression_artifact_diff)
+    assert '("Pfus_total_MW", ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"))' in prov or (
+        "Pfus_total_MW" in prov and "Pfus_DT_adj_MW" in prov
+    )
+    # Total must not fall back to DT-adj in the total alias chain.
+    assert '("Pfus_total_MW", ("Pfus_total_MW", "Pfus_DT_adj_MW"' not in prov
+    assert "DT-adj fusion power vs size" in pareto_labels.QUESTION_PRESETS
+    assert pareto_labels.QUESTION_PRESETS["Fusion power vs size"]["plot_y"] == "Pfus_total_MW"

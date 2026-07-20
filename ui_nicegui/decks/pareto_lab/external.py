@@ -34,6 +34,30 @@ from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.session import DesignSession
 
 
+def _pareto_busy_guard(session: DesignSession, task: str) -> bool:
+    from ui_nicegui.lib.run_lock import acquire as runlock_acquire, status as runlock_status
+
+    if session.pareto_running:
+        ui.notify("Pareto Lab already running — wait for the active job.", type="warning")
+        return False
+    locked, busy_task, is_owner = runlock_status("ParetoLab")
+    if locked and not is_owner:
+        ui.notify(f"Busy: {busy_task} — wait or force-clear from Helm.", type="warning")
+        return False
+    if not runlock_acquire(task, "ParetoLab"):
+        ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+        return False
+    session.pareto_running = True
+    return True
+
+
+def _pareto_busy_release(session: DesignSession) -> None:
+    from ui_nicegui.lib.run_lock import release as runlock_release
+
+    session.pareto_running = False
+    runlock_release("ParetoLab")
+
+
 def render_external_deck(session: DesignSession, deck: str) -> None:
     render_proposal_banner(title=deck)
     if deck == "Robust Pareto Frontier (Phase+UQ)":
@@ -83,6 +107,8 @@ def _render_robust_pareto(session: DesignSession) -> None:
     n_take = ui.number("Max points", value=min(20, len(bundle.get("pareto") or [])), min=1, max=200)
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         session.robust_pareto_phases_json = str(phases.value or "")
         session.robust_pareto_uq_json = str(uq.value or "")
         session.robust_pareto_source = str(src_sel.value)
@@ -101,6 +127,8 @@ def _render_robust_pareto(session: DesignSession) -> None:
             _robust_view.refresh()
         except Exception as exc:
             ui.notify(f"Robust Pareto failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Run Robust Frontier", icon="shield", on_click=_run).props("color=primary outline")
     _robust_view(session)
@@ -255,6 +283,8 @@ def _render_design_families(session: DesignSession) -> None:
     src = ui.toggle(["Pareto points", "All feasible points"], value="Pareto points")
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         try:
             res = await run.io_bound(
                 build_design_families,
@@ -266,6 +296,8 @@ def _render_design_families(session: DesignSession) -> None:
             _fam_view.refresh()
         except Exception as exc:
             ui.notify(str(exc), type="warning")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Build design families", icon="category", on_click=_run).props("outline")
     _fam_view(session)
@@ -294,6 +326,8 @@ def _render_extopt_workbench(session: DesignSession) -> None:
     robust = ui.checkbox("Robust mode (UQ-lite corners)", value=False)
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         path = next(p for p in yamls if p.name == sel.value)
         try:
             bundle = await run.io_bound(
@@ -309,6 +343,8 @@ def _render_extopt_workbench(session: DesignSession) -> None:
             _wb_dl.refresh()
         except Exception as exc:
             ui.notify(f"Workbench failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Run reference optimizer", icon="play_arrow", on_click=_run).props("color=primary outline")
     _wb_dl(session)
@@ -345,6 +381,8 @@ def _render_extopt_suite(session: DesignSession) -> None:
     include_ep = ui.checkbox("Include per-candidate evidence packs", value=True)
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         data = session.extopt_suite_upload_bytes
         if not isinstance(data, (bytes, bytearray)):
             ui.notify("Upload a YAML first", type="warning")
@@ -363,6 +401,8 @@ def _render_extopt_suite(session: DesignSession) -> None:
             _suite_view.refresh()
         except Exception as exc:
             ui.notify(f"Orchestrator failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Run import & verification", icon="verified", on_click=_run).props("outline")
     _suite_view(session)
@@ -399,6 +439,8 @@ def _render_extopt_copilot(session: DesignSession) -> None:
     ui.upload(on_upload=_upload).props('accept=".yaml,.yml" auto-upload')
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         data = session.extopt_copilot_yaml_bytes
         if not data:
             ui.notify("Upload YAML first", type="warning")
@@ -422,6 +464,8 @@ def _render_extopt_copilot(session: DesignSession) -> None:
             ui.notify("Co-Pilot run complete", type="positive")
         except Exception as exc:
             ui.notify(f"Co-Pilot failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Run Co-Pilot evaluation", icon="psychology", on_click=_run).props("outline")
 
@@ -467,6 +511,8 @@ def _render_certified_orchestrator(session: DesignSession) -> None:
     objs = ui.select(["P_e_net_MW", "R0_m", "B_peak_T"], label="Objective", value="P_e_net_MW", multiple=True)
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         if not objs.value:
             ui.notify("Select objectives", type="warning")
             return
@@ -492,6 +538,8 @@ def _render_certified_orchestrator(session: DesignSession) -> None:
             _cert_view.refresh()
         except Exception as exc:
             ui.notify(f"Orchestrator failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Run certified optimizer job", icon="gavel", on_click=_run).props("outline")
     _cert_view(session)
@@ -513,6 +561,8 @@ def _render_concept_cockpit(session: DesignSession) -> None:
     sel = ui.select([p.name for p in yamls], label="Concept family", value=yamls[0].name)
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         path = next(p for p in yamls if p.name == sel.value)
         try:
             res = await run.io_bound(evaluate_concept_family_yaml, path)
@@ -521,6 +571,8 @@ def _render_concept_cockpit(session: DesignSession) -> None:
             _cockpit_view.refresh()
         except Exception as exc:
             ui.notify(f"Cockpit failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Batch evaluate family", icon="science", on_click=_run).props("color=primary outline")
     _cockpit_view(session)
@@ -563,6 +615,8 @@ def _render_feasible_optimizer(session: DesignSession) -> None:
             ui.label(f"{key}: [{lo:.3g}, {hi:.3g}]").classes("text-caption")
 
     async def _run() -> None:
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+            return
         chosen = list(objs.value) if isinstance(objs.value, list) else [str(objs.value)]
         if len(chosen) < 1:
             ui.notify("Select at least one objective", type="warning")
@@ -589,6 +643,8 @@ def _render_feasible_optimizer(session: DesignSession) -> None:
             _feas_opt_view.refresh()
         except Exception as exc:
             ui.notify(f"Launch failed: {exc}", type="negative")
+        finally:
+            _pareto_busy_release(session)
 
     ui.button("Run feasible optimizer kit", icon="rocket_launch", on_click=_run).props("color=primary outline")
     _feas_opt_view(session)

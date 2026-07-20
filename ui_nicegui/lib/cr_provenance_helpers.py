@@ -154,7 +154,8 @@ def regression_artifact_diff(art_a: dict, art_b: dict) -> dict:
         # Prefer real L0 keys; fall back so audit diffs still capture physics deltas.
         key_aliases = (
             ("Q_DT_eqv", ("Q_DT_eqv", "Q")),
-            ("Pfus_total_MW", ("Pfus_total_MW", "Pfus_DT_adj_MW", "Pfus_MW")),
+            ("Pfus_total_MW", ("Pfus_total_MW", "P_fus_MW", "Pfus_MW")),
+            ("Pfus_DT_adj_MW", ("Pfus_DT_adj_MW",)),
             ("P_e_net_MW", ("P_e_net_MW", "P_net_e_MW")),
             ("beta_N", ("beta_N", "betaN_proxy", "betaN")),
             ("q95_proxy", ("q95_proxy", "q95")),

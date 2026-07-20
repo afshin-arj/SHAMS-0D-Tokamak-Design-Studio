@@ -32,6 +32,7 @@ from ui_nicegui.lib.trade_study_labels import (
     teaching_banner,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 __all__ = [
     "ADVANCED_DECKS",
@@ -83,7 +84,7 @@ def render_trade_study_studio(session: DesignSession) -> None:
                 "Expert view",
                 value=session.trade_expert_view,
                 on_change=lambda e: (
-                    setattr(session, "trade_expert_view", bool(e.value)),
+                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="trade_expert_view"),
                     _render_tab_body.refresh(),
                 ),
             )

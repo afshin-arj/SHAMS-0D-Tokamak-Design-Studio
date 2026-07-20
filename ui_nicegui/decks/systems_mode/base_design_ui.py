@@ -48,8 +48,10 @@ def render_base_design_editor(session: DesignSession) -> None:
         overrides = {k: float(w.value or 0) for k, w in fields.items()}
         session.systems_base_overrides = overrides
         merge_base_overrides_into_session(session, overrides)
-        ui.notify("Starting machine updated", type="positive")
-
+        ui.notify(
+            "Starting machine updated — Point Designer KPIs may be STALE until re-evaluate.",
+            type="positive",
+        )
     def _undo_base() -> None:
         hist = list(session.systems_base_history or [])
         if not hist:
