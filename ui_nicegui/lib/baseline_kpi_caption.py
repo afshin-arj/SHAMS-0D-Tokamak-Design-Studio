@@ -55,11 +55,11 @@ def baseline_kpi_caption(
         except Exception:
             pass
 
-    beta = point_out.get("betaN", point_out.get("beta_N"))
+    beta = point_out.get("beta_N", point_out.get("betaN_proxy", point_out.get("betaN")))
     fg = point_out.get("fG", point_out.get("greenwald_fraction"))
-    q95 = point_out.get("q95", point_out.get("q95_proxy"))
+    q95 = point_out.get("q95_proxy", point_out.get("q95"))
     if beta is not None:
-        bits.append(f"β_N≈{beta}")
+        bits.append(f"β_N≈{beta} (screening)")
     if fg is not None:
         bits.append(f"f_G≈{fg}")
     if q95 is not None:

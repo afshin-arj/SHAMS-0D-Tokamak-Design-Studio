@@ -47,6 +47,15 @@ def render_sensitivity_lab(session: DesignSession) -> None:
         fd_area = ui.column().classes("w-full")
 
         async def _run_fd() -> None:
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            locked, task, is_owner = runlock_status("PointDesigner")
+            if locked and not is_owner:
+                ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+                return
+            if not runlock_acquire("Point Designer: Local FD", "PointDesigner"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
             ui.notify("Computing local sensitivities…", type="info")
             try:
                 base = session.build_point_inputs()
@@ -72,6 +81,8 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                         ui.label("Sensitivities unavailable for this point.").classes("text-caption")
             except Exception as exc:
                 ui.notify(f"Sensitivity failed: {exc}", type="negative")
+            finally:
+                runlock_release("PointDesigner")
 
         ui.button("Compute local FD sensitivities", on_click=_run_fd).classes("q-mt-sm")
 
@@ -82,6 +93,15 @@ def render_sensitivity_lab(session: DesignSession) -> None:
         scan_area = ui.column().classes("w-full")
 
         async def _scan() -> None:
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            locked, task, is_owner = runlock_status("PointDesigner")
+            if locked and not is_owner:
+                ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+                return
+            if not runlock_acquire("Point Designer: Perturbation scan", "PointDesigner"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
             ui.notify("Running perturbation scan…", type="info")
             try:
                 base = session.build_point_inputs()
@@ -110,6 +130,8 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                         ui.label("No scan results.").classes("text-caption")
             except Exception as exc:
                 ui.notify(f"Scan failed: {exc}", type="negative")
+            finally:
+                runlock_release("PointDesigner")
 
         ui.button("Run ±10% perturbation scan", on_click=_scan).classes("q-mt-sm")
         if session.pd_pert_scan_rows:
@@ -134,41 +156,55 @@ def render_sensitivity_lab(session: DesignSession) -> None:
         async def _probe() -> None:
             from dataclasses import asdict, replace
 
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            locked, task, is_owner = runlock_status("PointDesigner")
+            if locked and not is_owner:
+                ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+                return
+            if not runlock_acquire("Point Designer: Perturbation probe", "PointDesigner"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
             base = session.build_point_inputs()
             base_dict = asdict(base) if hasattr(base, "__dataclass_fields__") else base.to_dict()
             k = str(knob.value)
             if k not in base_dict:
+                runlock_release("PointDesigner")
                 ui.notify(f"Knob {k} not in baseline.", type="warning")
                 return
             try:
                 x0 = float(base_dict[k])
             except (TypeError, ValueError):
+                runlock_release("PointDesigner")
                 ui.notify("Invalid baseline value.", type="negative")
                 return
-            rows = []
-            for label, mult in (("-10%", 0.9), ("baseline", 1.0), ("+10%", 1.1)):
-                pi = replace(base, **{k: x0 * mult})
-                yo = await run.io_bound(
-                    ui_evaluate, pi, origin="NiceGUI:PerturbationProbe", Paux_for_Q_MW=session.paux_for_q
-                )
-                q = yo.get("Q_DT_eqv", yo.get("Q"))
-                from ui_nicegui.lib.verdict_core import verdict_summary
+            try:
+                rows = []
+                for label, mult in (("-10%", 0.9), ("baseline", 1.0), ("+10%", 1.1)):
+                    pi = replace(base, **{k: x0 * mult})
+                    yo = await run.io_bound(
+                        ui_evaluate, pi, origin="NiceGUI:PerturbationProbe", Paux_for_Q_MW=session.paux_for_q
+                    )
+                    q = yo.get("Q_DT_eqv", yo.get("Q"))
+                    from ui_nicegui.lib.verdict_core import verdict_summary
 
-                feas = "yes" if verdict_summary(yo).get("feasible") else "no"
-                rows.append({"step": label, "knob": k, "value": f"{x0 * mult:.4g}", "Q": _fmt(q), "feasible": feas})
-            result_area.clear()
-            with result_area:
-                ui.table(
-                    columns=[
-                        {"name": "step", "label": "Step", "field": "step"},
-                        {"name": "knob", "label": "Knob", "field": "knob"},
-                        {"name": "value", "label": "Value", "field": "value"},
-                        {"name": "Q", "label": "Q", "field": "Q"},
-                        {"name": "feasible", "label": "Feasible", "field": "feasible"},
-                    ],
-                    rows=rows,
-                    row_key="step",
-                ).classes("w-full")
+                    feas = "yes" if verdict_summary(yo).get("feasible") else "no"
+                    rows.append({"step": label, "knob": k, "value": f"{x0 * mult:.4g}", "Q": _fmt(q), "feasible": feas})
+                result_area.clear()
+                with result_area:
+                    ui.table(
+                        columns=[
+                            {"name": "step", "label": "Step", "field": "step"},
+                            {"name": "knob", "label": "Knob", "field": "knob"},
+                            {"name": "value", "label": "Value", "field": "value"},
+                            {"name": "Q", "label": "Q", "field": "Q"},
+                            {"name": "feasible", "label": "Feasible", "field": "feasible"},
+                        ],
+                        rows=rows,
+                        row_key="step",
+                    ).classes("w-full")
+            finally:
+                runlock_release("PointDesigner")
 
         ui.button("Run ±10% probe", on_click=_probe).classes("q-mt-sm")
 
