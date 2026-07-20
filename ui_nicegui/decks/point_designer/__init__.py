@@ -31,6 +31,7 @@ from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
 def _pd_active(session: DesignSession) -> bool:
@@ -98,7 +99,7 @@ def render_point_designer(session: DesignSession) -> None:
                 "Guided mode",
                 value=session.pd_teaching_mode,
                 on_change=lambda e: (
-                    setattr(session, "pd_teaching_mode", bool(e.value)),
+                    sync_deck_guided_to_helm(session, bool(e.value), deck_attr="pd_teaching_mode"),
                     _render_workflow.refresh(),
                 ),
             )

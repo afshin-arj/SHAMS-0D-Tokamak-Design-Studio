@@ -432,6 +432,55 @@ def test_expert_mode_carries_across_decks() -> None:
     assert s.systems_expert_view is False
 
 
+def test_guided_mode_carries_across_decks() -> None:
+    from ui_nicegui.lib.teaching_mode import TEACHING_MODE_ATTRS, apply_guided_mode
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    assert s.guided_mode is True
+    assert s.systems_teaching_mode is True
+    apply_guided_mode(s, False)
+    assert s.guided_mode is False
+    for attr in TEACHING_MODE_ATTRS:
+        assert getattr(s, attr) is False
+    apply_guided_mode(s, True)
+    assert s.pd_teaching_mode is True
+
+
+def test_helm_workflow_rejects_stale_and_partial_compare() -> None:
+    from ui_nicegui.lib.helm_workflow_guide import has_compare_slots, has_point_evaluation
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.pd_last_outputs = {"Q_DT_eqv": 1.0}
+    s.pd_last_run_ts = 1.0
+    s.pd_last_inputs_hash = "old"
+    # Force stale by making current hash differ via inputs change after hash stamp.
+    s.inputs["R0_m"] = float(s.inputs.get("R0_m", 1.8)) + 0.1
+    # inputs_stale compares hashes; set last hash to something else
+    s.pd_last_inputs_hash = "not-current"
+    assert has_point_evaluation(s) is False
+
+    s.cmp_slot_a = {"outputs": {"Q": 1}}
+    s.cmp_slot_b = None
+    s.cmp_use_slot_a = True
+    s.cmp_use_slot_b = True
+    assert has_compare_slots(s) is False
+    s.cmp_slot_b = {"outputs": {"Q": 2}}
+    assert has_compare_slots(s) is True
+
+
+def test_licensing_pack_not_a_determination() -> None:
+    import inspect
+
+    from ui_nicegui.decks.publication_benchmarks import licensing_pack as lp
+
+    src = inspect.getsource(lp)
+    assert "not a licensing determination" in src
+    assert "Pack integrity" in src or "integrity" in src.lower()
+    assert "PublicationBenchmarks" in src
+
+
 def test_compare_refresh_syncs_helm_chrome() -> None:
     import inspect
 

@@ -29,6 +29,7 @@ from ui_nicegui.lib.pub_helpers import (
 )
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
 def _refresh_verdict() -> None:
@@ -137,7 +138,7 @@ def _render_mode_switches(session: DesignSession) -> None:
     """Guided and Expert are independent (parity with Point Designer / Scan / Forge)."""
 
     def _on_guided(e) -> None:
-        session.pub_teaching_mode = bool(e.value)
+        sync_deck_guided_to_helm(session, bool(e.value), deck_attr="pub_teaching_mode")
         _render_decision_chrome.refresh()
         _render_tab_body.refresh()
         _render_deck_status.refresh()

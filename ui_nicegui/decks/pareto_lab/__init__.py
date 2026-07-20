@@ -33,6 +33,7 @@ from ui_nicegui.lib.pareto_labels import (
 )
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
 def _refresh_all() -> None:
@@ -91,7 +92,7 @@ def render_pareto_lab(session: DesignSession) -> None:
             "Guided mode",
             value=session.pareto_teaching_mode,
             on_change=lambda e: (
-                setattr(session, "pareto_teaching_mode", bool(e.value)),
+                sync_deck_guided_to_helm(session, bool(e.value), deck_attr="pareto_teaching_mode"),
                 _render_tab_body.refresh(),
             ),
         )

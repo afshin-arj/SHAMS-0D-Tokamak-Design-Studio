@@ -212,7 +212,7 @@ def render_interpret_tab(
             _timeline_point()
 
     with ui.expansion("Policy lens (recompute front from feasible set)", icon="filter_alt").classes("w-full q-mt-md"):
-        tbr_min = ui.number("TBR min", value=1.0, step=0.05).classes("w-32")
+        tbr_min = ui.number("TBR min (screening proxy)", value=1.0, step=0.05).classes("w-40")
         qdiv_max = ui.number("q_div max [MW/m²]", value=15.0, step=0.5).classes("w-36")
         sigma_max = ui.number("σ_vm max [MPa]", value=600.0, step=10.0).classes("w-36")
         hts_min = ui.number("HTS margin min", value=0.0, step=0.05).classes("w-32")
@@ -301,7 +301,7 @@ def _policy_table(session: DesignSession) -> None:
     ui.table(
         columns=[
             {"name": "dominant_constraint", "label": "Dominant", "field": "dominant_constraint"},
-            {"name": "TBR", "label": "TBR", "field": "TBR"},
+            {"name": "TBR", "label": "TBR (proxy)", "field": "TBR"},
             {"name": "q_div_MW_m2", "label": "q_div", "field": "q_div_MW_m2"},
             {"name": "sigma_vm_MPa", "label": "σ_vm", "field": "sigma_vm_MPa"},
         ],

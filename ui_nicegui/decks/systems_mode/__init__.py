@@ -46,6 +46,7 @@ from ui_nicegui.lib.systems_handoff import consume_systems_mode_queue
 from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 from ui_nicegui.lib.systems_workflow_helpers import collect_candidates
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
 def _precheck_ok(session: DesignSession) -> bool | None:
@@ -142,7 +143,7 @@ def render_systems_mode(session: DesignSession) -> None:
             "Guided mode",
             value=session.systems_teaching_mode,
             on_change=lambda e: (
-                setattr(session, "systems_teaching_mode", bool(e.value)),
+                sync_deck_guided_to_helm(session, bool(e.value), deck_attr="systems_teaching_mode"),
                 _render_posture.refresh(),
             ),
         )

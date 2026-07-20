@@ -107,13 +107,27 @@ def phase_title(phase: int) -> str:
 
 
 def has_point_evaluation(session: Any) -> bool:
-    return isinstance(getattr(session, "pd_last_outputs", None), dict)
+    """True only for a current (non-STALE) Point Designer evaluation."""
+    out = getattr(session, "pd_last_outputs", None)
+    if not isinstance(out, dict):
+        return False
+    try:
+        from ui_nicegui.lib.pd_solver_helpers import inputs_stale
+
+        if bool(getattr(session, "pd_last_run_ts", None) and inputs_stale(session)):
+            return False
+    except Exception:
+        pass
+    return True
 
 
 def has_compare_slots(session: Any) -> bool:
+    """True only when both Compare slots A and B are loaded."""
     a = getattr(session, "cmp_slot_a", None)
     b = getattr(session, "cmp_slot_b", None)
-    return isinstance(a, dict) or isinstance(b, dict)
+    use_a = bool(getattr(session, "cmp_use_slot_a", True))
+    use_b = bool(getattr(session, "cmp_use_slot_b", True))
+    return (isinstance(a, dict) and use_a) and (isinstance(b, dict) and use_b)
 
 
 def has_systems_closure(session: Any) -> bool:

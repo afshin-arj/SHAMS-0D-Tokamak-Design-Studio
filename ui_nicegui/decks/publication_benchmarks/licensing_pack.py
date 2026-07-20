@@ -23,9 +23,11 @@ TIER2_CONTENTS = (
 
 
 def render_licensing_tier2_pack(session: DesignSession) -> None:
-    ui.label("Licensing evidence Tier 2").classes("text-subtitle2")
+    ui.label("Licensing evidence Tier 2 (reviewer ZIP)").classes("text-subtitle2")
     ui.label(
-        "Governance-strengthened deterministic ZIP. Read-only; includes contract registry + replay payload."
+        "Governance-strengthened deterministic ZIP for audit/review support — "
+        "not a licensing determination. Validation checks ZIP integrity and pack structure only; "
+        "read-only; does not affect frozen truth."
     ).classes("text-caption text-grey q-mb-sm")
 
     art = pick_session_run_artifact(session)
@@ -52,14 +54,30 @@ def render_licensing_tier2_pack(session: DesignSession) -> None:
     render_json_blob(artifact_snapshot(art))
 
     async def _gen() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        if getattr(session, "pub_running", False):
+            ui.notify("Publication job already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status("PublicationBenchmarks")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Publication: Licensing Tier 2 pack", "PublicationBenchmarks"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
+        session.pub_running = True
         try:
             data = await run.io_bound(build_licensing_tier2_pack, session)
             session.pub_licensing_zip_bytes = data
             session.pub_licensing_validate = None
-            ui.notify("Tier 2 licensing pack generated", type="positive")
+            ui.notify("Tier 2 reviewer pack generated (not a licensing determination)", type="positive")
             _actions.refresh()
         except Exception as exc:
             ui.notify(f"Licensing pack failed: {exc}", type="negative")
+        finally:
+            session.pub_running = False
+            runlock_release("PublicationBenchmarks")
 
     ui.button("Generate Tier 2 licensing pack", icon="folder_zip", on_click=_gen).props("outline q-mt-sm")
     _actions(session)
@@ -94,9 +112,16 @@ def _actions(session: DesignSession) -> None:
 
     val = session.pub_licensing_validate
     if isinstance(val, dict):
-        ui.label("Validation: PASS" if val.get("ok") else "Validation: FAIL").classes(
+        ui.label(
+            "Pack integrity: PASS (not a licensing determination)"
+            if val.get("ok")
+            else "Pack integrity: FAIL"
+        ).classes(
             "text-caption " + ("text-positive" if val.get("ok") else "text-negative")
         )
+        ui.label(
+            "Checks ZIP structure / hashes only — does not certify regulatory readiness."
+        ).classes("text-caption text-grey")
         for w in val.get("warnings") or []:
             ui.label(f"Warning: {w}").classes("text-caption text-orange")
         for e in val.get("errors") or []:

@@ -33,6 +33,7 @@ from ui_nicegui.lib.scan_labels import (
 )
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
 def _consume_scan_probe_focus(session: DesignSession) -> None:
@@ -110,7 +111,7 @@ def render_scan_lab(session: DesignSession) -> None:
                 "Guided mode",
                 value=session.scan_teaching_mode,
                 on_change=lambda e: (
-                    setattr(session, "scan_teaching_mode", bool(e.value)),
+                    sync_deck_guided_to_helm(session, bool(e.value), deck_attr="scan_teaching_mode"),
                     _render_tab_body.refresh(),
                 ),
             )

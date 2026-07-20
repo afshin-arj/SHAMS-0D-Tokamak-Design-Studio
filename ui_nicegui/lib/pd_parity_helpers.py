@@ -1082,8 +1082,9 @@ PLOT_PHYSICAL_MEANING = {
         "H-mode power-falloff width scaling (Eich-2013)."
     ),
     "stability": (
-        "**q95** (safety factor near 95% flux) is a standard operational metric used as a proxy for MHD margin; "
-        "lower q tends to reduce kink/tearing stability margin.\n\n"
+        "**q95_proxy** (cylindrical safety-factor proxy near the edge) is a screening operational metric "
+        "for MHD margin — not an equilibrium flux-surface q95 from a Grad–Shafranov solve. "
+        "Lower q tends to reduce kink/tearing stability margin.\n\n"
         "**Normalized beta βN** is a widely used performance/stability figure of merit that scales pressure "
         "relative to magnetic field and current (often discussed in terms of the Troyon aB/I scaling).\n\n"
         "**Bootstrap fraction f_bs** indicates how much of the plasma current is self-driven by pressure "
