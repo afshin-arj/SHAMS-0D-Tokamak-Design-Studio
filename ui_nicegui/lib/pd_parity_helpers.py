@@ -1118,8 +1118,14 @@ _POINT_SUMMARY_KEYS = [
     ("βN (screening) [-]", ("beta_N", "betaN_proxy", "betaN")),
 ]
 
+_ACHIEVEMENT_SUMMARY_LABELS = frozenset({"H98 [-]", "Q [-]", "Pfus [MW]", "P_net,e [MW]"})
 
-def point_summary_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
+
+def point_summary_rows(
+    out: Dict[str, Any],
+    *,
+    feasible: Optional[bool] = None,
+) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     for label, keys in _POINT_SUMMARY_KEYS:
         raw = None
@@ -1137,6 +1143,9 @@ def point_summary_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
                 val = f"{v:.4g}"
         except (TypeError, ValueError):
             val = str(raw)
+        # PHYS-KPI-001: achievement KPIs on INFEASIBLE are diagnostic residue only.
+        if feasible is False and label in _ACHIEVEMENT_SUMMARY_LABELS and val != "n/a":
+            val = f"{val} (diag)"
         rows.append({"quantity": label, "value": val})
     return rows
 

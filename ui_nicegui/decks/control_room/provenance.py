@@ -226,8 +226,18 @@ def _render_repro_lock(session: DesignSession) -> None:
         try:
             rep = await run.io_bound(replay_check, lock, {})
             session.cr_replay_report_last = rep
-            ok = (rep.get("payload") or {}).get("ok")
-            ui.notify("Replay OK" if ok else "Replay NOT OK", type="positive" if ok else "warning")
+            payload = rep.get("payload") if isinstance(rep, dict) else {}
+            ok = bool((payload or {}).get("ok"))
+            checks = (payload or {}).get("checks") or {}
+            if checks.get("metrics_vacuous"):
+                ui.notify(
+                    "Replay NOT OK — vacuous metric compare (0 common keys vs expected metrics).",
+                    type="warning",
+                )
+            elif ok:
+                ui.notify("Replay OK (via ui_evaluate choke point)", type="positive")
+            else:
+                ui.notify("Replay NOT OK", type="warning")
             _replay_view.refresh()
         except Exception as exc:
             ui.notify(f"Replay failed: {exc}", type="negative")
@@ -256,8 +266,20 @@ def _lock_dl(session: DesignSession) -> None:
 def _replay_view(session: DesignSession) -> None:
     rep = session.cr_replay_report_last
     if isinstance(rep, dict):
+        payload = rep.get("payload") or {}
+        checks = payload.get("checks") or {}
+        if checks.get("metrics_vacuous"):
+            ui.label(
+                "VACUOUS METRICS — lock expected numeric metrics but replay shared zero common keys; "
+                "not treated as Replay OK."
+            ).classes("text-caption text-orange q-mb-xs")
+        meta = ((payload.get("run_artifact") or {}).get("meta") or {})
+        if str(meta.get("evaluator") or "") == "ui_evaluate":
+            ui.label("Replay evaluation routed through NiceGUI ui_evaluate (L0 choke point).").classes(
+                "text-caption text-grey q-mb-xs"
+            )
         with ui.expansion("Replay report", icon="fact_check").classes("w-full"):
-            render_json_blob((rep.get("payload") or {}).get("checks") or rep)
+            render_json_blob(checks or rep)
 
 
 def _render_authority_citation(session: DesignSession) -> None:

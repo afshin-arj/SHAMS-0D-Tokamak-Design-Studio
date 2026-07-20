@@ -19,7 +19,7 @@ Safety:
 - No physics/solver changes; it just calls the current evaluator and compares outputs.
 """
 
-from typing import Any, Dict, Optional, List, Tuple
+from typing import Any, Callable, Dict, Optional, List, Tuple
 import json, time, hashlib, copy, math
 from pathlib import Path
 
@@ -152,6 +152,7 @@ def replay_check(
     lock: Dict[str, Any],
     assumption_set_override: Optional[Dict[str, Any]] = None,
     policy: Optional[Dict[str, Any]] = None,
+    evaluate_fn: Optional[Callable[..., Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     if not (isinstance(lock, dict) and lock.get("kind")=="shams_repro_lock"):
         raise ValueError("lock must be a shams_repro_lock dict")
@@ -179,15 +180,16 @@ def replay_check(
     exp_cons_map=_constraints_map({"constraints": expected.get("constraints") or []})
     exp_metrics_flat=_flatten_numeric(exp_metrics)
 
-    # run
+    # run — optional evaluate_fn lets NiceGUI inject ui_evaluate (never hot_ion bypass).
     run_payload=None
+    eval_call = evaluate_fn if callable(evaluate_fn) else evaluate_point_inputs
     try:
-        run_payload = evaluate_point_inputs(inputs_dict=inputs, solver_meta={"label":"v166_replay", "assumption_set": assumptions})
+        run_payload = eval_call(inputs_dict=inputs, solver_meta={"label":"v166_replay", "assumption_set": assumptions})
     except TypeError:
         try:
-            run_payload = evaluate_point_inputs(inputs_dict=inputs)
+            run_payload = eval_call(inputs_dict=inputs)
         except TypeError:
-            run_payload = evaluate_point_inputs(inputs)
+            run_payload = eval_call(inputs)
 
     ok_payload = isinstance(run_payload, dict) and run_payload.get("kind")=="shams_run_artifact"
     if not ok_payload:
@@ -242,9 +244,20 @@ def replay_check(
         if not ok:
             metric_ok=False
         metric_mism.append({"key": k, "expected": ea, "got": ra, "ok": bool(ok)})
-    # If no common keys, do not fail; just warn.
+    # Vacuous metric compare: expected metrics with zero overlap must not pass as OK.
+    notes = [
+        "Metric comparison uses common numeric keys only.",
+        "Constraint margin comparison matches by constraint name.",
+    ]
     if not common:
-        metric_ok=True
+        if exp_metrics_flat:
+            metric_ok = False
+            notes.append(
+                "VACUOUS_METRICS: lock expected numeric metrics but replay shared zero common keys — not Replay OK."
+            )
+        else:
+            metric_ok = True
+            notes.append("No expected numeric metrics in lock; metric check skipped.")
 
     ok_all = bool(mm_ok and dom_ok and cons_ok and metric_ok)
 
@@ -261,6 +274,7 @@ def replay_check(
                 "dominant_constraint_ok": bool(dom_ok),
                 "constraints_ok": bool(cons_ok),
                 "metrics_ok": bool(metric_ok),
+                "metrics_vacuous": bool(not common and bool(exp_metrics_flat)),
             },
             "details": {
                 "min_margin": {"expected": exp_mm, "got": run_mm, "abs_tol": abs_mm},
@@ -268,10 +282,7 @@ def replay_check(
                 "constraints": {"abs_tol": abs_cm, "mismatches": cons_mism[:200]},
                 "metrics": {"abs_tol": abs_m, "rel_tol": rel_m, "common_keys": len(common), "mismatches": [m for m in metric_mism if not m["ok"]][:200]},
             },
-            "notes": [
-                "Metric comparison uses common numeric keys only; absence of common keys does not fail replay.",
-                "Constraint margin comparison matches by constraint name.",
-            ],
+            "notes": notes,
             "run_artifact": run_payload,
         },
     }

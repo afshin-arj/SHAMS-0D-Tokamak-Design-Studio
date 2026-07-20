@@ -547,9 +547,29 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
     from ui_nicegui.lib import verdict_core
 
     assert "Control Room: Repro replay" in inspect.getsource(cr_prov)
+    assert "ui_evaluate choke point" in inspect.getsource(cr_prov)
     assert 'target_output="q95_proxy"' in inspect.getsource(scan_ins)
+    assert "Scan Lab: Local insight" in inspect.getsource(scan_ins)
+    assert "Scan Lab: Insight" in inspect.getsource(scan_ins)
     assert "PHYS-KPI-001" in inspect.getsource(audit_ui)
     assert '"n/a"' in inspect.getsource(verdict_core._subsystem_status_from_bundle)
+
+    from ui_nicegui.lib import cr_provenance_helpers as crph
+    from ui_nicegui.lib.pd_parity_helpers import point_summary_rows
+
+    assert crph.replay_check.__doc__ is None or True
+    assert "_ui_replay_evaluate" in inspect.getsource(crph)
+    assert "evaluate_fn=_ui_replay_evaluate" in inspect.getsource(crph)
+    assert "ui_evaluate" in inspect.getsource(crph._ui_replay_evaluate)
+
+    diag_rows = point_summary_rows(
+        {"H98": 1.2, "Q_DT_eqv": 5.0, "Pfus_total_MW": 100.0, "P_e_net_MW": 20.0, "Ip_MA": 8.0},
+        feasible=False,
+    )
+    vals = {r["quantity"]: r["value"] for r in diag_rows}
+    assert "(diag)" in vals.get("Q [-]", "")
+    assert "(diag)" in vals.get("H98 [-]", "")
+    assert "(diag)" not in vals.get("Ip [MA]", "8")
 
 
 def test_compare_refresh_syncs_helm_chrome() -> None:

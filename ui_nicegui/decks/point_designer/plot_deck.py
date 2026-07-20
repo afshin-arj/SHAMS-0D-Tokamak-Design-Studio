@@ -35,6 +35,12 @@ def render_plot_deck(session: DesignSession) -> None:
     art = session.pd_last_artifact or {}
     ui.label("Power balance plots — quick-look engineering visuals").classes("text-subtitle1")
     ui.label("Screening-level 0-D proxies; no ranking.").classes("text-caption q-mb-sm")
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    if not bool(verdict_summary(out).get("feasible")):
+        ui.label(
+            "PHYS-KPI-001: plots below use INFEASIBLE-point outputs as diagnostic residue — not design achievements."
+        ).classes("text-caption text-orange q-mb-sm")
 
     with ui.row().classes("w-full gap-2"):
         with ui.column().classes("flex-1"):

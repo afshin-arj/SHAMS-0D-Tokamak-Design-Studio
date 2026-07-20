@@ -135,6 +135,22 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
         pass
 
     async def _run_local() -> None:
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        if session.scan_running:
+            ui.notify("Scan Lab already running.", type="warning")
+            return
+        locked, task, is_owner = runlock_status("ScanLab")
+        if locked and not is_owner:
+            ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+            return
+        if not runlock_acquire(f"Scan Lab: Local insight ({insight})", "ScanLab"):
+            ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+            return
+        session.scan_running = True
+        refresh_status()
+        refresh_helm()
         ui.notify(f"Computing {insight}…", type="info")
         try:
             if insight == "Causality trace":
@@ -190,6 +206,11 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
             _local_results.refresh()
         except Exception as exc:
             ui.notify(f"Insight failed: {exc}", type="negative")
+        finally:
+            session.scan_running = False
+            runlock_release("ScanLab")
+            refresh_status()
+            refresh_helm()
 
     if insight == "Causality trace":
         ui.slider(
@@ -255,6 +276,29 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
         pass
 
     async def _run_tier() -> None:
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        if pick == "Guided walkthrough":
+            steps = guided_walkthrough()
+            session.scan_causality_last = {"steps": steps}
+            _tier_results.refresh()
+            ui.notify("Walkthrough loaded.", type="positive")
+            return
+
+        if session.scan_running:
+            ui.notify("Scan Lab already running.", type="warning")
+            return
+        locked, task, is_owner = runlock_status("ScanLab")
+        if locked and not is_owner:
+            ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+            return
+        if not runlock_acquire(f"Scan Lab: Insight ({pick})", "ScanLab"):
+            ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+            return
+        session.scan_running = True
+        refresh_status()
+        refresh_helm()
         it = str(session.scan_wb_intent)
         ui.notify(f"Running {pick}…", type="info")
         try:
@@ -296,12 +340,6 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
                     intent=it,
                 )
                 session.scan_path_follow_last = out
-            elif pick == "Guided walkthrough":
-                steps = guided_walkthrough()
-                session.scan_causality_last = {"steps": steps}
-                _tier_results.refresh()
-                ui.notify("Walkthrough loaded.", type="positive")
-                return
             session.scan_causality_last = out if isinstance(out, dict) else {"result": out}
             _tier_results.refresh()
             if isinstance(out, dict) and out.get("ok") is False:
@@ -311,6 +349,11 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
                 ui.notify("Insight complete.", type="positive")
         except Exception as exc:
             ui.notify(f"Tool failed: {exc}", type="negative")
+        finally:
+            session.scan_running = False
+            runlock_release("ScanLab")
+            refresh_status()
+            refresh_helm()
 
     if pick == "Counterfactual lens":
         ui.label("Visualization only — does not change frozen physics.").classes(

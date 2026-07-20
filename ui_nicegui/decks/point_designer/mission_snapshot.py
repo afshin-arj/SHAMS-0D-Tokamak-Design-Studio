@@ -364,7 +364,12 @@ def render_mission_snapshot(session: DesignSession) -> None:
         render_physics_deepening(out, base=base)
 
     with ui.expansion("Point summary (compact)", icon="table_chart").classes("w-full"):
-        ps = point_summary_rows(out)
+        feas = bool(verdict_summary(out).get("feasible"))
+        if not feas:
+            ui.label(
+                "PHYS-KPI-001: H98 / Q / Pfus / P_net below are diagnostic residue on an INFEASIBLE point — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
+        ps = point_summary_rows(out, feasible=feas)
         if ps:
             ui.table(
                 columns=[
