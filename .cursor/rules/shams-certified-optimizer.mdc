@@ -1,0 +1,38 @@
+---
+description: Certified Optimizer / Opt Lab guidance. Apply when working on SearchDrivers, ObjectiveContract, Opt Lab UI, Pareto/Systems Mode certification packaging, surrogate propose-only, or PROCESS-as-proposer optimization bridges.
+globs: SHAMS-0D/src/extopt/**,SHAMS-0D/src/optimization/**,SHAMS-0D/src/solvers/optimize.py,SHAMS-0D/docs/CERTIFIED_OPTIMIZER*.md,SHAMS-0D/ui_nicegui/**/systems_mode/**,SHAMS-0D/ui_nicegui/**/pareto/**
+alwaysApply: false
+---
+
+# SHAMS Certified Optimizer Rules
+
+## Philosophy
+
+- **Search-and-certify**, never optimize-in-truth.
+- FoM / multi-objective search is a **studio capability**; L0 remains frozen.
+- Pipeline: `ObjectiveContract → SearchDriver → CandidateBatch → CCFS/Evaluator → VerifiedFrontier | RejectedAtlas → cite pack`.
+
+## Forbidden
+
+- VMCON / fsolve / VaryRun / penalty negotiation inside `Evaluator` → `hot_ion`.
+- Putting objective functions inside `hot_ion` or mutating physics for FoM.
+- Certifying surrogate scores or PROCESS MFILE KPIs as VERIFIED without frozen re-eval.
+- Softening hard constraints so the optimizer “converges.”
+- UI claiming “true global minimum” or shipping `vNNN` in Opt Lab labels.
+- Claiming PROCESS retired from Opt Lab work (use independence scoped evidence only).
+
+## Allowed
+
+- SearchDrivers that propose `PointInputs` only.
+- CCFS / frontier intake / orchestrator extensions.
+- SciPy SLSQP/SQP, NSGA-class, LHS — outside L0.
+- Surrogate ranking for proposal shortlists (always re-eval).
+- PROCESS as optional proposer → CCFS.
+- Plant KPI honesty watermarks on hard-infeasible candidates.
+
+## Campaign
+
+- Super-agent / skill: `/shams-certified-optimizer`
+- Roadmap: `SHAMS-0D/docs/CERTIFIED_OPTIMIZER_ROADMAP.md`
+- After every ticket: **core + physics + UI** integrity, then branch/commit/push `origin/main` (unless `no-push`)
+- Subordinate: `/pareto-frontier-check`, `/architect`, `/developer`, `/plasma-physicist`, `/nicegui-specialist`
