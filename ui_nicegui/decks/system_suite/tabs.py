@@ -383,17 +383,25 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
     lr = fn(ctx.point_out, ctx.point_inp) if fn else None
     if lr:
         bind = lifetime_binding_summary(lr)
+        if bind["binding"]:
+            detail = f"Worst margin: {bind['worst_name']} ({bind['worst_margin']:.3f})"
+        elif bind.get("unknown"):
+            detail = (
+                "Some lifetime margins unavailable — not certified within budget. "
+                "TBR is a screening proxy, not neutron-transport certified."
+            )
+        else:
+            detail = (
+                "FW dpa, cycles, and TBR (proxy) within configured budgets — "
+                "TBR is screening-level, not neutron-transport certified."
+            )
         render_tab_summary_strip(
             bind["posture"],
-            detail=(
-                f"Worst margin: {bind['worst_name']} ({bind['worst_margin']:.3f})"
-                if bind["binding"]
-                else "FW dpa, cycles, and TBR within configured budgets."
-            ),
+            detail=detail,
             kpis=[
                 ("FW dpa margin", _fin(lr.fw_dpa_margin)),
                 ("Cycle margin (yr proxy)", _fin(lr.cycles_margin)),
-                ("TBR margin", _fin(lr.tbr_margin, ".3f")),
+                ("TBR margin (proxy)", _fin(lr.tbr_margin, ".3f")),
             ],
         )
 
@@ -728,7 +736,10 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
     spec_area.on("update:model-value", lambda: _sync_spec())
 
     async def _generate() -> None:
+        if not try_acquire_suite_lock(ctx.session, "System Suite: Generate candidates"):
+            return
         _sync_spec()
+        log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "CampaignGenerateStart", {})
         try:
             spec = await run.io_bound(parse_campaign_spec, ctx.session.suite_campaign_spec_json)
             cands = await run.io_bound(generate_campaign_candidates, spec)
@@ -737,9 +748,14 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             _camp_preview.refresh()
         except Exception as exc:
             ui.notify(f"Generate failed: {exc}", type="negative")
+        finally:
+            release_suite_lock(ctx.session)
 
     async def _export() -> None:
+        if not try_acquire_suite_lock(ctx.session, "System Suite: Export campaign ZIP"):
+            return
         _sync_spec()
+        log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "CampaignExportStart", {})
         try:
             spec = await run.io_bound(parse_campaign_spec, ctx.session.suite_campaign_spec_json)
             data = await run.io_bound(export_campaign_zip, spec)
@@ -747,6 +763,8 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             ui.notify("Campaign ZIP ready", type="positive")
         except Exception as exc:
             ui.notify(f"Export failed: {exc}", type="negative")
+        finally:
+            release_suite_lock(ctx.session)
 
     async def _run_local() -> None:
         if not try_acquire_suite_lock(ctx.session, "System Suite: Campaign batch"):

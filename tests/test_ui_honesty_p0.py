@@ -487,7 +487,11 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
     from ui_nicegui.lib.run_lock import acquire, force_clear, release
     from ui_nicegui.components import helm_console
     from ui_nicegui.decks.point_designer import forensics as pdf
-    from ui_nicegui.decks.systems_mode import tools_ui, solve_ui
+    from ui_nicegui.decks.systems_mode import tools_ui, solve_ui, diagnostics_ui
+    from ui_nicegui.decks.point_designer import configure as pd_cfg
+    from ui_nicegui.decks import point_designer as pd_deck
+    from ui_nicegui.decks.system_suite import tabs as suite_tabs
+    from ui_nicegui.lib import suite_helpers as sh
 
     force_clear()
     assert acquire("a", "OwnerA") is True
@@ -505,6 +509,26 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
     assert "PointDesigner" in inspect.getsource(pdf.render_forensics)
     assert "q95_proxy" in inspect.getsource(tools_ui)
     assert "Evaluated" in inspect.getsource(solve_ui)
+
+    # PD evaluate must paint Helm busy before io_bound; Evaluate buttons disable while evaluating.
+    pd_src = inspect.getsource(pd_deck.render_point_designer)
+    assert "refresh_helm()" in pd_src
+    assert "_render_tab_body.refresh()" in pd_src
+    cfg_src = inspect.getsource(pd_cfg.render_configure)
+    assert "session.evaluating" in cfg_src
+    assert "disable" in cfg_src
+
+    # Systems QA + corner diagnostics must hold runlock across evaluations.
+    assert "Systems Mode: QA smoke" in inspect.getsource(tools_ui)
+    assert "Systems Mode: Corner diagnostics" in inspect.getsource(diagnostics_ui)
+
+    # Suite campaign generate/export must use suite lock (not fire-and-forget).
+    camp = inspect.getsource(suite_tabs)
+    assert "System Suite: Generate candidates" in camp
+    assert "System Suite: Export campaign ZIP" in camp
+    lock_src = inspect.getsource(sh.try_acquire_suite_lock)
+    assert "refresh_helm" in lock_src
+    assert "BUDGET INCOMPLETE" in inspect.getsource(sh.lifetime_binding_summary)
 
 
 def test_compare_refresh_syncs_helm_chrome() -> None:
