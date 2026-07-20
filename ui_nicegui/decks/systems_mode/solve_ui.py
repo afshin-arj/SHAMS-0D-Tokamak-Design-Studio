@@ -238,11 +238,19 @@ def _solve_result(session: DesignSession) -> None:
     if isinstance(out, dict) and out:
         tgt_rows = systems_target_rows(session, out)
         if tgt_rows:
+            if not feasible:
+                ui.label(
+                    "PHYS-KPI-001: target table values are evaluated/diagnostic when intent-infeasible — not design achievements."
+                ).classes("text-caption text-orange q-mb-xs")
             ui.table(
                 columns=[
                     {"name": "quantity", "label": "Quantity", "field": "quantity", "align": "left"},
                     {"name": "target", "label": "Target", "field": "target"},
-                    {"name": "achieved", "label": "Achieved", "field": "achieved"},
+                    {
+                        "name": "achieved",
+                        "label": "Evaluated" if not feasible else "Achieved",
+                        "field": "achieved",
+                    },
                     {"name": "status", "label": "Status", "field": "status"},
                 ],
                 rows=tgt_rows,

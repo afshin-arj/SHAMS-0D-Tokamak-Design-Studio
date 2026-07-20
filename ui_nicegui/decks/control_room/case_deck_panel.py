@@ -17,6 +17,20 @@ def render_case_deck_runner(session: DesignSession) -> None:
     out_name = ui.input("Output folder (under ui_runs/)", value="deck_run").classes("w-full")
 
     async def _upload(e) -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked:
+            ui.notify(
+                f"Busy: {task} — wait or force-clear from Helm."
+                if not is_owner
+                else "Control Room already holds the run lock.",
+                type="warning",
+            )
+            return
+        if not runlock_acquire("Control Room: Case deck", "ControlRoom"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         try:
             content = e.content.read()
             fname = getattr(e, "name", None) or "case_deck.yaml"
@@ -34,6 +48,8 @@ def render_case_deck_runner(session: DesignSession) -> None:
             _result.refresh(session)
         except Exception as exc:
             ui.notify(f"Run failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
 
     ui.upload(on_upload=_upload).props('accept=".yaml,.yml,.json" auto-upload label="Upload case_deck.yaml / .json"')
     _result(session)

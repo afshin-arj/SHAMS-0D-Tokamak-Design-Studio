@@ -18,6 +18,24 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
     ).classes("text-caption q-mb-sm")
 
     async def _compute() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        if getattr(session, "pd_forensics_running", False):
+            ui.notify("Forensics already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status("PointDesigner")
+        if locked:
+            ui.notify(
+                f"Busy: {task} — wait or force-clear from Helm."
+                if not is_owner
+                else "Point Designer already holds the run lock.",
+                type="warning",
+            )
+            return
+        if not runlock_acquire("Point Designer: Forensics", "PointDesigner"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
+        session.pd_forensics_running = True
         ui.notify("Computing forensics…", type="info")
         try:
             base = session.build_point_inputs()
@@ -36,6 +54,9 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
             session.pd_last_forensics = {"status": "error", "message": str(exc)}
             ui.notify(f"Forensics failed: {exc}", type="negative")
             _panel.refresh()
+        finally:
+            session.pd_forensics_running = False
+            runlock_release("PointDesigner")
 
     ui.button("Compute forensics", icon="analytics", on_click=_compute).props("outline q-mb-sm")
     _panel(session)

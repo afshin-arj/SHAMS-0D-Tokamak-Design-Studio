@@ -425,6 +425,20 @@ def _render_regression_viewer(session: DesignSession) -> None:
     ui.button("Compare artifacts", icon="compare", on_click=_diff).props("outline")
 
     async def _repo_regress() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked:
+            ui.notify(
+                f"Busy: {task} — wait or force-clear from Helm."
+                if not is_owner
+                else "Control Room already holds the run lock.",
+                type="warning",
+            )
+            return
+        if not runlock_acquire("Control Room: Repo regression", "ControlRoom"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         ui.notify("Running repo regression suite…", type="info")
         try:
             rep = await run.io_bound(run_repo_regression)
@@ -433,6 +447,8 @@ def _render_regression_viewer(session: DesignSession) -> None:
             _repo_reg.refresh()
         except Exception as exc:
             ui.notify(f"Regression suite failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
 
     ui.button("Run repo regression suite", icon="science", on_click=_repo_regress).props("flat outline")
     _reg_diff(session)

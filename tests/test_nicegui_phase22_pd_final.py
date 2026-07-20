@@ -56,6 +56,7 @@ def test_phase22_run_lock() -> None:
     assert acquire("test", "A")
     locked, task, owner = status("B")
     assert locked and task == "test" and not owner
+    assert acquire("test2", "A") is False  # non-reentrant same owner
     release("A")
     assert not status("A")[0]
 

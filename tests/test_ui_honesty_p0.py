@@ -481,6 +481,32 @@ def test_licensing_pack_not_a_determination() -> None:
     assert "PublicationBenchmarks" in src
 
 
+def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
+    import inspect
+
+    from ui_nicegui.lib.run_lock import acquire, force_clear, release
+    from ui_nicegui.components import helm_console
+    from ui_nicegui.decks.point_designer import forensics as pdf
+    from ui_nicegui.decks.systems_mode import tools_ui, solve_ui
+
+    force_clear()
+    assert acquire("a", "OwnerA") is True
+    assert acquire("b", "OwnerA") is False
+    release("OwnerA")
+    assert acquire("c", "OwnerA") is True
+    release("OwnerA")
+
+    busy_src = inspect.getsource(helm_console._session_or_lock_busy)
+    assert "helm_verify_running" in busy_src
+    assert "pd_forensics_running" in busy_src
+    banner = inspect.getsource(helm_console._render_run_lock_banner)
+    assert "_RUN_START.clear()" in banner
+    assert "HelmIntegrity" in inspect.getsource(helm_console._render_integrity_gate)
+    assert "PointDesigner" in inspect.getsource(pdf.render_forensics)
+    assert "q95_proxy" in inspect.getsource(tools_ui)
+    assert "Evaluated" in inspect.getsource(solve_ui)
+
+
 def test_compare_refresh_syncs_helm_chrome() -> None:
     import inspect
 

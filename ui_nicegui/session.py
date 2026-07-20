@@ -558,6 +558,7 @@ class DesignSession:
     phase_envelopes_label_prefix: str = "phase"
     phase_envelopes_last: Optional[dict[str, Any]] = None
     phase_envelopes_running: bool = False
+    pd_forensics_running: bool = False
     uq_contract_name: str = "uq_contract"
     uq_contract_group: str = "PLASMA"
     uq_contract_dims: list[str] = field(default_factory=list)

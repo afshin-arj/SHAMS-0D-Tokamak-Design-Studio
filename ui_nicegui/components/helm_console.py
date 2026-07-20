@@ -211,10 +211,16 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         or session.pub_atlas_running
         or session.pub_atlas_fragility_running
         or session.pub_bench_running
+        or getattr(session, "helm_verify_running", False)
+        or getattr(session, "pd_forensics_running", False)
         or locked
     )
     if task:
         return busy, task, holder
+    if getattr(session, "helm_verify_running", False):
+        return busy, "Helm: Gatecheck / verification", holder
+    if getattr(session, "pd_forensics_running", False):
+        return busy, "Point Designer: Forensics", holder
     if session.scan_running:
         return busy, "Scan Lab cartography", holder
     if getattr(session, "scan_legacy_running", False):
@@ -245,9 +251,14 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
 def _render_run_lock_banner(session: DesignSession) -> None:
     busy, task, holder = _session_or_lock_busy(session)
     if not busy:
+        # Idle — drop age timers so a later job with the same label does not look "stuck".
+        _RUN_START.clear()
         return
     if task and task not in _RUN_START:
         _RUN_START[task] = time.time()
+    for k in list(_RUN_START):
+        if k != task:
+            del _RUN_START[k]
     age = 0
     if task and task in _RUN_START:
         age = int(time.time() - _RUN_START[task])
@@ -648,7 +659,22 @@ def _render_integrity_gate(session: DesignSession) -> None:
             ui.label(f"{row['Check']}: {row['Status']}").classes("text-caption")
 
     async def _run_gatecheck() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if session.helm_verify_running:
+            ui.notify("Gatecheck already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status("HelmIntegrity")
+        if locked:
+            ui.notify(
+                f"Busy: {task} — wait or force-clear from Helm."
+                if not is_owner
+                else "Gatecheck already holds the run lock.",
+                type="warning",
+            )
+            return
+        if not runlock_acquire("Helm: Gatecheck / verification", "HelmIntegrity"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.helm_verify_running = True
         _helm_settings_section.refresh()
@@ -662,6 +688,7 @@ def _render_integrity_gate(session: DesignSession) -> None:
             ui.notify(f"Gatecheck {'PASS' if ok else 'FAIL'} ({dt:.1f}s)", type="positive" if ok else "negative")
         finally:
             session.helm_verify_running = False
+            runlock_release("HelmIntegrity")
             _helm_settings_section.refresh()
 
     with ui.row().classes("w-full gap-2"):
