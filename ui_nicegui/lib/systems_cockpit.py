@@ -26,10 +26,17 @@ def compact_next_action(*, verdict: str, dominant: str, step: str) -> str:
     v = str(verdict or "").upper()
     stp = str(step or "")
     dom = str(dominant or "unknown")
-    if v.startswith("PASS") or v.startswith("FEAS"):
+    # "FEAS" matches INFEASIBLE — require exact FEASIBLE / PASS.
+    if v in ("FEASIBLE", "PASS"):
         if "Explore" in stp or "trade" in stp.lower():
             return "Explore feasible neighborhood (search or scan), then apply the best candidate."
         return "Apply to Point Designer, re-check, and export audit bundle."
+    if v in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NOSOLUTION"):
+        if "Recover" in stp:
+            return "Run seeded recovery — increase evaluation budget if the seed remains infeasible."
+        if "Diagnose" in stp:
+            return f"Inspect dominant limiter: {dom}"
+        return f"Address dominant limiter ({dom}), then re-run precheck / solve."
     if "Recover" in stp:
         return "Run seeded recovery — increase evaluation budget if the seed remains infeasible."
     if "Diagnose" in stp:

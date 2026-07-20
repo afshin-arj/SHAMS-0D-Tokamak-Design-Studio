@@ -106,8 +106,17 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
         _render_manual_seed(session, bounds)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if session.systems_recovery_running:
             ui.notify("Recovery already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status("SystemsMode")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Systems Mode: Seeded recovery", "SystemsMode"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.systems_recovery_running = True
         ui.notify("Running seeded recovery…", type="info")
@@ -164,6 +173,7 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             ui.notify(f"Recovery failed: {exc}", type="negative")
         finally:
             session.systems_recovery_running = False
+            runlock_release("SystemsMode")
 
     def _apply_best_to_inputs() -> None:
         rep = session.systems_recovery_last

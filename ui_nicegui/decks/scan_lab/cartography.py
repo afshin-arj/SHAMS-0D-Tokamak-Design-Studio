@@ -156,11 +156,20 @@ def render_cartography_controls(
     _progress_timer = ui.timer(0.35, lambda: _scan_progress_panel.refresh(), active=False)
 
     async def _run_quick() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if session.scan_running:
             ui.notify("Scan already running", type="warning")
             return
         if session.scan_cart_x_key == session.scan_cart_y_key:
             ui.notify("Pick two different axes for X and Y.", type="negative")
+            return
+        locked, task, is_owner = runlock_status("ScanLab")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Scan Lab: Quick probe", "ScanLab"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         xl = session.scan_cart_x_lo if session.scan_cart_x_lo is not None else x_lo_def
         xh = session.scan_cart_x_hi if session.scan_cart_x_hi is not None else x_hi_def
@@ -199,8 +208,11 @@ def render_cartography_controls(
             session.scan_progress_text = ""
             _progress_timer.deactivate()
             _scan_progress_panel.refresh()
+            runlock_release("ScanLab")
 
     async def _run_scan() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if session.scan_running:
             ui.notify("Scan already running", type="warning")
             return
@@ -213,6 +225,13 @@ def render_cartography_controls(
         yh = session.scan_cart_y_hi if session.scan_cart_y_hi is not None else y_hi_def
         if float(xh) <= float(xl) or float(yh) <= float(yl):
             ui.notify("Invalid bounds: max must exceed min on both axes", type="negative")
+            return
+        locked, task, is_owner = runlock_status("ScanLab")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Scan Lab: Cartography", "ScanLab"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
 
         session.scan_running = True
@@ -271,6 +290,7 @@ def render_cartography_controls(
             session.scan_progress_text = ""
             _progress_timer.deactivate()
             _scan_progress_panel.refresh()
+            runlock_release("ScanLab")
 
     with ui.row().classes("gap-2 q-mt-sm"):
         ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")

@@ -43,6 +43,15 @@ def render_assumptions_panel(session: DesignSession) -> None:
     tite = ui.number("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1)
 
     async def _apply() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Control Room: Assumption toggles", "ControlRoom"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         try:
             base_pi = session.build_point_inputs()
             pi = replace(
@@ -64,6 +73,8 @@ def render_assumptions_panel(session: DesignSession) -> None:
                 pass
         except Exception as exc:
             ui.notify(f"Evaluate failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
 
     ui.button("Apply toggles and evaluate", on_click=_apply).props("color=primary outline")
     _result(session)

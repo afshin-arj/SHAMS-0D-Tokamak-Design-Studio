@@ -265,6 +265,28 @@ def test_compare_suppresses_kpis_on_infeasible() -> None:
 
     assert _pick_output({"q95_proxy": 2.5}, "q95") == 2.5
     assert _pick_output({"Pfus_total_MW": 100.0}, "P_fus_MW") == 100.0
+    assert _pick_output({"P_e_net_MW": 42.0}, "P_net_e_MW") == 42.0
+    assert _pick_output({"P_net_e_MW": 11.0}, "P_e_net_MW") == 11.0
+
+
+def test_systems_cockpit_infeasible_not_feas_apply() -> None:
+    from ui_nicegui.lib.systems_cockpit import compact_next_action
+
+    msg = compact_next_action(verdict="INFEASIBLE", dominant="q_div", step="2 · Check & Solve")
+    assert "Apply to Point Designer" not in msg
+    assert "q_div" in msg or "precheck" in msg.lower() or "limiter" in msg.lower()
+    ok = compact_next_action(verdict="FEASIBLE", dominant="-", step="4 · Apply")
+    assert "Apply to Point Designer" in ok
+
+
+def test_cr_governance_suppresses_pfus_on_infeasible() -> None:
+    import inspect
+
+    from ui_nicegui.lib import control_room_helpers as crh
+
+    src = inspect.getsource(crh.governance_summary)
+    assert "diagnostic" in src
+    assert "Pfus_total_MW" in src
 
 
 def test_dsg_sidebar_refreshes_on_node_select() -> None:

@@ -300,7 +300,8 @@ def governance_summary(session: Any) -> Dict[str, Any]:
     if isinstance(last, dict):
         pfus = last.get("Pfus_total_MW", last.get("Pfus_MW", last.get("P_fus_MW")))
     mechanism = "-"
-    if vs.get("loaded") and not vs.get("feasible"):
+    feasible = bool(vs.get("feasible")) if vs.get("loaded") else False
+    if vs.get("loaded") and not feasible:
         try:
             from ui_nicegui.lib.pd_parity_helpers import no_solution_atlas_summary
 
@@ -308,13 +309,23 @@ def governance_summary(session: Any) -> Dict[str, Any]:
             mechanism = str(atlas.get("dominant_mechanism") or "-")
         except Exception:
             mechanism = "-"
+    # PHYS-KPI-001: never present Pfus as an achieved claim on INFEASIBLE.
+    if vs.get("loaded") and not feasible:
+        pfus_label = "— (diagnostic)"
+    elif isinstance(pfus, (int, float)) and float(pfus) == float(pfus):
+        pfus_label = f"{float(pfus):.3g} MW"
+    else:
+        pfus_label = "-"
+    q_label = str(vs.get("q_label", "-")) if vs.get("loaded") else "-"
+    if vs.get("loaded") and not feasible and q_label not in ("-", ""):
+        q_label = f"{q_label} (diagnostic)"
     return {
         "version": ver,
         "active_deck": str(getattr(session, "active_deck", "-")),
         "point_verdict": verdict,
         "dominant": str(vs.get("dominant", "-")) if vs.get("loaded") else "-",
-        "q_label": str(vs.get("q_label", "-")) if vs.get("loaded") else "-",
-        "pfus_label": f"{pfus:.3g} MW" if isinstance(pfus, (int, float)) else "-",
+        "q_label": q_label,
+        "pfus_label": pfus_label,
         "mirage": mirage,
         "mechanism": mechanism,
         "design_class": design_confidence_class(art) if isinstance(art, dict) else "-",
