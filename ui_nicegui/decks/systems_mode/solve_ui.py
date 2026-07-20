@@ -101,6 +101,8 @@ def render_solve_panel(
             _render_solver_numerics(session)
 
     async def _run_solve() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         blocked, block_msg = assumption_lock_ui.assumption_lock_blocks(session)
         if blocked:
             ui.notify(block_msg, type="negative")
@@ -109,6 +111,13 @@ def render_solve_panel(
         ok_prob, prob_msg = validate_systems_problem(targets_now, variables_now)
         if not ok_prob:
             ui.notify(prob_msg, type="warning")
+            return
+        locked, task, is_owner = runlock_status("SystemsMode")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Systems Mode: Target solve", "SystemsMode"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         try:
             notify_input_guardrails(base_now, context="Systems Mode")
@@ -197,6 +206,8 @@ def render_solve_panel(
                 on_complete()
         except Exception as exc:
             ui.notify(f"Target solve failed: {exc}", type="negative")
+        finally:
+            runlock_release("SystemsMode")
 
     btn = ui.button("Run target solve", icon="bolt", on_click=_run_solve).props("color=primary q-mt-sm")
     if disabled:

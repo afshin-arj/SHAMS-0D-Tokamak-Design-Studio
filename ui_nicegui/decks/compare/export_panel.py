@@ -46,7 +46,7 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
         if n:
             navigate_to_point_designer(session)
             ui.notify(
-                f"Applied {n} input fields from slot {label} — opened Point Designer Configure.",
+                f"Applied {n} input fields from slot {label} — KPIs marked STALE until Evaluate Point.",
                 type="positive",
             )
         else:

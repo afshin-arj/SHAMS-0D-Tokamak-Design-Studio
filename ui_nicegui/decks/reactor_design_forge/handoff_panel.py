@@ -54,9 +54,15 @@ def render_archive_handoffs(
 
     def _promote() -> None:
         try:
+            from ui_nicegui.lib.session_store import clear_point_designer
+
+            clear_point_designer(session)
             session.inputs = promote_archive_row(session.inputs, run_rep, _ix())
             navigate_to_point_designer(session)
-            ui.notify("Opened Point Designer Configure with archive row inputs.", type="positive")
+            ui.notify(
+                "Opened Point Designer with archive row inputs — Evaluate Point to refresh KPIs.",
+                type="positive",
+            )
             if on_complete:
                 on_complete()
         except Exception as exc:

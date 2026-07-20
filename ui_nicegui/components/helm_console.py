@@ -255,8 +255,10 @@ def _render_posture(session: DesignSession) -> None:
     out = session.pd_last_outputs or session.last_eval
     if isinstance(out, dict) and out:
         from ui_nicegui.lib.pd_hero_kpis import hero_kpi_cells
+        from ui_nicegui.lib.pd_solver_helpers import inputs_stale
         from ui_nicegui.lib.session_store import get_cached_no_solution_atlas, get_cached_verdict_summary
 
+        stale = bool(session.pd_last_run_ts and inputs_stale(session))
         summary = get_cached_verdict_summary(session, out)
         # PHYS-KPI-001: suppress Q/H98/Pfus claims on INFEASIBLE (PD hero parity).
         cells = hero_kpi_cells(
@@ -271,6 +273,8 @@ def _render_posture(session: DesignSession) -> None:
         pfus_cell = by_label.get("Pfus")
         q_bit = q_cell.display if q_cell is not None else summary.get("q_label", "-")
         detail = f"{summary.get('verdict', '-')} · {q_bit} · Dom {summary.get('dominant', '-')}"
+        if stale:
+            detail = "STALE · " + detail
         if bool(out.get("mirage_flag_v402")):
             detail += " · MIRAGE"
         if not summary.get("feasible"):
@@ -279,8 +283,16 @@ def _render_posture(session: DesignSession) -> None:
                 f" · {atlas.get('dominant_mechanism', '-')} / "
                 f"{atlas.get('dominant_constraint', '-')}"
             )
-        tone = "text-orange" if (not summary.get("feasible") or out.get("mirage_flag_v402")) else "text-caption"
+        tone = (
+            "text-negative"
+            if stale
+            else ("text-orange" if (not summary.get("feasible") or out.get("mirage_flag_v402")) else "text-caption")
+        )
         ui.label(f"Point: {detail}").classes(f"text-caption q-mt-xs {tone}")
+        if stale:
+            ui.label("Re-evaluate in Point Designer — KPIs no longer match current inputs.").classes(
+                "text-caption text-negative"
+            )
         if bool(out.get("mirage_flag_v402")):
             ui.badge("MIRAGE", color="orange").props("outline dense").classes("q-mt-xs")
         if h98_cell is not None and h98_cell.display not in ("n/a", ""):

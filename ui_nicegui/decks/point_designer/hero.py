@@ -49,12 +49,21 @@ def render_hero(session: DesignSession) -> None:
     if not out:
         empty_state("No evaluation loaded. Click **Evaluate Point** in Configure.", kind="info")
         return
+    from ui_nicegui.lib.pd_solver_helpers import inputs_stale
+
+    stale = bool(session.pd_last_run_ts and inputs_stale(session))
+    if stale:
+        ui.label(
+            "STALE — inputs changed since this evaluation. Re-run Evaluate Point before trusting KPIs."
+        ).classes("text-negative text-weight-medium q-mb-sm")
     summary = get_cached_verdict_summary(session, out)
     art = session.pd_last_artifact if isinstance(session.pd_last_artifact, dict) else {}
     rs = art.get("run_summary") if isinstance(art.get("run_summary"), dict) else {}
     headline = rs.get("headline") if isinstance(rs.get("headline"), dict) else {}
 
     detail = f"Dominant: {summary['dominant']}"
+    if stale:
+        detail = "STALE · " + detail
     tight = rs.get("tightest_hard_constraints") or []
     if tight and isinstance(tight[0], dict):
         t0 = tight[0]

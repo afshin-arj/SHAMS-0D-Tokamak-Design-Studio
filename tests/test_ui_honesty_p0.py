@@ -238,3 +238,50 @@ def test_dsg_sidebar_refreshes_on_node_select() -> None:
     src = inspect.getsource(dsg_sidebar)
     assert "_dsg_body.refresh" in src
     assert "@ui.refreshable" in src or "refreshable" in src
+
+
+def test_compare_verdict_infeasible_is_not_pass() -> None:
+    """Regression: substring 'FEAS' must not match INFEASIBLE → false PASS."""
+    import inspect
+
+    from ui_nicegui.decks.compare import verdict as cmp_verdict
+
+    src = inspect.getsource(cmp_verdict.render_compare_verdict)
+    assert '"FEAS" in' not in src
+    assert 'in ("FEASIBLE", "PASS")' in src
+    assert "both_infeasible" in src
+
+
+def test_power_ledger_and_deepening_use_l0_keys() -> None:
+    import inspect
+
+    from ui_nicegui.lib import pd_parity_helpers as pph
+    from ui_nicegui.lib import pd_plot_helpers as plots
+    from ui_nicegui.decks.point_designer import pd_physics_deepening as deep
+
+    assert ("P_e_net_MW", "Net electric [MW]") in pph.POWER_LEDGER_KEYS
+    assert ("Palpha_MW", "Alpha power [MW]") in pph.POWER_LEDGER_KEYS
+    rows = pph.power_ledger_rows({"P_e_net_MW": 12.5, "Palpha_MW": 40.0})
+    channels = {r["channel"] for r in rows}
+    assert "Net electric [MW]" in channels
+    assert "Alpha power [MW]" in channels
+
+    bal = inspect.getsource(plots.plot_power_balance_bars)
+    assert "Palpha_MW" in bal
+    assert "P_e_net_MW" in bal
+
+    deep_src = inspect.getsource(deep)
+    assert "tauIPB98_s" in deep_src
+    assert "tauE_eff_s" in deep_src
+    assert "TBR_validity" in deep_src
+
+
+def test_nav_switch_is_immediate() -> None:
+    import inspect
+
+    from ui_nicegui import app as nice_app
+
+    src = inspect.getsource(nice_app._switch_deck)
+    assert "NAV-IMMEDIATE-001" in src
+    assert "_remount_and_sync_chrome()" in src
+    assert "ui.timer(0.06" not in src

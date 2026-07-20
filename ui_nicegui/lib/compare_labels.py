@@ -23,7 +23,7 @@ TAB_HELP = {
     ),
     "2 · Performance": (
         "Side-by-side KPIs and output deltas — Q, fusion power, net electric, "
-        "βN, q95, engineering proxies. Largest changes highlighted first."
+        "βN, q95 (cyl. proxy), TBR (proxy), and engineering proxies. Largest changes first."
     ),
     "3 · Constraints": (
         "Worst constraint margins per run, margin regressions, and new failures in B. "
@@ -91,7 +91,8 @@ METRIC_DISPLAY = {
     "P_fus_MW": "Fusion power (MW)",
     "P_e_net_MW": "Net electric (MW)",
     "betaN": "Normalized beta",
-    "q95": "Safety factor q95",
+    "q95": "q95 (cyl. proxy)",
+    "q95_proxy": "q95 (cyl. proxy)",
     "Bpeak_TF_T": "Peak TF field (T)",
     "B_peak_T": "Peak field (T)",
     "q_div_MW_m2": "Divertor heat flux (MW/m²)",
@@ -99,7 +100,7 @@ METRIC_DISPLAY = {
     "COE_proxy_USD_per_MWh": "COE proxy (USD/MWh)",
     "H98": "H-mode factor H98",
     "tauE_eff_s": "Energy confinement τ_E (s)",
-    "TBR": "Tritium breeding ratio",
+    "TBR": "TBR (proxy)",
     "P_recirc_MW": "Recirculating power (MW)",
     "Pfus_DT_adj_MW": "Adjusted DT fusion power (MW)",
     "sigma_vm_MPa": "Von Mises stress (MPa)",

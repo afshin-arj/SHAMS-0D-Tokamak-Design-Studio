@@ -144,10 +144,16 @@ def render_cartography_controls(
         f"vs {SCAN_VAR_LABELS.get(session.scan_cart_y_key, session.scan_cart_y_key)}"
     ).classes("text-caption text-grey")
 
-    if session.scan_running:
-        ui.linear_progress(value=session.scan_progress, show_value=True).classes("w-full")
+    @ui.refreshable
+    def _scan_progress_panel() -> None:
+        if not session.scan_running:
+            return
+        ui.linear_progress(value=float(session.scan_progress or 0.0), show_value=True).classes("w-full")
         if session.scan_progress_text:
             ui.label(session.scan_progress_text).classes("text-caption")
+
+    _scan_progress_panel()
+    _progress_timer = ui.timer(0.35, lambda: _scan_progress_panel.refresh(), active=False)
 
     async def _run_quick() -> None:
         if session.scan_running:
@@ -161,7 +167,10 @@ def render_cartography_controls(
         yl = session.scan_cart_y_lo if session.scan_cart_y_lo is not None else y_lo_def
         yh = session.scan_cart_y_hi if session.scan_cart_y_hi is not None else y_hi_def
         session.scan_running = True
+        session.scan_progress = 0.0
         session.scan_progress_text = "Quick probe (11×11)…"
+        _progress_timer.activate()
+        _scan_progress_panel.refresh()
         try:
             rep = await run.io_bound(
                 run_cartography_scan,
@@ -186,7 +195,10 @@ def render_cartography_controls(
             ui.notify(f"Quick probe failed: {exc}", type="negative")
         finally:
             session.scan_running = False
+            session.scan_progress = 0.0
             session.scan_progress_text = ""
+            _progress_timer.deactivate()
+            _scan_progress_panel.refresh()
 
     async def _run_scan() -> None:
         if session.scan_running:
@@ -206,6 +218,8 @@ def render_cartography_controls(
         session.scan_running = True
         session.scan_progress = 0.0
         session.scan_progress_text = "Starting cartography scan…"
+        _progress_timer.activate()
+        _scan_progress_panel.refresh()
         ui.notify("Cartography scan started", type="info")
 
         def _progress(done: int, total: int) -> None:
@@ -255,6 +269,8 @@ def render_cartography_controls(
             session.scan_running = False
             session.scan_progress = 0.0
             session.scan_progress_text = ""
+            _progress_timer.deactivate()
+            _scan_progress_panel.refresh()
 
     with ui.row().classes("gap-2 q-mt-sm"):
         ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")

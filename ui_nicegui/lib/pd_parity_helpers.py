@@ -94,25 +94,37 @@ def infeasibility_trace(out: Dict[str, Any]) -> List[Dict[str, Any]]:
 POWER_LEDGER_KEYS = [
     ("Paux_MW", "Aux heating [MW]"),
     ("Pfus_DT_adj_MW", "Fusion (DT-adj) [MW]"),
-    ("Palpha_dep_MW", "Alpha deposition [MW]"),
+    ("Palpha_MW", "Alpha power [MW]"),
     ("Prad_core_MW", "Core radiation [MW]"),
     ("P_SOL_MW", "SOL power [MW]"),
     ("Ploss_MW", "Ploss [MW]"),
-    ("P_net_e_MW", "Net electric [MW]"),
+    ("P_e_net_MW", "Net electric [MW]"),
     ("P_recirc_MW", "Recirculating [MW]"),
 ]
 
 
 def power_ledger_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
     rows = []
+    # Alias map when L0 uses a different primary key than the ledger label key.
+    aliases = {
+        "Palpha_MW": ("Palpha_MW", "Palpha_dep_MW"),
+        "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
+        "Pfus_DT_adj_MW": ("Pfus_DT_adj_MW", "Pfus_total_MW"),
+    }
     for key, label in POWER_LEDGER_KEYS:
-        if key in out and out[key] is not None:
-            try:
-                v = float(out[key])
-                if v == v:
-                    rows.append({"channel": label, "MW": f"{v:.4g}"})
-            except (TypeError, ValueError):
-                pass
+        val = None
+        for kk in aliases.get(key, (key,)):
+            if kk in out and out[kk] is not None:
+                val = out[kk]
+                break
+        if val is None:
+            continue
+        try:
+            v = float(val)
+            if v == v:
+                rows.append({"channel": label, "MW": f"{v:.4g}"})
+        except (TypeError, ValueError):
+            pass
     return rows
 
 

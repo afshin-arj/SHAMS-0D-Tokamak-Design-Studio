@@ -99,7 +99,7 @@ def _sensitivity(session: DesignSession) -> None:
     available = [k for k in knob_defaults if hasattr(base, k)]
     knobs = ui.select(available, label="Knobs", value=available[:2], multiple=True).classes("w-full")
     outputs = ui.select(
-        ["Q_DT_eqv", "H98", "P_fus_total_MW", "beta_N", "P_e_net_MW", "q95", "TBR"],
+        ["Q_DT_eqv", "H98", "Pfus_total_MW", "beta_N", "P_e_net_MW", "q95_proxy", "TBR"],
         label="Outputs",
         value=["Q_DT_eqv", "H98"],
         multiple=True,

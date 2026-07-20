@@ -38,8 +38,19 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
     va = str(summary.get("verdict_a") or "-")
     vb = str(summary.get("verdict_b") or "-")
     same = va.upper() == vb.upper()
+    # "FEAS" matches INFEASIBLE — require exact FEASIBLE (or PASS) for green PASS banner.
+    both_feasible = same and va.upper() in ("FEASIBLE", "PASS")
+    both_infeasible = same and va.upper() in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NOSOLUTION")
+    if both_feasible:
+        banner = "PASS"
+    elif both_infeasible:
+        banner = "INFEASIBLE"
+    elif va.upper() != vb.upper():
+        banner = "MIXED"
+    else:
+        banner = va
     verdict_banner(
-        "PASS" if same and "FEAS" in va.upper() else ("MIXED" if va.upper() != vb.upper() else va),
+        banner,
         detail=(
             f"A: {va} (dom {summary.get('dominant_a', '-')}) · "
             f"B: {vb} (dom {summary.get('dominant_b', '-')}) · "
