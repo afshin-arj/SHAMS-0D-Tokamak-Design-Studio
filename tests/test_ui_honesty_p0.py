@@ -365,3 +365,52 @@ def test_power_ledger_and_deepening_use_l0_keys() -> None:
     assert "tauIPB98_s" in deep_src
     assert "tauE_eff_s" in deep_src
     assert "TBR_validity" in deep_src
+
+
+def test_systems_cockpit_watermarks_infeasible_kpis() -> None:
+    import inspect
+
+    from ui_nicegui.lib import systems_cockpit as sc
+
+    src = inspect.getsource(sc.build_compact_cockpit_markdown)
+    assert "PHYS-KPI-001" in src
+    assert "— (diagnostic)" in src
+    assert "Pfus_total_MW" in src
+
+
+def test_cr_knob_grid_uses_pfus_total() -> None:
+    import inspect
+
+    from ui_nicegui.lib import cr_chronicle_helpers as crh
+    from ui_nicegui.decks.control_room import knob_trade_space as kts
+
+    src = inspect.getsource(crh)
+    assert "Pfus_total_MW" in src
+    view = inspect.getsource(kts)
+    assert "Pfus_total_MW" in view
+
+
+def test_compare_handoff_and_atlas_solve_use_runlock() -> None:
+    import inspect
+
+    from ui_nicegui.lib import compare_helpers as ch
+    from ui_nicegui.decks.systems_mode import atlas_ui, solve_ui
+    from ui_nicegui.components import helm_console
+
+    assert "CompareHandoff" in inspect.getsource(ch.build_compare_artifact)
+    assert "systems_atlas_running" in inspect.getsource(atlas_ui)
+    assert "systems_solve_running" in inspect.getsource(solve_ui)
+    busy = inspect.getsource(helm_console._session_or_lock_busy)
+    assert "systems_solve_running" in busy
+    assert "systems_atlas_running" in busy
+    assert "phase_envelopes_running" in busy
+    assert "uq_contract_running" in busy
+
+
+def test_pfus_total_does_not_alias_dt_adj() -> None:
+    from ui_nicegui.lib.compare_helpers import _pick_output
+    import math
+
+    # Missing total must not silently read DT-adjusted fusion as total.
+    v = _pick_output({"Pfus_DT_adj_MW": 88.0}, "Pfus_total_MW")
+    assert isinstance(v, float) and math.isnan(v)

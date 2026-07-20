@@ -198,7 +198,9 @@ def evaluate_knob_trade_grid(
                         "feasible": bool(ok),
                         "top_blocker": top,
                         "Q": float(out.get("Q_DT_eqv", out.get("Q", float("nan")))),
-                        "Pfus_MW": float(out.get("P_fus_MW", out.get("Pfus_MW", float("nan")))),
+                        "Pfus_total_MW": float(
+                            out.get("Pfus_total_MW", out.get("P_fus_MW", out.get("Pfus_MW", float("nan"))))
+                        ),
                     }
                 )
             except Exception:
@@ -209,7 +211,7 @@ def evaluate_knob_trade_grid(
                         "feasible": False,
                         "top_blocker": "eval_error",
                         "Q": float("nan"),
-                        "Pfus_MW": float("nan"),
+                        "Pfus_total_MW": float("nan"),
                     }
                 )
     return rows

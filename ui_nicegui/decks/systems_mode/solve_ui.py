@@ -107,6 +107,9 @@ def render_solve_panel(
         if blocked:
             ui.notify(block_msg, type="negative")
             return
+        if getattr(session, "systems_solve_running", False):
+            ui.notify("Target solve already running", type="warning")
+            return
         base_now, targets_now, variables_now = resolve_systems_problem(session)
         ok_prob, prob_msg = validate_systems_problem(targets_now, variables_now)
         if not ok_prob:
@@ -119,18 +122,19 @@ def render_solve_panel(
         if not runlock_acquire("Systems Mode: Target solve", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        session.systems_solve_running = True
         try:
-            notify_input_guardrails(base_now, context="Systems Mode")
-        except Exception:
-            pass
-        log_ui_event(
-            session,
-            "SystemsMode",
-            "TargetSolve",
-            {"targets": dict(targets_now), "variables": list(variables_now.keys())},
-        )
-        ui.notify("Running target solve…", type="info")
-        try:
+            try:
+                notify_input_guardrails(base_now, context="Systems Mode")
+            except Exception:
+                pass
+            log_ui_event(
+                session,
+                "SystemsMode",
+                "TargetSolve",
+                {"targets": dict(targets_now), "variables": list(variables_now.keys())},
+            )
+            ui.notify("Running target solve…", type="info")
             trust = float(session.systems_trust_delta) if session.systems_use_trust_delta else None
             result = await run.io_bound(
                 run_systems_solve,
@@ -207,6 +211,7 @@ def render_solve_panel(
         except Exception as exc:
             ui.notify(f"Target solve failed: {exc}", type="negative")
         finally:
+            session.systems_solve_running = False
             runlock_release("SystemsMode")
 
     btn = ui.button("Run target solve", icon="bolt", on_click=_run_solve).props("color=primary q-mt-sm")

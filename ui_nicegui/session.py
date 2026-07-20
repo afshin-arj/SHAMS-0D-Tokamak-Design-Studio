@@ -65,6 +65,8 @@ class DesignSession:
     last_precheck_report: Optional[Any] = None
     systems_precheck_seconds: Optional[float] = None
     systems_precheck_running: bool = False
+    systems_solve_running: bool = False
+    systems_atlas_running: bool = False
     systems_use_q: bool = True
     systems_q_target: float = 10.0
     systems_use_h: bool = False

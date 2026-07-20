@@ -135,7 +135,7 @@ def _grid_view(session: DesignSession) -> None:
         return
     n_feas = sum(1 for r in rows if r.get("feasible"))
     kpi_row([("Points", str(len(rows))), ("Feasible", str(n_feas)), ("X", kx), ("Y", ky)])
-    cols = [kx, ky, "feasible", "top_blocker", "Q", "Pfus_MW"]
+    cols = [kx, ky, "feasible", "top_blocker", "Q", "Pfus_total_MW"]
     ui.table(
         columns=[{"name": c, "label": c, "field": c, "align": "left"} for c in cols],
         rows=[{c: r.get(c) for c in cols} for r in rows],

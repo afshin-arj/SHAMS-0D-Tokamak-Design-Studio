@@ -57,29 +57,48 @@ def render_atlas_panel(session: DesignSession) -> None:
             ).classes("w-36")
 
         async def _compute() -> None:
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
             if session.systems_atlas_var_x == session.systems_atlas_var_y:
                 ui.notify("Pick two different variables", type="warning")
                 return
+            if getattr(session, "systems_atlas_running", False):
+                ui.notify("Feasibility map already running", type="warning")
+                return
+            locked, task, is_owner = runlock_status("SystemsMode")
+            if locked and not is_owner:
+                ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+                return
+            if not runlock_acquire("Systems Mode: Feasibility map", "SystemsMode"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
+            session.systems_atlas_running = True
             ui.notify("Computing feasibility map…", type="info")
-            b, _, v = resolve_systems_problem(session)
+            try:
+                b, _, v = resolve_systems_problem(session)
 
-            def _run():
-                try:
-                    from src.systems.atlas import compute_micro_atlas
-                except ImportError:
-                    from systems.atlas import compute_micro_atlas  # type: ignore
-                return compute_micro_atlas(
-                    b,
-                    v,
-                    session.systems_atlas_var_x,
-                    session.systems_atlas_var_y,
-                    nx=int(session.systems_atlas_grid_n),
-                    ny=int(session.systems_atlas_grid_n),
-                )
+                def _run():
+                    try:
+                        from src.systems.atlas import compute_micro_atlas
+                    except ImportError:
+                        from systems.atlas import compute_micro_atlas  # type: ignore
+                    return compute_micro_atlas(
+                        b,
+                        v,
+                        session.systems_atlas_var_x,
+                        session.systems_atlas_var_y,
+                        nx=int(session.systems_atlas_grid_n),
+                        ny=int(session.systems_atlas_grid_n),
+                    )
 
-            atlas = await run.io_bound(_run)
-            session.systems_last_micro_atlas = atlas
-            _atlas_view.refresh()
+                atlas = await run.io_bound(_run)
+                session.systems_last_micro_atlas = atlas
+                _atlas_view.refresh()
+            except Exception as exc:
+                ui.notify(f"Feasibility map failed: {exc}", type="negative")
+            finally:
+                session.systems_atlas_running = False
+                runlock_release("SystemsMode")
 
         ui.button("Compute map", icon="map", on_click=_compute).props("outline q-mb-sm")
         _atlas_view(session)

@@ -70,7 +70,19 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
     phases_area.on("update:model-value", lambda: _sync_json())
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         _sync_json()
+        if getattr(session, "phase_envelopes_running", False):
+            ui.notify("Phase envelope already running", type="warning")
+            return
+        locked, task, is_owner = runlock_status("PointDesigner")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Point Designer: Phase envelopes", "PointDesigner"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         session.phase_envelopes_running = True
         ui.notify("Running phase envelope…", type="info")
         try:
@@ -89,6 +101,7 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
             ui.notify(f"Phase envelope failed: {exc}", type="negative")
         finally:
             session.phase_envelopes_running = False
+            runlock_release("PointDesigner")
 
     with ui.row().classes("w-full gap-4 items-end q-mt-sm"):
         ui.input(
