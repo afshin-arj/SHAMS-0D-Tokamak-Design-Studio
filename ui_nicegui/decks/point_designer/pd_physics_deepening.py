@@ -58,6 +58,12 @@ def _table_from_dicts(rows: List[Dict[str, Any]], *, row_key: str = "check") -> 
 
 
 def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None) -> None:
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    if not bool(verdict_summary(out).get("feasible")):
+        ui.label(
+            "PHYS-KPI-001: confinement / burn / performance KPIs below are diagnostic residue on an INFEASIBLE point — not design claims."
+        ).classes("text-caption text-orange q-mb-sm")
     view_sel = ui.select(DEEP_VIEWS, label="Select deck", value=DEEP_VIEWS[0]).classes("w-full")
     panel = ui.column().classes("w-full")
 

@@ -86,13 +86,53 @@ def build_repro_lock(run_artifact: dict, overrides: dict) -> dict:
     return _build(run_artifact=ensure_run_artifact(run_artifact), lock_overrides=overrides)
 
 
+def _ui_replay_evaluate(
+    *,
+    inputs_dict: Dict[str, Any],
+    solver_meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """NiceGUI replay evaluate path — ui_evaluate only; never hot_ion_point fallback."""
+    try:
+        from src.schema.inputs import PointInputs
+    except ImportError:
+        try:
+            from src.models.inputs import PointInputs  # type: ignore
+        except ImportError:
+            from models.inputs import PointInputs  # type: ignore
+    try:
+        from constraints.constraints import evaluate_constraints
+    except ImportError:
+        from src.constraints.constraints import evaluate_constraints  # type: ignore
+    try:
+        from shams_io.run_artifact import build_run_artifact
+    except ImportError:
+        from src.shams_io.run_artifact import build_run_artifact  # type: ignore
+
+    from ui_nicegui.evaluate import ui_evaluate
+
+    inp = PointInputs.from_dict(inputs_dict if isinstance(inputs_dict, dict) else {})
+    out = ui_evaluate(inp, origin="ControlRoom:Replay")
+    if not isinstance(out, dict):
+        raise TypeError("ui_evaluate did not return an outputs dict")
+    cons = evaluate_constraints(out, point_inputs=inp.to_dict())
+    art = build_run_artifact(inp.to_dict(), out, cons)
+    meta = art.setdefault("meta", {})
+    if isinstance(meta, dict):
+        meta["evaluator"] = "ui_evaluate"
+        meta["origin"] = "ControlRoom:Replay"
+        if isinstance(solver_meta, dict):
+            meta.update(solver_meta)
+    return art
+
+
 def replay_check(lock: dict, assumption_override: Optional[dict] = None) -> dict:
     from tools.repro_lock_v166 import replay_check as _check
 
     return _check(
         lock=lock,
         assumption_set_override=assumption_override if isinstance(assumption_override, dict) else None,
-        policy={"generator": "NiceGUI"},
+        policy={"generator": "NiceGUI", "evaluator": "ui_evaluate"},
+        evaluate_fn=_ui_replay_evaluate,
     )
 
 
