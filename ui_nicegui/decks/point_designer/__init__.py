@@ -25,7 +25,7 @@ from ui_nicegui.lib.pd_workflow_labels import (
     teaching_banner,
 )
 from ui_nicegui.lib.helm_helpers import log_ui_event
-from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
+from ui_nicegui.lib.pd_input_guardrails import notify_input_guardrails, unrealistic_point_input_warnings
 from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.lib.session_store import set_point_evaluation
@@ -131,8 +131,7 @@ def render_point_designer(session: DesignSession) -> None:
         log_ui_event(session, "PointDesigner", "EvaluatePoint", {"mode": mode})
         try:
             base = session.build_point_inputs()
-            for warn in unrealistic_point_input_warnings(base, context="Point Designer"):
-                ui.notify(warn, type="warning")
+            notify_input_guardrails(base, context="Point Designer")
             result = await run.io_bound(run_point_designer_evaluation, session)
             ok = bool(result.get("ok", True))
             out = result.get("outputs") or {}

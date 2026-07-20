@@ -8,7 +8,7 @@ from nicegui import run, ui
 
 from ui_nicegui.decks.systems_mode import assumption_lock_ui
 from ui_nicegui.lib.helm_helpers import log_ui_event
-from ui_nicegui.lib.pd_input_guardrails import unrealistic_point_input_warnings
+from ui_nicegui.lib.pd_input_guardrails import notify_input_guardrails
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_solve_helpers import run_systems_solve
 from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem, validate_systems_problem
@@ -111,8 +111,7 @@ def render_solve_panel(
             ui.notify(prob_msg, type="warning")
             return
         try:
-            for warn in unrealistic_point_input_warnings(base_now, context="Systems Mode"):
-                ui.notify(warn, type="warning")
+            notify_input_guardrails(base_now, context="Systems Mode")
         except Exception:
             pass
         log_ui_event(

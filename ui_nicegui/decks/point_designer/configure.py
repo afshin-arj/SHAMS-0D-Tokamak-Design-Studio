@@ -285,6 +285,11 @@ def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) ->
         "Use Templates / presets for a clean basis."
     ).classes("text-caption text-grey q-mb-sm")
 
+    ui.button("Evaluate Point", color="primary", on_click=on_evaluate).classes("w-full q-mb-sm")
+    ui.label("Primary action also repeats at the bottom after Configure sections.").classes(
+        "text-caption text-grey q-mb-sm"
+    )
+
     render_design_governance(session)
 
     if str(session.pd_eval_mode) in ("solver", "envelope") and session.pd_last_outputs:

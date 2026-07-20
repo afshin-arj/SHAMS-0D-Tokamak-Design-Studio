@@ -61,6 +61,11 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
         ("Pfus A [MW]", summary.get("pfus_a", "-")),
         ("Pfus B [MW]", summary.get("pfus_b", "-")),
     ])
+    if not summary.get("feasible_a") or not summary.get("feasible_b"):
+        ui.label(
+            "PHYS-KPI-001: Q / H98 / Pfus shown as diagnostic residue on INFEASIBLE slots — "
+            "not achieved performance claims."
+        ).classes("text-caption text-orange q-mb-xs")
     with ui.row().classes("gap-2 q-mt-xs flex-wrap"):
         if summary.get("mirage_a"):
             ui.badge("MIRAGE A", color="orange").props("outline")

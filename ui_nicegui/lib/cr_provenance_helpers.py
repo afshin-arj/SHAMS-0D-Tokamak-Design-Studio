@@ -151,8 +151,22 @@ def regression_artifact_diff(art_a: dict, art_b: dict) -> dict:
         if k:
             return dict(k)
         out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
-        keys = ("Q", "Pfus_total_MW", "P_e_net_MW", "beta_N", "q95", "TBR")
-        return {kk: out.get(kk) for kk in keys if kk in out}
+        # Prefer real L0 keys; fall back so audit diffs still capture physics deltas.
+        key_aliases = (
+            ("Q_DT_eqv", ("Q_DT_eqv", "Q")),
+            ("Pfus_total_MW", ("Pfus_total_MW", "Pfus_DT_adj_MW", "Pfus_MW")),
+            ("P_e_net_MW", ("P_e_net_MW", "P_net_e_MW")),
+            ("beta_N", ("beta_N", "betaN_proxy", "betaN")),
+            ("q95_proxy", ("q95_proxy", "q95")),
+            ("TBR", ("TBR", "tbr_proxy_v403")),
+        )
+        result: dict = {}
+        for label, aliases in key_aliases:
+            for kk in aliases:
+                if kk in out and out.get(kk) is not None:
+                    result[label] = out.get(kk)
+                    break
+        return result
 
     def _cons_map(cons: list) -> dict:
         m: dict = {}
