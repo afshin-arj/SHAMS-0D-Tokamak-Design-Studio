@@ -33,8 +33,8 @@ def _pick_output(out: dict, key: str) -> Any:
     aliases = {
         "Q": ["Q_DT_eqv"],
         "Q_DT_eqv": ["Q"],
-        "Pfus_total_MW": ["P_fus_MW", "Pfus_DT_adj_MW", "Pfus_MW"],
-        "P_fus_MW": ["Pfus_total_MW", "Pfus_DT_adj_MW"],
+        "Pfus_total_MW": ["P_fus_MW", "Pfus_MW"],
+        "P_fus_MW": ["Pfus_total_MW"],
         "Bpeak_TF_T": ["B_peak_T"],
         "B_peak_T": ["Bpeak_TF_T"],
         "P_e_net_MW": ["P_net_e_MW", "Pnet_MWe"],
@@ -285,10 +285,26 @@ def apply_artifact_inputs(session, art: dict) -> int:
 
 
 def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
-    """Evaluate inputs_patch through frozen truth and return a compare artifact."""
+    """Evaluate inputs_patch through frozen truth and return a compare artifact.
+
+    Acquires the global run lock so handoffs cannot overlap other truth evals.
+    Mutates ``session.inputs`` only inside a try/finally restore window.
+    """
     from dataclasses import asdict
 
     from ui_nicegui.evaluate import ui_evaluate
+    from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+    locked, task, is_owner = runlock_status("CompareHandoff")
+    if locked:
+        # Same-owner re-acquire is allowed by run_lock — refuse to prevent overlapping handoffs.
+        raise RuntimeError(
+            f"Busy: {task or 'evaluation'} — wait or force-clear from Helm."
+            if not is_owner
+            else "Compare handoff already in progress."
+        )
+    if not runlock_acquire(f"Compare handoff: {label}", "CompareHandoff"):
+        raise RuntimeError("Could not acquire run lock — another evaluation is active.")
 
     saved = dict(session.inputs)
     try:
@@ -303,6 +319,7 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
         return normalize_compare_artifact({"inputs": asdict(inp), "outputs": out, "label": label})
     finally:
         session.inputs = saved
+        runlock_release("CompareHandoff")
 
 
 def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
@@ -514,8 +531,16 @@ def structural_diff_report(art_a: dict, art_b: dict) -> dict | None:
 
 
 def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
+    summary = summarize_comparison(art_a, art_b)
+    note = None
+    if not summary.get("feasible_a") or not summary.get("feasible_b"):
+        note = (
+            "PHYS-KPI-001: key_metrics / kpi_diff / all_output_deltas may include raw "
+            "performance residues on INFEASIBLE slots — use summary.* diagnostic labels for claims."
+        )
     return {
-        "summary": summarize_comparison(art_a, art_b),
+        "summary": summary,
+        "phys_kpi_note": note,
         "key_metrics": metric_diff_rows(art_a, art_b),
         "all_output_deltas": numeric_output_diff_rows(art_a, art_b, limit=200),
         "constraint_margins": constraint_margin_diff_rows(art_a, art_b),

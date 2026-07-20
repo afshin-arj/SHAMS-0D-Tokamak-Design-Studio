@@ -29,6 +29,31 @@ from ui_nicegui.lib.display_labels import (
 from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, objectives_catalog
 from ui_nicegui.session import DesignSession
 
+
+def _trade_busy_guard(session: DesignSession, task: str) -> bool:
+    """Acquire TradeStudy runlock + trade_running. Returns True if caller may proceed."""
+    from ui_nicegui.lib.run_lock import acquire as runlock_acquire, status as runlock_status
+
+    if session.trade_running:
+        ui.notify("Trade Study already running — wait for the active job.", type="warning")
+        return False
+    locked, busy_task, is_owner = runlock_status("TradeStudy")
+    if locked and not is_owner:
+        ui.notify(f"Busy: {busy_task} — wait or force-clear from Helm.", type="warning")
+        return False
+    if not runlock_acquire(task, "TradeStudy"):
+        ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+        return False
+    session.trade_running = True
+    return True
+
+
+def _trade_busy_release(session: DesignSession) -> None:
+    from ui_nicegui.lib.run_lock import release as runlock_release
+
+    session.trade_running = False
+    runlock_release("TradeStudy")
+
 try:
     from src.trade_studies.spec import default_knob_sets
 except ImportError:
@@ -94,6 +119,8 @@ def _render_v351(session: DesignSession) -> None:
         if not objs:
             ui.notify("Select objectives", type="warning")
             return
+        if not _trade_busy_guard(session, "Trade Study: Frontier atlas"):
+            return
         senses = {o: str(obj_senses.get(o, "min")) for o in objs}
         try:
             atlas = await run.io_bound(build_v351_atlas, session, objectives=objs, senses=senses)
@@ -128,6 +155,8 @@ def _render_v351(session: DesignSession) -> None:
             _v351_view.refresh()
         except Exception as exc:
             ui.notify(f"Frontier atlas failed: {exc}", type="negative")
+        finally:
+            _trade_busy_release(session)
 
     ui.button("Build frontier atlas + lane classify", icon="map", on_click=_run).props("outline")
     _v351_view(session)
@@ -222,6 +251,8 @@ def _render_v352(session: DesignSession) -> None:
         if not rows:
             ui.notify("Empty candidate source", type="warning")
             return
+        if not _trade_busy_guard(session, "Trade Study: Robust certification"):
+            return
         try:
             from src.certification.robust_envelope_v352 import TierThresholds, certify_points_under_contract
             from src.models.inputs import PointInputs
@@ -241,7 +272,8 @@ def _render_v352(session: DesignSession) -> None:
                             pass
                 pts.append(PointInputs(**d))
             spec = robust_uncertainty_contract(base).to_dict()
-            cert = certify_points_under_contract(
+            cert = await run.io_bound(
+                certify_points_under_contract,
                 points=pts,
                 contract_spec=spec,
                 run_uq_fn=run_uncertainty_contract_for_point,
@@ -254,6 +286,8 @@ def _render_v352(session: DesignSession) -> None:
             _v352_view.refresh()
         except Exception as exc:
             ui.notify(f"Robust certification failed: {exc}", type="negative")
+        finally:
+            _trade_busy_release(session)
 
     ui.button("Run Robust Envelope Certification", icon="verified_user", on_click=_run).props("outline")
     _v352_view(session)
@@ -317,6 +351,8 @@ def _render_surrogate_accel(session: DesignSession) -> None:
         if not cand:
             ui.notify("Propose candidates first", type="warning")
             return
+        if not _trade_busy_guard(session, "Trade Study: Surrogate verify"):
+            return
         cap = session.active_study_capsule or {}
         study_obj = cap.get("objectives") or (rep.get("meta") or {}).get("objectives") or [str(primary.value)]
         study_senses = cap.get("objective_senses") or (rep.get("meta") or {}).get("objective_senses") or {}
@@ -339,6 +375,8 @@ def _render_surrogate_accel(session: DesignSession) -> None:
             _sa_view.refresh()
         except Exception as exc:
             ui.notify(f"Verification failed: {exc}", type="negative")
+        finally:
+            _trade_busy_release(session)
 
     ui.button("Propose candidates (surrogate)", icon="bolt", on_click=_propose).props("outline")
     ui.button("Verify with frozen truth", icon="verified", on_click=_verify).props("outline")
@@ -386,6 +424,8 @@ def _render_optimizer_kits(session: DesignSession) -> None:
         if not objs:
             ui.notify("Select objectives", type="warning")
             return
+        if not _trade_busy_guard(session, "Trade Study: Optimizer kit"):
+            return
         ksel = next(k for k in ks if k.name == knob.value)
         try:
             rep = await run.io_bound(
@@ -403,8 +443,8 @@ def _render_optimizer_kits(session: DesignSession) -> None:
             _kit_log.refresh()
         except Exception as exc:
             ui.notify(f"Kit launch failed: {exc}", type="negative")
-
-    ui.button("Launch kit", icon="rocket_launch", on_click=_launch).props("color=primary outline")
+        finally:
+            _trade_busy_release(session)
     _kit_log(session)
 
 
@@ -418,6 +458,8 @@ def _kit_log(session: DesignSession) -> None:
 
 def _render_two_lane(session: DesignSession) -> None:
     async def _eval() -> None:
+        if not _trade_busy_guard(session, "Trade Study: Two-lane UQ"):
+            return
         try:
             res = await run.io_bound(run_two_lane_uq, session.build_point_inputs())
             session.lane_last = res
@@ -425,6 +467,8 @@ def _render_two_lane(session: DesignSession) -> None:
             _lane_view.refresh()
         except Exception as exc:
             ui.notify(f"Lane eval failed: {exc}", type="negative")
+        finally:
+            _trade_busy_release(session)
 
     ui.button("Evaluate current point (lane O & R)", icon="compare", on_click=_eval).props("outline")
     _lane_view(session)
@@ -476,6 +520,8 @@ def _render_v324(session: DesignSession) -> None:
         if not feas:
             ui.notify("No feasible points", type="warning")
             return
+        if not _trade_busy_guard(session, "Trade Study: Regime maps"):
+            return
         feats = sorted({k for r in feas[:80] for k in r.keys() if isinstance(k, str) and isinstance(r.get(k), (int, float))})[:6]
         try:
             rpt = await run.io_bound(
@@ -490,6 +536,8 @@ def _render_v324(session: DesignSession) -> None:
             _v324_view.refresh()
         except Exception as exc:
             ui.notify(f"Regime maps failed: {exc}", type="negative")
+        finally:
+            _trade_busy_release(session)
 
     ui.button("Build regime map report", icon="hub", on_click=_run).props("outline")
     _v324_view(session)
@@ -550,6 +598,8 @@ def _render_mirage_pathfinding(session: DesignSession) -> None:
     async def _run() -> None:
         idx = labels.index(str(sel.value))
         knob, lo, hi = levers[idx]
+        if not _trade_busy_guard(session, "Trade Study: Mirage path scan"):
+            return
         try:
             rep = await run.io_bound(
                 run_mirage_path_scan,
@@ -564,6 +614,8 @@ def _render_mirage_pathfinding(session: DesignSession) -> None:
             _pf_view.refresh()
         except Exception as exc:
             ui.notify(f"Path scan failed: {exc}", type="negative")
+        finally:
+            _trade_busy_release(session)
 
     ui.button("Run path scan", icon="route", on_click=_run).props("outline")
     _pf_view(session)

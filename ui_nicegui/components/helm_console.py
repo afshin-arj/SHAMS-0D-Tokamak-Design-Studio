@@ -169,8 +169,12 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         or session.pareto_running
         or session.trade_running
         or session.systems_precheck_running
+        or getattr(session, "systems_solve_running", False)
         or getattr(session, "systems_recovery_running", False)
         or getattr(session, "systems_fs_running", False)
+        or getattr(session, "systems_atlas_running", False)
+        or getattr(session, "phase_envelopes_running", False)
+        or getattr(session, "uq_contract_running", False)
         or session.forge_mf_running
         or session.suite_running
         or session.pub_running
@@ -191,10 +195,18 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         return busy, "Trade Study", holder
     if session.systems_precheck_running:
         return busy, "Systems Mode: Precheck", holder
+    if getattr(session, "systems_solve_running", False):
+        return busy, "Systems Mode: Target solve", holder
     if getattr(session, "systems_fs_running", False):
         return busy, "Systems Mode: Feasible search", holder
+    if getattr(session, "systems_atlas_running", False):
+        return busy, "Systems Mode: Feasibility map", holder
     if getattr(session, "systems_recovery_running", False):
         return busy, "Systems Mode: Recovery", holder
+    if getattr(session, "phase_envelopes_running", False):
+        return busy, "Point Designer: Phase envelopes", holder
+    if getattr(session, "uq_contract_running", False):
+        return busy, "Point Designer: Uncertainty contract", holder
     if session.evaluating:
         return busy, "Point Designer: Evaluate", holder
     return busy, task, holder

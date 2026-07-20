@@ -50,6 +50,13 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
 
     ui.label("Key results (last solve)").classes("text-subtitle2 q-mt-sm")
     from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    feas = bool(verdict_summary(out).get("feasible")) if isinstance(out, dict) and out else False
+    if not feas:
+        ui.label(
+            "PHYS-KPI-001: Q / H98 / performance KPIs below are diagnostic residue on an INFEASIBLE solve — not design claims."
+        ).classes("text-caption text-orange q-mb-xs")
 
     with ui.row().classes("gap-2 flex-wrap"):
         for label, key in (
@@ -64,6 +71,8 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
                 ui.label(label).classes("text-caption text-grey")
                 if key == "P_e_net_MW":
                     ui.label(pe_net_display(out, artifact=art)).classes("text-body1")
+                elif not feas and key in ("Q_DT_eqv", "H98"):
+                    ui.label("— (diagnostic)").classes("text-body1 text-orange")
                 else:
                     val = out.get(key)
                     if key == "q95_proxy" and val is None:

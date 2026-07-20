@@ -68,6 +68,12 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
     ef = art.get("epoch_feasibility") if isinstance(art.get("epoch_feasibility"), dict) else {}
     epoch = str(ef.get("overall", "UNKNOWN"))
 
+    feas = bool(vs.get("feasible")) if vs else str(verdict).upper() in ("FEASIBLE", "PASS", "PASS+DIAG")
+    diag = "— (diagnostic)"
+    pfus = diag if not feas else fmt(out.get("Pfus_total_MW", out.get("P_fus_MW")))
+    pnet = diag if not feas else fmt(out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("Pnet_MWe"))))
+    qval = diag if not feas else fmt(out.get("Q_DT_eqv", out.get("Q")))
+
     lines = [
         "# Systems cockpit summary",
         "",
@@ -81,14 +87,20 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
         f"- Dominant mechanism: {mech}",
         "",
         "## Key KPIs",
-        f"- P_fus [MW]: {fmt(out.get('Pfus_total_MW', out.get('P_fus_MW')))}",
-        f"- P_net [MW]: {fmt(out.get('P_e_net_MW', out.get('P_net_e_MW', out.get('Pnet_MWe'))))}",
-        f"- Q_plasma: {fmt(out.get('Q_DT_eqv', out.get('Q')))}",
-        f"- β_N: {fmt(out.get('beta_N', out.get('betaN_proxy', out.get('betaN'))))}",
-        f"- q95 (cyl. proxy): {fmt(out.get('q95_proxy', out.get('q95')))}",
-        f"- n/n_GW: {fmt(out.get('fG', out.get('n_over_nGW')))}",
-        "",
-        "## Suggested next action (diagnostic only)",
-        f"- {compact_next_action(verdict=str(verdict), dominant=str(dom), step=str(step))}",
     ]
+    if not feas:
+        lines.append("- PHYS-KPI-001: Q / Pfus / P_net shown as diagnostic on INFEASIBLE — not design claims.")
+    lines.extend(
+        [
+            f"- P_fus [MW]: {pfus}",
+            f"- P_net [MW]: {pnet}",
+            f"- Q_plasma: {qval}",
+            f"- β_N: {fmt(out.get('beta_N', out.get('betaN_proxy', out.get('betaN'))))}",
+            f"- q95 (cyl. proxy): {fmt(out.get('q95_proxy', out.get('q95')))}",
+            f"- n/n_GW: {fmt(out.get('fG', out.get('n_over_nGW')))}",
+            "",
+            "## Suggested next action (diagnostic only)",
+            f"- {compact_next_action(verdict=str(verdict), dominant=str(dom), step=str(step))}",
+        ]
+    )
     return "\n".join(lines)
