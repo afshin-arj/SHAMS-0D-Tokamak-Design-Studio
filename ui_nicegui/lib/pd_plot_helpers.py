@@ -87,8 +87,8 @@ def plot_tight_constraints(artifact: Dict[str, Any]) -> Optional[bytes]:
 
 def plot_regime_dials(out: Dict[str, Any]) -> Optional[bytes]:
     pairs = [
-        ("q95", _sf(out.get("q95_proxy", out.get("q95")))),
-        ("βN", _sf(out.get("betaN_proxy", out.get("betaN")))),
+        ("q95 (proxy)", _sf(out.get("q95_proxy", out.get("q95")))),
+        ("βN (screen)", _sf(out.get("beta_N", out.get("betaN_proxy", out.get("betaN"))))),
         ("fG", _sf(out.get("fG"))),
     ]
     labs, vals = [], []
@@ -96,7 +96,7 @@ def plot_regime_dials(out: Dict[str, Any]) -> Optional[bytes]:
         if v == v:
             labs.append(lab)
             vals.append(v)
-    return _bar_png(labs, vals, title="Regime dials (dimensionless)")
+    return _bar_png(labs, vals, title="Regime dials (dimensionless proxies)")
 
 
 def plot_engineering_severity(out: Dict[str, Any]) -> Optional[bytes]:
@@ -173,8 +173,8 @@ def plot_confinement(out: Dict[str, Any]) -> Optional[bytes]:
     pairs = [
         ("H98", _sf(out.get("H98"))),
         ("H_regime", _sf(out.get("H_regime"))),
-        ("τE (s)", _sf(out.get("tauE_s", out.get("tau_E_s")))),
-        ("τIPB98", _sf(out.get("tauIPB98_s"))),
+        ("τE_eff (s)", _sf(out.get("tauE_eff_s", out.get("tauE_s", out.get("tau_E_s"))))),
+        ("τIPB98 (s)", _sf(out.get("tauIPB98_s", out.get("tauIPB")))),
     ]
     labs, vals = [], []
     for lab, v in pairs:

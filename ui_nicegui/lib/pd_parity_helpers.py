@@ -341,7 +341,7 @@ def fuel_cycle_metric_groups(out: Dict[str, Any]) -> List[List[Tuple[str, str]]]
         [
             ("T burn (g/day)", _m("T_burn_g_per_day", "{:.2f}")),
             ("T inventory proxy (g)", _m("T_inventory_proxy_g", "{:.2f}")),
-            ("TBR", _m("TBR", "{:.2f}")),
+            ("TBR (proxy)", _m("TBR", "{:.2f}")),
             ("FW dpa/y", _m("fw_dpa_per_year", "{:.2f}")),
         ],
         [
@@ -414,7 +414,9 @@ def magnet_card_metrics(out: Dict[str, Any]) -> Dict[str, Any]:
         "tf_note": tf_note,
         "hts_lifetime_yr": out.get("hts_lifetime_yr"),
         "V_dump_kV": out.get("V_dump_kV"),
-        "P_net_e_MW": out.get("P_net_e_MW"),
+        "P_e_net_MW": out.get("P_e_net_MW", out.get("P_net_e_MW")),
+        # Legacy alias kept for callers that still unpack P_net_e_MW.
+        "P_net_e_MW": out.get("P_e_net_MW", out.get("P_net_e_MW")),
     }
 
 
@@ -612,8 +614,13 @@ POWER_LEDGER_BADGED = [
     ("Core radiation", "Prad_core_MW", "Proxy"),
     ("SOL/Separatrix power", "P_SOL_MW", "Authoritative"),
     ("Total loss Ploss", "Ploss_MW", "Authoritative"),
-    ("Net electric", "P_net_e_MW", "Proxy"),
+    ("Net electric", "P_e_net_MW", "Proxy"),
 ]
+
+_POWER_LEDGER_ALIASES = {
+    "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
+    "Palpha_MW": ("Palpha_MW", "Palpha_dep_MW"),
+}
 
 
 def power_ledger_badged_rows(
@@ -623,7 +630,13 @@ def power_ledger_badged_rows(
 ) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     for lbl, key, badge in POWER_LEDGER_BADGED:
-        v = out.get(key, float("nan"))
+        v = None
+        for kk in _POWER_LEDGER_ALIASES.get(key, (key,)):
+            if kk in out and out.get(kk) is not None:
+                v = out.get(kk)
+                break
+        if v is None:
+            v = float("nan")
         b = badge
         if key == "Prad_core_MW":
             b = "Proxy" if include_radiation else "Diagnostic"
@@ -752,14 +765,14 @@ def dominant_limiter_summary(rows: List[Dict[str, Any]]) -> Optional[str]:
 
 
 BASELINE_DELTA_KPIS = [
-    ("Q_DT_eqv", "Q_DT_eqv", "–"),
-    ("H98", "H98", "–"),
-    ("P_net_e", "P_net_e_MW", "MW(e)"),
-    ("q95", "q95_proxy", "–"),
-    ("betaN", "betaN_proxy", "–"),
-    ("q_div", "q_div_MW_m2", "MW/m²"),
-    ("P_SOL", "P_SOL_MW", "MW"),
-    ("TBR", "TBR", "–"),
+    ("Q_DT_eqv", "Q_DT_eqv", "–", ("Q_DT_eqv", "Q")),
+    ("H98", "H98", "–", ("H98",)),
+    ("P_net_e", "P_e_net_MW", "MW(e)", ("P_e_net_MW", "P_net_e_MW")),
+    ("q95", "q95_proxy", "–", ("q95_proxy", "q95")),
+    ("betaN", "beta_N", "–", ("beta_N", "betaN_proxy", "betaN")),
+    ("q_div", "q_div_MW_m2", "MW/m²", ("q_div_MW_m2",)),
+    ("P_SOL", "P_SOL_MW", "MW", ("P_SOL_MW",)),
+    ("TBR", "TBR", "–", ("TBR",)),
 ]
 
 
@@ -770,9 +783,17 @@ def baseline_delta_rows(
     bo = (baseline_art.get("outputs") or {}) if isinstance(baseline_art, dict) else {}
     co = (current_art.get("outputs") or {}) if isinstance(current_art, dict) else {}
     rows: List[Dict[str, Any]] = []
-    for label, key, unit in BASELINE_DELTA_KPIS:
-        vb = _safe_float(bo.get(key, float("nan")))
-        vc = _safe_float(co.get(key, float("nan")))
+    for label, _primary, unit, aliases in BASELINE_DELTA_KPIS:
+        vb = float("nan")
+        vc = float("nan")
+        for kk in aliases:
+            if kk in bo and bo.get(kk) is not None:
+                vb = _safe_float(bo.get(kk))
+                break
+        for kk in aliases:
+            if kk in co and co.get(kk) is not None:
+                vc = _safe_float(co.get(kk))
+                break
         dlt = vc - vb if math.isfinite(vb) and math.isfinite(vc) else float("nan")
         rows.append({
             "KPI": label,
@@ -852,7 +873,7 @@ def local_fd_sensitivity_rows(
         return []
 
     p_list = list(params or ["R0_m", "a_m", "kappa", "Bt_T", "Ip_MA", "fG", "H98", "eta_CD", "n_neu_frac", "Zeff"])
-    o_list = list(outputs or ["Q_DT_eqv", "P_net_e_MW", "betaN", "q_div_MW_m2", "B_peak_T"])
+    o_list = list(outputs or ["Q_DT_eqv", "P_e_net_MW", "beta_N", "q_div_MW_m2", "B_peak_T"])
     sens = finite_difference_sensitivities(base_pi, evaluator, params=p_list, outputs=o_list, rel_step=rel_step)
     rows: List[Dict[str, Any]] = []
     for o in o_list:
@@ -1077,40 +1098,46 @@ PLOT_PHYSICAL_MEANING = {
 
 
 _POINT_SUMMARY_KEYS = [
-    ("Ip_MA", "Ip [MA]"),
-    ("fG", "fG [-]"),
-    ("H98", "H98 [-]"),
-    ("Q_DT_eqv", "Q [-]"),
-    ("Pfus_MW", "Pfus [MW]"),
-    ("P_e_net_MW", "P_net,e [MW]"),
-    ("B_peak_T", "B_peak [T]"),
-    ("TBR", "TBR [-]"),
-    ("q95", "q95 [-]"),
-    ("betaN", "betaN [-]"),
+    # (display_label, lookup_keys…) — first present L0/alias wins.
+    ("Ip [MA]", ("Ip_MA",)),
+    ("fG [-]", ("fG",)),
+    ("H98 [-]", ("H98",)),
+    ("Q [-]", ("Q_DT_eqv", "Q")),
+    ("Pfus [MW]", ("Pfus_total_MW", "Pfus_MW", "P_fus_MW")),
+    ("P_net,e [MW]", ("P_e_net_MW", "P_net_e_MW")),
+    ("B_peak [T]", ("B_peak_T", "Bpeak_T")),
+    ("TBR (proxy) [-]", ("TBR",)),
+    ("q95 (cyl. proxy) [-]", ("q95_proxy", "q95")),
+    ("βN (screening) [-]", ("beta_N", "betaN_proxy", "betaN")),
 ]
 
 
 def point_summary_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
-    for key, label in _POINT_SUMMARY_KEYS:
-        if key not in out:
+    for label, keys in _POINT_SUMMARY_KEYS:
+        raw = None
+        for key in keys:
+            if key in out and out.get(key) is not None:
+                raw = out.get(key)
+                break
+        if raw is None:
             continue
         try:
-            v = float(out[key])
+            v = float(raw)
             if v != v:
                 val = "n/a"
             else:
                 val = f"{v:.4g}"
         except (TypeError, ValueError):
-            val = str(out.get(key, "n/a"))
+            val = str(raw)
         rows.append({"quantity": label, "value": val})
     return rows
 
 
 _RAW_TELEMETRY_PRIORITY = [
-    "Ip_MA", "fG", "Ti_keV", "Paux_MW", "Pfus_MW", "H98", "Q_DT_eqv", "tauE_s",
+    "Ip_MA", "fG", "Ti_keV", "Paux_MW", "Pfus_total_MW", "H98", "Q_DT_eqv", "tauE_eff_s",
     "Ploss_MW", "Palpha_MW", "Prad_core_MW", "P_SOL_MW", "P_e_net_MW", "B_peak_T",
-    "q95", "betaN", "n_e20", "TBR", "feasible", "mirage_flag_v402",
+    "q95_proxy", "beta_N", "n_e20", "TBR", "feasible", "mirage_flag_v402",
 ]
 
 

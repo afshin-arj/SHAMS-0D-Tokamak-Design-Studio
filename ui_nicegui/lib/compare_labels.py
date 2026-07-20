@@ -68,7 +68,8 @@ TEACHING_HINTS = {
         "Send runs from Point Designer Export Bay or use System Suite handoffs (Tab 5) to load Compare slots."
     ),
     DECISION_STATES[1]: (
-        "Key metrics use canonical output names with aliases (Q ↔ Q_DT_eqv, Pfus ↔ P_fus). "
+        "Key metrics use canonical L0 names with aliases "
+        "(Q ↔ Q_DT_eqv, Pfus ↔ Pfus_total_MW / P_fus_MW, q95 ↔ q95_proxy). "
         "Toggle **All numeric outputs** for a full delta table sorted by |Δ|."
     ),
     DECISION_STATES[2]: (
@@ -90,7 +91,9 @@ METRIC_DISPLAY = {
     "Pfus_total_MW": "Fusion power (MW)",
     "P_fus_MW": "Fusion power (MW)",
     "P_e_net_MW": "Net electric (MW)",
-    "betaN": "Normalized beta",
+    "betaN": "βN (screening)",
+    "beta_N": "βN (screening)",
+    "betaN_proxy": "βN (screening)",
     "q95": "q95 (cyl. proxy)",
     "q95_proxy": "q95 (cyl. proxy)",
     "Bpeak_TF_T": "Peak TF field (T)",
@@ -105,7 +108,6 @@ METRIC_DISPLAY = {
     "Pfus_DT_adj_MW": "Adjusted DT fusion power (MW)",
     "sigma_vm_MPa": "Von Mises stress (MPa)",
     "fG": "Greenwald fraction",
-    "beta_N": "Normalized beta",
 }
 
 
