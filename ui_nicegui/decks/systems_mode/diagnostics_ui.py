@@ -223,15 +223,31 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
         try:
             rows = await run.io_bound(_corners)
             if isinstance(rows, list) and rows:
-                cols = list(rows[0].keys()) if isinstance(rows[0], dict) else []
+                display_rows = []
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    nr: dict = {}
+                    for k, v in r.items():
+                        if str(k).startswith("ach_"):
+                            nr[f"eval_{str(k)[4:]}"] = v
+                        else:
+                            nr[k] = v
+                    try:
+                        rn = float(r.get("res_norm", float("nan")))
+                        nr["floors"] = "met" if rn == rn and rn < 1e-2 else "miss"
+                    except (TypeError, ValueError):
+                        nr["floors"] = "n/a"
+                    display_rows.append(nr)
+                cols = list(display_rows[0].keys()) if display_rows else []
                 ui.label(
-                    "Corner values are evaluated diagnostic snapshots — not certified achievements "
-                    "when the point is INFEASIBLE (PHYS-KPI-001)."
+                    "Corner values are evaluated diagnostic snapshots (eval_* columns) — "
+                    "``floors=met`` is residual-only, not intent feasibility (PHYS-KPI-001)."
                 ).classes("text-caption text-orange q-mb-xs")
                 ui.table(
                     columns=[{"name": c, "label": c, "field": c} for c in cols],
-                    rows=rows,
-                    row_key=cols[0] if cols else "Ip_MA",
+                    rows=display_rows,
+                    row_key=cols[0] if cols else "corner",
                 ).classes("w-full")
         except Exception as exc:
             ui.label(f"Corner table unavailable: {exc}").classes("text-caption")

@@ -236,11 +236,12 @@ def _solve_result(session: DesignSession) -> None:
         ui.label(f"Blocking constraints: {', '.join(map(str, blocking[:5]))}").classes("text-caption text-orange")
     out = result.get("out")
     if isinstance(out, dict) and out:
-        tgt_rows = systems_target_rows(session, out)
+        tgt_rows = systems_target_rows(session, out, feasible=feasible)
         if tgt_rows:
             if not feasible:
                 ui.label(
-                    "PHYS-KPI-001: target table values are evaluated/diagnostic when intent-infeasible — not design achievements."
+                    "PHYS-KPI-001: target table values are evaluated/diagnostic when intent-infeasible — not design achievements. "
+                    "Status ``diag`` means the floor was met numerically but the point remains INFEASIBLE."
                 ).classes("text-caption text-orange q-mb-xs")
             ui.table(
                 columns=[

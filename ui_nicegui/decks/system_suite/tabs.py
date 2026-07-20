@@ -240,6 +240,9 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
         thermal_posture = "OPS / THERMAL REVIEW"
     elif not thermal_limits_configured:
         thermal_posture = "THERMAL LIMITS N/A"
+    elif thermal_rep is None and traj_rep is None:
+        # Limits exist on the point but overlay reports were not produced — never claim PASS.
+        thermal_posture = "THERMAL UNEVALUATED"
     else:
         thermal_posture = "THERMAL PASS"
     render_tab_summary_strip(
@@ -614,22 +617,36 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
             render_json_blob(rep_d)
 
         async def _export_zip() -> None:
+            if not try_acquire_suite_lock(ctx.session, "System Suite: Profile corners ZIP"):
+                return
             try:
                 from tools.profile_contracts_v362 import export_profile_contracts_zip
             except ImportError:
+                release_suite_lock(ctx.session)
                 ui.notify("Export module unavailable", type="negative")
                 return
             td = Path(__import__("tempfile").gettempdir()) / "shams_profile_contracts"
             td.mkdir(parents=True, exist_ok=True)
-            out_zip = td / "profile_corners_report.zip"
+            # Unique path avoids concurrent export clobbering a shared ZIP name.
+            out_zip = td / f"profile_corners_report_{int(__import__('time').time() * 1000)}.zip"
+            log_ui_event(ctx.session, SUITE_RUNLOCK_OWNER, "ProfileCornersExportStart", {})
+            try:
 
-            def _run():
-                export_profile_contracts_zip(rep_d, out_zip)
-                return out_zip.read_bytes()
+                def _run():
+                    export_profile_contracts_zip(rep_d, out_zip)
+                    return out_zip.read_bytes()
 
-            data = await run.io_bound(_run)
-            ui.download(data, "profile_corners_report.zip")
-            ui.notify("Profile corners ZIP ready", type="positive")
+                data = await run.io_bound(_run)
+                ui.download(data, "profile_corners_report.zip")
+                ui.notify("Profile corners ZIP ready", type="positive")
+            except Exception as exc:
+                ui.notify(f"Profile corners ZIP failed: {exc}", type="negative")
+            finally:
+                try:
+                    out_zip.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                release_suite_lock(ctx.session)
 
         ui.button("Export profile corners ZIP", icon="archive", on_click=_export_zip).props("outline q-mt-sm")
 
@@ -971,9 +988,15 @@ def render_benchmark_parity(ctx: SuiteContext) -> None:
             return
         rows = rep.get("summary_rows") or []
         n_fail = sum(1 for r in rows if isinstance(r, dict) and str(r.get("status", "")).upper() in ("FAIL", "WARN"))
+        n_pass = sum(1 for r in rows if isinstance(r, dict) and str(r.get("status", "")).upper() == "PASS")
+        n_unknown = max(0, len(rows) - n_fail - n_pass)
+        # Missing/error/unknown statuses must not inflate a PASS banner.
+        parity_posture = (
+            "PARITY PASS" if rows and n_fail == 0 and n_unknown == 0 else "PARITY REVIEW"
+        )
         render_tab_summary_strip(
-            "PARITY PASS" if rows and n_fail == 0 else "PARITY REVIEW",
-            detail=f"{len(rows)} case(s) · {n_fail} need review",
+            parity_posture,
+            detail=f"{len(rows)} case(s) · {n_fail} need review · {n_unknown} unknown/incomplete",
         )
         if rows:
             cols = list(rows[0].keys()) if isinstance(rows[0], dict) else []

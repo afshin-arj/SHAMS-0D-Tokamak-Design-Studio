@@ -22,6 +22,10 @@ def solver_target_rows(session: DesignSession, out: Optional[Dict[str, Any]] = N
     if not isinstance(out, dict) or not out:
         return []
 
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    feasible = bool(verdict_summary(out).get("feasible"))
+
     rows: List[Dict[str, str]] = []
     pairs = [
         ("Q_DT_eqv", session.pd_q_target, out.get("Q_DT_eqv", out.get("Q"))),
@@ -43,6 +47,8 @@ def solver_target_rows(session: DesignSession, out: Optional[Dict[str, Any]] = N
             flag = "ok" if rel <= max(float(session.pd_solver_tol), 1e-3) * 10 else "miss"
         else:
             flag = "n/a"
+        if not feasible and flag == "ok":
+            flag = "diag"
         rows.append({
             "quantity": name,
             "target": f"{t:.4g}" if t == t else "—",
