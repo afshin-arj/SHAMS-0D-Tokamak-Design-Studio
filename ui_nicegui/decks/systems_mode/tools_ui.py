@@ -45,7 +45,7 @@ def render_tools_panel(session: DesignSession) -> None:
             multiple=True,
         ).classes("w-full")
         outputs = ui.select(
-            ["Q_DT_eqv", "H98", "q95", "P_e_net_MW"],
+            ["Q_DT_eqv", "H98", "q95_proxy", "P_e_net_MW"],
             label="Outputs",
             value=["Q_DT_eqv", "H98"],
             multiple=True,
@@ -53,6 +53,20 @@ def render_tools_panel(session: DesignSession) -> None:
         step_h = ui.number("Step h", value=0.05, min=1e-6, step=0.01).classes("w-24")
 
         async def _sens() -> None:
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            locked, task, is_owner = runlock_status("SystemsMode")
+            if locked:
+                ui.notify(
+                    f"Busy: {task} — wait or force-clear from Helm."
+                    if not is_owner
+                    else "Systems Mode already holds the run lock.",
+                    type="warning",
+                )
+                return
+            if not runlock_acquire("Systems Mode: Local sensitivities", "SystemsMode"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
             base, _, _ = resolve_systems_problem(session)
             k_list = list(knobs.value or [])
             o_list = list(outputs.value or [])
@@ -80,6 +94,8 @@ def render_tools_panel(session: DesignSession) -> None:
                 _sens_view.refresh()
             except Exception as exc:
                 ui.notify(f"Sensitivity failed: {exc}", type="negative")
+            finally:
+                runlock_release("SystemsMode")
 
         ui.button("Compute sensitivities", on_click=_sens).props("outline dense q-mb-sm")
         _sens_view(session)

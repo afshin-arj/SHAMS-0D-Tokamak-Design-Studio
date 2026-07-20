@@ -243,6 +243,20 @@ def _local_forensics(session: DesignSession) -> None:
     intent = ui.select(["Reactor", "Research"], label="Design intent", value="Reactor")
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked:
+            ui.notify(
+                f"Busy: {task} — wait or force-clear from Helm."
+                if not is_owner
+                else "Control Room already holds the run lock.",
+                type="warning",
+            )
+            return
+        if not runlock_acquire("Control Room: Local forensics", "ControlRoom"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
         try:
             rep = await run.io_bound(
                 run_local_forensics,
@@ -254,6 +268,8 @@ def _local_forensics(session: DesignSession) -> None:
             _forensics_view.refresh()
         except Exception as exc:
             ui.notify(f"Forensics failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
 
     ui.button("Run local sensitivity forensics", icon="search", on_click=_run).props("outline")
     _forensics_view(session)

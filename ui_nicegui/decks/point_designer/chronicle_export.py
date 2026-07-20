@@ -74,6 +74,20 @@ def render_chronicle_export(session: DesignSession) -> None:
             ).classes("text-caption q-mb-sm")
 
             async def _search() -> None:
+                from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+                locked, task, is_owner = runlock_status("PointDesigner")
+                if locked:
+                    ui.notify(
+                        f"Busy: {task} — wait or force-clear from Helm."
+                        if not is_owner
+                        else "Point Designer already holds the run lock.",
+                        type="warning",
+                    )
+                    return
+                if not runlock_acquire("Point Designer: Nearest feasible", "PointDesigner"):
+                    ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                    return
                 ui.notify("Searching nearest feasible…", type="info")
                 try:
                     rep = await run.io_bound(search_nearest_feasible, session)
@@ -84,6 +98,8 @@ def render_chronicle_export(session: DesignSession) -> None:
                     _frontier_panel.refresh()
                 except Exception as exc:
                     ui.notify(f"Frontier search failed: {exc}", type="negative")
+                finally:
+                    runlock_release("PointDesigner")
 
             ui.button("Search nearest feasible within bounds", on_click=_search).classes("q-mb-sm")
             _frontier_panel(session)

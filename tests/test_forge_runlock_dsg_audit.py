@@ -20,6 +20,8 @@ def test_run_lock_blocks_cross_owner() -> None:
     assert locked_pd is True
     assert is_pd is False
     assert acquire("Forge: test", FORGE_RUNLOCK_OWNER) is False
+    # Same-owner re-entry must also fail (non-reentrant).
+    assert acquire("Point Designer: again", "PointDesigner") is False
     release("PointDesigner")
     assert acquire("Forge: test", FORGE_RUNLOCK_OWNER) is True
     release(FORGE_RUNLOCK_OWNER)

@@ -1,4 +1,8 @@
-"""Global UX run lock — prevents overlapping long evaluations across decks."""
+"""Global UX run lock — prevents overlapping long evaluations across decks.
+
+Non-reentrant: the same owner cannot acquire twice. A successful acquire must be
+paired with ``release(owner)`` from that owner (or ``force_clear`` for orphan recovery).
+"""
 from __future__ import annotations
 
 import threading
@@ -10,9 +14,10 @@ _task: Optional[str] = None
 
 
 def acquire(task: str, owner: str) -> bool:
+    """Acquire the global run lock. Fails if any holder exists (including same owner)."""
     global _holder, _task
     with _lock:
-        if _holder is not None and _holder != owner:
+        if _holder is not None:
             return False
         _holder = owner
         _task = task
