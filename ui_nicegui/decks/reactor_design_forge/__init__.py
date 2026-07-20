@@ -31,6 +31,7 @@ from ui_nicegui.lib.forge_labels import (
 from ui_nicegui.lib.forge_helpers import summarize_forge_state
 from ui_nicegui.lib.forge_machine_finder_helpers import summarize_workbench_run
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 _LEGACY_FROM_TAB = {
     "1 · Compile Intent": "Intent Compiler",
@@ -98,7 +99,7 @@ def render_reactor_design_forge(session: DesignSession) -> None:
                 "Expert view",
                 value=session.forge_expert_view,
                 on_change=lambda e: (
-                    setattr(session, "forge_expert_view", bool(e.value)),
+                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="forge_expert_view"),
                     _render_tab_body.refresh(),
                 ),
             )

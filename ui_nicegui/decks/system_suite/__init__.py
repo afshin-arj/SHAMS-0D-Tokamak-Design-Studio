@@ -27,6 +27,7 @@ from ui_nicegui.lib.suite_labels import (
 from ui_nicegui.lib.suite_overlay_helpers import render_overlay_status_panel
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 _SUITE_OVERLAYS: Optional[dict[str, Any]] = None
 
@@ -189,7 +190,7 @@ def render_system_suite(session: DesignSession) -> None:
                 "Expert view",
                 value=session.suite_expert_view,
                 on_change=lambda e: (
-                    setattr(session, "suite_expert_view", bool(e.value)),
+                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="suite_expert_view"),
                     _render_tab_content.refresh(),
                 ),
             )

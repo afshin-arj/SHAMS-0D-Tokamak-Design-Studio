@@ -15,20 +15,22 @@ OBJ_CATALOG: Dict[str, Dict[str, str]] = {
     "P_e_net_MW": {"units": "MW", "desc": "Net electric power"},
     "Q_DT_eqv": {"units": "-", "desc": "Equivalent DT gain"},
     "H98": {"units": "-", "desc": "H-mode confinement factor"},
-    "Pfus_DT_adj_MW": {"units": "MW", "desc": "Adjusted DT fusion power"},
+    "Pfus_DT_adj_MW": {"units": "MW", "desc": "DT-adjusted fusion power (screening)"},
+    "Pfus_total_MW": {"units": "MW", "desc": "Total fusion power"},
     "tauE_eff_s": {"units": "s", "desc": "Effective energy confinement time"},
     "t_flat_s": {"units": "s", "desc": "Flat-top burn duration"},
     "beta_N": {"units": "-", "desc": "Normalized beta"},
     "q_div_MW_m2": {"units": "MW/m^2", "desc": "Divertor heat-flux proxy"},
     "sigma_vm_MPa": {"units": "MPa", "desc": "Von Mises stress proxy"},
     "hts_margin_cs": {"units": "-", "desc": "HTS margin (critical surface)"},
-    "TBR": {"units": "-", "desc": "Tritium breeding ratio"},
+    "TBR": {"units": "-", "desc": "Tritium breeding ratio (screening proxy)"},
     "P_recirc_MW": {"units": "MW", "desc": "Recirculating power"},
 }
 
 FOCUS_METRIC_KEYS = [
     "Q_DT_eqv",
     "H98",
+    "Pfus_total_MW",
     "Pfus_DT_adj_MW",
     "P_e_net_MW",
     "TBR",
@@ -66,7 +68,7 @@ OBJ_TEMPLATES: Dict[str, Optional[Dict[str, str]]] = {
         "R0_m": "min",
     },
     "Reactor - Fusion power": {
-        "Pfus_DT_adj_MW": "max",
+        "Pfus_total_MW": "max",
         "Q_DT_eqv": "max",
         "q_div_MW_m2": "min",
         "R0_m": "min",

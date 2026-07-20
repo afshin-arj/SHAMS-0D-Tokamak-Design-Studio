@@ -28,6 +28,7 @@ from ui_nicegui.lib.pub_helpers import (
     render_pub_suite_handoff_shortcut,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 
 def _refresh_verdict() -> None:
@@ -142,7 +143,7 @@ def _render_mode_switches(session: DesignSession) -> None:
         _render_deck_status.refresh()
 
     def _on_expert(e) -> None:
-        session.pub_expert_view = bool(e.value)
+        sync_deck_expert_to_helm(session, bool(e.value), deck_attr="pub_expert_view")
         _render_decision_chrome.refresh()
         _render_tab_body.refresh()
         _render_deck_status.refresh()

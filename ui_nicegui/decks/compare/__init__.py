@@ -26,12 +26,18 @@ from ui_nicegui.lib.compare_labels import (
 )
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 
 def _refresh_all() -> None:
     _render_verdict.refresh()
     _render_workflow.refresh()
     _render_tab_body.refresh()
+    # Slot loads use refresh=False to avoid full remount lag — still sync Helm posture.
+    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+    refresh_helm()
+    refresh_status()
 
 
 def render_compare(session: DesignSession) -> None:
@@ -77,7 +83,7 @@ def render_compare(session: DesignSession) -> None:
                 "Expert view",
                 value=session.cmp_expert_view,
                 on_change=lambda e: (
-                    setattr(session, "cmp_expert_view", bool(e.value)),
+                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="cmp_expert_view"),
                     _render_tab_body.refresh(),
                 ),
             )

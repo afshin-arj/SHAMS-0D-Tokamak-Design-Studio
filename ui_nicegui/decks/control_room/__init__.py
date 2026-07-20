@@ -17,6 +17,7 @@ from ui_nicegui.lib.control_room_labels import (
 from ui_nicegui.session import DesignSession
 
 from ui_nicegui.lib.control_room_helpers import CR_SECTIONS, read_version
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 # Legacy section names ported from Streamlit (see test_nicegui_phase18).
 _PORTED = frozenset(CR_SECTIONS)
@@ -92,7 +93,7 @@ def _render_mode_switches(session: DesignSession) -> None:
         _render_section.refresh()
 
     def _on_expert(e) -> None:
-        session.cr_expert_view = bool(e.value)
+        sync_deck_expert_to_helm(session, bool(e.value), deck_attr="cr_expert_view")
         _render_decision_chrome.refresh()
         _render_section.refresh()
 

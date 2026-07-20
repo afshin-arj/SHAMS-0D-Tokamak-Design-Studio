@@ -32,6 +32,7 @@ from ui_nicegui.lib.scan_labels import (
     teaching_banner,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 
 def _consume_scan_probe_focus(session: DesignSession) -> None:
@@ -117,7 +118,7 @@ def render_scan_lab(session: DesignSession) -> None:
                 "Expert view",
                 value=session.scan_expert_view,
                 on_change=lambda e: (
-                    setattr(session, "scan_expert_view", bool(e.value)),
+                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="scan_expert_view"),
                     _render_tab_body.refresh(),
                 ),
             )

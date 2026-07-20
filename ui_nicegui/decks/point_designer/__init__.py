@@ -30,6 +30,7 @@ from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlo
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 
 
 def _pd_active(session: DesignSession) -> bool:
@@ -105,7 +106,7 @@ def render_point_designer(session: DesignSession) -> None:
                 "Expert view",
                 value=session.pd_expert_view,
                 on_change=lambda e: (
-                    setattr(session, "pd_expert_view", bool(e.value)),
+                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="pd_expert_view"),
                     _render_tab_body.refresh(),
                 ),
             )

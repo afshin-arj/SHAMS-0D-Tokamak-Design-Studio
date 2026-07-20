@@ -27,6 +27,7 @@ from ui_nicegui.lib.helm_helpers import (
     verification_report_paths,
 )
 from ui_nicegui.components.helm_workflow_panel import render_deck_navigation, render_workflow_compass
+from ui_nicegui.lib.expert_mode import apply_expert_mode
 from ui_nicegui.lib.helm_labels import (
     DESIGN_INTENT_OPTIONS,
     HELM_NAV_GROUPS,
@@ -68,6 +69,16 @@ def _read_log_tail(session: DesignSession) -> str:
         return lg.get_text(last_n=n)
     except Exception:
         return ""
+
+
+def _on_expert_mode(session: DesignSession, enabled: bool) -> None:
+    apply_expert_mode(session, enabled)
+    from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
+
+    # Deck bodies that hide expert panels need a remount/refresh to pick up the flag.
+    refresh_active_deck()
+    refresh_helm()
+    refresh_status()
 
 
 def render_helm_console(
@@ -143,10 +154,11 @@ def _helm_settings_section(session: DesignSession, *, on_deck_change: Callable[[
         ui.switch(
             "Expert solver controls",
             value=session.expert_mode,
-            on_change=lambda e: setattr(session, "expert_mode", bool(e.value)),
+            on_change=lambda e: _on_expert_mode(session, bool(e.value)),
         ).props(helm_dark_props("disable" if session.forge_review_mode else ""))
         ui.label(
-            "Expose solver tolerances and optimizer internals in exploration decks."
+            "Expose solver tolerances and optimizer internals in exploration decks "
+            "(carries across Systems / Scan / Pareto / Trade / Forge / Suite / Compare / Pub / CR / PD)."
         ).classes("text-caption")
         if session.forge_review_mode:
             ui.label("Disabled in Review Mode (Reactor Design Forge).").classes("text-caption text-orange")
