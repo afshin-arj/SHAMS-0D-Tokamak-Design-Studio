@@ -165,10 +165,12 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
     busy = bool(
         session.evaluating
         or session.scan_running
+        or getattr(session, "scan_legacy_running", False)
         or session.pareto_running
         or session.trade_running
         or session.systems_precheck_running
         or getattr(session, "systems_recovery_running", False)
+        or getattr(session, "systems_fs_running", False)
         or session.forge_mf_running
         or session.suite_running
         or session.pub_running
@@ -181,12 +183,16 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         return busy, task, holder
     if session.scan_running:
         return busy, "Scan Lab cartography", holder
+    if getattr(session, "scan_legacy_running", False):
+        return busy, "Scan Lab: Legacy nested", holder
     if session.pareto_running:
         return busy, "Pareto Lab study", holder
     if session.trade_running:
         return busy, "Trade Study", holder
     if session.systems_precheck_running:
         return busy, "Systems Mode: Precheck", holder
+    if getattr(session, "systems_fs_running", False):
+        return busy, "Systems Mode: Feasible search", holder
     if getattr(session, "systems_recovery_running", False):
         return busy, "Systems Mode: Recovery", holder
     if session.evaluating:

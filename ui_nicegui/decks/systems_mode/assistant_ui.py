@@ -82,21 +82,33 @@ def _proposal_list(session: DesignSession, *, on_change=None) -> None:
             )
 
             async def _apply(p=pr) -> None:
-                push_assistant_undo(session, targets=targets, variables=variables)
-                apply_proposal_to_session(session, p)
-                base, t_now, v_now = resolve_systems_problem(session)
-                report = await run.io_bound(
-                    run_systems_precheck,
-                    base,
-                    t_now,
-                    v_now,
-                    n_random=session.systems_precheck_n_random,
-                    seed=session.systems_precheck_seed,
-                    design_intent=session.design_intent,
-                )
-                session.last_precheck_report = report
-                ui.notify("Applied — precheck re-run", type="positive")
-                if on_change:
-                    on_change()
+                from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+                locked, task, is_owner = runlock_status("SystemsMode")
+                if locked and not is_owner:
+                    ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+                    return
+                if not runlock_acquire("Systems Mode: Assistant apply", "SystemsMode"):
+                    ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                    return
+                try:
+                    push_assistant_undo(session, targets=targets, variables=variables)
+                    apply_proposal_to_session(session, p)
+                    base, t_now, v_now = resolve_systems_problem(session)
+                    report = await run.io_bound(
+                        run_systems_precheck,
+                        base,
+                        t_now,
+                        v_now,
+                        n_random=session.systems_precheck_n_random,
+                        seed=session.systems_precheck_seed,
+                        design_intent=session.design_intent,
+                    )
+                    session.last_precheck_report = report
+                    ui.notify("Applied — precheck re-run", type="positive")
+                    if on_change:
+                        on_change()
+                finally:
+                    runlock_release("SystemsMode")
 
             ui.button("Apply", on_click=_apply).props("dense outline")

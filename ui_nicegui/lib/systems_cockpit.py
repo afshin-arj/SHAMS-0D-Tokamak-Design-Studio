@@ -81,7 +81,7 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
         f"- Dominant mechanism: {mech}",
         "",
         "## Key KPIs",
-        f"- P_fus [MW]: {fmt(out.get('Pfus_total_MW', out.get('Pfus_DT_adj_MW', out.get('Pfus_MW'))))}",
+        f"- P_fus [MW]: {fmt(out.get('Pfus_total_MW', out.get('P_fus_MW')))}",
         f"- P_net [MW]: {fmt(out.get('P_e_net_MW', out.get('P_net_e_MW', out.get('Pnet_MWe'))))}",
         f"- Q_plasma: {fmt(out.get('Q_DT_eqv', out.get('Q')))}",
         f"- β_N: {fmt(out.get('beta_N', out.get('betaN_proxy', out.get('betaN'))))}",

@@ -71,7 +71,7 @@ def render_certified_search(session: DesignSession) -> None:
         value="Single objective",
     ).classes("w-full")
     objective = ui.select(
-        ["Q_DT_eqv", "P_fus_MW", "P_e_net_MW"],
+        ["Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW"],
         label="Score objective (VERIFIED / PASS-only ranking)",
         value="Q_DT_eqv",
     ).classes("w-full")
@@ -96,12 +96,21 @@ def render_certified_search(session: DesignSession) -> None:
     surr_frac = ui.number("Surrogate budget fraction", value=0.2, min=0.05, max=0.6, step=0.05)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         knobs = list(chosen.value or [])
         if not knobs:
             ui.notify("Select at least one knob", type="warning")
             return
         if len(knobs) > 4:
             ui.notify("Select at most 4 knobs", type="warning")
+            return
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Control Room: Certified search", "ControlRoom"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         variables = []
         for name in knobs:
@@ -148,6 +157,8 @@ def render_certified_search(session: DesignSession) -> None:
             _results.refresh(session)
         except Exception as exc:
             ui.notify(f"Certified search failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
 
     ui.button("Run certified search", icon="travel_explore", on_click=_run).props("color=primary outline q-mt-sm")
 

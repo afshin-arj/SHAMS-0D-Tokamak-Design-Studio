@@ -319,6 +319,17 @@ def governance_summary(session: Any) -> Dict[str, Any]:
     q_label = str(vs.get("q_label", "-")) if vs.get("loaded") else "-"
     if vs.get("loaded") and not feasible and q_label not in ("-", ""):
         q_label = f"{q_label} (diagnostic)"
+    stale = False
+    try:
+        from ui_nicegui.lib.pd_solver_helpers import inputs_stale
+
+        stale = bool(getattr(session, "pd_last_run_ts", None) and inputs_stale(session))
+    except Exception:
+        stale = False
+    if stale:
+        verdict = f"STALE · {verdict}" if verdict and verdict != "-" else "STALE"
+        if pfus_label not in ("-", "— (diagnostic)"):
+            pfus_label = f"{pfus_label} (stale)"
     return {
         "version": ver,
         "active_deck": str(getattr(session, "active_deck", "-")),
@@ -331,6 +342,7 @@ def governance_summary(session: Any) -> Dict[str, Any]:
         "design_class": design_confidence_class(art) if isinstance(art, dict) else "-",
         "feasible_hard": kpis.get("feasible_hard"),
         "hygiene_ok": bool(hygiene.get("packaging_ok", hygiene.get("ok"))),
+        "inputs_stale": stale,
     }
 
 

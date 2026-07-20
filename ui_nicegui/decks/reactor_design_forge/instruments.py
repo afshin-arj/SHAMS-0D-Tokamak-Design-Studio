@@ -270,8 +270,18 @@ def _local_cartography_controls(session: DesignSession, ctx: ForgeContext, revie
         w.on("update:model-value", lambda: _sync_local())
 
     async def _run_local() -> None:
+        from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if review_mode:
             ui.notify("Review Mode: cartography disabled", type="warning")
+            return
+        locked, task, is_owner = runlock_status(FORGE_RUNLOCK_OWNER)
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Reactor Design Forge: Local cartography", FORGE_RUNLOCK_OWNER):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         from ui_nicegui.lib.forge_instrument_engine import run_local_cartography
 
@@ -282,6 +292,8 @@ def _local_cartography_controls(session: DesignSession, ctx: ForgeContext, revie
             _render_body.refresh()
         except Exception as exc:
             ui.notify(f"Cartography failed: {exc}", type="negative")
+        finally:
+            runlock_release(FORGE_RUNLOCK_OWNER)
 
     ui.button("Run local cartography", icon="grid_on", on_click=_run_local).props("outline q-mb-sm")
 
@@ -298,8 +310,18 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
     pct_sl.on("update:model-value", lambda: _sync_uq())
 
     async def _run_uq() -> None:
+        from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if review_mode:
             ui.notify("Review Mode: UQ disabled", type="warning")
+            return
+        locked, task, is_owner = runlock_status(FORGE_RUNLOCK_OWNER)
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Reactor Design Forge: Robustness MC", FORGE_RUNLOCK_OWNER):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         from ui_nicegui.lib.forge_instrument_engine import run_robustness_mc
 
@@ -309,6 +331,8 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
             _render_body.refresh()
         except Exception as exc:
             ui.notify(f"Monte Carlo failed: {exc}", type="negative")
+        finally:
+            runlock_release(FORGE_RUNLOCK_OWNER)
 
     ui.button("Run robustness Monte Carlo", icon="casino", on_click=_run_uq).props("outline q-mb-sm")
 
@@ -325,12 +349,22 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
         _render_body.refresh()
 
     async def _run_casebook() -> None:
+        from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
         if review_mode:
             ui.notify("Review Mode: casebook run disabled", type="warning")
             return
         book = session.forge_casebook or []
         if len(book) < 1:
             ui.notify("Add at least one case", type="warning")
+            return
+        locked, task, is_owner = runlock_status(FORGE_RUNLOCK_OWNER)
+        if locked and not is_owner:
+            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
+            return
+        if not runlock_acquire("Reactor Design Forge: Casebook", FORGE_RUNLOCK_OWNER):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         from ui_nicegui.lib.forge_machine_finder_helpers import run_machine_finder, compute_bounds, objectives_for_pack
 
@@ -341,35 +375,38 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
         bounds = compute_bounds(anchor, var_keys, bound_mode=session.forge_mf_bound_mode, custom_bounds=session.forge_mf_custom_bounds)
         intent = str(ctx.intent)
         objectives = objectives_for_pack(intent, session.forge_mf_pack_name)
-        for case in book[:5]:
-            try:
-                rep = await run.io_bound(
-                    run_machine_finder,
-                    intent=intent,
-                    anchor=anchor,
-                    var_keys=var_keys,
-                    bounds=bounds,
-                    objectives=objectives,
-                    pop_size=32,
-                    generations=15,
-                    surrogate_rounds=2,
-                    local_steps=20,
-                    archive_topk=20,
-                    require_feasible_only=True,
-                    seed=int(case.get("seed", 1)),
-                )
-                tr = rep.get("trace") or []
-                results.append({
-                    "case": case.get("name"),
-                    "lens": case.get("lens"),
-                    "n_eval": len(tr),
-                    "n_feasible": sum(1 for t in tr if t.get("feasible")),
-                })
-            except Exception as exc:
-                results.append({"case": case.get("name"), "lens": case.get("lens"), "n_eval": 0, "n_feasible": 0, "error": str(exc)})
-        session.forge_casebook_results = results
-        ui.notify("Casebook run complete", type="positive")
-        _render_body.refresh()
+        try:
+            for case in book[:5]:
+                try:
+                    rep = await run.io_bound(
+                        run_machine_finder,
+                        intent=intent,
+                        anchor=anchor,
+                        var_keys=var_keys,
+                        bounds=bounds,
+                        objectives=objectives,
+                        pop_size=32,
+                        generations=15,
+                        surrogate_rounds=2,
+                        local_steps=20,
+                        archive_topk=20,
+                        require_feasible_only=True,
+                        seed=int(case.get("seed", 1)),
+                    )
+                    tr = rep.get("trace") or []
+                    results.append({
+                        "case": case.get("name"),
+                        "lens": case.get("lens"),
+                        "n_eval": len(tr),
+                        "n_feasible": sum(1 for t in tr if t.get("feasible")),
+                    })
+                except Exception as exc:
+                    results.append({"case": case.get("name"), "lens": case.get("lens"), "n_eval": 0, "n_feasible": 0, "error": str(exc)})
+            session.forge_casebook_results = results
+            ui.notify("Casebook run complete", type="positive")
+            _render_body.refresh()
+        finally:
+            runlock_release(FORGE_RUNLOCK_OWNER)
 
     with ui.row().classes("gap-2"):
         ui.button("Add case", icon="add", on_click=_add_case).props("outline")

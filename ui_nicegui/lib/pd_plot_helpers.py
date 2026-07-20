@@ -61,7 +61,7 @@ def _barh_png(labels: List[str], values: List[float], *, title: str, xlabel: str
 
 def plot_power_stack(out: Dict[str, Any]) -> Optional[bytes]:
     pairs = [
-        ("Fusion", _sf(out.get("Pfus_total_MW", out.get("Pfus_DT_adj_MW", out.get("P_fus_MW", out.get("Pfus_MW")))))),
+        ("Fusion", _sf(out.get("Pfus_total_MW", out.get("P_fus_MW", out.get("Pfus_MW"))))),
         ("Aux", _sf(out.get("Paux_MW"))),
         ("Recirc", _sf(out.get("P_recirc_MW", out.get("P_e_recirc_MW")))),
         ("Net", _sf(out.get("P_e_net_MW", out.get("P_net_e_MW")))),
@@ -116,8 +116,8 @@ def plot_engineering_severity(out: Dict[str, Any]) -> Optional[bytes]:
 def plot_power_balance_bars(out: Dict[str, Any]) -> Optional[bytes]:
     keys = {
         "Paux": out.get("Paux_MW"),
-        "Pfus": out.get("Pfus_total_MW", out.get("Pfus_DT_adj_MW")),
-        "Pα": out.get("Palpha_MW", out.get("Palpha_dep_MW")),
+        "Pfus": out.get("Pfus_total_MW", out.get("P_fus_MW")),
+        "Pα": out.get("Palpha_MW"),
         "Prad": out.get("Prad_core_MW"),
         "P_SOL": out.get("P_SOL_MW"),
         "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW")),
@@ -173,7 +173,7 @@ def plot_confinement(out: Dict[str, Any]) -> Optional[bytes]:
     pairs = [
         ("H98", _sf(out.get("H98"))),
         ("H_regime", _sf(out.get("H_regime"))),
-        ("τE_eff (s)", _sf(out.get("tauE_eff_s", out.get("tauE_s", out.get("tau_E_s"))))),
+        ("τE_eff (s)", _sf(out.get("tauE_eff_s", out.get("tauE_s")))),
         ("τIPB98 (s)", _sf(out.get("tauIPB98_s", out.get("tauIPB")))),
     ]
     labs, vals = [], []

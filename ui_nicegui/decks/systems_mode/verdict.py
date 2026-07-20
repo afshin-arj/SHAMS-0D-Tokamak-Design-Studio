@@ -109,8 +109,14 @@ def render_posture_strip(
 
     from ui_nicegui.components.verdict_banner import verdict_banner
 
-    detail_bits = []
     src = str(art.get("source") or "")
+    if src == "point_designer_fallback":
+        ui.badge("POINT DESIGNER BASELINE", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "This posture is the Point Designer evaluation — run Precheck / Target solve for a Systems Mode result."
+        ).classes("text-caption text-orange q-mb-xs")
+
+    detail_bits = []
     if src == "point_designer_fallback":
         detail_bits.append("PD baseline (not a Systems solve)")
     elif src == "systems_solve":
@@ -124,11 +130,6 @@ def render_posture_strip(
     if next_action:
         detail_bits.append(f"Next: {next_action}")
     verdict_banner(str(verdict or "UNKNOWN"), detail=" · ".join(detail_bits))
-    if src == "point_designer_fallback":
-        ui.badge("POINT DESIGNER BASELINE", color="orange").props("outline").classes("q-mb-xs")
-        ui.label(
-            "This posture is the Point Designer evaluation — run Precheck / Target solve for a Systems Mode result."
-        ).classes("text-caption text-orange q-mb-xs")
     if kpis.get("mirage"):
         ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
     kpi_row([
