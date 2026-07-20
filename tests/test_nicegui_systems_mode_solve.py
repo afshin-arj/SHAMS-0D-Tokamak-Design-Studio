@@ -89,10 +89,23 @@ def test_systems_target_rows_after_solve() -> None:
     s = DesignSession()
     s.systems_use_q = True
     s.systems_q_target = 10.0
-    rows = systems_target_rows(s, {"Q_DT_eqv": 9.5, "H98": 1.1})
+    rows = systems_target_rows(s, {"Q_DT_eqv": 9.5, "H98": 1.1}, feasible=True)
     assert rows
     assert rows[0]["quantity"] == "Q_DT_eqv"
     assert rows[0]["status"] in ("ok", "miss", "n/a")
+
+
+def test_systems_target_rows_infeasible_never_ok() -> None:
+    from ui_nicegui.lib.systems_target_banner import systems_target_rows
+
+    s = DesignSession()
+    s.systems_use_q = True
+    s.systems_q_target = 10.0
+    # Value meets the ≥ floor numerically, but intent is infeasible.
+    rows = systems_target_rows(s, {"Q_DT_eqv": 12.0}, feasible=False)
+    assert rows
+    assert rows[0]["status"] == "diag"
+    assert "ok" not in {r["status"] for r in rows}
 
 
 def test_validate_systems_problem_dimension() -> None:

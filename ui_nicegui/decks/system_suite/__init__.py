@@ -99,9 +99,9 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
     subs = summary.get("subsystems") or {}
     with ui.row().classes("gap-2 q-mt-xs flex-wrap"):
         for name in ("magnets", "exhaust", "neutronics", "control", "transport", "plant"):
-            status = subs.get(name, "pass")
-            color = {"pass": "green", "fail": "red", "warn": "orange"}.get(status, "grey")
-            ui.badge(name.title(), color=color).props("outline")
+            status = subs.get(name, "n/a")
+            color = {"pass": "green", "fail": "red", "warn": "orange", "n/a": "grey"}.get(status, "grey")
+            ui.badge(f"{name.title()}: {status}", color=color).props("outline")
     badges = authority_version_badges(point_out)
     if badges:
         with ui.row().classes("gap-1 q-mt-xs flex-wrap"):

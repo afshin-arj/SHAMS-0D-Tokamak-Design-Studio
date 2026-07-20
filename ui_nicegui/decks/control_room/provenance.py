@@ -211,6 +211,18 @@ def _render_repro_lock(session: DesignSession) -> None:
         if not isinstance(lock, dict) or lock.get("kind") != "shams_repro_lock":
             ui.notify("Create or upload a lock first", type="warning")
             return
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("ControlRoom")
+        if locked and not is_owner:
+            ui.notify(f"Run lock busy: {task or 'another task'}", type="warning")
+            return
+        if not runlock_acquire("Control Room: Repro replay", "ControlRoom"):
+            ui.notify("Run lock busy (another deck is evaluating).", type="warning")
+            return
+        refresh_status()
+        refresh_helm()
         try:
             rep = await run.io_bound(replay_check, lock, {})
             session.cr_replay_report_last = rep
@@ -219,6 +231,10 @@ def _render_repro_lock(session: DesignSession) -> None:
             _replay_view.refresh()
         except Exception as exc:
             ui.notify(f"Replay failed: {exc}", type="negative")
+        finally:
+            runlock_release("ControlRoom")
+            refresh_status()
+            refresh_helm()
 
     ui.button("Run replay check", icon="replay", on_click=_replay).props("outline flat")
     _lock_dl(session)

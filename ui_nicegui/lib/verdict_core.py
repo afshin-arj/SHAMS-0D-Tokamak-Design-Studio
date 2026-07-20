@@ -29,12 +29,15 @@ def _classify_subsystem(name: str) -> str:
 
 
 def _subsystem_status_from_bundle(bundle) -> Dict[str, str]:
-    status: Dict[str, str] = {k: "pass" for k in _SUBSYSTEM_GROUPS}
-    status["other"] = "pass"
+    # Default n/a — never imply PASS for subsystems with no applicable evidence.
+    status: Dict[str, str] = {k: "n/a" for k in _SUBSYSTEM_GROUPS}
+    status["other"] = "n/a"
     for c in bundle.governance:
-        if bool(getattr(c, "passed", True)):
-            continue
         sub = _classify_subsystem(str(getattr(c, "name", "")))
+        if bool(getattr(c, "passed", True)):
+            if status.get(sub) == "n/a":
+                status[sub] = "pass"
+            continue
         if constraint_is_hard(c):
             status[sub] = "fail"
         elif status.get(sub) != "fail":

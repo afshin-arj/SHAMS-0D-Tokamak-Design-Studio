@@ -292,7 +292,7 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
                     path_follow_scan,
                     session.build_point_inputs(),
                     rep,
-                    target_output="q95",
+                    target_output="q95_proxy",
                     intent=it,
                 )
                 session.scan_path_follow_last = out
@@ -304,7 +304,11 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
                 return
             session.scan_causality_last = out if isinstance(out, dict) else {"result": out}
             _tier_results.refresh()
-            ui.notify("Insight complete.", type="positive")
+            if isinstance(out, dict) and out.get("ok") is False:
+                reason = out.get("reason") or out.get("error") or "unknown"
+                ui.notify(f"Insight did not complete: {reason}", type="warning")
+            else:
+                ui.notify("Insight complete.", type="positive")
         except Exception as exc:
             ui.notify(f"Tool failed: {exc}", type="negative")
 
@@ -313,9 +317,9 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
             "text-caption text-orange q-mb-xs"
         )
     if pick == "Path-follow scan":
-        ui.label("Follows y to hold a target output as x varies along the scan axis.").classes(
-            "text-caption q-mb-xs"
-        )
+        ui.label(
+            "Follows y to hold q95_proxy (cylindrical screening) as x varies — not an equilibrium q95."
+        ).classes("text-caption q-mb-xs")
 
     ui.button("Run landscape insight", icon="analytics", on_click=_run_tier).props("outline q-mb-sm")
     _tier_results(session)

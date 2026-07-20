@@ -15,8 +15,17 @@ def _sf(x: Any) -> float:
         return float("nan")
 
 
-def systems_target_rows(session: DesignSession, out: Optional[Dict[str, Any]] = None) -> List[Dict[str, str]]:
-    """Rows for target-vs-achieved table after systems target solve."""
+def systems_target_rows(
+    session: DesignSession,
+    out: Optional[Dict[str, Any]] = None,
+    *,
+    feasible: Optional[bool] = None,
+) -> List[Dict[str, str]]:
+    """Rows for target-vs-achieved table after systems target solve.
+
+    When ``feasible`` is False (intent-infeasible), target attainment is labeled
+    ``diag`` — never ``ok`` — so experts do not read INFEASIBLE solves as PASS (PHYS-KPI-001).
+    """
     _, targets, _ = resolve_systems_problem(session)
     if not targets:
         return []
@@ -45,6 +54,9 @@ def systems_target_rows(session: DesignSession, out: Optional[Dict[str, Any]] = 
                 flag = "ok" if rel <= max(tol, 1e-3) * 10 else "miss"
         else:
             flag = "n/a"
+        # PHYS-KPI-001: never present target floors as "ok" on an intent-infeasible point.
+        if feasible is False and flag == "ok":
+            flag = "diag"
         label = {
             "Q_DT_eqv": "Q_DT_eqv",
             "H98": "H98(y,2)",

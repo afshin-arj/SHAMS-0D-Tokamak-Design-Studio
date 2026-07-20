@@ -27,23 +27,36 @@ def render_audit_panel(session: DesignSession) -> None:
     ui.label(f"{len(cands)} candidate(s)").classes("text-caption")
 
     if ranked:
+        any_infeas = any(not bool(c.get("feasible")) for c in ranked[:10])
+        if any_infeas:
+            ui.label(
+                "PHYS-KPI-001: Q / P_net on INFEASIBLE candidates are diagnostic residue — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         rows = []
         for i, c in enumerate(ranked[:10]):
             h = c.get("headline") or {}
+            feas = bool(c.get("feasible"))
+            q_raw = h.get("Q")
+            p_raw = h.get("P_net")
+            if feas:
+                q_disp, p_disp = q_raw, p_raw
+            else:
+                q_disp = f"{q_raw} (diag)" if q_raw is not None else "— (infeasible)"
+                p_disp = f"{p_raw} (diag)" if p_raw is not None else "— (infeasible)"
             rows.append({
                 "rank": i + 1,
                 "source": c.get("source"),
-                "feasible": c.get("feasible"),
-                "Q": h.get("Q"),
-                "P_net": h.get("P_net"),
+                "feasible": feas,
+                "Q": q_disp,
+                "P_net": p_disp,
             })
         ui.table(
             columns=[
                 {"name": "rank", "label": "#", "field": "rank"},
                 {"name": "source", "label": "Source", "field": "source"},
-                {"name": "feasible", "label": "OK", "field": "feasible"},
-                {"name": "Q", "label": "Q", "field": "Q"},
-                {"name": "P_net", "label": "P_net", "field": "P_net"},
+                {"name": "feasible", "label": "Feasible", "field": "feasible"},
+                {"name": "Q", "label": "Q (diag if infeas)", "field": "Q"},
+                {"name": "P_net", "label": "P_net (diag if infeas)", "field": "P_net"},
             ],
             rows=rows,
             row_key="rank",

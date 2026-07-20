@@ -526,9 +526,30 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
     camp = inspect.getsource(suite_tabs)
     assert "System Suite: Generate candidates" in camp
     assert "System Suite: Export campaign ZIP" in camp
+    assert "System Suite: Profile corners ZIP" in camp
+    assert "THERMAL UNEVALUATED" in camp
+    assert "n_unknown" in camp
     lock_src = inspect.getsource(sh.try_acquire_suite_lock)
     assert "refresh_helm" in lock_src
     assert "BUDGET INCOMPLETE" in inspect.getsource(sh.lifetime_binding_summary)
+
+    from ui_nicegui.lib.systems_target_banner import systems_target_rows
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.systems_use_q = True
+    s.systems_q_target = 10.0
+    assert systems_target_rows(s, {"Q_DT_eqv": 12.0}, feasible=False)[0]["status"] == "diag"
+
+    from ui_nicegui.decks.control_room import provenance as cr_prov
+    from ui_nicegui.decks.scan_lab import insights as scan_ins
+    from ui_nicegui.decks.systems_mode import audit_ui
+    from ui_nicegui.lib import verdict_core
+
+    assert "Control Room: Repro replay" in inspect.getsource(cr_prov)
+    assert 'target_output="q95_proxy"' in inspect.getsource(scan_ins)
+    assert "PHYS-KPI-001" in inspect.getsource(audit_ui)
+    assert '"n/a"' in inspect.getsource(verdict_core._subsystem_status_from_bundle)
 
 
 def test_compare_refresh_syncs_helm_chrome() -> None:
