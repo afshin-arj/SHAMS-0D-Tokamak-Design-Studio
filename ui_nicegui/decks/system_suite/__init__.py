@@ -85,13 +85,13 @@ def _render_header(session: DesignSession, point_out: Optional[dict[str, Any]]) 
     )
     kpi_row([(c.label, c.display) for c in cells[:4]])
 
-    beta = point_out.get("betaN", point_out.get("beta_N"))
+    beta = point_out.get("betaN", point_out.get("beta_N", point_out.get("betaN_proxy")))
     fg = point_out.get("fG", point_out.get("greenwald_fraction"))
-    q95 = point_out.get("q95")
+    q95 = point_out.get("q95", point_out.get("q95_proxy"))
     kpi_row([
         ("β_N", _fmt_num(beta)),
         ("f_G", _fmt_num(fg)),
-        ("q95", _fmt_num(q95)),
+        ("q95 (cyl. proxy)", _fmt_num(q95)),
     ])
 
     subs = summary.get("subsystems") or {}

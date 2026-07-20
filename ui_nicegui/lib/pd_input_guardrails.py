@@ -48,3 +48,23 @@ def unrealistic_point_input_warnings(pi: Any, *, context: str = "") -> List[str]
     except (TypeError, ValueError):
         pass
     return warns
+
+
+def notify_input_guardrails(pi: Any, *, context: str = "") -> int:
+    """Batch unrealistic-input warnings into one toast (avoids stacked spam on Evaluate/Solve)."""
+    warns = unrealistic_point_input_warnings(pi, context=context)
+    if not warns:
+        return 0
+    from nicegui import ui
+
+    if len(warns) == 1:
+        ui.notify(warns[0], type="warning")
+    else:
+        head = f"{len(warns)} input guardrail warnings"
+        if context:
+            head = f"{context}: {head}"
+        body = " · ".join(warns[:4])
+        if len(warns) > 4:
+            body += f" · (+{len(warns) - 4} more — see Configure Input guardrails)"
+        ui.notify(f"{head}: {body}", type="warning", multi_line=True)
+    return len(warns)

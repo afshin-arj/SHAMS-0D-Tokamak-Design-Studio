@@ -201,7 +201,9 @@ def _render_run_lock_banner(session: DesignSession) -> None:
 
         with ui.row().classes("w-full items-center gap-2 q-mb-sm"):
             ui.label(
-                f"Busy for {age}s — if no run is actually in progress, this may be an orphaned lock."
+                f"Busy for {age}s — if no run is actually in progress, this may be an orphaned lock. "
+                "Force-clear resets UI busy flags only; it does **not** cancel a live worker thread "
+                "(a finishing job may still write results afterward)."
             ).classes("text-caption text-orange")
             ui.button(
                 "Force-clear stuck run",

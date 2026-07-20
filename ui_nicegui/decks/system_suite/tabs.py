@@ -421,10 +421,13 @@ def render_tab_lifetime_regimes(ctx: SuiteContext) -> None:
                 ("Cycle margin (yr proxy)", _fin(lr.cycles_margin)),
             ])
             kpi_row([
-                ("TBR", _fin(lr.tbr, ".3f")),
+                ("TBR (proxy)", _fin(lr.tbr, ".3f")),
                 ("TBR min", _fin(lr.tbr_min, ".3f")),
                 ("TBR margin", _fin(lr.tbr_margin, ".3f")),
             ])
+            ui.label(
+                "TBR is a screening-level breeding-ratio proxy — no certified neutron-transport TBR in L0."
+            ).classes("text-caption text-grey q-mb-xs")
             bind = lifetime_binding_summary(lr)
             if bind["binding"]:
                 ui.label(f"Binding: {', '.join(bind['binding'])}").classes("text-negative text-caption")

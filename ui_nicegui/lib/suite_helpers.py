@@ -589,7 +589,7 @@ def render_authority_ledger(
         ui.label("Exhaust authority fields not populated.").classes("text-caption text-grey")
 
     kpi_row([
-        ("TBR", _fin(point_out.get("TBR", point_out.get("tbr_proxy")))),
+        ("TBR (proxy)", _fin(point_out.get("TBR", point_out.get("tbr_proxy", point_out.get("tbr_proxy_v403"))))),
         ("FW dpa/yr", _fin(point_out.get("fw_dpa_per_year"))),
         ("TF structural margin", _fin(point_out.get("tf_struct_margin_v389"), ".3f")),
         ("Neutronics materials margin", _fin(point_out.get("nm_min_margin_frac_v401"), ".3f")),

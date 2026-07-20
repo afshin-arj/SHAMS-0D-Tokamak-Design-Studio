@@ -17,6 +17,7 @@ COMPARE_METRICS: List[str] = [
     "betaN",
     "beta_N",
     "q95",
+    "q95_proxy",
     "H98",
     "tauE_eff_s",
     "fG",
@@ -36,12 +37,15 @@ def _pick_output(out: dict, key: str) -> Any:
     aliases = {
         "Q": ["Q_DT_eqv"],
         "Q_DT_eqv": ["Q"],
-        "Pfus_total_MW": ["P_fus_MW"],
-        "P_fus_MW": ["Pfus_total_MW"],
+        "Pfus_total_MW": ["P_fus_MW", "Pfus_DT_adj_MW", "Pfus_MW"],
+        "P_fus_MW": ["Pfus_total_MW", "Pfus_DT_adj_MW"],
         "Bpeak_TF_T": ["B_peak_T"],
         "B_peak_T": ["Bpeak_TF_T"],
-        "beta_N": ["betaN"],
-        "betaN": ["beta_N"],
+        "beta_N": ["betaN", "betaN_proxy"],
+        "betaN": ["beta_N", "betaN_proxy"],
+        "q95": ["q95_proxy"],
+        "q95_proxy": ["q95"],
+        "TBR": ["tbr_proxy_v403"],
     }
     for alt in aliases.get(key, []):
         if alt in out:
@@ -326,15 +330,27 @@ def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
         "feasible_b": bool(sb.get("feasible")),
         "dominant_a": sa.get("dominant", "-"),
         "dominant_b": sb.get("dominant", "-"),
-        "q_a": sa.get("q_label", "-"),
-        "q_b": sb.get("q_label", "-"),
-        "h98_a": _fmt_kpi((na.get("outputs") or {}).get("H98")),
-        "h98_b": _fmt_kpi((nb.get("outputs") or {}).get("H98")),
-        "pfus_a": _fmt_kpi(
-            _pick_output(na.get("outputs") or {}, "Pfus_total_MW")
+        "q_a": sa.get("q_label", "-") if bool(sa.get("feasible")) else "— (diagnostic)",
+        "q_b": sb.get("q_label", "-") if bool(sb.get("feasible")) else "— (diagnostic)",
+        "h98_a": (
+            _fmt_kpi((na.get("outputs") or {}).get("H98"))
+            if bool(sa.get("feasible"))
+            else "— (diagnostic)"
         ),
-        "pfus_b": _fmt_kpi(
-            _pick_output(nb.get("outputs") or {}, "Pfus_total_MW")
+        "h98_b": (
+            _fmt_kpi((nb.get("outputs") or {}).get("H98"))
+            if bool(sb.get("feasible"))
+            else "— (diagnostic)"
+        ),
+        "pfus_a": (
+            _fmt_kpi(_pick_output(na.get("outputs") or {}, "Pfus_total_MW"))
+            if bool(sa.get("feasible"))
+            else "— (diagnostic)"
+        ),
+        "pfus_b": (
+            _fmt_kpi(_pick_output(nb.get("outputs") or {}, "Pfus_total_MW"))
+            if bool(sb.get("feasible"))
+            else "— (diagnostic)"
         ),
         "mirage_a": bool((na.get("outputs") or {}).get("mirage_flag_v402")),
         "mirage_b": bool((nb.get("outputs") or {}).get("mirage_flag_v402")),

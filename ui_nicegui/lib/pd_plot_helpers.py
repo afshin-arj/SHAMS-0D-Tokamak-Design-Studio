@@ -61,7 +61,7 @@ def _barh_png(labels: List[str], values: List[float], *, title: str, xlabel: str
 
 def plot_power_stack(out: Dict[str, Any]) -> Optional[bytes]:
     pairs = [
-        ("Fusion", _sf(out.get("P_fus_MW", out.get("Pfus_MW")))),
+        ("Fusion", _sf(out.get("Pfus_total_MW", out.get("Pfus_DT_adj_MW", out.get("P_fus_MW", out.get("Pfus_MW")))))),
         ("Aux", _sf(out.get("Paux_MW"))),
         ("Recirc", _sf(out.get("P_recirc_MW", out.get("P_e_recirc_MW")))),
         ("Net", _sf(out.get("P_e_net_MW", out.get("P_net_e_MW")))),
@@ -132,18 +132,18 @@ def plot_power_balance_bars(out: Dict[str, Any]) -> Optional[bytes]:
 
 
 def plot_stability_limits(out: Dict[str, Any]) -> Optional[bytes]:
+    # L0 keys: q95_proxy, beta_N / betaN_proxy, fG (never bare q95/betaN/fGW).
     pairs = [
-        ("q95", _sf(out.get("q95"))),
-        ("βN", _sf(out.get("betaN"))),
-        ("fG", _sf(out.get("fG"))),
-        ("Greenwald", _sf(out.get("fGW", out.get("greenwald_fraction")))),
+        ("q95", _sf(out.get("q95_proxy", out.get("q95")))),
+        ("βN", _sf(out.get("beta_N", out.get("betaN_proxy", out.get("betaN"))))),
+        ("fG", _sf(out.get("fG", out.get("greenwald_fraction", out.get("fGW"))))),
     ]
     labs, vals = [], []
     for lab, v in pairs:
         if v == v:
             labs.append(lab)
             vals.append(v)
-    return _bar_png(labs, vals, title="Stability & limits")
+    return _bar_png(labs, vals, title="Stability & limits (cyl. / screening proxies)")
 
 
 def plot_geometry_build(out: Dict[str, Any]) -> Optional[bytes]:

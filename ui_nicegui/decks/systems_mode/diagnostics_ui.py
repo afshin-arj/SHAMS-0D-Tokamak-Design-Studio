@@ -58,14 +58,19 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
             ("Pe_net [MW]", "P_e_net_MW"),
             ("q_div", "q_div_MW_m2"),
             ("β_N", "beta_N"),
-            ("q95", "q95"),
+            ("q95 (cyl. proxy)", "q95_proxy"),
         ):
             with ui.card().classes("p-2"):
                 ui.label(label).classes("text-caption text-grey")
                 if key == "P_e_net_MW":
                     ui.label(pe_net_display(out, artifact=art)).classes("text-body1")
                 else:
-                    ui.label(fmt(out.get(key))).classes("text-body1")
+                    val = out.get(key)
+                    if key == "q95_proxy" and val is None:
+                        val = out.get("q95")
+                    if key == "beta_N" and val is None:
+                        val = out.get("betaN_proxy", out.get("betaN"))
+                    ui.label(fmt(val)).classes("text-body1")
 
     _render_constraints_dashboard(out)
     render_post_solve_authority(session, out, ins if isinstance(ins, dict) else {}, on_refresh=on_refresh)
