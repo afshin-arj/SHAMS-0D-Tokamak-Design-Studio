@@ -129,6 +129,12 @@ def render_point_designer(session: DesignSession) -> None:
         session.evaluating = True
         session.last_error = None
         mode = str(session.pd_eval_mode)
+        # Paint busy chrome immediately — Helm Ready + enabled Evaluate must not linger.
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
+        _render_tab_body.refresh()
         ui.notify(f"Evaluating frozen 0-D point ({mode})…", type="info")
         log_ui_event(session, "PointDesigner", "EvaluatePoint", {"mode": mode})
         try:
@@ -178,10 +184,10 @@ def render_point_designer(session: DesignSession) -> None:
         finally:
             session.evaluating = False
             runlock_release("PointDesigner")
-            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-
             refresh_status()
             refresh_helm()
+            if _pd_active(session):
+                _render_tab_body.refresh()
 
     _render_tab_body(session, on_evaluate=_evaluate)
 

@@ -104,6 +104,24 @@ def render_tools_panel(session: DesignSession) -> None:
         ui.label("QA smoke harness").classes("text-subtitle2")
 
         async def _qa() -> None:
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+            locked, task, is_owner = runlock_status("SystemsMode")
+            if locked:
+                ui.notify(
+                    f"Busy: {task} — wait or force-clear from Helm."
+                    if not is_owner
+                    else "Systems Mode already holds the run lock.",
+                    type="warning",
+                )
+                return
+            if not runlock_acquire("Systems Mode: QA smoke", "SystemsMode"):
+                ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+                return
+            refresh_status()
+            refresh_helm()
+
             def _run():
                 try:
                     from scripts.run_systems_qa import main as qa_main
@@ -111,11 +129,16 @@ def render_tools_panel(session: DesignSession) -> None:
                 except Exception as exc:
                     return -1, str(exc)
 
-            result = await run.io_bound(_run)
-            if result == 0:
-                ui.notify("SYSTEMS_QA: PASS", type="positive")
-            else:
-                ui.notify(f"SYSTEMS_QA: FAIL ({result})", type="negative")
+            try:
+                result = await run.io_bound(_run)
+                if result == 0:
+                    ui.notify("SYSTEMS_QA: PASS", type="positive")
+                else:
+                    ui.notify(f"SYSTEMS_QA: FAIL ({result})", type="negative")
+            finally:
+                runlock_release("SystemsMode")
+                refresh_status()
+                refresh_helm()
 
         ui.button("Run Systems QA smoke", on_click=_qa).props("flat dense")
 

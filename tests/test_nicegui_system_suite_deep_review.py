@@ -34,7 +34,31 @@ def test_lifetime_binding_summary_negative_margin() -> None:
     s = lifetime_binding_summary(LR())
     assert s["posture"] == "LIFETIME BINDING"
     assert "FW dpa" in s["binding"]
-    assert "TBR" in s["binding"]
+    assert "TBR (proxy)" in s["binding"]
+
+
+def test_lifetime_binding_summary_incomplete_not_within_budget() -> None:
+    class LR:
+        fw_dpa_margin = 0.2
+        cycles_margin = float("nan")
+        tbr_margin = 0.1
+
+    s = lifetime_binding_summary(LR())
+    assert s["posture"] == "BUDGET INCOMPLETE"
+    assert "Pulse cycles" in s["unknown"]
+    assert s["binding"] == []
+
+
+def test_lifetime_binding_summary_within_budget() -> None:
+    class LR:
+        fw_dpa_margin = 0.2
+        cycles_margin = 0.5
+        tbr_margin = 0.1
+
+    s = lifetime_binding_summary(LR())
+    assert s["posture"] == "WITHIN BUDGET"
+    assert s["binding"] == []
+    assert s["unknown"] == []
 
 
 def test_trajectory_power_incomplete_flag() -> None:

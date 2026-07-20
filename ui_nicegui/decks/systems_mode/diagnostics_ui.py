@@ -188,6 +188,24 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
         return
 
     async def _run():
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+
+        locked, task, is_owner = runlock_status("SystemsMode")
+        if locked:
+            ui.notify(
+                f"Busy: {task} — wait or force-clear from Helm."
+                if not is_owner
+                else "Systems Mode already holds the run lock.",
+                type="warning",
+            )
+            return
+        if not runlock_acquire("Systems Mode: Corner diagnostics", "SystemsMode"):
+            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+            return
+        refresh_status()
+        refresh_helm()
+
         def _corners():
             try:
                 from src.solvers.constraint_solver import evaluate_targets_at_corners
@@ -206,6 +224,10 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
             rows = await run.io_bound(_corners)
             if isinstance(rows, list) and rows:
                 cols = list(rows[0].keys()) if isinstance(rows[0], dict) else []
+                ui.label(
+                    "Corner values are evaluated diagnostic snapshots — not certified achievements "
+                    "when the point is INFEASIBLE (PHYS-KPI-001)."
+                ).classes("text-caption text-orange q-mb-xs")
                 ui.table(
                     columns=[{"name": c, "label": c, "field": c} for c in cols],
                     rows=rows,
@@ -213,5 +235,9 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
                 ).classes("w-full")
         except Exception as exc:
             ui.label(f"Corner table unavailable: {exc}").classes("text-caption")
+        finally:
+            runlock_release("SystemsMode")
+            refresh_status()
+            refresh_helm()
 
     ui.button("Compute corner table", on_click=_run).props("flat dense")

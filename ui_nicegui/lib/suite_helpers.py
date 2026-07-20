@@ -35,12 +35,26 @@ def try_acquire_suite_lock(session: DesignSession, task: str) -> bool:
         ui.notify("Run lock busy (another deck is evaluating).", type="warning")
         return False
     session.suite_running = True
+    try:
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
+    except Exception:
+        pass
     return True
 
 
 def release_suite_lock(session: DesignSession) -> None:
     runlock_release(SUITE_RUNLOCK_OWNER)
     session.suite_running = False
+    try:
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
+    except Exception:
+        pass
 
 
 def authority_version_badges(out: dict) -> List[str]:
@@ -66,22 +80,33 @@ def lifetime_binding_summary(lr) -> Dict[str, Any]:
     margins = {
         "FW dpa": getattr(lr, "fw_dpa_margin", float("nan")),
         "Pulse cycles": getattr(lr, "cycles_margin", float("nan")),
-        "TBR": getattr(lr, "tbr_margin", float("nan")),
+        "TBR (proxy)": getattr(lr, "tbr_margin", float("nan")),
     }
     binding = []
+    unknown = []
     worst_name = ""
     worst_val = float("inf")
     for name, m in margins.items():
-        if math.isfinite(m) and m < 0:
+        if not math.isfinite(m):
+            unknown.append(name)
+            continue
+        if m < 0:
             binding.append(name)
             if m < worst_val:
                 worst_val = m
                 worst_name = name
+    if binding:
+        posture = "LIFETIME BINDING"
+    elif unknown:
+        posture = "BUDGET INCOMPLETE"
+    else:
+        posture = "WITHIN BUDGET"
     return {
         "binding": binding,
+        "unknown": unknown,
         "worst_name": worst_name,
         "worst_margin": worst_val if binding else float("nan"),
-        "posture": "LIFETIME BINDING" if binding else "WITHIN BUDGET",
+        "posture": posture,
     }
 
 

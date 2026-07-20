@@ -285,7 +285,13 @@ def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) ->
         "Use Templates / presets for a clean basis."
     ).classes("text-caption text-grey q-mb-sm")
 
-    ui.button("Evaluate Point", color="primary", on_click=on_evaluate).classes("w-full q-mb-sm")
+    _eval_busy = bool(session.evaluating)
+    _top_eval = ui.button("Evaluate Point", color="primary", on_click=on_evaluate).classes("w-full q-mb-sm")
+    if _eval_busy:
+        _top_eval.props("disable")
+        ui.label("Evaluating frozen 0-D point — Helm shows Running; wait for completion.").classes(
+            "text-caption text-info q-mb-sm"
+        )
     ui.label("Primary action also repeats at the bottom after Configure sections.").classes(
         "text-caption text-grey q-mb-sm"
     )
@@ -371,7 +377,9 @@ def render_configure(session: DesignSession, *, on_evaluate, on_refresh=None) ->
             "text-warning q-mb-sm"
         )
 
-    ui.button("Evaluate Point", color="primary", on_click=on_evaluate).classes("w-full")
+    _bot_eval = ui.button("Evaluate Point", color="primary", on_click=on_evaluate).classes("w-full")
+    if _eval_busy:
+        _bot_eval.props("disable")
 
     if session.pd_last_run_ts:
         from datetime import datetime
