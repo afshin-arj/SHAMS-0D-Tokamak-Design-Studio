@@ -4,14 +4,25 @@ Living campaign document for **philosophy-safe optimization** inside SHAMS.
 
 | Invoke | Role |
 |--------|------|
-| **`/shams-certified-optimizer`** | **Super-agent** — auto-run next ticket → deep UI/core → push `main` → next step |
+| **`/shams-certified-optimizer`** | **Super-agent** — auto-run next ticket → **core + physics + UI** integrity → branch/commit/**push `origin/main`** → next step |
 | `/pareto-frontier-check` | Frontier / mirage / robust-lane validation |
 | `/architect` | Opt Lab seams; propose-only boundary |
 | `/shams-process-independence` | Feasibility authority campaign (orthogonal; do not blur) |
 
 **SHAMS version at last refresh:** see `VERSION`  
-**Last analytical refresh:** 2026-07-19
+**Last analytical refresh:** 2026-07-20
 
+## Post-upgrade ship gate (mandatory)
+
+After **every** ticket upgrade, the super-agent must:
+
+1. **Core integrity** — CCFS + atlas + L0-opt import guard + ticket tests + `verification/run_verification.py`
+2. **Physics integrity** — smoke / golden anchors; `/plasma-physicist` / `/fusion-performance` when FoM or feasible-first is in play; confirm L0 untouched
+3. **UI integrity** — Opt Lab / Systems / Pareto / Control Room smoke (or documented “no UI surface”); honesty copy; no `vNNN` labels
+4. **Reviewer PASS** — optimizer-in-L0 + honesty lens
+5. **GitHub ship** — `shams/optlab-<slug>-YYYYMMDD` → commit → merge → **`git push origin main`** (skip only if user said `no-push`)
+
+Do not report a ticket complete with `main pushed: no` unless `no-push` was requested.
 ## Stance (do not blur)
 
 | | PROCESS | SHAMS Certified Optimizer |
