@@ -81,6 +81,7 @@ def test_fetch_systems_artifact_after_point_eval() -> None:
     assert isinstance(art, dict)
 
     assert art.get("verdict") in ("FEASIBLE", "INFEASIBLE")
+    assert art.get("source") == "point_designer_fallback"
 
 
 
