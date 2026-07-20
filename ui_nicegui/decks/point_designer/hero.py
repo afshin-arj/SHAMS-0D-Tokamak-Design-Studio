@@ -93,12 +93,12 @@ def render_hero(session: DesignSession) -> None:
     )
     kpi_row([(c.label, c.display) for c in cells])
 
-    beta = out.get("betaN", out.get("beta_N"))
+    beta = out.get("beta_N", out.get("betaN_proxy", out.get("betaN")))
     fg = out.get("fG", out.get("greenwald_fraction"))
     # L0 writes q95_proxy (cylindrical screening), not a plain "q95" key.
-    q95 = out.get("q95", out.get("q95_proxy"))
+    q95 = out.get("q95_proxy", out.get("q95"))
     kpi_row([
-        ("β_N", _fmt_num(beta) + _constraint_headroom(out, ["betaN", "beta_n", "betaN_proxy"])),
+        ("β_N (screening)", _fmt_num(beta) + _constraint_headroom(out, ["betaN", "beta_n", "betaN_proxy"])),
         ("f_G", _fmt_num(fg) + _constraint_headroom(out, ["fG", "fg", "greenwald"])),
         ("q95 (cyl. proxy)", _fmt_num(q95) + _constraint_headroom(out, ["q95", "q95_min"])),
     ])

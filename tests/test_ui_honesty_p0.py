@@ -84,7 +84,30 @@ def test_power_ledger_net_electric_is_proxy() -> None:
     from ui_nicegui.lib.pd_parity_helpers import power_ledger_badged_rows
 
     rows = {r["key"]: r for r in power_ledger_badged_rows({})}
-    assert rows["P_net_e_MW"]["type"] == "Proxy"
+    assert rows["P_e_net_MW"]["type"] == "Proxy"
+    filled = {r["key"]: r for r in power_ledger_badged_rows({"P_e_net_MW": 42.0})}
+    assert filled["P_e_net_MW"]["MW"] != "n/a"
+
+
+def test_point_summary_resolves_l0_keys() -> None:
+    from ui_nicegui.lib.pd_parity_helpers import point_summary_rows
+
+    rows = {r["quantity"]: r["value"] for r in point_summary_rows({
+        "Pfus_total_MW": 500.0,
+        "q95_proxy": 3.1,
+        "beta_N": 2.2,
+        "P_e_net_MW": 120.0,
+        "Q_DT_eqv": 10.0,
+        "H98": 1.1,
+        "Ip_MA": 8.0,
+        "fG": 0.8,
+        "B_peak_T": 12.0,
+        "TBR": 1.05,
+    })}
+    assert rows["Pfus [MW]"] == "500"
+    assert rows["q95 (cyl. proxy) [-]"] == "3.1"
+    assert rows["βN (screening) [-]"] == "2.2"
+    assert rows["P_net,e [MW]"] == "120"
 
 
 def test_format_claim_kpi_suppresses_on_infeasible() -> None:
@@ -161,7 +184,21 @@ def test_pd_hero_reads_q95_proxy_fallback() -> None:
     from ui_nicegui.decks.point_designer import hero
 
     src = inspect.getsource(hero)
-    assert 'out.get("q95", out.get("q95_proxy"))' in src
+    assert 'out.get("q95_proxy", out.get("q95"))' in src
+    assert 'out.get("beta_N"' in src
+
+
+def test_nav_switch_is_immediate() -> None:
+    import inspect
+
+    from ui_nicegui import app as nice_app
+
+    src = inspect.getsource(nice_app._switch_deck)
+    assert "NAV-IMMEDIATE-001" in src
+    assert "_apply_deck_switch" in src
+    assert "ui.timer(0.06" not in src
+    apply_src = inspect.getsource(nice_app._apply_deck_switch)
+    assert "_remount_and_sync_chrome" in apply_src
 
 
 def test_tier_badges_use_n_dot_t_not_ntauE() -> None:
@@ -274,14 +311,3 @@ def test_power_ledger_and_deepening_use_l0_keys() -> None:
     assert "tauIPB98_s" in deep_src
     assert "tauE_eff_s" in deep_src
     assert "TBR_validity" in deep_src
-
-
-def test_nav_switch_is_immediate() -> None:
-    import inspect
-
-    from ui_nicegui import app as nice_app
-
-    src = inspect.getsource(nice_app._switch_deck)
-    assert "NAV-IMMEDIATE-001" in src
-    assert "_remount_and_sync_chrome()" in src
-    assert "ui.timer(0.06" not in src

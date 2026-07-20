@@ -99,7 +99,7 @@ def hero_kpi_cells(
 
     q_raw = _sf(head.get("Q_DT_eqv", out.get("Q_DT_eqv", out.get("Q"))))
     h98_raw = _sf(head.get("H98", out.get("H98")))
-    pnet_raw = _sf(head.get("P_net_e_MW", out.get("P_net_e_MW", out.get("P_e_net_MW"))))
+    pnet_raw = _sf(head.get("P_e_net_MW", out.get("P_e_net_MW", out.get("P_net_e_MW"))))
     pfus_raw = _sf(
         head.get(
             "Pfus_total_MW",
