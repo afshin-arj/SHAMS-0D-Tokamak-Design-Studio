@@ -67,6 +67,15 @@ def test_hero_suppresses_high_h98_on_infeasible() -> None:
     assert "implied" in h98.display.lower()
 
 
+def test_hero_suppresses_moderate_h98_on_infeasible() -> None:
+    """PHYS-KPI-001: H98≈1.1 on INFEASIBLE must not read as a confinement claim."""
+    out = {"Q_DT_eqv": 5.0, "H98": 1.1, "P_net_e_MW": 50.0, "Pfus_total_MW": 100.0}
+    cells = hero_kpi_cells(out, _summary_infeasible(), design_intent="Power Reactor (net-electric)")
+    h98 = next(c for c in cells if c.label == "H98(y,2)")
+    assert h98.suppressed is True
+    assert "diagnostic" in h98.display.lower()
+
+
 def test_hero_shows_kpis_when_feasible() -> None:
     out = {"Q_DT_eqv": 2.5, "H98": 1.05, "P_net_e_MW": 120.0, "Pfus_total_MW": 400.0}
     summary = {

@@ -4,10 +4,18 @@ try:
     from ..models.inputs import PointInputs  # type: ignore
 except Exception:
     from models.inputs import PointInputs  # type: ignore
-from physics.hot_ion import hot_ion_point
+try:
+    from solvers.evaluator_bridge import evaluate_point
+except ImportError:
+    from src.solvers.evaluator_bridge import evaluate_point  # type: ignore
 from solvers.root import bisect
 from solvers.constraint_solver import solve_for_targets
 import math
+
+
+def _eval_outputs(inp: PointInputs, Paux_for_Q_MW: Optional[float]) -> Dict[str, Any]:
+    """Route nested solves through evaluator_bridge (NiceGUI override or Evaluator)."""
+    return evaluate_point(inp, origin="point_solver", Paux_for_Q_MW=Paux_for_Q_MW)
 
 def solve_Ip_for_H98_with_Q_match_stream(
     base: 'PointInputs',
@@ -151,7 +159,7 @@ def solve_fG_for_QDTeqv(base: PointInputs, target_Q: float, fG_min: float, fG_ma
     """
     def Q_of_fG(fG: float) -> float:
         inp = PointInputs(**{**base.__dict__, "fG": fG})
-        return hot_ion_point(inp, Paux_for_Q_MW)["Q_DT_eqv"]
+        return float(_eval_outputs(inp, Paux_for_Q_MW).get("Q_DT_eqv", float("nan")))
     fG_sol, ok = bisect(Q_of_fG, fG_min, fG_max, target_Q, tol=tol)
     if not ok:
         # No bracket inside bounds. Clamp to the nearest bound (feasibility-first),
@@ -172,7 +180,7 @@ def solve_fG_for_QDTeqv(base: PointInputs, target_Q: float, fG_min: float, fG_ma
             which = "fG_max"
             res = float(res_hi)
         sol = PointInputs(**{**base.__dict__, "fG": float(fG_sol)})
-        out = dict(hot_ion_point(sol, Paux_for_Q_MW))
+        out = dict(_eval_outputs(sol, Paux_for_Q_MW))
         out["_solver_clamped_Q"] = True
         out["_solver_clamped_Q_on"] = which
         out["_Q_target"] = float(target_Q)
@@ -180,7 +188,7 @@ def solve_fG_for_QDTeqv(base: PointInputs, target_Q: float, fG_min: float, fG_ma
         out["_Q_residual"] = float(res)
         return sol, out, True
     sol = PointInputs(**{**base.__dict__, "fG": float(fG_sol)})
-    out = dict(hot_ion_point(sol, Paux_for_Q_MW))
+    out = dict(_eval_outputs(sol, Paux_for_Q_MW))
     out["_solver_clamped_Q"] = False
     return sol, out, True
 

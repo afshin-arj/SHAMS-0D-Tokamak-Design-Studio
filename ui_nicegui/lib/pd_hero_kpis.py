@@ -115,9 +115,12 @@ def hero_kpi_cells(
 
     if not feasible:
         q_extreme_sup, q_extreme_note = _q_infeasible_suppressed(q_raw, fuel_mode=fuel_mode)
-        h98_sup, h98_note = _h98_infeasible_suppressed(h98_raw, design_intent=design_intent)
-        # INFEASIBLE: never present Q / P_net,e / Pfus as design claims (PHYS-KPI-001).
+        h98_extreme_sup, h98_extreme_note = _h98_infeasible_suppressed(
+            h98_raw, design_intent=design_intent
+        )
+        # INFEASIBLE: never present Q / H98 / P_net,e / Pfus as design claims (PHYS-KPI-001).
         q_sup = math.isfinite(q_raw)
+        h98_sup = math.isfinite(h98_raw)
         pnet_sup = math.isfinite(pnet_raw)
         pfus_sup = math.isfinite(pfus_raw)
         if q_extreme_sup and q_extreme_note:
@@ -125,6 +128,12 @@ def hero_kpi_cells(
         elif q_sup:
             q_note = (
                 "Q on an INFEASIBLE point is power-balance closure only — not a performance claim."
+            )
+        if h98_extreme_sup and h98_extreme_note:
+            h98_note = h98_extreme_note
+        elif h98_sup:
+            h98_note = (
+                "H98 on an INFEASIBLE point is fixed-Ti closure only — not achieved confinement."
             )
         if pnet_sup:
             notes.append(
@@ -155,7 +164,11 @@ def hero_kpi_cells(
     if q_sup and math.isfinite(q_raw):
         q_display = "— (diagnostic)"
 
-    h98_display = "— (implied)" if h98_sup else _fmt_num(h98_raw)
+    if h98_sup and math.isfinite(h98_raw):
+        # Extreme envelope breaches stay labeled "implied"; all other INFEASIBLE H98 → diagnostic.
+        h98_display = "— (implied)" if "credibility envelope" in (h98_note or "") else "— (diagnostic)"
+    else:
+        h98_display = _fmt_num(h98_raw)
     if math.isfinite(pnet_raw) and not pnet_sup:
         pnet_display = f"{_fmt_num(pnet_raw)} MW"
     elif pnet_sup:
