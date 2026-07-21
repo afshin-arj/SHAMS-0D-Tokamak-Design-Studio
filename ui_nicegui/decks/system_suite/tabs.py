@@ -245,18 +245,36 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
         thermal_posture = "THERMAL UNEVALUATED"
     else:
         thermal_posture = "THERMAL PASS"
+    from ui_nicegui.lib.plant_kpi_honesty_ui import plant_kpi_honesty_for_point
+
+    honesty = plant_kpi_honesty_for_point(
+        ctx.point_out,
+        artifact=ctx.artifact,
+        design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+    )
+    if duty_rep and honesty.get("claim_allowed"):
+        strip_kpis = [
+            ("Availability", f"{100.0 * ctx.session.suite_availability:.0f}%"),
+            ("Avg delivered (MW)", _fin(duty_rep.avg_delivered_MW)),
+            ("Annual energy (GWh)", _fin(duty_rep.annual_energy_GWh, ".1f")),
+        ]
+    elif duty_rep:
+        strip_kpis = [
+            ("Availability", f"{100.0 * ctx.session.suite_availability:.0f}%"),
+            ("Avg delivered (MW)", "— (diagnostic)"),
+            ("Annual energy (GWh)", "— (diagnostic)"),
+        ]
+    else:
+        strip_kpis = None
     render_tab_summary_strip(
         thermal_posture,
         detail=(
             f"Thermal violations: {n_therm_v} · Trajectory violations: {n_traj_v}"
             + (" · Net power incomplete on point" if traj_incomplete else "")
             + ("" if thermal_limits_configured else " · No T_fw/T_div limits configured")
+            + ("" if honesty.get("claim_allowed") else " · Plant KPIs diagnostic (hard-infeasible)")
         ),
-        kpis=[
-            ("Availability", f"{100.0 * ctx.session.suite_availability:.0f}%"),
-            ("Avg delivered (MW)", _fin(duty_rep.avg_delivered_MW) if duty_rep else "-"),
-            ("Annual energy (GWh)", _fin(duty_rep.annual_energy_GWh, ".1f") if duty_rep else "-"),
-        ] if duty_rep else None,
+        kpis=strip_kpis,
     )
 
     open_duty = _expansion_defaults(ctx.session, panel_id="ops_duty", default_open=True)
@@ -343,12 +361,30 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
                     kind="warn",
                 )
             else:
+                from ui_nicegui.lib.plant_kpi_honesty_ui import plant_kpi_honesty_for_point
+
+                honesty = plant_kpi_honesty_for_point(
+                    ctx.point_out,
+                    artifact=ctx.artifact,
+                    design_intent=str(getattr(ctx.session, "design_intent", "") or ""),
+                )
+                if honesty.get("claim_allowed"):
+                    peak_disp = _fin(tr.meta.get("Pnet_peak_MW", 0.0))
+                    avg_disp = _fin(tr.meta.get("Pnet_avg_MW", 0.0))
+                else:
+                    peak_disp = "— (diagnostic)"
+                    avg_disp = "— (diagnostic)"
                 kpi_row([
-                    ("Net peak (MW)", _fin(tr.meta.get("Pnet_peak_MW", 0.0))),
-                    ("Net avg (MW)", _fin(tr.meta.get("Pnet_avg_MW", 0.0))),
+                    ("Net peak (MW)", peak_disp),
+                    ("Net avg (MW)", avg_disp),
                     ("Recirc peak (MW)", _fin(tr.meta.get("Precirc_peak_MW", 0.0))),
                     ("Recirc energy (MJ)", _fin(tr.meta.get("Erecirc_MJ", 0.0), ".1f")),
                 ])
+                if not honesty.get("claim_allowed"):
+                    ui.badge(
+                        "Net power KPIs diagnostic — point is hard-infeasible (PHYS-KPI-001)",
+                        color="orange",
+                    ).props("outline").classes("q-mb-xs")
                 stamp_label(tr.stamp_sha256)
                 _plot_lines(tr.t_s, {"P_net_MW": tr.Pe_net_MW, "P_recirc_MW": tr.Precirc_MW}, title="Pulse power")
                 if tr.violations:
@@ -551,11 +587,15 @@ def _render_profile_corners(ctx: SuiteContext) -> None:
             if force_lib.value:
                 d["include_profile_family_v358"] = True
             inp = PointInputs.from_dict(d)
+            from ui_nicegui.evaluate import ui_evaluator
+
+            ev = ui_evaluator(origin="NiceGUI:SystemSuite:ProfileCorners", cache_enabled=False)
             rep = await run.io_bound(
                 evaluate_profile_contracts_v362,
                 inp,
                 preset=str(preset.value),
                 tier=str(tier.value),
+                evaluator=ev,
             )
             ctx.session.profile_contracts_v362_last = rep.to_dict()
             log_ui_event(

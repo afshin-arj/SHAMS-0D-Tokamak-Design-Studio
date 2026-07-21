@@ -36,6 +36,7 @@ def _annotate_summary_fields(art: Dict[str, Any], *, intent: str) -> Dict[str, A
     feasible = bool(kpis.get("feasible_hard", False))
     art["intent"] = str(intent)
     art["verdict"] = "PASS" if feasible else "FAIL"
+    art["intent_verdict"] = "FEASIBLE" if feasible else "INFEASIBLE"
 
     dom_constraint = ""
     dom_mech = ""
@@ -76,10 +77,19 @@ def evaluate_campaign_candidates(
     candidates: List[Dict[str, Any]],
     *,
     include_full_artifact: Optional[bool] = None,
+    evaluator: Any = None,
 ) -> Tuple[List[CampaignEvalRow], Dict[str, Any]]:
+    """Evaluate campaign candidates.
+
+    NiceGUI should pass ``evaluator=ui_evaluator(origin=...)`` so batch eval
+    routes through the UI choke point. When omitted, constructs a bare Evaluator.
+    """
     inc_full = bool(spec.include_full_artifact if include_full_artifact is None else include_full_artifact)
 
-    ev = Evaluator(label=str(spec.evaluator_label), cache_enabled=False)
+    if evaluator is not None:
+        ev = evaluator
+    else:
+        ev = Evaluator(label=str(spec.evaluator_label), cache_enabled=False)
 
     rows: List[CampaignEvalRow] = []
     mech_hist: Dict[str, int] = {}
@@ -131,7 +141,7 @@ def evaluate_campaign_candidates(
             continue
 
         evr = ev.evaluate(pi)
-        if not evr.ok:
+        if not getattr(evr, "ok", True):
             art: Dict[str, Any] = {
                 "schema_version": "shams_run_artifact.v1",
                 "kind": "shams_run_artifact",
@@ -139,7 +149,7 @@ def evaluate_campaign_candidates(
                 "outputs": {},
                 "constraints": [],
                 "kpis": {"feasible_hard": False, "min_hard_margin": float("nan")},
-                "error": evr.message,
+                "error": getattr(evr, "message", "evaluate failed"),
                 "no_solution_atlas": {
                     "schema": "no_solution_atlas.v1",
                     "verdict": "INFEASIBLE",
@@ -152,16 +162,23 @@ def evaluate_campaign_candidates(
                 },
             }
         else:
-            out = evr.out
+            out = getattr(evr, "out", None)
+            if not isinstance(out, dict):
+                out = getattr(evr, "outputs", {}) or {}
             cons = build_constraints_from_outputs(out, design_intent=spec.intent)
             art = build_run_artifact(inputs=merged, outputs=out, constraints=cons)
 
         art = _annotate_summary_fields(art, intent=spec.intent)
 
-        # Profile contracts overlay (v362)
+        # Profile contracts overlay (v362) — reuse injected evaluator when provided
         try:
             pc = spec.profile_contracts
-            pc_rep = evaluate_profile_contracts_v362(pi, preset=str(pc.preset), tier=str(pc.tier))
+            pc_rep = evaluate_profile_contracts_v362(
+                pi,
+                preset=str(pc.preset),
+                tier=str(pc.tier),
+                evaluator=ev,
+            )
             art["profile_contracts_v362"] = pc_rep.to_dict() if hasattr(pc_rep, "to_dict") else dict(pc_rep)  # type: ignore
         except Exception as ex:
             art["profile_contracts_v362"] = {

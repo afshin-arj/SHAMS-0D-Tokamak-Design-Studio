@@ -50,13 +50,17 @@ def run_suite(
     *,
     cfg: Optional[BenchmarkRunConfig] = None,
     process_outputs_dir: Optional[Path] = None,
+    evaluator: Any = None,
 ) -> Dict[str, Any]:
     cfg = cfg or BenchmarkRunConfig()
     cases_dir = Path(cases_dir)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    ev = Evaluator(label=f"bench_{cfg.suite}", cache_enabled=False)
+    if evaluator is not None:
+        ev = evaluator
+    else:
+        ev = Evaluator(label=f"bench_{cfg.suite}", cache_enabled=False)
 
     case_paths = discover_cases(cases_dir, suite=cfg.suite)
     results: List[Dict[str, Any]] = []
@@ -78,7 +82,7 @@ def run_suite(
 
 def run_case(
     case: BenchmarkCase,
-    ev: Evaluator,
+    ev: Any,
     out_dir: Path,
     *,
     cfg: BenchmarkRunConfig,
@@ -90,7 +94,7 @@ def run_case(
 
     pi = PointInputs(**case.inputs)
     evr = ev.evaluate(pi)
-    if not evr.ok:
+    if not getattr(evr, "ok", True):
         art: Dict[str, Any] = {
             "schema_version": "shams_run_artifact.v1",
             "kind": "shams_run_artifact",
@@ -98,17 +102,24 @@ def run_case(
             "outputs": {},
             "constraints": [],
             "kpis": {"feasible_hard": False, "min_hard_margin": float("nan")},
-            "error": evr.message,
+            "error": getattr(evr, "message", "evaluate failed"),
         }
     else:
-        out = evr.out
+        out = getattr(evr, "out", None)
+        if not isinstance(out, dict):
+            out = getattr(evr, "outputs", {}) or {}
         cons = build_constraints_from_outputs(out, design_intent=f"benchmark::{case.case_id}")
         art = build_run_artifact(inputs=case.inputs, outputs=out, constraints=cons)
 
     # Profile contracts overlay (v362)
     if cfg.include_profile_contracts:
         try:
-            pc_rep = evaluate_profile_contracts_v362(pi, preset=str(cfg.profile_contracts_preset), tier=str(cfg.profile_contracts_tier))
+            pc_rep = evaluate_profile_contracts_v362(
+                pi,
+                preset=str(cfg.profile_contracts_preset),
+                tier=str(cfg.profile_contracts_tier),
+                evaluator=ev,
+            )
             art["profile_contracts_v362"] = pc_rep.to_dict() if hasattr(pc_rep, "to_dict") else dict(pc_rep)  # type: ignore
         except Exception as ex:
             art["profile_contracts_v362"] = {"schema": "profile_contracts_v362_error.v1", "error": str(ex)}
@@ -165,11 +176,13 @@ def run_benchmark_suite(
     profile_contracts_preset: str = "C16",
     include_intent_map: bool = True,
     process_outputs_by_case: dict[str, dict] | None = None,
+    evaluator: Any = None,
 ) -> dict:
     """Run a deterministic parity harness suite.
 
     `process_dir` optionally points to JSON files named '<suite>_<case_id>.json'.
     `process_outputs_by_case` is an optional in-memory override used by the UI.
+    NiceGUI should pass ``evaluator=ui_evaluator(origin=...)``.
     """
     cfg = BenchmarkRunConfig(
         suite=str(suite),
@@ -197,6 +210,7 @@ def run_benchmark_suite(
         out_dir=Path(out_dir),
         cfg=cfg,
         process_outputs_dir=process_outputs_dir,
+        evaluator=evaluator,
     )
 
     if generate_delta_dossiers:

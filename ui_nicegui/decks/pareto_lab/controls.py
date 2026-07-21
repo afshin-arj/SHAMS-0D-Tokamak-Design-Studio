@@ -135,6 +135,7 @@ def render_pareto_controls(
                 seed=session.pareto_seed,
                 intent_mode=session.pareto_intent_mode,
                 robust_margin_thr=session.pareto_robust_margin_thr,
+                Paux_for_Q_MW=getattr(session, "paux_for_q", None),
             )
             session.pareto_last = result
             summary = result.get("summary") or {}
