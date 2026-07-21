@@ -96,36 +96,54 @@ class CoPilotRunResult:
 
 
 def run_copilot_from_concept_family(
-    concept_family_path: Path,
+    concept_family_path: Optional[Path] = None,
     *,
-    optimizer_name: str,
-    run_dir: Path,
+    optimizer_name: str = "external",
+    run_dir: Optional[Path] = None,
     evaluator_label: str = "hot_ion_point",
+    evaluator: Any = None,
     cache_dir: Optional[Path] = None,
     export_candidate_packs: bool = True,
+    # NiceGUI / older call-site aliases
+    concept_family_yaml: Optional[Path] = None,
+    run_id: Optional[str] = None,
+    repo_root: Optional[Path] = None,
+    export_evidence_packs: Optional[bool] = None,
 ) -> CoPilotRunResult:
     """Evaluate an external-optimizer candidate set (as a concept family YAML).
 
     Writes a deterministic run folder containing trace + interpretation.
+    NiceGUI should pass ``evaluator=ui_evaluator(origin=...)``.
     """
+    path = Path(concept_family_path or concept_family_yaml or "")
+    if not path.is_file():
+        raise FileNotFoundError(f"Concept family YAML not found: {path}")
+
+    if export_evidence_packs is not None:
+        export_candidate_packs = bool(export_evidence_packs)
+
+    if run_dir is None:
+        root = Path(repo_root) if repo_root is not None else path.parent
+        run_dir = Path(root) / "ui_runs" / "extopt_copilot" / str(run_id or "copilot")
+    run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
-    family: ConceptFamily = load_concept_family(concept_family_path)
+
+    family: ConceptFamily = load_concept_family(path)
 
     batch = evaluate_concept_family(
         family,
         config=BatchEvalConfig(evaluator_label=evaluator_label, cache_dir=cache_dir),
         repo_root=run_dir,
+        evaluator=evaluator,
     )
 
-    run_id = run_dir.name
-    trace = build_optimizer_trace_from_batch(batch, optimizer_name=optimizer_name, run_id=run_id)
+    rid = str(run_id or run_dir.name)
+    trace = build_optimizer_trace_from_batch(batch, optimizer_name=optimizer_name, run_id=rid)
     report = interpret_optimizer_trace(trace)
 
     # Persist primary artifacts
     (run_dir / "inputs").mkdir(exist_ok=True)
-    (run_dir / "inputs" / concept_family_path.name).write_text(
-        concept_family_path.read_text(encoding="utf-8"), encoding="utf-8"
-    )
+    (run_dir / "inputs" / path.name).write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
 
     trace_path = run_dir / "optimizer_trace.json"
     report_path = run_dir / "interpretation_report.json"
@@ -166,7 +184,7 @@ def run_copilot_from_concept_family(
     # Deterministic manifest with per-file hashes
     manifest: Dict[str, Any] = {
         "schema_version": "shams.extopt_copilot_manifest.v1",
-        "run_id": run_id,
+        "run_id": rid,
         "optimizer": str(optimizer_name),
         "evaluator_label": str(evaluator_label),
         "n_total": int(batch.n_total),

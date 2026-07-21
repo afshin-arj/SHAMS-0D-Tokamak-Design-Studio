@@ -5,13 +5,13 @@ It proposes candidates, asks SHAMS (ExtOpt) to evaluate them, and writes an opti
 Not a production optimizer; it is a constitutional example client.
 """
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import replace
+from typing import Any, Dict, List, Optional
 import json, random, time, math
 from pathlib import Path
 
-from src.extopt.family import load_concept_family
-from src.extopt.batch import evaluate_concept_family
+from src.extopt.family import ConceptCandidate, load_concept_family
+from src.extopt.batch import BatchEvalConfig, evaluate_concept_family
 from src.extopt.metrics import compute_feasibility_metrics
 from src.extopt.scenarios import default_corner_scenarios, scenarios_hash
 from src.extopt.bundle import BundleCandidate, BundleProvenance, export_bundle_zip_v273 as export_bundle_zip
@@ -65,6 +65,7 @@ def run_reference_optimizer(
     seed: int = 1,
     n_proposals: int = 64,
     evaluator_label: str = "hot_ion_point",
+    evaluator: Any = None,
     intent_override: Optional[str] = None,
     robust: bool = False,
 ) -> Path:
@@ -73,7 +74,7 @@ def run_reference_optimizer(
 
     fam = load_concept_family(family_yaml)
     if intent_override:
-        fam.intent = intent_override  # type: ignore[attr-defined]
+        fam = replace(fam, intent=str(intent_override))
 
     # build problem spec (demo). In UI, user can edit JSON.
     problem_spec = build_default_problem_spec(name=str(fam.name))
@@ -88,16 +89,17 @@ def run_reference_optimizer(
         proposals.append({"id": f"p{i:04d}", "overrides": x})
 
     # Convert to a synthetic family with these candidates
-    fam.candidates = [p["overrides"] for p in proposals]  # type: ignore[assignment]
+    fam = replace(
+        fam,
+        candidates=[ConceptCandidate(cid=str(p["id"]), overrides=dict(p["overrides"])) for p in proposals],
+    )
 
-    run = evaluate_concept_family(
-        family=fam,
-        evaluator_label=evaluator_label,
+    cfg = BatchEvalConfig(
+        evaluator_label=str(evaluator_label),
         cache_enabled=True,
         cache_dir=out_dir / ".cache",
-        export_evidence_packs=False,
-        evidence_dir=None,
     )
+    run = evaluate_concept_family(fam, config=cfg, evaluator=evaluator)
 
     # robust evaluation (UQ-lite corners): compute worst-case min_hard_margin across scenarios
     scenarios = default_corner_scenarios() if robust else []
@@ -110,22 +112,30 @@ def run_reference_optimizer(
         for cid, art in run.artifacts.items():
             worst = float("inf")
             worst_scn = "BASE"
+            # cid is pNNNN — recover proposal index
+            try:
+                pidx = int(str(cid)[1:])
+            except Exception:
+                pidx = 0
             for scn in scenarios:
                 fam2 = load_concept_family(family_yaml)
                 if intent_override:
-                    fam2.intent = intent_override  # type: ignore[attr-defined]
+                    fam2 = replace(fam2, intent=str(intent_override))
                 # apply scenario overrides to base inputs
-                fam2.base_inputs = dict(fam2.base_inputs)  # type: ignore[attr-defined]
-                fam2.base_inputs.update(scn.overrides)  # type: ignore[attr-defined]
-                # single candidate overrides
-                fam2.candidates = [proposals[int(cid[1:])]["overrides"]]  # type: ignore[attr-defined]
+                fam2 = replace(
+                    fam2,
+                    base_inputs={**dict(fam2.base_inputs), **dict(scn.overrides)},
+                    candidates=[
+                        ConceptCandidate(
+                            cid=str(proposals[pidx]["id"]),
+                            overrides=dict(proposals[pidx]["overrides"]),
+                        )
+                    ],
+                )
                 run2 = evaluate_concept_family(
-                    family=fam2,
-                    evaluator_label=evaluator_label,
-                    cache_enabled=True,
-                    cache_dir=out_dir / ".cache",
-                    export_evidence_packs=False,
-                    evidence_dir=None,
+                    fam2,
+                    config=cfg,
+                    evaluator=evaluator,
                 )
                 art2 = list(run2.artifacts.values())[0] if run2.artifacts else {}
                 m = compute_feasibility_metrics(art2)
@@ -152,7 +162,7 @@ def run_reference_optimizer(
         m = compute_feasibility_metrics(art)
         entry = {
             "cid": cid,
-            "verdict": art.get("verdict"),
+            "verdict": art.get("intent_verdict") or art.get("verdict"),
             "min_hard_margin": m.min_hard_margin,
             "sum_hard_violation": m.sum_hard_violation,
             "n_hard_violations": m.n_hard_violations,

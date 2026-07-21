@@ -372,15 +372,18 @@ def list_concept_family_yamls() -> List[Path]:
 
 def run_extopt_workbench(*, family_yaml: Path, seed: int, n_proposals: int, robust: bool, evaluator_label: str) -> str:
     from clients.reference_optimizer import run_reference_optimizer
+    from ui_nicegui.evaluate import ui_evaluator
 
     out_dir = repo() / "ui_runs" / "extopt_workbench"
     out_dir.mkdir(parents=True, exist_ok=True)
+    ev = ui_evaluator(origin=f"NiceGUI:ExtOptWorkbench:{evaluator_label}", cache_enabled=True)
     bundle = run_reference_optimizer(
         family_yaml=Path(family_yaml),
         out_dir=out_dir,
         seed=int(seed),
         n_proposals=int(n_proposals),
         evaluator_label=str(evaluator_label),
+        evaluator=ev,
         robust=bool(robust),
     )
     return str(bundle)
@@ -388,6 +391,7 @@ def run_extopt_workbench(*, family_yaml: Path, seed: int, n_proposals: int, robu
 
 def run_orchestrator_v385(*, yaml_bytes: bytes, yaml_name: str, evaluator_label: str, intent: str, include_ep: bool) -> dict:
     from src.extopt.orchestrator_v385 import OrchestratorRunSpec, run_orchestrator_v385_from_concept_family
+    from ui_nicegui.evaluate import ui_evaluator
 
     tdir = repo() / "ui_runs" / "uploads"
     tdir.mkdir(parents=True, exist_ok=True)
@@ -401,11 +405,13 @@ def run_orchestrator_v385(*, yaml_bytes: bytes, yaml_name: str, evaluator_label:
         include_evidence_packs=bool(include_ep),
         cache_enabled=True,
     )
+    ev = ui_evaluator(origin=f"NiceGUI:ExtOptOrchestrator:{evaluator_label}", cache_enabled=True)
     res = run_orchestrator_v385_from_concept_family(
         concept_family_yaml=p,
         repo_root=repo(),
         out_dir=out_dir,
         runspec=rs,
+        evaluator=ev,
     )
     return {
         "n_total": res.n_total,
@@ -458,10 +464,31 @@ def run_optimizer_job(*, kit: str, seed: int, n: int, objectives: List[str], sen
 def evaluate_concept_family_yaml(path: Path, *, label: str = "NiceGUI:Cockpit") -> dict:
     from extopt import BatchEvalConfig, evaluate_concept_family
     from extopt.family import load_concept_family
+    from ui_nicegui.evaluate import ui_evaluator
 
     fam = load_concept_family(path)
-    cfg = BatchEvalConfig(evaluator_label="hot_ion_point")
-    return evaluate_concept_family(fam, cfg=cfg, origin=label)
+    cfg = BatchEvalConfig(evaluator_label="hot_ion_point", cache_enabled=False, cache_dir=None)
+    ev = ui_evaluator(origin=str(label or "NiceGUI:Cockpit"), cache_enabled=True)
+    ber = evaluate_concept_family(fam, config=cfg, evaluator=ev)
+    return {
+        "summary": dict(ber.summary),
+        "n_total": int(ber.n_total),
+        "n_feasible": int(ber.n_feasible),
+        "pass_rate": float(ber.pass_rate),
+        "family_name": str(ber.family_name),
+        "intent": str(ber.intent),
+        "results": [
+            {
+                "cid": r.cid,
+                "feasible_hard": bool(r.feasible_hard),
+                "intent_verdict": (r.artifact or {}).get("intent_verdict"),
+                "verdict": (r.artifact or {}).get("verdict"),
+                "dominant_constraint": (r.artifact or {}).get("dominant_constraint"),
+                "cache_hit": bool(r.cache_hit),
+            }
+            for r in ber.results
+        ],
+    }
 
 
 def launch_optimizer_kit(*, kit: str, seed: int, n: int, objectives: List[str], senses: dict, bounds: dict, base) -> dict:
