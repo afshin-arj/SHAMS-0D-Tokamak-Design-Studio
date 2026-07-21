@@ -24,7 +24,10 @@ try:
     from ..models.inputs import PointInputs  # type: ignore
 except Exception:
     from models.inputs import PointInputs  # type: ignore
-from evaluator.core import Evaluator
+try:
+    from solvers.evaluator_bridge import evaluate_point  # type: ignore
+except Exception:
+    from src.solvers.evaluator_bridge import evaluate_point  # type: ignore
 from constraints.constraints import evaluate_constraints
 from constraints.bookkeeping import summarize as summarize_constraints
 
@@ -80,7 +83,6 @@ def find_nearest_feasible(
     """
 
     rng = random.Random(seed)
-    evaluator = Evaluator()
     lever_keys = list(levers.keys())
 
     # scaling for distance: use lever span
@@ -160,13 +162,12 @@ def find_nearest_feasible(
         candidates.append(make(**upd))
 
     best_inp = base
-    best_out: Dict[str, float] = evaluator.evaluate(base).out
+    best_out: Dict[str, float] = evaluate_point(base, origin="frontier_nearest")
     best_ok, best_score = False, float("inf")
     trace: List[Dict[str, Any]] = []
 
     for idx, inp in enumerate(candidates):
-        ev = evaluator.evaluate(inp)
-        out = ev.out
+        out = evaluate_point(inp, origin="frontier_nearest")
         ok, sc, meta = score(inp, out)
         trace.append({
             "i": idx,

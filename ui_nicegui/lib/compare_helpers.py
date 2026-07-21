@@ -224,8 +224,15 @@ def bridge_compare_slots_to_cr(session) -> tuple[bool, bool]:
 
 
 def metric_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
-    out_a = normalize_compare_artifact(art_a).get("outputs") or {}
-    out_b = normalize_compare_artifact(art_b).get("outputs") or {}
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    na = normalize_compare_artifact(art_a)
+    nb = normalize_compare_artifact(art_b)
+    out_a = na.get("outputs") or {}
+    out_b = nb.get("outputs") or {}
+    feas_a = bool(verdict_summary(out_a).get("feasible"))
+    feas_b = bool(verdict_summary(out_b).get("feasible"))
     rows: List[Dict[str, Any]] = []
     seen: set[str] = set()
     for k in COMPARE_METRICS:
@@ -236,13 +243,17 @@ def metric_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
         if a != a and b != b:
             continue
         seen.add(k)
-        try:
-            da = float(a)
-            db = float(b)
-            d = db - da
-        except (TypeError, ValueError):
-            d = ""
-        rows.append({"metric": k, "A": a, "B": b, "B-A": d})
+        a_disp = format_claim_kpi_for_table(k, a, feasible=feas_a, point_out=out_a)
+        b_disp = format_claim_kpi_for_table(k, b, feasible=feas_b, point_out=out_b)
+        d: Any = ""
+        if feas_a and feas_b:
+            try:
+                d = float(b) - float(a)
+            except (TypeError, ValueError):
+                d = ""
+        else:
+            d = "— (diagnostic)"
+        rows.append({"metric": k, "A": a_disp, "B": b_disp, "B-A": d})
     return rows
 
 
@@ -389,8 +400,14 @@ def _fmt_kpi(v: Any) -> str:
 
 
 def comparison_markdown(art_a: dict, art_b: dict) -> str:
+    summary = summarize_comparison(art_a, art_b)
     rows = metric_diff_rows(art_a, art_b)
     lines = ["# SHAMS Artifact Comparison", "", "## Key metrics", ""]
+    if not summary.get("feasible_a") or not summary.get("feasible_b"):
+        lines.append(
+            "> PHYS-KPI-001: Q / H98 / Pfus / P_net shown as diagnostic on INFEASIBLE slots — not design claims."
+        )
+        lines.append("")
     lines.append("| metric | A | B | B-A |")
     lines.append("| --- | --- | --- | --- |")
     for r in rows:
@@ -436,8 +453,15 @@ def input_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
 def numeric_output_diff_rows(
     art_a: dict, art_b: dict, *, limit: int = 60
 ) -> List[Dict[str, Any]]:
-    out_a = normalize_compare_artifact(art_a).get("outputs") or {}
-    out_b = normalize_compare_artifact(art_b).get("outputs") or {}
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    na = normalize_compare_artifact(art_a)
+    nb = normalize_compare_artifact(art_b)
+    out_a = na.get("outputs") or {}
+    out_b = nb.get("outputs") or {}
+    feas_a = bool(verdict_summary(out_a).get("feasible"))
+    feas_b = bool(verdict_summary(out_b).get("feasible"))
     keys = sorted(set(out_a.keys()) | set(out_b.keys()))
     rows: List[Dict[str, Any]] = []
     for k in keys:
@@ -449,8 +473,18 @@ def numeric_output_diff_rows(
         if abs(d) < 1e-12:
             continue
         frac = (d / a) if abs(a) > 1e-12 else None
-        rows.append({"metric": k, "A": a, "B": b, "B-A": d, "frac": frac})
-    rows.sort(key=lambda r: abs(float(r.get("B-A", 0))), reverse=True)
+        if is_claim_kpi_key(k):
+            a_disp = format_claim_kpi_for_table(k, a, feasible=feas_a, point_out=out_a)
+            b_disp = format_claim_kpi_for_table(k, b, feasible=feas_b, point_out=out_b)
+            d_disp: Any = d if (feas_a and feas_b) else "— (diagnostic)"
+            frac_disp: Any = frac if (feas_a and feas_b) else "— (diagnostic)"
+            rows.append({"metric": k, "A": a_disp, "B": b_disp, "B-A": d_disp, "frac": frac_disp})
+        else:
+            rows.append({"metric": k, "A": a, "B": b, "B-A": d, "frac": frac})
+    rows.sort(
+        key=lambda r: abs(float(r.get("B-A", 0))) if isinstance(r.get("B-A"), (int, float)) else 0.0,
+        reverse=True,
+    )
     return rows[:limit]
 
 
@@ -493,22 +527,40 @@ def constraint_margin_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]
 
 
 def kpi_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
-    ka = normalize_compare_artifact(art_a).get("kpis") or {}
-    kb = normalize_compare_artifact(art_b).get("kpis") or {}
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    na = normalize_compare_artifact(art_a)
+    nb = normalize_compare_artifact(art_b)
+    ka = na.get("kpis") or {}
+    kb = nb.get("kpis") or {}
     if not isinstance(ka, dict):
         ka = {}
     if not isinstance(kb, dict):
         kb = {}
+    feas_a = bool(verdict_summary(na.get("outputs") or {}).get("feasible"))
+    feas_b = bool(verdict_summary(nb.get("outputs") or {}).get("feasible"))
     rows: List[Dict[str, Any]] = []
     for k in sorted(set(ka.keys()) | set(kb.keys())):
         a = ka.get(k)
         b = kb.get(k)
-        d = ""
-        try:
-            d = float(b) - float(a)
-        except (TypeError, ValueError):
-            pass
-        rows.append({"kpi": k, "A": a, "B": b, "B-A": d})
+        if is_claim_kpi_key(k):
+            a_disp = format_claim_kpi_for_table(k, a, feasible=feas_a, point_out=na.get("outputs") or {})
+            b_disp = format_claim_kpi_for_table(k, b, feasible=feas_b, point_out=nb.get("outputs") or {})
+            d: Any = "— (diagnostic)" if not (feas_a and feas_b) else ""
+            if feas_a and feas_b:
+                try:
+                    d = float(b) - float(a)
+                except (TypeError, ValueError):
+                    d = ""
+            rows.append({"kpi": k, "A": a_disp, "B": b_disp, "B-A": d})
+        else:
+            d = ""
+            try:
+                d = float(b) - float(a)
+            except (TypeError, ValueError):
+                pass
+            rows.append({"kpi": k, "A": a, "B": b, "B-A": d})
     return rows
 
 

@@ -138,7 +138,14 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
 
     def _undo_apply() -> None:
         if _pop_apply_undo(session):
-            ui.notify("Undid last apply — Point Designer inputs restored", type="info")
+            try:
+                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+                refresh_helm()
+                refresh_status()
+            except Exception:
+                pass
+            ui.notify("Undid last apply — Point Designer inputs restored (KPIs STALE).", type="warning")
             if on_complete:
                 on_complete()
         else:

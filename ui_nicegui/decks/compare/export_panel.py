@@ -44,10 +44,17 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
     def _apply(slot_art: dict, label: str) -> None:
         n = apply_artifact_inputs(session, slot_art)
         if n:
+            try:
+                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+                refresh_helm()
+                refresh_status()
+            except Exception:
+                pass
             navigate_to_point_designer(session)
             ui.notify(
                 f"Applied {n} input fields from slot {label} — KPIs marked STALE until Evaluate Point.",
-                type="positive",
+                type="warning",
             )
         else:
             ui.notify(f"No overlapping inputs copied from slot {label}.", type="warning")
