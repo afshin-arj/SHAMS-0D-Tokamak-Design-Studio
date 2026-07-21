@@ -28,9 +28,13 @@ def render_study_dashboard(summary: dict | None, *, design_intent: str = "") -> 
     elif n_par == 0:
         verdict_banner("MIXED", detail="Feasible samples exist but no Pareto set yet.")
     else:
+        # Sampling confidence is not design certification (PHYS-KPI-001 / honesty).
         verdict_banner(
-            "PASS",
-            detail=f"{n_feas} feasible · {n_par} Pareto · confidence={summary.get('confidence', '-')}",
+            "PASS+DIAG",
+            detail=(
+                f"{n_feas} feasible · {n_par} Pareto. "
+                f"Sampling confidence={summary.get('confidence', '-')} — not a certified design PASS."
+            ),
         )
     objs = summary.get("objectives") or []
     obj_label = ", ".join(objs[:3]) + ("…" if len(objs) > 3 else "")
@@ -38,7 +42,7 @@ def render_study_dashboard(summary: dict | None, *, design_intent: str = "") -> 
         ("Samples", summary.get("n_samples", "-")),
         ("Feasible", summary.get("n_feasible", "-")),
         ("Pareto", summary.get("n_pareto", "-")),
-        ("Confidence", summary.get("confidence", "-")),
+        ("Sampling conf.", summary.get("confidence", "-")),
         ("Knob set", summary.get("knob_set", "-")),
     ])
     if obj_label:

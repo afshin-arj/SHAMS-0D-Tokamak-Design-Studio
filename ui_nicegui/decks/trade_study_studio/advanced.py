@@ -371,7 +371,11 @@ def _render_surrogate_accel(session: DesignSession) -> None:
                 include_outputs=False,
             )
             session.ts_sa_verified_rows = vrows
-            ui.notify(f"Verified {len(vrows)} candidates", type="positive")
+            n_ok = sum(1 for r in vrows if isinstance(r, dict) and bool(r.get("is_feasible")))
+            ui.notify(
+                f"Truth-verified {len(vrows)} candidates ({n_ok} feasible)",
+                type="positive" if n_ok == len(vrows) and n_ok > 0 else "info",
+            )
             _sa_view.refresh()
         except Exception as exc:
             ui.notify(f"Verification failed: {exc}", type="negative")
@@ -390,7 +394,9 @@ def _sa_view(session: DesignSession) -> None:
         ui.label(f"Proposed (unverified): {len(cand)}").classes("text-caption")
     vrows = session.ts_sa_verified_rows
     if isinstance(vrows, list) and vrows:
-        ui.label(f"Verified: {len(vrows)}").classes("text-caption text-positive")
+        n_ok = sum(1 for r in vrows if isinstance(r, dict) and bool(r.get("is_feasible")))
+        tone = "text-positive" if n_ok == len(vrows) else "text-warning"
+        ui.label(f"Truth-verified: {len(vrows)} ({n_ok} feasible)").classes(f"text-caption {tone}")
         ui.table(
             columns=[
                 {"name": "i", "label": "i", "field": "i"},
@@ -463,7 +469,9 @@ def _render_two_lane(session: DesignSession) -> None:
         try:
             res = await run.io_bound(run_two_lane_uq, session.build_point_inputs())
             session.lane_last = res
-            ui.notify(f"Class: {res.get('class')}", type="positive")
+            cls = str(res.get("class") or "")
+            ntype = "positive" if cls == "ROBUST" else ("warning" if cls == "MIRAGE" else "negative")
+            ui.notify(f"Class: {cls or 'UNKNOWN'}", type=ntype)
             _lane_view.refresh()
         except Exception as exc:
             ui.notify(f"Lane eval failed: {exc}", type="negative")

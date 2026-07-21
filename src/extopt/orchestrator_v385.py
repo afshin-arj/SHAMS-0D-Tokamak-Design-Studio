@@ -24,7 +24,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # Any used for injected evaluator
 
 from .batch import BatchEvalConfig, evaluate_concept_family
 from .bundle import BundleCandidate, BundleProvenance, export_bundle_zip
@@ -91,8 +91,13 @@ def run_orchestrator_v385_from_concept_family(
     repo_root: Path,
     out_dir: Path,
     runspec: Optional[OrchestratorRunSpec] = None,
+    evaluator: Any = None,
 ) -> OrchestratorRunResult:
-    """Import a concept family YAML, deterministically verify candidates, export evidence."""
+    """Import a concept family YAML, deterministically verify candidates, export evidence.
+
+    NiceGUI should pass ``evaluator=ui_evaluator(origin=...)`` so batch eval
+    routes through the UI choke point.
+    """
 
     rs = runspec or OrchestratorRunSpec()
     concept_family_yaml = Path(concept_family_yaml)
@@ -118,7 +123,7 @@ def run_orchestrator_v385_from_concept_family(
         from dataclasses import replace
         fam2 = replace(fam, intent=intent)
 
-    ber = evaluate_concept_family(fam2, config=cfg, repo_root=repo_root)
+    ber = evaluate_concept_family(fam2, config=cfg, repo_root=repo_root, evaluator=evaluator)
 
     bundle_candidates: List[BundleCandidate] = []
     evidence_paths: Dict[str, Path] = {}

@@ -381,11 +381,11 @@ def _render_extopt_suite(session: DesignSession) -> None:
     include_ep = ui.checkbox("Include per-candidate evidence packs", value=True)
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
-            return
         data = session.extopt_suite_upload_bytes
         if not isinstance(data, (bytes, bytearray)):
             ui.notify("Upload a YAML first", type="warning")
+            return
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
             return
         try:
             res = await run.io_bound(
@@ -439,11 +439,11 @@ def _render_extopt_copilot(session: DesignSession) -> None:
     ui.upload(on_upload=_upload).props('accept=".yaml,.yml" auto-upload')
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
-            return
         data = session.extopt_copilot_yaml_bytes
         if not data:
             ui.notify("Upload YAML first", type="warning")
+            return
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
             return
         tdir = repo() / "ui_runs" / "uploads"
         tdir.mkdir(parents=True, exist_ok=True)
@@ -451,14 +451,17 @@ def _render_extopt_copilot(session: DesignSession) -> None:
         p.write_bytes(bytes(data))
         try:
             from src.extopt.copilot import run_copilot_from_concept_family
+            from ui_nicegui.evaluate import ui_evaluator
 
+            ev = ui_evaluator(origin="NiceGUI:ExtOptCoPilot", cache_enabled=True)
             res = await run.io_bound(
                 run_copilot_from_concept_family,
-                concept_family_yaml=p,
-                repo_root=repo(),
-                run_id="nicegui_copilot",
+                concept_family_path=p,
+                optimizer_name="nicegui_copilot",
+                run_dir=repo() / "ui_runs" / "extopt_copilot" / "nicegui_copilot",
                 evaluator_label="hot_ion_point",
-                export_evidence_packs=True,
+                evaluator=ev,
+                export_candidate_packs=True,
             )
             session.extopt_copilot_last = res.__dict__ if hasattr(res, "__dict__") else dict(res)
             ui.notify("Co-Pilot run complete", type="positive")
@@ -511,10 +514,10 @@ def _render_certified_orchestrator(session: DesignSession) -> None:
     objs = ui.select(["P_e_net_MW", "R0_m", "B_peak_T"], label="Objective", value="P_e_net_MW", multiple=True)
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
-            return
         if not objs.value:
             ui.notify("Select objectives", type="warning")
+            return
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
             return
         try:
             from src.trade_studies.spec import default_knob_sets
@@ -615,11 +618,11 @@ def _render_feasible_optimizer(session: DesignSession) -> None:
             ui.label(f"{key}: [{lo:.3g}, {hi:.3g}]").classes("text-caption")
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
-            return
         chosen = list(objs.value) if isinstance(objs.value, list) else [str(objs.value)]
         if len(chosen) < 1:
             ui.notify("Select at least one objective", type="warning")
+            return
+        if not _pareto_busy_guard(session, "Pareto Lab: External"):
             return
         senses = {o: "max" if o == "P_e_net_MW" else "min" for o in chosen}
         ui.notify("Launching external optimizer kit…", type="info")
