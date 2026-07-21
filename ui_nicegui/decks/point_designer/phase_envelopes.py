@@ -88,11 +88,15 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
         try:
             phases = parse_phases_json(session.phase_envelopes_phases_json)
             prefix = session.phase_envelopes_label_prefix or "phase"
+            from ui_nicegui.evaluate import ui_evaluator
+
+            ev = ui_evaluator(origin="NiceGUI:PhaseEnvelopes", cache_enabled=True)
             env = await run.io_bound(
                 run_phase_envelope_for_point,
                 base_inputs,
                 phases,
                 label_prefix=prefix,
+                evaluator=ev,
             )
             session.phase_envelopes_last = env
             ui.notify("Phase envelope complete.", type="positive")

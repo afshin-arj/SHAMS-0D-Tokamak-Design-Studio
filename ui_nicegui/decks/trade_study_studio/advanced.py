@@ -258,6 +258,7 @@ def _render_v352(session: DesignSession) -> None:
             from src.models.inputs import PointInputs
             from src.uq_contracts.runner import run_uncertainty_contract_for_point
             from src.uq_contracts.spec import robust_uncertainty_contract
+            from ui_nicegui.evaluate import ui_evaluator
 
             base = session.build_point_inputs()
             base_d = base.__dict__ if hasattr(base, "__dict__") else {}
@@ -272,6 +273,7 @@ def _render_v352(session: DesignSession) -> None:
                             pass
                 pts.append(PointInputs(**d))
             spec = robust_uncertainty_contract(base).to_dict()
+            ev = ui_evaluator(origin="NiceGUI:v352", cache_enabled=True)
             cert = await run.io_bound(
                 certify_points_under_contract,
                 points=pts,
@@ -280,6 +282,7 @@ def _render_v352(session: DesignSession) -> None:
                 thresholds=TierThresholds(tier_A_min=0.10, tier_B_min=0.03, tier_C_min=0.0),
                 label_prefix="v352",
                 max_points=int(budget.value or 10),
+                evaluator=ev,
             )
             session.v352_cert_last = cert
             ui.notify("Certification complete", type="positive")

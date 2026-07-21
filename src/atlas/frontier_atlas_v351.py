@@ -124,14 +124,18 @@ def classify_lanes_for_points(
         # Nominal feasibility already in r (expected). Lane classification uses UQ contracts.
         try:
             opt_spec = optimistic_contract_fn(inp)
-            opt = run_uq_fn(inp, opt_spec, label_prefix=f"{label_prefix}_O")
+            opt = run_uq_fn(
+                inp, opt_spec, label_prefix=f"{label_prefix}_O", evaluator=evaluator
+            )
             opt_s = dict(opt.get('summary', {}) or {})
         except Exception:
             opt_s = {}
 
         try:
             rob_spec = robust_contract_fn(inp)
-            rob = run_uq_fn(inp, rob_spec, label_prefix=f"{label_prefix}_R")
+            rob = run_uq_fn(
+                inp, rob_spec, label_prefix=f"{label_prefix}_R", evaluator=evaluator
+            )
             rob_s = dict(rob.get('summary', {}) or {})
         except Exception:
             rob_s = {}
