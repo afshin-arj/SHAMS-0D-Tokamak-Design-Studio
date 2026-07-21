@@ -404,11 +404,11 @@ def differential_evolution_optimize(
         data = {k: float(v) for k, v in zip(keys, vec)}
         return replace(base, **data)
 
-    from solvers.point_solver import evaluate_point
+    from solvers.evaluator_bridge import evaluate_point
 
     def eval_vec(vec):
         inp = vec_to_inputs(vec)
-        out = evaluate_point(inp)
+        out = evaluate_point(inp, origin="optimize_nsga")
         feasible = bool(out.get("feasible", True)) and bool(out.get("hard_ok", True))
         if not feasible:
             return float("inf"), inp, out

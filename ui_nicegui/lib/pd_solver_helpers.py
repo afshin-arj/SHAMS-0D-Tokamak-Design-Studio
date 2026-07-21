@@ -239,33 +239,34 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
     trace: List[Dict[str, Any]] = []
     _log_append(log_lines, "Point Designer evaluation")
 
-    if session.pd_do_opt:
-        _log_append(
-            log_lines,
-            f"Optimization: objective={session.pd_opt_objective}, iters={session.pd_opt_iters}, seed={session.pd_opt_seed}",
+    try:
+        from src.solvers.evaluator_bridge import set_evaluate_point_override
+    except ImportError:
+        from solvers.evaluator_bridge import set_evaluate_point_override  # type: ignore
+
+    paux = session.paux_for_q
+
+    def _ui_eval(inp, *, origin: str = "solver", Paux_for_Q_MW=None, **kw):
+        return ui_evaluate(
+            inp,
+            origin=f"NiceGUI:PointDesigner:{origin}",
+            Paux_for_Q_MW=Paux_for_Q_MW if Paux_for_Q_MW is not None else paux,
+            **kw,
         )
-        var_bounds = {
-            "Ip_MA": (float(session.pd_ip_min), float(session.pd_ip_max)),
-            "fG": (float(session.pd_fg_min), float(session.pd_fg_max)),
-            "Paux_MW": (0.0, max(_sf(base.Paux_MW), 1e-6) * 2.0),
-        }
-        try:
-            from src.solvers.evaluator_bridge import set_evaluate_point_override
-        except ImportError:
-            from solvers.evaluator_bridge import set_evaluate_point_override  # type: ignore
 
-        paux = session.paux_for_q
-
-        def _ui_eval(inp, *, origin: str = "solver", Paux_for_Q_MW=None, **kw):
-            return ui_evaluate(
-                inp,
-                origin=f"NiceGUI:PointDesigner:{origin}",
-                Paux_for_Q_MW=Paux_for_Q_MW if Paux_for_Q_MW is not None else paux,
-                **kw,
+    # All propose/solve iterations must route through ui_evaluate (choke point).
+    set_evaluate_point_override(_ui_eval)
+    try:
+        if session.pd_do_opt:
+            _log_append(
+                log_lines,
+                f"Optimization: objective={session.pd_opt_objective}, iters={session.pd_opt_iters}, seed={session.pd_opt_seed}",
             )
-
-        set_evaluate_point_override(_ui_eval)
-        try:
+            var_bounds = {
+                "Ip_MA": (float(session.pd_ip_min), float(session.pd_ip_max)),
+                "fG": (float(session.pd_fg_min), float(session.pd_fg_max)),
+                "Paux_MW": (0.0, max(_sf(base.Paux_MW), 1e-6) * 2.0),
+            }
             best_inp, best_out = optimize_design(
                 base,
                 objective=str(session.pd_opt_objective),
@@ -273,98 +274,106 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
                 n_iter=int(session.pd_opt_iters),
                 seed=int(session.pd_opt_seed),
             )
-        finally:
-            set_evaluate_point_override(None)
-        base = best_inp
-        _log_append(
-            log_lines,
-            f"Optimized: Ip={best_inp.Ip_MA:.4g} MA, fG={best_inp.fG:.4g}, Paux={best_inp.Paux_MW:.4g} MW",
-        )
-        _log_append(
-            log_lines,
-            f"  Bpeak={best_out.get('B_peak_T', float('nan')):.4g} T, Pnet={best_out.get('P_e_net_MW', float('nan')):.4g} MW",
-        )
+            base = best_inp
+            _log_append(
+                log_lines,
+                f"Optimized: Ip={best_inp.Ip_MA:.4g} MA, fG={best_inp.fG:.4g}, Paux={best_inp.Paux_MW:.4g} MW",
+            )
+            _log_append(
+                log_lines,
+                f"  Bpeak={best_out.get('B_peak_T', float('nan')):.4g} T, Pnet={best_out.get('P_e_net_MW', float('nan')):.4g} MW",
+            )
 
-    mode = str(session.pd_eval_mode)
-    sol_inp = base
-    out: Dict[str, Any] = {}
-    ok = True
+        mode = str(session.pd_eval_mode)
+        sol_inp = base
+        out: Dict[str, Any] = {}
+        ok = True
 
-    if mode in ("solver", "envelope"):
-        _log_append(log_lines, f"Solver mode: {mode}")
-        for ev in _solver_event_iter(session, base):
-            evt = str(ev.get("event", ""))
-            if evt == "bracket":
-                okb = bool(ev.get("ok"))
-                _log_append(
-                    log_lines,
-                    f"BRACKET: H98(Ip_lo)={_sf(ev.get('H98_lo')):.6g}, H98(Ip_hi)={_sf(ev.get('H98_hi')):.6g} -> "
-                    f"{'OK' if okb else 'NO_BRACKET'}",
-                )
-                trace.append(dict(ev))
-            elif evt == "iter":
-                _log_append(
-                    log_lines,
-                    f"ITER {int(ev.get('iter', 0)):>3d}: Ip={_sf(ev.get('Ip_MA')):.8g} MA, fG={_sf(ev.get('fG')):.8g}, "
-                    f"H98={_sf(ev.get('H98')):.8g}, Q={_sf(ev.get('Q')):.8g}, residual={_sf(ev.get('residual')):.8g}",
-                )
-                trace.append({
-                    "iter": ev.get("iter"),
-                    "Ip_MA": ev.get("Ip_MA"),
-                    "fG": ev.get("fG"),
-                    "H98": ev.get("H98"),
-                    "Q": ev.get("Q"),
-                    "residual": ev.get("residual"),
-                })
-            elif evt == "done":
-                sol_inp = ev.get("sol") or base
-                out = dict(ev.get("out") or {})
-                ok = _solver_success(out, bool(ev.get("ok", True)))
-                if bool(out.get("_solver_clamped")) or bool(out.get("_solver_clamped_Q")):
-                    _log_append(log_lines, "WARN: solver clamped to bounds — targets may not be met.")
-                _log_append(
-                    log_lines,
-                    f"DONE: Ip={out.get('Ip_MA', float('nan')):.8g} MA, fG={out.get('fG', float('nan')):.8g}, "
-                    f"H98={out.get('H98', float('nan')):.8g}, Q={out.get('Q_DT_eqv', float('nan')):.8g}",
-                )
-            elif evt == "fail":
-                ok = False
-                _log_append(log_lines, f"FAIL: {ev.get('reason', 'solver_failed')}")
-                trace.append(dict(ev))
-
-        if not ok and mode == "solver":
-            _log_append(log_lines, "Fallback: nested Ip/fG bisection (H98 + Q_DT_eqv).")
-            for ev in solve_Ip_for_H98_with_Q_match_stream(
-                base=base,
-                target_H98=float(session.pd_h98_target),
-                target_Q=float(session.pd_q_target),
-                Ip_min=float(session.pd_ip_min),
-                Ip_max=float(session.pd_ip_max),
-                fG_min=float(session.pd_fg_min),
-                fG_max=float(session.pd_fg_max),
-                tol=float(session.pd_solver_tol),
-                Paux_for_Q_MW=session.paux_for_q,
-            ):
+        if mode in ("solver", "envelope"):
+            _log_append(log_lines, f"Solver mode: {mode}")
+            for ev in _solver_event_iter(session, base):
                 evt = str(ev.get("event", ""))
-                if evt == "done":
+                if evt == "bracket":
+                    okb = bool(ev.get("ok"))
+                    _log_append(
+                        log_lines,
+                        f"BRACKET: H98(Ip_lo)={_sf(ev.get('H98_lo')):.6g}, H98(Ip_hi)={_sf(ev.get('H98_hi')):.6g} -> "
+                        f"{'OK' if okb else 'NO_BRACKET'}",
+                    )
+                    trace.append(dict(ev))
+                elif evt == "iter":
+                    _log_append(
+                        log_lines,
+                        f"ITER {int(ev.get('iter', 0)):>3d}: Ip={_sf(ev.get('Ip_MA')):.8g} MA, fG={_sf(ev.get('fG')):.8g}, "
+                        f"H98={_sf(ev.get('H98')):.8g}, Q={_sf(ev.get('Q')):.8g}, residual={_sf(ev.get('residual')):.8g}",
+                    )
+                    trace.append({
+                        "iter": ev.get("iter"),
+                        "Ip_MA": ev.get("Ip_MA"),
+                        "fG": ev.get("fG"),
+                        "H98": ev.get("H98"),
+                        "Q": ev.get("Q"),
+                        "residual": ev.get("residual"),
+                    })
+                elif evt == "done":
                     sol_inp = ev.get("sol") or base
                     out = dict(ev.get("out") or {})
                     ok = _solver_success(out, bool(ev.get("ok", True)))
+                    if bool(out.get("_solver_clamped")) or bool(out.get("_solver_clamped_Q")):
+                        _log_append(log_lines, "WARN: solver clamped to bounds — targets may not be met.")
+                    _log_append(
+                        log_lines,
+                        f"DONE: Ip={out.get('Ip_MA', float('nan')):.8g} MA, fG={out.get('fG', float('nan')):.8g}, "
+                        f"H98={out.get('H98', float('nan')):.8g}, Q={out.get('Q_DT_eqv', float('nan')):.8g}",
+                    )
                 elif evt == "fail":
                     ok = False
-            ok = _solver_success(out, ok) if isinstance(out, dict) else ok
-    else:
-        _log_append(log_lines, "Direct frozen-point evaluate (no solver)")
-        out = ui_evaluate(sol_inp, origin="NiceGUI:Point Designer", Paux_for_Q_MW=session.paux_for_q)
+                    _log_append(log_lines, f"FAIL: {ev.get('reason', 'solver_failed')}")
+                    trace.append(dict(ev))
 
-    if mode in ("solver", "envelope") and sol_inp is not None:
-        session.inputs["Ip_MA"] = float(getattr(sol_inp, "Ip_MA", session.inputs.get("Ip_MA")))
-        session.inputs["fG"] = float(getattr(sol_inp, "fG", session.inputs.get("fG")))
-        paux_sol = getattr(sol_inp, "Paux_MW", None)
-        if paux_sol is not None:
-            session.inputs["Paux_MW"] = float(paux_sol)
-        if not out:
+            if not ok and mode == "solver":
+                _log_append(log_lines, "Fallback: nested Ip/fG bisection (H98 + Q_DT_eqv).")
+                for ev in solve_Ip_for_H98_with_Q_match_stream(
+                    base=base,
+                    target_H98=float(session.pd_h98_target),
+                    target_Q=float(session.pd_q_target),
+                    Ip_min=float(session.pd_ip_min),
+                    Ip_max=float(session.pd_ip_max),
+                    fG_min=float(session.pd_fg_min),
+                    fG_max=float(session.pd_fg_max),
+                    tol=float(session.pd_solver_tol),
+                    Paux_for_Q_MW=session.paux_for_q,
+                ):
+                    evt = str(ev.get("event", ""))
+                    if evt == "done":
+                        sol_inp = ev.get("sol") or base
+                        out = dict(ev.get("out") or {})
+                        ok = _solver_success(out, bool(ev.get("ok", True)))
+                    elif evt == "fail":
+                        ok = False
+                ok = _solver_success(out, ok) if isinstance(out, dict) else ok
+        else:
+            _log_append(log_lines, "Direct frozen-point evaluate (no solver)")
             out = ui_evaluate(sol_inp, origin="NiceGUI:Point Designer", Paux_for_Q_MW=session.paux_for_q)
+
+        if mode in ("solver", "envelope") and sol_inp is not None:
+            session.inputs["Ip_MA"] = float(getattr(sol_inp, "Ip_MA", session.inputs.get("Ip_MA")))
+            session.inputs["fG"] = float(getattr(sol_inp, "fG", session.inputs.get("fG")))
+            paux_sol = getattr(sol_inp, "Paux_MW", None)
+            if paux_sol is not None:
+                session.inputs["Paux_MW"] = float(paux_sol)
+            # Always re-certify proposed inputs through ui_evaluate (PHYS / constraints provenance).
+            solver_audit = {
+                k: v
+                for k, v in (out or {}).items()
+                if isinstance(k, str) and k.startswith("_")
+            }
+            out = ui_evaluate(
+                sol_inp, origin="NiceGUI:Point Designer", Paux_for_Q_MW=session.paux_for_q
+            )
+            out.update(solver_audit)
+    finally:
+        set_evaluate_point_override(None)
 
     session.pd_solver_trace = trace
     session.pd_last_log_lines = log_lines
