@@ -131,6 +131,7 @@ def evaluate_profile_contracts_v362(
     preset: str = "C8",
     tier: str = "both",
     policy: Optional[Dict[str, Any]] = None,
+    evaluator: Any = None,
 ) -> ProfileContractsReportV362:
     """Evaluate frozen truth at profile-contract corners.
 
@@ -144,6 +145,8 @@ def evaluate_profile_contracts_v362(
         'optimistic' | 'robust' | 'both'.
     policy:
         Optional feasibility-semantics policy (passed to constraint evaluation).
+    evaluator:
+        Optional injected evaluator (NiceGUI ui_evaluator). When omitted, bare Evaluator.
     """
     con, con_sha = load_profile_contracts_v362()
     preset_u = str(preset or "C8").upper().strip()
@@ -160,7 +163,10 @@ def evaluate_profile_contracts_v362(
     if tier_n not in {"optimistic", "robust", "both"}:
         tier_n = "both"
 
-    evaluator = Evaluator(cache_enabled=False)
+    if evaluator is not None:
+        evaluator_resolved = evaluator
+    else:
+        evaluator_resolved = Evaluator(cache_enabled=False)
     base_d = base_inputs.to_dict() if hasattr(base_inputs, "to_dict") else dict(getattr(base_inputs, "__dict__", {}))
 
     # Nominals for axes (for fingerprinting)
@@ -195,20 +201,22 @@ def evaluate_profile_contracts_v362(
             d2.update(overrides)
             inp2 = PointInputs.from_dict(d2)
 
-            ev = evaluator.evaluate(inp2)
-            out = ev.out if isinstance(ev.out, dict) else {}
+            ev = evaluator_resolved.evaluate(inp2)
+            out_raw = getattr(ev, "out", None)
+            out = out_raw if isinstance(out_raw, dict) else (getattr(ev, "outputs", {}) or {})
             cons = evaluate_constraints(out, policy=policy, point_inputs=d2)
             cons_json = [c.as_dict() for c in cons]
+            _ok = bool(getattr(ev, "ok", True))
 
             row = {
                 "corner_index": int(idx),
                 "corner_bits": [int(x) for x in sgns],
                 "tier": tier_name,
                 "axes": applied_axes,
-                "ok": bool(ev.ok),
-                "eval_message": str(ev.message or ""),
-                "hard_feasible": _hard_feasible(cons_json) if ev.ok else False,
-                "min_margin_frac": _min_margin_frac(cons_json) if ev.ok else float("nan"),
+                "ok": _ok,
+                "eval_message": str(getattr(ev, "message", "") or ""),
+                "hard_feasible": _hard_feasible(cons_json) if _ok else False,
+                "min_margin_frac": _min_margin_frac(cons_json) if _ok else float("nan"),
                 "constraints": cons_json,
             }
             rows.append(row)

@@ -249,13 +249,32 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
             "fG": (float(session.pd_fg_min), float(session.pd_fg_max)),
             "Paux_MW": (0.0, max(_sf(base.Paux_MW), 1e-6) * 2.0),
         }
-        best_inp, best_out = optimize_design(
-            base,
-            objective=str(session.pd_opt_objective),
-            variables=var_bounds,
-            n_iter=int(session.pd_opt_iters),
-            seed=int(session.pd_opt_seed),
-        )
+        try:
+            from src.solvers.evaluator_bridge import set_evaluate_point_override
+        except ImportError:
+            from solvers.evaluator_bridge import set_evaluate_point_override  # type: ignore
+
+        paux = session.paux_for_q
+
+        def _ui_eval(inp, *, origin: str = "solver", Paux_for_Q_MW=None, **kw):
+            return ui_evaluate(
+                inp,
+                origin=f"NiceGUI:PointDesigner:{origin}",
+                Paux_for_Q_MW=Paux_for_Q_MW if Paux_for_Q_MW is not None else paux,
+                **kw,
+            )
+
+        set_evaluate_point_override(_ui_eval)
+        try:
+            best_inp, best_out = optimize_design(
+                base,
+                objective=str(session.pd_opt_objective),
+                variables=var_bounds,
+                n_iter=int(session.pd_opt_iters),
+                seed=int(session.pd_opt_seed),
+            )
+        finally:
+            set_evaluate_point_override(None)
         base = best_inp
         _log_append(
             log_lines,

@@ -232,11 +232,26 @@ def run_pareto_study(
     seed: int,
     intent_mode: str,
     robust_margin_thr: float = 0.10,
+    Paux_for_Q_MW: Optional[float] = None,
 ) -> dict:
     try:
         from src.solvers.optimize import pareto_optimize
+        from src.solvers.evaluator_bridge import set_evaluate_point_override
     except ImportError:
         from solvers.optimize import pareto_optimize  # type: ignore
+        from solvers.evaluator_bridge import set_evaluate_point_override  # type: ignore
+
+    from ui_nicegui.evaluate import ui_evaluate
+
+    paux = Paux_for_Q_MW
+
+    def _ui_eval(inp, *, origin: str = "solver", Paux_for_Q_MW=None, **kw):
+        return ui_evaluate(
+            inp,
+            origin=f"NiceGUI:ParetoLab:{origin}",
+            Paux_for_Q_MW=Paux_for_Q_MW if Paux_for_Q_MW is not None else paux,
+            **kw,
+        )
 
     intents = intent_list(intent_mode)
     all_feasible: List[dict] = []
@@ -244,33 +259,37 @@ def run_pareto_study(
     all_samples: List[dict] = []
     perf_runs: List[dict] = []
 
-    for it in intents:
-        res = pareto_optimize(
-            base,
-            bounds=bounds,
-            objectives=objectives,
-            n_samples=int(n_samples),
-            seed=int(seed),
-            intent_key=it,
-        )
-        perf = res.get("perf")
-        if isinstance(perf, dict):
-            perf_runs.append(perf)
-        for row in res.get("feasible") or []:
-            if isinstance(row, dict):
-                r = dict(row)
-                r["intent"] = it
-                all_feasible.append(r)
-        for row in res.get("pareto") or []:
-            if isinstance(row, dict):
-                r = dict(row)
-                r["intent"] = it
-                all_pareto.append(r)
-        for row in res.get("all") or []:
-            if isinstance(row, dict):
-                r = dict(row)
-                r["intent"] = it
-                all_samples.append(r)
+    set_evaluate_point_override(_ui_eval)
+    try:
+        for it in intents:
+            res = pareto_optimize(
+                base,
+                bounds=bounds,
+                objectives=objectives,
+                n_samples=int(n_samples),
+                seed=int(seed),
+                intent_key=it,
+            )
+            perf = res.get("perf")
+            if isinstance(perf, dict):
+                perf_runs.append(perf)
+            for row in res.get("feasible") or []:
+                if isinstance(row, dict):
+                    r = dict(row)
+                    r["intent"] = it
+                    all_feasible.append(r)
+            for row in res.get("pareto") or []:
+                if isinstance(row, dict):
+                    r = dict(row)
+                    r["intent"] = it
+                    all_pareto.append(r)
+            for row in res.get("all") or []:
+                if isinstance(row, dict):
+                    r = dict(row)
+                    r["intent"] = it
+                    all_samples.append(r)
+    finally:
+        set_evaluate_point_override(None)
 
     payload = {
         "objectives": dict(objectives),

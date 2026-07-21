@@ -82,10 +82,13 @@ def evaluate_campaign_batch(spec, candidates: list) -> Tuple[dict, list, bytes]:
         from src.campaign.eval import evaluate_campaign_candidates, write_results_jsonl
     except ImportError:
         from campaign.eval import evaluate_campaign_candidates, write_results_jsonl  # type: ignore
+    from ui_nicegui.evaluate import ui_evaluator
+
     td = Path(tempfile.gettempdir()) / "shams_campaigns"
     td.mkdir(parents=True, exist_ok=True)
     out_jsonl = td / f"{spec.name}_results_v363.jsonl"
-    rows, summary = evaluate_campaign_candidates(spec, candidates)
+    ev = ui_evaluator(origin="NiceGUI:SystemSuite:Campaign", cache_enabled=False)
+    rows, summary = evaluate_campaign_candidates(spec, candidates, evaluator=ev)
     write_results_jsonl(rows, out_jsonl, include_artifact=bool(getattr(spec, "include_full_artifact", False)))
     preview: List[dict] = []
     for r in rows:
@@ -142,6 +145,7 @@ def run_parity_suite(
         from src.parity_harness.runner import run_benchmark_suite
     except ImportError:
         from parity_harness.runner import run_benchmark_suite  # type: ignore
+    from ui_nicegui.evaluate import ui_evaluator
 
     td = Path(tempfile.mkdtemp(prefix="shams_parity_"))
     cases_dir = td / "cases"
@@ -152,6 +156,7 @@ def run_parity_suite(
         src = Path(p)
         if src.is_file():
             shutil.copy2(src, cases_dir / src.name)
+    ev = ui_evaluator(origin="NiceGUI:SystemSuite:Parity", cache_enabled=False)
     return run_benchmark_suite(
         suite=str(suite),
         cases_dir=cases_dir,
@@ -162,6 +167,7 @@ def run_parity_suite(
         profile_contracts_preset=str(preset),
         profile_contracts_tier=str(tier),
         process_outputs_by_case=process_outputs_by_case or {},
+        evaluator=ev,
     )
 
 
