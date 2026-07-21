@@ -64,7 +64,14 @@ def render_base_design_editor(session: DesignSession) -> None:
         for k, v in prev.items():
             if k in session.inputs:
                 session.inputs[k] = float(v)
-        ui.notify("Undid last base change", type="info")
+        try:
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+            refresh_helm()
+            refresh_status()
+        except Exception:
+            pass
+        ui.notify("Undid last base change — KPIs may be STALE until re-evaluate.", type="warning")
 
     ui.button("Apply to session", icon="save", on_click=_capture).props("outline q-mt-sm")
     ui.button("Undo", icon="undo", on_click=_undo_base).props("flat q-ml-sm")

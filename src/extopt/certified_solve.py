@@ -142,6 +142,7 @@ def verify_ccfs_bundle(
     default_request: Optional[Dict[str, Any]] = None,
     opt_run: Optional[Dict[str, Any]] = None,
     attach_opt_run_stamp: bool = True,
+    evaluator: Any = None,
 ) -> Dict[str, Any]:
     """Verify a CCFS candidate bundle against frozen truth.
 
@@ -151,6 +152,9 @@ def verify_ccfs_bundle(
     - VERIFIED implies hard-feasible under governance constraints
       (`constraints_summary.feasible is True` and `n_hard_failed == 0`).
     - Soft-only failures may still be VERIFIED.
+
+    NiceGUI should pass ``evaluator=ui_evaluator(origin=...)`` so verification
+    routes through the UI choke point. When omitted, constructs a bare Evaluator.
 
     Opt Lab Phase 1.2: when ``attach_opt_run_stamp`` is True (default), the
     result includes ``opt_run_stamp`` (``opt_run_stamp.v1``) with VERSION,
@@ -170,7 +174,10 @@ def verify_ccfs_bundle(
         raise ValueError("bundle.candidates must be a non-empty list")
 
     default_request = dict(default_request or {})
-    evaluator = Evaluator()
+    if evaluator is not None:
+        ev = evaluator
+    else:
+        ev = Evaluator()
 
     verified: List[Dict[str, Any]] = []
 
@@ -184,8 +191,12 @@ def verify_ccfs_bundle(
             inp = _as_point_inputs(dict(c.get("inputs") or {}))
 
             # Frozen choke point — never trust claims or kit outputs for status.
-            res = evaluator.evaluate(inp)
+            res = ev.evaluate(inp)
             out = dict(getattr(res, "out", None) or {})
+            if not isinstance(out, dict) or not out:
+                alt = getattr(res, "outputs", None)
+                if isinstance(alt, dict):
+                    out = dict(alt)
             if not bool(getattr(res, "ok", True)):
                 verified.append({
                     "id": cid,

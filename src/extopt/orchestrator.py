@@ -264,10 +264,12 @@ def run_optimizer_job(
     *,
     orchestrator_root: Optional[Path] = None,
     keep_only_best_per_subrun: bool = True,
+    evaluator: Any = None,
 ) -> Path:
     """Run an external optimizer kit and produce a certified bundle.
 
     Returns the orchestrator run directory.
+    NiceGUI should pass ``evaluator=ui_evaluator(origin=...)`` for CCFS verify.
     """
     repo_root = repo_root.resolve()
     orchestrator_root = (orchestrator_root or (repo_root / "runs" / "orchestrator")).resolve()
@@ -424,7 +426,11 @@ def run_optimizer_job(
             for i, c in enumerate(candidates)
         ],
     }
-    verified = verify_ccfs_bundle(ccfs_bundle, default_request=dict(job.verify_request or {}))
+    verified = verify_ccfs_bundle(
+        ccfs_bundle,
+        default_request=dict(job.verify_request or {}),
+        evaluator=evaluator,
+    )
     _write_json(run_dir / "ccfs_verified.json", verified)
 
     # Build feasible-only frontier over verified candidates.

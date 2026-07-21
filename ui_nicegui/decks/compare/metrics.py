@@ -66,9 +66,10 @@ def render_metrics_panel(session: DesignSession, art_a: dict, art_b: dict) -> No
     if kpi_rows:
         ui.label("Artifact KPI block").classes("text-subtitle2 q-mt-md")
         if not feas_a or not feas_b:
-            ui.label("KPI block values inherit slot feasibility — treat INFEASIBLE as diagnostic.").classes(
-                "text-caption text-orange"
-            )
+            ui.badge(
+                "PHYS-KPI-001: claim KPIs (Q/H98/Pfus/P_net) shown as diagnostic on INFEASIBLE",
+                color="orange",
+            ).props("outline").classes("q-mb-xs")
         ui.table(
             columns=[
                 {"name": "kpi", "label": "KPI", "field": "kpi", "align": "left"},
@@ -86,6 +87,11 @@ def render_metrics_panel(session: DesignSession, art_a: dict, art_b: dict) -> No
     def _all_outputs_section() -> None:
         if not session.cmp_show_all_outputs:
             return
+        if not feas_a or not feas_b:
+            ui.badge(
+                "All-output deltas: claim KPIs watermarked on INFEASIBLE (PHYS-KPI-001)",
+                color="orange",
+            ).props("outline").classes("q-mb-xs")
         all_rows = numeric_output_diff_rows(art_a, art_b)
         if all_rows:
             ui.table(

@@ -182,11 +182,14 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             return
         applied = apply_x_to_session(session, rep["best_point"])
         from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
+        refresh_helm()
+        refresh_status()
         navigate_to_point_designer(session)
         ui.notify(
             f"Applied {len(applied)} variables — KPIs STALE until Evaluate Point.",
-            type="positive",
+            type="warning",
         )
 
     ui.button("Run seeded recovery", icon="healing", on_click=_run).props("outline q-mt-sm")

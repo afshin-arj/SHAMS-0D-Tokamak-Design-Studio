@@ -386,14 +386,33 @@ def run_point_designer_evaluation(session: DesignSession) -> Dict[str, Any]:
 
 
 def search_nearest_feasible(session: DesignSession) -> Dict[str, Any]:
+    try:
+        from src.solvers.evaluator_bridge import set_evaluate_point_override
+    except ImportError:
+        from solvers.evaluator_bridge import set_evaluate_point_override  # type: ignore
+
+    paux = getattr(session, "paux_for_q", None)
+
+    def _ui_eval(inp, *, origin: str = "solver", Paux_for_Q_MW=None, **kw):
+        return ui_evaluate(
+            inp,
+            origin=f"NiceGUI:PointDesigner:{origin}",
+            Paux_for_Q_MW=Paux_for_Q_MW if Paux_for_Q_MW is not None else paux,
+            **kw,
+        )
+
     base = session.build_point_inputs()
-    fr = find_nearest_feasible(
-        base,
-        levers={"Ip_MA": (session.pd_ip_min, session.pd_ip_max), "fG": (session.pd_fg_min, session.pd_fg_max)},
-        targets={"H98": float(session.pd_h98_target), "Q_DT_eqv": float(session.pd_q_target)},
-        n_random=80,
-        seed=0,
-    )
+    set_evaluate_point_override(_ui_eval)
+    try:
+        fr = find_nearest_feasible(
+            base,
+            levers={"Ip_MA": (session.pd_ip_min, session.pd_ip_max), "fG": (session.pd_fg_min, session.pd_fg_max)},
+            targets={"H98": float(session.pd_h98_target), "Q_DT_eqv": float(session.pd_q_target)},
+            n_random=80,
+            seed=0,
+        )
+    finally:
+        set_evaluate_point_override(None)
     report = dict(fr.report) if hasattr(fr, "report") else {}
     session.pd_frontier_last = report
     return report

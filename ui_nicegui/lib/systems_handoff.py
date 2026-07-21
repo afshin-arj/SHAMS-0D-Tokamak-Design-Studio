@@ -26,7 +26,17 @@ def consume_systems_mode_queue(session: Any) -> bool:
                 pass
     if applied:
         session.systems_workflow_step = "1 · Targets"
-        ui.notify(f"Pareto handoff applied ({applied} inputs) — review targets on tab 1.", type="positive")
+        try:
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+            refresh_helm()
+            refresh_status()
+        except Exception:
+            pass
+        ui.notify(
+            f"Pareto handoff applied ({applied} inputs) — KPIs STALE until re-evaluate.",
+            type="warning",
+        )
         return True
     ui.notify("Handoff queue was empty or invalid.", type="warning")
     return False

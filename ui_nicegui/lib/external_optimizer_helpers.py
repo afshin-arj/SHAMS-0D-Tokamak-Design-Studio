@@ -447,18 +447,45 @@ def read_run_json(run_dir: Path, name: str) -> Optional[dict]:
 
 
 def run_optimizer_job(*, kit: str, seed: int, n: int, objectives: List[str], senses: dict, bounds: dict, base) -> dict:
-    from src.extopt.orchestrator import OptimizerJob, run_optimizer_job
+    from src.extopt.orchestrator import OptimizerJob, run_optimizer_job as _run_job
+    from ui_nicegui.evaluate import ui_evaluator
 
+    objs = list(objectives)
+    sense_map = {str(o): str(senses.get(o, "min")) for o in objs}
+    objective_contract = {
+        "schema": "objective_contract.v3",
+        "objectives": [{"key": o, "sense": sense_map[o]} for o in objs],
+    }
+    # Bounds values may be tuples from knob sets — normalize to [lo, hi] lists.
+    norm_bounds: Dict[str, List[float]] = {}
+    for k, v in (bounds or {}).items():
+        if isinstance(v, (list, tuple)) and len(v) >= 2:
+            norm_bounds[str(k)] = [float(v[0]), float(v[1])]
     job = OptimizerJob(
+        schema_version="optimizer_job.v2",
         kit=str(kit),
         seed=int(seed),
         n=int(n),
-        objectives=list(objectives),
-        objective_senses=dict(senses),
-        bounds=dict(bounds),
+        objective_contract=objective_contract,
+        objectives=objs,
+        objective_senses=sense_map,
+        bounds=norm_bounds,
         base_inputs=asdict(base) if hasattr(base, "__dataclass_fields__") else dict(base),
+        verify_request={"phase_envelope": False, "uq_contracts": False},
     )
-    return run_optimizer_job(job, repo_root=repo())
+    ev = ui_evaluator(origin="NiceGUI:CCFS:OptimizerJob", cache_enabled=True)
+    run_dir = _run_job(repo(), job, evaluator=ev)
+    dossier_path = Path(run_dir) / "optimizer_dossier.json"
+    if dossier_path.is_file():
+        try:
+            out = json.loads(dossier_path.read_text(encoding="utf-8"))
+            if isinstance(out, dict):
+                out = dict(out)
+                out["run_dir"] = str(run_dir)
+                return out
+        except Exception:
+            pass
+    return {"run_dir": str(run_dir), "schema_version": "optimizer_dossier.v1"}
 
 
 def evaluate_concept_family_yaml(path: Path, *, label: str = "NiceGUI:Cockpit") -> dict:

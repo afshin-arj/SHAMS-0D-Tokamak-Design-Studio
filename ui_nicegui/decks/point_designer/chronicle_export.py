@@ -182,7 +182,16 @@ def _frontier_panel(session: DesignSession) -> None:
         ui.label(str(rep.get("message", "frontier error"))).classes("text-negative")
         return
     best = rep.get("best_levers") or {}
+    best_ok = bool(rep.get("best_ok"))
+    status = str(rep.get("status") or ("success" if best_ok else "best_effort"))
+    if best_ok:
+        ui.badge("FEASIBLE neighbor found", color="green").props("outline q-mb-xs")
+    else:
+        ui.badge("BEST-EFFORT only — not feasible", color="orange").props("outline q-mb-xs")
+        ui.label(
+            "Score ranks proximity under hard failures — do not treat this as a certified PASS."
+        ).classes("text-caption text-orange q-mb-xs")
     ui.label(
-        f"Best Ip={best.get('Ip_MA', float('nan')):.4g} MA, fG={best.get('fG', float('nan')):.4g} | "
+        f"[{status}] Ip={best.get('Ip_MA', float('nan')):.4g} MA, fG={best.get('fG', float('nan')):.4g} | "
         f"score={rep.get('best_score', float('nan')):.4g}"
     ).classes("text-body2")
