@@ -68,6 +68,7 @@ def certify_points_under_contract(
     thresholds: Optional[TierThresholds] = None,
     label_prefix: str = "v352",
     max_points: int = 50,
+    evaluator: Any = None,
 ) -> Dict[str, Any]:
     """Certify a list of PointInputs under a deterministic uncertainty contract.
 
@@ -78,6 +79,7 @@ def certify_points_under_contract(
       thresholds: tier thresholds based on worst_hard_margin_frac.
       label_prefix: label prefix for corner artifacts.
       max_points: budget cap (prevents runaway artifact sizes).
+      evaluator: optional Evaluator (or ui_evaluator) forwarded into run_uq_fn.
     """
     if thresholds is None:
         thresholds = TierThresholds()
@@ -111,7 +113,9 @@ def certify_points_under_contract(
     spec = UncertaintyContractSpec(name=str(contract_spec.get('name','uq')), intervals=intervals, policy_overrides=contract_spec.get('policy_overrides') or None, notes=str(contract_spec.get('notes','')))
 
     for i, inp in enumerate(points):
-        uq = run_uq_fn(inp, spec, label_prefix=f"{label_prefix}:p{i:04d}")
+        uq = run_uq_fn(
+            inp, spec, label_prefix=f"{label_prefix}:p{i:04d}", evaluator=evaluator
+        )
         summ = (uq or {}).get("summary", {}) if isinstance(uq, dict) else {}
         verdict = str(summ.get("verdict", "UNKNOWN"))
         worst = summ.get("worst_hard_margin_frac", None)

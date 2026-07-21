@@ -157,12 +157,16 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
                     if isinstance(v, (list, tuple)) and len(v) >= 2
                 },
             )
+            from ui_nicegui.evaluate import ui_evaluator
+
+            ev = ui_evaluator(origin="NiceGUI:UQContracts", cache_enabled=True)
             con = await run.io_bound(
                 run_uncertainty_contract_for_point,
                 base_inputs,
                 spec,
                 label_prefix="uq",
                 max_dims=int(session.uq_contract_max_dims),
+                evaluator=ev,
             )
             session.uq_contract_last = con
             ui.notify("Uncertainty contract complete.", type="positive")

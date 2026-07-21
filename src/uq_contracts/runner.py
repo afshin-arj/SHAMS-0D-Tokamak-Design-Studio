@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from dataclasses import asdict
 import itertools
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
     from ..models.inputs import PointInputs  # type: ignore
@@ -16,6 +16,27 @@ from constraints.bookkeeping import summarize as summarize_constraints
 from shams_io.run_artifact import build_run_artifact
 
 from .spec import Interval, UncertaintyContractSpec
+
+EvaluateFn = Callable[[PointInputs], Dict[str, Any]]
+
+
+def _resolve_outputs(
+    inp: PointInputs,
+    *,
+    evaluator: Any = None,
+    evaluate_fn: Optional[EvaluateFn] = None,
+) -> Dict[str, Any]:
+    """Route through injected evaluator / evaluate_fn; else bare hot_ion_point (CLI)."""
+    if evaluate_fn is not None:
+        out = evaluate_fn(inp)
+        return dict(out) if isinstance(out, dict) else {}
+    if evaluator is not None:
+        res = evaluator.evaluate(inp)
+        out = getattr(res, "out", None)
+        if not isinstance(out, dict):
+            out = getattr(res, "outputs", None)
+        return dict(out) if isinstance(out, dict) else {}
+    return hot_ion_point(inp)
 
 
 def _merged_policy(base_out: Dict[str, Any], overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -53,8 +74,14 @@ def run_uncertainty_contract_for_point(
     label_prefix: str = "uq",
     max_dims: int = 16,
     include_corner_artifacts: bool = True,
+    evaluator: Any = None,
+    evaluate_fn: Optional[EvaluateFn] = None,
 ) -> Dict[str, Any]:
     """Evaluate feasibility across deterministic interval corners.
+
+    NiceGUI / CCFS should pass ``evaluator=ui_evaluator(...)`` (or ``evaluate_fn``)
+    so corners route through the Evaluator choke point. When omitted, falls back
+    to bare ``hot_ion_point`` (CLI / tests).
 
     Performance / determinism:
     - When include_corner_artifacts=False, the function still evaluates every
@@ -70,7 +97,7 @@ def run_uncertainty_contract_for_point(
         raise ValueError(f"Too many uncertain dimensions: {len(intervals)} > {int(max_dims)}. "
                          "Reduce dimensions or increase max_dims explicitly.")
 
-    base_out = hot_ion_point(base_inputs)
+    base_out = _resolve_outputs(base_inputs, evaluator=evaluator, evaluate_fn=evaluate_fn)
     policy = _merged_policy(base_out if isinstance(base_out, dict) else {}, spec.policy_overrides)
 
     corners = enumerate_corners(intervals)
@@ -86,7 +113,7 @@ def run_uncertainty_contract_for_point(
                 base_d[k] = v
         inp = PointInputs(**base_d)
 
-        out = hot_ion_point(inp)
+        out = _resolve_outputs(inp, evaluator=evaluator, evaluate_fn=evaluate_fn)
         cons = evaluate_constraints(out, policy=policy)
         cs = summarize_constraints(cons).to_dict()
         feasible = bool(cs.get("feasible", False))

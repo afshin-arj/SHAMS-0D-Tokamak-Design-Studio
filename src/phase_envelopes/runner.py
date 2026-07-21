@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
     from ..models.inputs import PointInputs  # type: ignore
@@ -15,6 +15,27 @@ from constraints.bookkeeping import summarize as summarize_constraints
 from shams_io.run_artifact import build_run_artifact
 
 from .spec import PhaseSpec
+
+EvaluateFn = Callable[[PointInputs], Dict[str, Any]]
+
+
+def _resolve_outputs(
+    inp: PointInputs,
+    *,
+    evaluator: Any = None,
+    evaluate_fn: Optional[EvaluateFn] = None,
+) -> Dict[str, Any]:
+    """Route through injected evaluator / evaluate_fn; else bare hot_ion_point (CLI)."""
+    if evaluate_fn is not None:
+        out = evaluate_fn(inp)
+        return dict(out) if isinstance(out, dict) else {}
+    if evaluator is not None:
+        res = evaluator.evaluate(inp)
+        out = getattr(res, "out", None)
+        if not isinstance(out, dict):
+            out = getattr(res, "outputs", None)
+        return dict(out) if isinstance(out, dict) else {}
+    return hot_ion_point(inp)
 
 
 def _merged_policy(base_out: Dict[str, Any], overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -29,14 +50,22 @@ def _merged_policy(base_out: Dict[str, Any], overrides: Optional[Dict[str, Any]]
     return merged
 
 
-def _phase_eval(base_inputs: PointInputs, base_out: Dict[str, Any], phase: PhaseSpec, *, label_prefix: str) -> Dict[str, Any]:
+def _phase_eval(
+    base_inputs: PointInputs,
+    base_out: Dict[str, Any],
+    phase: PhaseSpec,
+    *,
+    label_prefix: str,
+    evaluator: Any = None,
+    evaluate_fn: Optional[EvaluateFn] = None,
+) -> Dict[str, Any]:
     base_d = asdict(base_inputs)
     for k, v in (phase.input_overrides or {}).items():
         if k in base_d:
             base_d[k] = v
     inp = PointInputs(**base_d)
 
-    out = hot_ion_point(inp)
+    out = _resolve_outputs(inp, evaluator=evaluator, evaluate_fn=evaluate_fn)
     policy = _merged_policy(base_out if isinstance(base_out, dict) else {}, phase.policy_overrides)
     cons = evaluate_constraints(out, policy=policy)
     summary = summarize_constraints(cons).to_dict()
@@ -59,33 +88,36 @@ def run_phase_envelope_for_point(
     phases: List[PhaseSpec],
     *,
     label_prefix: str = "phase",
+    evaluator: Any = None,
+    evaluate_fn: Optional[EvaluateFn] = None,
 ) -> Dict[str, Any]:
     """Run ordered quasi-static phases and return an envelope summary.
+
+    NiceGUI / CCFS should pass ``evaluator=ui_evaluator(...)`` (or ``evaluate_fn``)
+    so phase corners route through the Evaluator choke point. When omitted,
+    falls back to bare ``hot_ion_point`` (CLI / tests).
 
     Worst-phase is defined as:
       - any infeasible (hard fail) phase dominates feasible phases
       - among infeasible phases, pick the one with most negative worst_hard_margin_frac
       - if all feasible, pick the one with smallest worst_hard_margin_frac (closest to boundary)
-
-    Returns
-    -------
-    dict with keys:
-      - schema_version
-      - phases_ordered: list of phase artifacts (one per phase)
-      - worst_phase: selected phase name
-      - worst_phase_index
-      - envelope_verdict: PASS / FAIL
-      - envelope_summary: condensed metrics
     """
     if not phases:
         raise ValueError("phases must be non-empty")
 
-    base_out = hot_ion_point(base_inputs)
+    base_out = _resolve_outputs(base_inputs, evaluator=evaluator, evaluate_fn=evaluate_fn)
     phase_arts: List[Dict[str, Any]] = []
     scores: List[Tuple[int, float]] = []  # (infeasible_flag, worst_margin)
 
     for ph in phases:
-        art = _phase_eval(base_inputs, base_out, ph, label_prefix=label_prefix)
+        art = _phase_eval(
+            base_inputs,
+            base_out,
+            ph,
+            label_prefix=label_prefix,
+            evaluator=evaluator,
+            evaluate_fn=evaluate_fn,
+        )
         phase_arts.append(art)
         cs = (art.get("constraints_summary") or {}) if isinstance(art, dict) else {}
         feasible = bool(cs.get("feasible", False))

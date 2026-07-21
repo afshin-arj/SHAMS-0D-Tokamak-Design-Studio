@@ -186,7 +186,12 @@ def run_robust_pareto_frontier(
         out0 = ui_evaluate(inp, origin="NiceGUI:RobustPareto")
         nominal_feasible = bool(row.get("is_feasible", True)) if isinstance(row, dict) else True
 
-        env = run_phase_envelope_for_point(inp, phases, label_prefix=f"{label_prefix}:p{i:04d}")
+        from ui_nicegui.evaluate import ui_evaluator
+
+        ev = ui_evaluator(origin="NiceGUI:RobustPareto", cache_enabled=True)
+        env = run_phase_envelope_for_point(
+            inp, phases, label_prefix=f"{label_prefix}:p{i:04d}", evaluator=ev
+        )
         env_s = (env.get("envelope_summary") or {}) if isinstance(env, dict) else {}
         env_verdict = str(env_s.get("envelope_verdict", "UNKNOWN"))
         env_worst_margin = env_s.get("worst_phase_worst_hard_margin_frac")
@@ -195,7 +200,9 @@ def run_robust_pareto_frontier(
         except (TypeError, ValueError):
             env_worst_margin_f = float("nan")
 
-        uq = run_uncertainty_contract_for_point(inp, uq_spec, label_prefix=f"{label_prefix}:u{i:04d}")
+        uq = run_uncertainty_contract_for_point(
+            inp, uq_spec, label_prefix=f"{label_prefix}:u{i:04d}", evaluator=ev
+        )
         uq_sum = (uq.get("summary") or {}) if isinstance(uq, dict) else {}
         uq_verdict = str(uq_sum.get("verdict", "UNKNOWN"))
         uq_worst_margin = uq_sum.get("worst_hard_margin_frac")
@@ -551,9 +558,15 @@ def launch_optimizer_kit(*, kit: str, seed: int, n: int, objectives: List[str], 
 def run_two_lane_uq(base) -> dict:
     from src.uq_contracts.runner import run_uncertainty_contract_for_point
     from src.uq_contracts.spec import optimistic_uncertainty_contract, robust_uncertainty_contract
+    from ui_nicegui.evaluate import ui_evaluator
 
-    uqO = run_uncertainty_contract_for_point(base, optimistic_uncertainty_contract(base), label_prefix="laneO")
-    uqR = run_uncertainty_contract_for_point(base, robust_uncertainty_contract(base), label_prefix="laneR")
+    ev = ui_evaluator(origin="NiceGUI:TwoLaneUQ", cache_enabled=True)
+    uqO = run_uncertainty_contract_for_point(
+        base, optimistic_uncertainty_contract(base), label_prefix="laneO", evaluator=ev
+    )
+    uqR = run_uncertainty_contract_for_point(
+        base, robust_uncertainty_contract(base), label_prefix="laneR", evaluator=ev
+    )
     sO = dict((uqO.get("summary") or {}))
     sR = dict((uqR.get("summary") or {}))
     vO, vR = str(sO.get("verdict", "")), str(sR.get("verdict", ""))

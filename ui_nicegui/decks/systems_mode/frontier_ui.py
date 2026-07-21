@@ -18,6 +18,9 @@ _Y_OPTS = [
 ]
 _X_OPTS = ["R0_m", "a_m", "Bt_T", "Ti_keV", "Paux_MW", "Ip_MA", "fG", "kappa"]
 
+# PHYS-KPI-001 claim metrics — never present as design achievements on INFEASIBLE.
+_CLAIM_Y = frozenset({"Q_DT_eqv", "H98", "P_e_net_MW", "Pfus_total_MW"})
+
 
 def render_frontier_panel(session: DesignSession) -> None:
     with ui.expansion("Frontier scatter", icon="scatter_plot", value=True).classes("w-full q-mt-sm"):
@@ -62,10 +65,22 @@ def _frontier_view(session: DesignSession, src: str, x_key: str, y_key: str) -> 
         return
 
     n_feas = sum(1 for p in pts if p[2])
+    n_infeas = len(pts) - n_feas
     ui.label(f"Points: {len(pts)} | feasible: {n_feas}").classes("text-caption q-mb-xs")
+    if y_key in _CLAIM_Y and n_infeas > 0:
+        ui.label(
+            "PHYS-KPI-001: Q / H98 / P_net / Pfus on infeasible frontier points are "
+            "diagnostic residue — not design claims. Table Y shows diag· for those rows."
+        ).classes("text-caption text-orange q-mb-xs")
     _render_plotly_scatter(pts, x_key, y_key)
 
-    rows = [{"x": p[0], "y": p[1], "feasible": p[2]} for p in pts[:100]]
+    rows = []
+    for p in pts[:100]:
+        xv, yv, feas = p[0], p[1], p[2]
+        y_disp: float | str = yv
+        if y_key in _CLAIM_Y and not feas and math.isfinite(yv):
+            y_disp = f"diag·{yv:.4g}"
+        rows.append({"x": xv, "y": y_disp, "feasible": feas})
     with ui.expansion("Point table", icon="table_rows").classes("w-full"):
         ui.table(
             columns=[
@@ -94,7 +109,7 @@ def _render_plotly_scatter(pts: list[tuple[float, float, bool]], x_key: str, y_k
                 x=[p[0] for p in infeas],
                 y=[p[1] for p in infeas],
                 mode="markers",
-                name="Infeasible",
+                name="Infeasible (diagnostic)" if y_key in _CLAIM_Y else "Infeasible",
                 marker=dict(color="rgba(160,160,160,0.35)", size=5),
             )
         )
@@ -125,12 +140,33 @@ def _metric_from_outputs(outs: dict, y_key: str) -> float:
     aliases = {
         "q95_proxy": ("q95",),
         "q95": ("q95_proxy",),
+        "P_e_net_MW": ("Pe_net_MW", "P_net_MW"),
         "Pfus_total_MW": ("P_fus_MW", "Pfus_MW"),
         "Pfus_DT_adj_MW": ("Pfus_total_MW",),
+        "Q_DT_eqv": ("Q", "Q_DT"),
+        "H98": ("H_IPB98y2", "H98y2"),
     }
     for alt in aliases.get(y_key, ()):
         if alt in outs and outs.get(alt) is not None:
             return float(outs[alt])
+    return float("nan")
+
+
+def _y_from_trace_row(t: dict, y_key: str) -> float:
+    """Honor selected Y for recovery/search traces (not always V)."""
+    if y_key == "V (hard violation)":
+        return float(t.get("V", float("nan")))
+    metrics = t.get("metrics") if isinstance(t.get("metrics"), dict) else {}
+    yv = _metric_from_outputs(metrics, y_key)
+    if math.isfinite(yv):
+        return yv
+    # Recovery traces sometimes stash outputs under "out" / "outputs".
+    for key in ("out", "outputs"):
+        blob = t.get(key)
+        if isinstance(blob, dict):
+            yv = _metric_from_outputs(blob, y_key)
+            if math.isfinite(yv):
+                return yv
     return float("nan")
 
 
@@ -161,7 +197,7 @@ def _collect_points(session: DesignSession, src: str, x_key: str, y_key: str) ->
             try:
                 x = t.get("x") or {}
                 xv = float(x.get(x_key, float("nan")))
-                yv = float(t.get("V", float("nan")))
+                yv = _y_from_trace_row(t if isinstance(t, dict) else {}, y_key)
                 if math.isfinite(xv) and math.isfinite(yv):
                     pts.append((xv, yv, bool(t.get("feasible"))))
             except Exception:
@@ -172,10 +208,7 @@ def _collect_points(session: DesignSession, src: str, x_key: str, y_key: str) ->
             try:
                 x = t.get("x") or {}
                 xv = float(x.get(x_key, float("nan")))
-                if y_key == "V (hard violation)":
-                    yv = float(t.get("V", float("nan")))
-                else:
-                    yv = _metric_from_outputs(t.get("metrics") or {}, y_key)
+                yv = _y_from_trace_row(t if isinstance(t, dict) else {}, y_key)
                 if math.isfinite(xv) and math.isfinite(yv):
                     pts.append((xv, yv, bool(t.get("feasible"))))
             except Exception:

@@ -231,7 +231,9 @@ def verify_ccfs_bundle(
                     from phase_envelopes.spec import default_phases_for_point
                     from phase_envelopes.runner import run_phase_envelope_for_point
                     phases = default_phases_for_point(inp)
-                    phase_env = run_phase_envelope_for_point(inp, phases, label_prefix=f"ccfs:{cid}")
+                    phase_env = run_phase_envelope_for_point(
+                        inp, phases, label_prefix=f"ccfs:{cid}", evaluator=ev
+                    )
                 except Exception as e:
                     phase_env = {"error": f"phase_envelope_failed: {e}"}
 
@@ -241,7 +243,9 @@ def verify_ccfs_bundle(
                     from uq_contracts.spec import default_uncertainty_contract
                     from uq_contracts.runner import run_uncertainty_contract_for_point
                     spec = default_uncertainty_contract(inp)
-                    uq = run_uncertainty_contract_for_point(inp, spec, label_prefix=f"ccfs:{cid}")
+                    uq = run_uncertainty_contract_for_point(
+                        inp, spec, label_prefix=f"ccfs:{cid}", evaluator=ev
+                    )
                 except Exception as e:
                     uq = {"error": f"uq_contracts_failed: {e}"}
 

@@ -17,14 +17,15 @@ from typing import Any, Dict, List, Tuple
 import math
 
 from models.inputs import PointInputs
-from evaluator.core import Evaluator
 from uq_contracts.runner import run_uncertainty_contract_for_point
 from uq_contracts.spec import robust_uncertainty_contract
 
 
-def _robust_pass(ev: Evaluator, inp: PointInputs) -> Tuple[bool, float, Dict[str, Any]]:
+def _robust_pass(ev: Any, inp: PointInputs) -> Tuple[bool, float, Dict[str, Any]]:
     spec = robust_uncertainty_contract(inp)
-    uq = run_uncertainty_contract_for_point(inp, spec, label_prefix="laneR", include_corner_artifacts=False)
+    uq = run_uncertainty_contract_for_point(
+        inp, spec, label_prefix="laneR", include_corner_artifacts=False, evaluator=ev
+    )
     summ = dict(uq.get("summary", {}) or {})
     verdict = str(summ.get("verdict", ""))
     wm = summ.get("worst_hard_margin_frac", None)
@@ -36,7 +37,7 @@ def _robust_pass(ev: Evaluator, inp: PointInputs) -> Tuple[bool, float, Dict[str
 
 
 def one_knob_path_scan(
-    ev: Evaluator,
+    ev: Any,
     base: PointInputs,
     knob: str,
     *,
