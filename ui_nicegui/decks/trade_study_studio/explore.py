@@ -5,6 +5,11 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
+from ui_nicegui.lib.plant_kpi_honesty_ui import (
+    allow_infeasible_scatter_point,
+    scatter_physkpi_caption,
+    watermark_trade_study_table_rows,
+)
 from ui_nicegui.session import DesignSession
 
 
@@ -63,6 +68,7 @@ def render_explore_tab(
             infeasible=_infeasible_shadow(records, session.trade_plot_x, session.trade_plot_y)
             if session.trade_show_failures
             else [],
+            show_infeasible=bool(session.trade_show_failures),
         )
     elif not pareto:
         ui.label("No Pareto front — insufficient feasible variation or single objective.").classes("text-orange")
@@ -74,6 +80,9 @@ def render_explore_tab(
 
 
 def _infeasible_shadow(records: list, x_key: str, y_key: str) -> list[dict]:
+    """Geometry/margin shadows only — omit when axes are claim KPIs (PHYS-KPI-001)."""
+    if not allow_infeasible_scatter_point(x_key=x_key, y_key=y_key):
+        return []
     out = []
     for r in records:
         if r.get("is_feasible"):
@@ -91,11 +100,15 @@ def _render_plot(
     color_key: str,
     *,
     infeasible: list[dict],
+    show_infeasible: bool = False,
 ) -> None:
     try:
         import plotly.graph_objects as go
     except ImportError:
         return
+    caption = scatter_physkpi_caption(x_key, y_key, show_infeasible=show_infeasible)
+    if caption:
+        ui.label(caption).classes("text-caption text-orange q-mb-xs")
     fig = go.Figure()
     if infeasible:
         fig.add_trace(
@@ -103,7 +116,7 @@ def _render_plot(
                 x=[p.get(x_key) for p in infeasible],
                 y=[p.get(y_key) for p in infeasible],
                 mode="markers",
-                name="Infeasible",
+                name="Infeasible (non-claim axes)",
                 marker=dict(color="rgba(160,160,160,0.3)", size=4),
             )
         )
@@ -134,7 +147,7 @@ def _render_sample_table(title: str, rows: list[dict], objectives: list[str]) ->
         return
     cols = ["i", "is_feasible", "dominant_constraint", "min_margin_frac", "design_family"]
     cols += [c for c in objectives if c in rows[0]][:4]
-    table_rows = [{k: r.get(k) for k in cols if k in r} for r in rows]
+    table_rows = watermark_trade_study_table_rows(rows, cols)
     ui.label(title).classes("text-subtitle2")
     ui.table(
         columns=[{"name": k, "label": k, "field": k, "align": "left"} for k in cols if table_rows and k in table_rows[0]],

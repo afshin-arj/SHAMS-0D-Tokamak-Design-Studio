@@ -25,6 +25,10 @@ from ui_nicegui.lib.forge_machine_finder_helpers import (
     resistance_atlas_rows,
     summarize_workbench_run,
 )
+from ui_nicegui.lib.plant_kpi_honesty_ui import (
+    allow_infeasible_scatter_point,
+    scatter_physkpi_caption,
+)
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
 
@@ -129,7 +133,14 @@ def _render_archive_overview(session: DesignSession, run_rep: dict, archive: lis
         session.forge_scatter_y = axis_opts[min(1, len(axis_opts) - 1)]
 
     ui.label("Archive scatter").classes("text-subtitle2")
-    ui.label("Green = feasible · Red = infeasible · Star = dominant archive member").classes("text-caption")
+    ui.label("Green = feasible · Red = infeasible (non-claim axes only) · Star = dominant archive member").classes(
+        "text-caption"
+    )
+    claim_cap = scatter_physkpi_caption(
+        session.forge_scatter_x, session.forge_scatter_y, show_infeasible=True
+    )
+    if claim_cap:
+        ui.label(claim_cap).classes("text-caption text-orange q-mb-xs")
 
     with ui.row().classes("w-full gap-2 items-end"):
         x_sel = ui.select(axis_opts, label="X", value=session.forge_scatter_x).classes("flex-1")
@@ -178,9 +189,15 @@ def _render_scatter(archive: list, x_key: str, y_key: str) -> None:
         ui.label("Plotly not available.").classes("text-orange")
         return
 
+    claim_axes = not allow_infeasible_scatter_point(x_key=x_key, y_key=y_key)
     xs, ys, colors, sizes, texts = [], [], [], [], []
+    n_omitted = 0
     for i, a in enumerate(archive):
         if not isinstance(a, dict):
+            continue
+        ok = bool(a.get("feasible", False))
+        if not ok and claim_axes:
+            n_omitted += 1
             continue
         xv = archive_point(a, x_key)
         yv = archive_point(a, y_key)
@@ -188,11 +205,15 @@ def _render_scatter(archive: list, x_key: str, y_key: str) -> None:
             continue
         xs.append(float(xv))
         ys.append(float(yv))
-        ok = bool(a.get("feasible", False))
         dom = bool(a.get("is_dominant", False))
         colors.append("#2e7d32" if ok else "#c62828")
         sizes.append(14 if dom else 8)
         texts.append(f"#{i} · {a.get('failure_mode') or 'OK'}")
+
+    if n_omitted:
+        ui.label(
+            f"Omitted {n_omitted} infeasible archive point(s) on claim-KPI axes (PHYS-KPI-001)."
+        ).classes("text-caption text-grey q-mb-xs")
 
     fig = go.Figure()
     fig.add_trace(

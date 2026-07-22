@@ -240,6 +240,31 @@ def claim_key_for_objective_column(column: str) -> Optional[str]:
     return fallback.get(col)
 
 
+def is_claim_scatter_axis(axis_key: str) -> bool:
+    """True when a plot axis would present a PHYS-KPI claim coordinate."""
+    return claim_key_for_objective_column(axis_key) is not None
+
+
+def allow_infeasible_scatter_point(*, x_key: str, y_key: str) -> bool:
+    """Infeasible shadows may only plot on non-claim axes (geometry / margins).
+
+    Claim-KPI axes (Q / H98 / Pfus / P_net / LCOE FoMs) must not paint
+    INFEASIBLE residue as achievement space (PHYS-KPI-001).
+    """
+    return not (is_claim_scatter_axis(x_key) or is_claim_scatter_axis(y_key))
+
+
+def scatter_physkpi_caption(x_key: str, y_key: str, *, show_infeasible: bool) -> Optional[str]:
+    if not show_infeasible:
+        return None
+    if not (is_claim_scatter_axis(x_key) or is_claim_scatter_axis(y_key)):
+        return None
+    return (
+        "PHYS-KPI-001: infeasible shadow omitted on claim-KPI axes "
+        "(Q / H98 / Pfus / P_net / LCOE) — diagnostic residue is not achievement space."
+    )
+
+
 def watermark_trade_study_table_rows(
     rows: Sequence[Mapping[str, Any]],
     columns: Sequence[str],
@@ -353,6 +378,9 @@ __all__ = [
     "watermark_claim_kpi_map",
     "changed_kpis_table_rows",
     "claim_key_for_objective_column",
+    "is_claim_scatter_axis",
+    "allow_infeasible_scatter_point",
+    "scatter_physkpi_caption",
     "watermark_trade_study_table_rows",
     "honest_performance_caption",
 ]
