@@ -93,19 +93,41 @@ def render_scan_lab(session: DesignSession) -> None:
 
     _consume_scan_probe_focus(session)
 
+    from ui_nicegui.lib.pd_solver_helpers import inputs_stale
+    from ui_nicegui.lib.scan_helpers import scan_cartography_stale_vs_session
     from ui_nicegui.lib.session_store import get_cached_verdict_summary
 
     _vs = get_cached_verdict_summary(session, point_out)
-    with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
+    stale_pd = bool(getattr(session, "pd_last_run_ts", None) and inputs_stale(session))
+    map_stale = scan_cartography_stale_vs_session(session)
+
+    if stale_pd:
+        ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")
         ui.label(
-            baseline_kpi_caption(
-                point_out,
-                artifact=art,
-                verdict=_vs,
-                design_intent=str(session.design_intent),
-                fuel_mode=str((session.inputs or {}).get("fuel_mode", "DT")),
-            )
-        ).classes(baseline_kpi_classes(point_out, verdict=_vs))
+            "Inputs changed since Point Designer evaluation — re-evaluate before trusting baseline KPIs."
+        ).classes("text-caption text-orange q-mb-xs")
+    if map_stale:
+        ui.badge("SCAN MAP STALE", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Cartography baseline drifted from current session inputs — re-run scan on **Setup & Run** "
+            "before treating Map & Probe / Interpret as current."
+        ).classes("text-caption text-orange q-mb-xs")
+
+    caption = baseline_kpi_caption(
+        point_out,
+        artifact=art,
+        verdict=_vs,
+        design_intent=str(session.design_intent),
+        fuel_mode=str((session.inputs or {}).get("fuel_mode", "DT")),
+    )
+    if stale_pd:
+        caption = "STALE · " + caption
+    kpi_cls = baseline_kpi_classes(point_out, verdict=_vs)
+    if stale_pd:
+        kpi_cls = "text-caption text-negative"
+
+    with ui.row().classes("w-full items-center justify-between q-mb-sm flex-wrap"):
+        ui.label(caption).classes(kpi_cls)
         with ui.row().classes("gap-4"):
             ui.switch(
                 "Guided mode",
@@ -213,7 +235,12 @@ def _apply_quick_jump(session: DesignSession, tab: str) -> None:
 
 @ui.refreshable
 def _render_verdict(session: DesignSession) -> None:
-    verdict.render_scan_verdict(session.scan_cartography_report)
+    from ui_nicegui.lib.scan_helpers import scan_cartography_stale_vs_session
+
+    verdict.render_scan_verdict(
+        session.scan_cartography_report,
+        map_stale=scan_cartography_stale_vs_session(session),
+    )
 
 
 @ui.refreshable
