@@ -91,6 +91,11 @@ def knee_candidates(pareto: list, x_key: str, y_key: str, *, top_k: int = 8) -> 
 
 
 def failure_atlas_points(all_samples: list, x_key: str, y_key: str) -> List[dict]:
+    """Infeasible shadow for Pareto Explore — geometry/margin axes only (PHYS-KPI-001)."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import allow_infeasible_scatter_point
+
+    if not allow_infeasible_scatter_point(x_key=str(x_key), y_key=str(y_key)):
+        return []
     rows = []
     for r in _rows_to_dicts(all_samples):
         if r.get("is_feasible"):
