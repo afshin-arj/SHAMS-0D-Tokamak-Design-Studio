@@ -268,7 +268,9 @@ def _trace_plot(session: DesignSession) -> None:
     except ImportError:
         return
 
-    feas_x, feas_y, infeas_x, infeas_y = [], [], [], []
+    # PHYS-KPI-001: Q vs H98 are both claim axes — never plot INFEASIBLE residue as shadow.
+    feas_x, feas_y = [], []
+    n_omitted = 0
     for t in trace:
         m = t.get("metrics") or {}
         q = m.get("Q_DT_eqv", m.get("Q"))
@@ -283,20 +285,15 @@ def _trace_plot(session: DesignSession) -> None:
             feas_x.append(qv)
             feas_y.append(hv)
         else:
-            infeas_x.append(qv)
-            infeas_y.append(hv)
+            n_omitted += 1
+
+    if n_omitted:
+        ui.label(
+            "PHYS-KPI-001: omitted infeasible search-trace points on Q / H98 axes — "
+            "diagnostic residue is not achievement space."
+        ).classes("text-caption text-orange q-mb-xs")
 
     fig = go.Figure()
-    if infeas_x:
-        fig.add_trace(
-            go.Scatter(
-                x=infeas_x,
-                y=infeas_y,
-                mode="markers",
-                name="Infeasible",
-                marker=dict(color="rgba(160,160,160,0.35)", size=5),
-            )
-        )
     if feas_x:
         fig.add_trace(
             go.Scatter(
@@ -312,7 +309,7 @@ def _trace_plot(session: DesignSession) -> None:
         margin=dict(l=48, r=20, t=36, b=48),
         xaxis_title="Q_DT_eqv",
         yaxis_title="H98",
-        title="Search trace (Q vs H98)",
+        title="Search trace (Q vs H98, feasible only)",
         legend=dict(orientation="h"),
     )
     ui.plotly(fig).classes("w-full q-mt-sm")

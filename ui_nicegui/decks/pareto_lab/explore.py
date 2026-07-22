@@ -8,6 +8,7 @@ from nicegui import ui
 from ui_nicegui.lib.pareto_helpers import FOCUS_METRIC_KEYS, OBJ_CATALOG, metric_label
 from ui_nicegui.lib.pareto_interpret_helpers import enrich_pareto_front, failure_atlas_points, robust_filtered
 from ui_nicegui.lib.pareto_labels import QUESTION_PRESETS, ROBUST_MARGIN_HELP
+from ui_nicegui.lib.plant_kpi_honesty_ui import scatter_physkpi_caption
 from ui_nicegui.session import DesignSession
 
 
@@ -37,7 +38,9 @@ def render_explore_tab(
         session.pareto_plot_y = obj_keys[1] if len(obj_keys) > 1 else plot_keys[min(1, len(plot_keys) - 1)]
 
     ui.label("Frontier plot").classes("text-subtitle2")
-    ui.label("Gray = infeasible shadow · Color = dominant constraint on Pareto points").classes("text-caption")
+    ui.label(
+        "Gray = infeasible shadow on non-claim axes only · Color = dominant constraint on Pareto points"
+    ).classes("text-caption")
     ui.markdown(ROBUST_MARGIN_HELP).classes("text-caption text-grey q-mb-xs")
 
     preset_labels = list(QUESTION_PRESETS.keys())
@@ -153,6 +156,7 @@ def render_explore_tab(
         focus_keys=list(session.pareto_focus_metrics or []),
         robust_highlight=robust_subset if session.pareto_robust_overlay and not session.pareto_robust_only else [],
         intent_split=intent_split,
+        show_failures=bool(session.pareto_show_failures),
     )
 
     ui.separator().classes("q-my-sm")
@@ -169,6 +173,7 @@ def _render_plot(
     focus_keys: list[str],
     robust_highlight: list[dict] | None = None,
     intent_split: bool = False,
+    show_failures: bool = False,
 ) -> None:
     if not pareto and not failure_pts:
         ui.label("Nothing to plot.").classes("text-caption")
@@ -179,6 +184,10 @@ def _render_plot(
         ui.label("Plotly not available.").classes("text-orange")
         return
 
+    caption = scatter_physkpi_caption(x_key, y_key, show_infeasible=show_failures)
+    if caption:
+        ui.label(caption).classes("text-caption text-orange q-mb-xs")
+
     fig = go.Figure()
     if failure_pts:
         fig.add_trace(
@@ -186,7 +195,7 @@ def _render_plot(
                 x=[p.get(x_key) for p in failure_pts],
                 y=[p.get(y_key) for p in failure_pts],
                 mode="markers",
-                name="Infeasible",
+                name="Infeasible (non-claim axes)",
                 marker=dict(color="rgba(160,160,160,0.35)", size=5),
                 hovertext=[p.get("first_failure") for p in failure_pts],
             )
