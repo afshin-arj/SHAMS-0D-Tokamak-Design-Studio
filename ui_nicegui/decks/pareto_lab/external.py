@@ -139,21 +139,38 @@ def _robust_view(session: DesignSession) -> None:
     res = session.robust_pareto_last
     if not isinstance(res, dict):
         return
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        allow_infeasible_scatter_point,
+        scatter_physkpi_caption,
+        watermark_robust_pareto_export,
+        watermark_robust_pareto_rows,
+    )
+
     counts = res.get("counts") or {}
     kpi_row([(k, str(v)) for k, v in sorted(counts.items())])
     rows = res.get("rows") or []
     if rows:
-        obj_senses = res.get("objectives") or {}
         rob_keys = [k for k in rows[0].keys() if str(k).startswith("robust_")]
+        n_fail = sum(1 for r in rows if str(r.get("tier") or "").upper() == "FAIL")
+        if n_fail > 0:
+            ui.label(
+                "PHYS-KPI-001: FAIL / nominally infeasible robust_* claim FoMs are "
+                "— (diagnostic); omitted from claim-axis scatter — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         if len(rob_keys) >= 1:
             try:
                 import plotly.graph_objects as go
 
                 xk = rob_keys[0]
                 yk = rob_keys[1] if len(rob_keys) > 1 else rob_keys[0]
+                x_bare = str(xk).removeprefix("robust_")
+                y_bare = str(yk).removeprefix("robust_")
+                omit_fail = not allow_infeasible_scatter_point(x_key=x_bare, y_key=y_bare)
                 fig = go.Figure()
                 tiers = sorted({str(r.get("tier")) for r in rows})
                 for tier in tiers:
+                    if omit_fail and str(tier).upper() == "FAIL":
+                        continue
                     sub = [r for r in rows if str(r.get("tier")) == tier]
                     fig.add_trace(
                         go.Scatter(
@@ -165,13 +182,17 @@ def _robust_view(session: DesignSession) -> None:
                     )
                 fig.update_layout(
                     height=360,
-                    xaxis_title=xk.replace("robust_", ""),
-                    yaxis_title=yk.replace("robust_", ""),
+                    xaxis_title=x_bare,
+                    yaxis_title=y_bare,
                     margin=dict(l=48, r=20, t=36, b=48),
                 )
                 ui.plotly(fig).classes("w-full q-mb-sm")
+                cap = scatter_physkpi_caption(x_bare, y_bare, show_infeasible=n_fail > 0)
+                if cap:
+                    ui.label(cap).classes("text-caption text-orange q-mb-xs")
             except Exception:
                 pass
+        display_rows = watermark_robust_pareto_rows(rows)
         cols = [
             {"name": "i", "label": "#", "field": "i"},
             {"name": "tier", "label": "Tier", "field": "tier"},
@@ -183,7 +204,7 @@ def _robust_view(session: DesignSession) -> None:
         ]
         for rk in rob_keys[:3]:
             cols.append({"name": rk, "label": rk, "field": rk})
-        ui.table(columns=cols, rows=rows, row_key="i").classes("w-full")
+        ui.table(columns=cols, rows=display_rows, row_key="i").classes("w-full")
         pick = ui.number("Promote row #", value=0, min=0, max=max(len(rows) - 1, 0), step=1).classes("w-32")
 
         def _promote_robust() -> None:
@@ -202,11 +223,15 @@ def _robust_view(session: DesignSession) -> None:
             navigate_to_point_designer(session)
             ui.notify("Opened Point Designer Configure with robust frontier inputs.", type="positive")
 
+        def _download_robust() -> None:
+            payload = watermark_robust_pareto_export(res)
+            ui.download(report_to_json_bytes(payload), "robust_pareto.json")
+
         ui.button("Promote row → Point Designer", icon="upload", on_click=_promote_robust).props("outline")
         ui.button(
             "Download robust_pareto.json",
             icon="download",
-            on_click=lambda: ui.download(report_to_json_bytes(res), "robust_pareto.json"),
+            on_click=_download_robust,
         ).props("flat outline")
 
 
