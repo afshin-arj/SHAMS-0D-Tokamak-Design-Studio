@@ -190,6 +190,16 @@ def _render_posture(session: DesignSession) -> None:
 
     if has_art:
         fuel = str((session.inputs or {}).get("fuel_mode", "DT"))
+        try:
+            from ui_nicegui.lib.pd_solver_helpers import inputs_stale
+
+            if inputs_stale(session):
+                ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")
+                ui.label(
+                    "Inputs changed since the last Point Designer evaluation — KPIs may not match current targets."
+                ).classes("text-caption text-orange q-mb-xs")
+        except Exception:
+            pass
         verdict.render_posture_strip(
             art,
             next_action=hint,
@@ -199,6 +209,12 @@ def _render_posture(session: DesignSession) -> None:
         src = _artifact_source(art)
         if src == "point_designer_fallback":
             ui.label("Baseline from Point Designer — no target solve yet.").classes("text-caption text-orange")
+        elif src == "point_designer_apply":
+            ui.label(
+                "Last artifact: Point Designer Apply re-eval — not a Systems target solve."
+            ).classes("text-caption text-orange")
+        elif src == "systems_recovery":
+            ui.label("Last artifact: Systems recovery seed.").classes("text-caption text-blue-8")
         elif src == "systems_solve":
             ui.label("Last artifact: target solve.").classes("text-caption text-positive")
     else:

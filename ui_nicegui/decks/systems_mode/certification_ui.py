@@ -20,7 +20,18 @@ def render_certification_panels(session: DesignSession) -> None:
     can = isinstance(outs, dict) and isinstance(ins, dict)
 
     ui.label("Authority certifications").classes("text-subtitle2 q-mt-md")
-    ui.label("Algebraic audit bundles from the last solve — no re-solve.").classes("text-caption q-mb-sm")
+    src = str((art or {}).get("source") or "") if isinstance(art, dict) else ""
+    from ui_nicegui.lib.systems_artifact import is_systems_result_source
+
+    if is_systems_result_source(src):
+        ui.label("Algebraic audit bundles from the last Systems solve — no re-solve.").classes(
+            "text-caption q-mb-sm"
+        )
+    else:
+        ui.label(
+            "Algebraic audit on current outputs (Point Designer baseline / Apply) — "
+            "not from a Systems target solve."
+        ).classes("text-caption text-orange q-mb-sm")
     if not can:
         ui.label("Run target solve first.").classes("text-grey")
         return

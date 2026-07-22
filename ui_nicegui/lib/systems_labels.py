@@ -99,10 +99,29 @@ def next_action_hint(
         return "Precheck failed — apply suggested fixes on **2 · Check & Solve**, or try **3 · Alternatives**."
     if precheck_ok is None:
         return "Run **Step ① precheck** on **2 · Check & Solve** before target solve."
-    if artifact_source == "point_designer_fallback" or solve_ok is None:
+    if artifact_source in (
+        "point_designer_fallback",
+        "point_designer_apply",
+        "systems_apply_reeval",
+    ) or solve_ok is None:
+        if artifact_source == "point_designer_apply":
+            return (
+                "Apply re-evaluated in Point Designer — run **Step ② target solve** "
+                "for a Systems Mode result (this is not a Systems solve)."
+            )
+        if artifact_source == "systems_recovery" and solve_ok is None:
+            return (
+                "Recovery seed available — review feasibility on **3 · Alternatives** / **4 · Apply** "
+                "(diagnostic seed) or run **Step ② target solve**."
+            )
         return "Run **Step ② target solve** on **2 · Check & Solve**."
     if solve_ok is False:
         return "Target solve did not converge — adjust targets or try **3 · Alternatives**."
+    if artifact_source == "systems_recovery":
+        return (
+            "Recovery finished — promote only a **feasible** candidate on **4 · Apply**, "
+            "or run target solve for a certified Systems result."
+        )
     if n_candidates > 0:
         return f"{n_candidates} candidate(s) ready — promote on **4 · Apply**."
     if precheck_ok and solve_ok:
