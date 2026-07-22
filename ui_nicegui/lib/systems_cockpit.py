@@ -74,20 +74,30 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
     pnet = diag if not feas else fmt(out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("Pnet_MWe"))))
     qval = diag if not feas else fmt(out.get("Q_DT_eqv", out.get("Q")))
 
+    src = str(art.get("source") or "") or "unknown"
     lines = [
         "# Systems cockpit summary",
         "",
-        f"- Verdict: {verdict}",
-        f"- Design confidence: {dc}",
-        f"- Decision posture: {posture}",
-        f"- Epoch feasibility (overall): {epoch}",
-        f"- Primary risk driver: {risk}",
-        f"- Current workflow focus: {step}",
-        f"- Dominant constraint: {dom}",
-        f"- Dominant mechanism: {mech}",
-        "",
-        "## Key KPIs",
+        f"- Artifact source: {src}",
     ]
+    if src in ("point_designer_fallback", "point_designer_apply", "systems_apply_reeval"):
+        lines.append(
+            "- Note: Point Designer baseline / Apply re-eval — not a Systems Mode target solve."
+        )
+    lines.extend(
+        [
+            f"- Verdict: {verdict}",
+            f"- Design confidence: {dc}",
+            f"- Decision posture: {posture}",
+            f"- Epoch feasibility (overall): {epoch}",
+            f"- Primary risk driver: {risk}",
+            f"- Current workflow focus: {step}",
+            f"- Dominant constraint: {dom}",
+            f"- Dominant mechanism: {mech}",
+            "",
+            "## Key KPIs",
+        ]
+    )
     if not feas:
         lines.append("- PHYS-KPI-001: Q / Pfus / P_net shown as diagnostic on INFEASIBLE — not design claims.")
     lines.extend(

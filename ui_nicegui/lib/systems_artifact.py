@@ -228,6 +228,28 @@ def synthesize_from_point(point_out: Dict[str, Any]) -> dict:
 
 
 
+# Provenance tokens for Systems Mode artifacts (PHYS / UX honesty).
+SYSTEMS_RESULT_SOURCES = frozenset({"systems_solve", "systems_recovery", "systems_restored"})
+PD_BASELINE_SOURCES = frozenset(
+    {"point_designer_fallback", "point_designer_apply", "systems_apply_reeval"}
+)
+
+
+def normalize_systems_artifact_source(art: Dict[str, Any]) -> str:
+    """Return explicit provenance; never invent systems_solve for PD-shaped blobs."""
+    src = str(art.get("source") or "").strip()
+    if src in SYSTEMS_RESULT_SOURCES or src in PD_BASELINE_SOURCES:
+        return src
+    if str(art.get("artifact_kind") or "").strip().lower() == "systems":
+        return "systems_solve"
+    # Missing source on a session "solve" slot is almost always Apply→PD re-eval residue.
+    return "point_designer_fallback"
+
+
+def is_systems_result_source(source: Optional[str]) -> bool:
+    return str(source or "").strip() in SYSTEMS_RESULT_SOURCES
+
+
 def fetch_systems_artifact(session: DesignSession) -> Optional[dict]:
     if isinstance(session.systems_last_solve_artifact, dict):
         art = dict(session.systems_last_solve_artifact)
@@ -238,7 +260,7 @@ def fetch_systems_artifact(session: DesignSession) -> Optional[dict]:
                     synth = synthesize_from_point(out)
                     art.setdefault("verdict", synth["verdict"])
                     art.setdefault("dominant_constraint", synth["dominant_constraint"])
-            art.setdefault("source", "systems_solve")
+            art["source"] = normalize_systems_artifact_source(art)
             return art
 
     art, _, point_out = get_point_artifact_triple(session)

@@ -115,10 +115,24 @@ def render_posture_strip(
         ui.label(
             "This posture is the Point Designer evaluation — run Precheck / Target solve for a Systems Mode result."
         ).classes("text-caption text-orange q-mb-xs")
+    elif src == "point_designer_apply":
+        ui.badge("POINT DESIGNER APPLY (RE-EVAL)", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "This artifact is an Apply → Point Designer re-evaluation — not a Systems target solve."
+        ).classes("text-caption text-orange q-mb-xs")
+    elif src == "systems_recovery":
+        ui.badge("SYSTEMS RECOVERY", color="blue").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Recovery / best-effort Systems seed — promote only if feasible; otherwise continue diagnosing."
+        ).classes("text-caption text-blue-8 q-mb-xs")
 
     detail_bits = []
     if src == "point_designer_fallback":
         detail_bits.append("PD baseline (not a Systems solve)")
+    elif src == "point_designer_apply":
+        detail_bits.append("PD Apply re-eval (not a Systems solve)")
+    elif src == "systems_recovery":
+        detail_bits.append("Systems recovery seed")
     elif src == "systems_solve":
         detail_bits.append("Systems target solve")
     if dom:

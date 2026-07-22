@@ -122,11 +122,14 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
             )
             inputs_dict = inp.to_dict() if hasattr(inp, "to_dict") else dict(session.inputs)
             set_point_evaluation(session, outputs=out, inputs=inputs_dict)
-            session.systems_last_solve_artifact = build_point_artifact(
+            applied_art = build_point_artifact(
                 inputs=inputs_dict,
                 outputs=out,
                 design_intent=session.design_intent,
             )
+            # Apply is a PD re-eval, not a Systems target solve (provenance honesty).
+            applied_art["source"] = "point_designer_apply"
+            session.systems_last_solve_artifact = applied_art
             ui.notify("Re-evaluated via Point Designer", type="positive")
             if on_complete:
                 on_complete()

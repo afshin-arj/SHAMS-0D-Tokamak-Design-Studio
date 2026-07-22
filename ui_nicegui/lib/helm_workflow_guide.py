@@ -131,10 +131,13 @@ def has_compare_slots(session: Any) -> bool:
 
 
 def has_systems_closure(session: Any) -> bool:
-    """True when Systems Mode has a successful solve/artifact on the session."""
+    """True when Systems Mode has a real Systems result (not PD fallback/Apply)."""
+    from ui_nicegui.lib.systems_artifact import is_systems_result_source, normalize_systems_artifact_source
+
     art = getattr(session, "systems_last_solve_artifact", None)
     if isinstance(art, dict) and art:
-        return True
+        if is_systems_result_source(normalize_systems_artifact_source(art)):
+            return True
     rep = getattr(session, "systems_last_solve_result", None)
     if isinstance(rep, dict) and (rep.get("ok") or rep.get("feasible")):
         return True

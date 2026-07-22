@@ -40,6 +40,15 @@ def render_post_solve_diagnostics_sync(session: DesignSession, *, on_refresh=Non
 
 
 def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
+    src = str(art.get("source") or "")
+    from ui_nicegui.lib.systems_artifact import is_systems_result_source
+
+    if not is_systems_result_source(src):
+        ui.badge("NOT A SYSTEMS SOLVE", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Showing Point Designer baseline / Apply re-eval KPIs — run target solve for post-solve diagnostics."
+        ).classes("text-caption text-orange q-mb-sm")
+
     md = build_compact_cockpit_markdown(session, art)
     with ui.expansion("Copy-ready cockpit summary", icon="summarize").classes("w-full q-mb-sm"):
         ui.markdown(f"```markdown\n{md}\n```")
@@ -48,15 +57,22 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
             on_click=lambda: ui.download(md.encode("utf-8"), "systems_cockpit_summary.md"),
         ).props("flat dense")
 
-    ui.label("Key results (last solve)").classes("text-subtitle2 q-mt-sm")
+    title = "Key results (last solve)" if is_systems_result_source(src) else "Key results (Point Designer baseline)"
+    ui.label(title).classes("text-subtitle2 q-mt-sm")
     from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
     from ui_nicegui.lib.verdict_core import verdict_summary
 
     feas = bool(verdict_summary(out).get("feasible")) if isinstance(out, dict) and out else False
     if not feas:
-        ui.label(
-            "PHYS-KPI-001: Q / H98 / performance KPIs below are diagnostic residue on an INFEASIBLE solve — not design claims."
-        ).classes("text-caption text-orange q-mb-xs")
+        if is_systems_result_source(src):
+            ui.label(
+                "PHYS-KPI-001: Q / H98 / performance KPIs below are diagnostic residue on an INFEASIBLE solve — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
+        else:
+            ui.label(
+                "PHYS-KPI-001: Q / H98 / performance KPIs below are diagnostic residue on an INFEASIBLE "
+                "Point Designer baseline — not a Systems Mode solve claim."
+            ).classes("text-caption text-orange q-mb-xs")
 
     with ui.row().classes("gap-2 flex-wrap"):
         for label, key in (
