@@ -4,14 +4,29 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.components.empty_state import empty_state
-from ui_nicegui.lib.compare_helpers import constraint_margin_diff_rows, constraint_rows
+from ui_nicegui.lib.compare_helpers import (
+    constraint_margin_diff_rows,
+    constraint_rows,
+    new_hard_failures_caption,
+    normalize_compare_artifact,
+)
+from ui_nicegui.lib.verdict_core import verdict_summary
 
 
 def render_constraints_panel(art_a: dict, art_b: dict) -> None:
     diff_rows = constraint_margin_diff_rows(art_a, art_b)
     new_fail = [r for r in diff_rows if r.get("new_failure")]
+    na = normalize_compare_artifact(art_a)
+    nb = normalize_compare_artifact(art_b)
+    feas_a = bool(verdict_summary(na.get("outputs") or {}).get("feasible"))
+    feas_b = bool(verdict_summary(nb.get("outputs") or {}).get("feasible"))
+    caption, caption_cls = new_hard_failures_caption(
+        feas_a=feas_a,
+        feas_b=feas_b,
+        n_new_fail=len(new_fail),
+    )
+    ui.label(caption).classes(caption_cls)
     if new_fail:
-        ui.label("New hard failures in B (passed hard in A)").classes("text-subtitle2 text-negative")
         ui.table(
             columns=[
                 {"name": "name", "label": "Constraint", "field": "name", "align": "left"},
@@ -22,8 +37,6 @@ def render_constraints_panel(art_a: dict, art_b: dict) -> None:
             rows=new_fail,
             row_key="name",
         ).classes("w-full q-mb-md")
-    else:
-        ui.label("No new hard constraint failures in B relative to A.").classes("text-caption text-positive q-mb-sm")
 
     ui.label("Margin regressions (largest Δ first)").classes("text-subtitle2")
     ui.label(
