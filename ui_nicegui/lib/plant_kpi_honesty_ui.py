@@ -206,6 +206,68 @@ def changed_kpis_table_rows(
     return rows
 
 
+def claim_key_for_objective_column(column: str) -> Optional[str]:
+    """Map Trade Study / Opt FoM column names to PHYS-KPI claim keys.
+
+    Returns None when the column is not a claim KPI (geometry FoMs etc.).
+    """
+    col = str(column or "").strip()
+    if not col:
+        return None
+    if is_claim_kpi_key(col):
+        return col
+    try:
+        from optimization.objective_contract import legacy_metric_keys
+    except ImportError:
+        try:
+            from src.optimization.objective_contract import legacy_metric_keys  # type: ignore
+        except ImportError:
+            legacy_metric_keys = None  # type: ignore
+    if legacy_metric_keys is not None:
+        keys = legacy_metric_keys(col)
+        if keys:
+            for k in keys:
+                if is_claim_kpi_key(str(k)):
+                    return str(k)
+    # Fallback aliases if objective_contract is unavailable.
+    fallback = {
+        "max_Q": "Q_DT_eqv",
+        "max_H98": "H98",
+        "max_Pnet": "P_e_net_MW",
+        "min_COE": "COE_proxy_USD_per_MWh",
+        "max_Pfus": "Pfus_total_MW",
+    }
+    return fallback.get(col)
+
+
+def watermark_trade_study_table_rows(
+    rows: Sequence[Mapping[str, Any]],
+    columns: Sequence[str],
+    *,
+    feasible_key: str = "is_feasible",
+) -> List[Dict[str, Any]]:
+    """Copy study table rows with claim FoM cells watermarked on INFEASIBLE samples."""
+    out_rows: List[Dict[str, Any]] = []
+    claim_cols = {c: claim_key_for_objective_column(c) for c in columns}
+    for r in rows:
+        if not isinstance(r, Mapping):
+            continue
+        feas = bool(r.get(feasible_key))
+        row: Dict[str, Any] = {}
+        for k in columns:
+            if k not in r:
+                continue
+            claim = claim_cols.get(k)
+            if claim and not feas:
+                row[k] = format_claim_kpi_for_table(
+                    claim, r.get(k), feasible=False, point_out=r.get("outputs") if isinstance(r.get("outputs"), Mapping) else None
+                )
+            else:
+                row[k] = r.get(k)
+        out_rows.append(row)
+    return out_rows
+
+
 def format_claim_kpi_for_table(
     key: str,
     value: Any,
@@ -290,5 +352,7 @@ __all__ = [
     "format_claim_kpi_for_table",
     "watermark_claim_kpi_map",
     "changed_kpis_table_rows",
+    "claim_key_for_objective_column",
+    "watermark_trade_study_table_rows",
     "honest_performance_caption",
 ]
