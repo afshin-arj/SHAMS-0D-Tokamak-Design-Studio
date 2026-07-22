@@ -298,6 +298,13 @@ def run_orchestrated_certified_search_nicegui(
     def _verifier(inp_obj):
         out = ui_evaluate(inp_obj, origin="certified_search_verifier")
         cons = evaluate_constraints(out, point_inputs=inp_obj)
+        from ui_nicegui.lib.verdict_core import verdict_summary
+
+        try:
+            from constraints.constraints import constraint_is_hard
+        except ImportError:
+            from src.constraints.constraints import constraint_is_hard  # type: ignore
+
         try:
             from constraints.bookkeeping import summarize as _summarize_constraints
 
@@ -309,16 +316,23 @@ def run_orchestrated_certified_search_nicegui(
         except Exception:
             _min_margin_frac = float("nan")
             _worst_hard = ""
-        ok = all(bool(getattr(c, "passed", True)) for c in cons)
+        vs = verdict_summary(out)
+        # Hard / governance feasibility only — soft/diagnostic fails are not REJECTED.
+        ok = bool(vs.get("feasible"))
+        hard_fails = [c for c in cons if (not bool(getattr(c, "passed", True))) and constraint_is_hard(c)]
         score = float(out.get(objective, 0.0)) if ok else float("-inf")
         evidence = {
             "objective": objective,
             "objective_value": float(out.get(objective, float("nan"))),
             "min_margin_frac": _min_margin_frac,
-            "worst_hard": _worst_hard,
+            "worst_hard": _worst_hard or str(vs.get("dominant") or ""),
             "worst_hard_margin_frac": float(_min_margin_frac) if _min_margin_frac == _min_margin_frac else float("nan"),
-            "n_failed": int(sum(1 for c in cons if not bool(getattr(c, "passed", True)))),
-            "top_blocker": next((getattr(c, "name", None) for c in cons if not bool(getattr(c, "passed", True))), None),
+            "n_failed": int(len(hard_fails)),
+            "top_blocker": (
+                getattr(hard_fails[0], "name", None)
+                if hard_fails
+                else (vs.get("dominant") if not ok else None)
+            ),
         }
         return ("PASS" if ok else "FAIL"), score, evidence
 
@@ -367,7 +381,27 @@ def run_orchestrated_certified_search_nicegui(
             return ui_evaluate(inp_obj, origin="pareto_frontier_v405")
 
         def _cons_fn(out_obj, inp_obj):
-            return evaluate_constraints(out_obj, point_inputs=inp_obj)
+            """Serialize constraints so soft/diagnostic fails do not reject candidates."""
+            try:
+                from constraints.constraints import constraint_is_hard
+            except ImportError:
+                from src.constraints.constraints import constraint_is_hard  # type: ignore
+
+            cons = evaluate_constraints(out_obj, point_inputs=inp_obj)
+            rows = []
+            for c in cons or []:
+                hard = constraint_is_hard(c)
+                soft_fail = not bool(getattr(c, "passed", True))
+                # Orchestrator treats any failed=True as REJECTED — only mark hard fails.
+                rows.append(
+                    {
+                        "name": getattr(c, "name", ""),
+                        "failed": bool(soft_fail and hard),
+                        "passed": not (soft_fail and hard),
+                        "severity": "hard" if hard else str(getattr(c, "severity", "diagnostic")),
+                    }
+                )
+            return rows
 
         return run_orchestrated_certified_pareto_search(
             base_inputs=base,

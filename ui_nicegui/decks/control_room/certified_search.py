@@ -183,6 +183,38 @@ def render_certified_search(session: DesignSession) -> None:
     _results(session)
 
 
+def watermark_certified_search_rows(rows: list) -> list[dict]:
+    """PHYS-KPI-001: suppress claim KPIs on REJECTED / FAIL certified-search rows."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
+    out_rows: list[dict] = []
+    for r in rows:
+        rr = dict(r)
+        verdict = str(rr.get("verdict") or "").upper()
+        feasible = verdict in ("PASS", "VERIFIED", "FEASIBLE", "OK")
+        for k, v in list(rr.items()):
+            key = str(k)
+            # Evidence-prefixed objective values e.g. e_objective_value
+            claim_key = key
+            if key.startswith("e_") and is_claim_kpi_key(key[2:]):
+                claim_key = key[2:]
+            elif key == "e_objective_value":
+                claim_key = str(rr.get("e_objective") or rr.get("objective") or "Q_DT_eqv")
+            elif key == "score" and not feasible:
+                rr[k] = "— (diagnostic)"
+                continue
+            if is_claim_kpi_key(claim_key) or (
+                key == "e_objective_value" and not feasible
+            ):
+                rr[k] = format_claim_kpi_for_table(
+                    claim_key if is_claim_kpi_key(claim_key) else "Q_DT_eqv",
+                    v,
+                    feasible=feasible,
+                )
+        out_rows.append(rr)
+    return out_rows
+
+
 @ui.refreshable
 def _results(session: DesignSession) -> None:
     art = session.v340_cert_search_last
@@ -207,11 +239,15 @@ def _results(session: DesignSession) -> None:
     ).classes("text-caption q-mb-xs")
     if n_rejected > 0:
         render_atlas_reject_note()
+        ui.label(
+            "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are — (diagnostic) — not design claims."
+        ).classes("text-caption text-orange q-mb-xs")
     if rows:
-        cols = list(rows[0].keys())[:12]
+        display = watermark_certified_search_rows(rows[:100])
+        cols = list(display[0].keys())[:12]
         ui.table(
             columns=[{"name": c, "label": c, "field": c, "align": "left"} for c in cols],
-            rows=[{c: r.get(c) for c in cols} for r in rows[:100]],
+            rows=[{c: r.get(c) for c in cols} for r in display],
             row_key="stage",
         ).classes("w-full q-mb-sm")
     best = art.get("best")
