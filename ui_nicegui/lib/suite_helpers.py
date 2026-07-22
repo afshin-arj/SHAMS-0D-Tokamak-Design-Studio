@@ -294,6 +294,7 @@ def campaign_results_to_atlas_records(
             continue
         flat = dict(rec)
         art = rec.get("artifact") if isinstance(rec.get("artifact"), dict) else None
+        feas = bool(rec.get("feasible_hard"))
         if art:
             outs = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
             for k, v in outs.items():
@@ -309,9 +310,16 @@ def campaign_results_to_atlas_records(
         inputs = rec.get("inputs") if isinstance(rec.get("inputs"), dict) else {}
         for k, v in inputs.items():
             flat.setdefault(k, v)
+        # PHYS-KPI-001: never flatten claim KPIs as achievements from hard-infeasible rows.
+        if not feas:
+            from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
+            for k in list(flat.keys()):
+                if is_claim_kpi_key(str(k)):
+                    flat[k] = format_claim_kpi_for_table(str(k), flat.get(k), feasible=False)
         # Robustness class proxy for atlas gates
         if "robustness_class" not in flat:
-            flat["robustness_class"] = "robust" if bool(rec.get("feasible_hard")) else "infeasible"
+            flat["robustness_class"] = "robust" if feas else "infeasible"
         out.append(flat)
     return out
 
