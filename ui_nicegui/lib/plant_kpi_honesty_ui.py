@@ -210,10 +210,14 @@ def claim_key_for_objective_column(column: str) -> Optional[str]:
     """Map Trade Study / Opt FoM column names to PHYS-KPI claim keys.
 
     Returns None when the column is not a claim KPI (geometry FoMs etc.).
+    Accepts ExtOpt Robust Pareto prefixes ``robust_`` / ``degrade_``.
     """
     col = str(column or "").strip()
     if not col:
         return None
+    for prefix in ("robust_", "degrade_"):
+        if col.startswith(prefix):
+            return claim_key_for_objective_column(col[len(prefix) :])
     if is_claim_kpi_key(col):
         return col
     try:
@@ -291,6 +295,58 @@ def watermark_trade_study_table_rows(
                 row[k] = r.get(k)
         out_rows.append(row)
     return out_rows
+
+
+def _robust_pareto_row_feasible(row: Mapping[str, Any]) -> bool:
+    """Nominal hard-feasibility for Robust Pareto ExtOpt rows (PHYS-KPI-001)."""
+    if "nominal_feasible" in row:
+        return bool(row.get("nominal_feasible"))
+    return str(row.get("tier") or "").upper() != "FAIL"
+
+
+def watermark_robust_pareto_rows(rows: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    """Watermark robust_*/degrade_* claim FoMs on FAIL / infeasible Robust Pareto rows."""
+    out_rows: List[Dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, Mapping):
+            continue
+        rr = dict(r)
+        feas = _robust_pareto_row_feasible(rr)
+        if feas:
+            out_rows.append(rr)
+            continue
+        for k, v in list(rr.items()):
+            claim = claim_key_for_objective_column(str(k))
+            if claim:
+                rr[k] = format_claim_kpi_for_table(claim, v, feasible=False)
+        out_rows.append(rr)
+    return out_rows
+
+
+def watermark_robust_pareto_export(artifact: Mapping[str, Any]) -> Dict[str, Any]:
+    """Copy Robust Pareto artifact for download with FAIL claim KPIs watermarked."""
+    out: Dict[str, Any] = dict(artifact) if isinstance(artifact, Mapping) else {}
+    rows = list(out.get("rows") or [])
+    out["rows"] = watermark_robust_pareto_rows(rows)
+    by_i = {r.get("i"): r for r in rows if isinstance(r, Mapping)}
+    pts_out: List[Dict[str, Any]] = []
+    for p in out.get("points") or []:
+        if not isinstance(p, Mapping):
+            continue
+        pp = dict(p)
+        idx = pp.get("index")
+        src_row = by_i.get(idx) if idx is not None else None
+        feas = _robust_pareto_row_feasible(src_row) if isinstance(src_row, Mapping) else True
+        nom = pp.get("nominal_outputs")
+        if not feas and isinstance(nom, Mapping):
+            pp["nominal_outputs"] = watermark_claim_kpi_map(nom, feasible=False)
+        pts_out.append(pp)
+    out["points"] = pts_out
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim KPIs on FAIL / nominally infeasible Robust Pareto "
+        "points are — (diagnostic) — not design claims."
+    )
+    return out
 
 
 def format_claim_kpi_for_table(
@@ -382,5 +438,7 @@ __all__ = [
     "allow_infeasible_scatter_point",
     "scatter_physkpi_caption",
     "watermark_trade_study_table_rows",
+    "watermark_robust_pareto_rows",
+    "watermark_robust_pareto_export",
     "honest_performance_caption",
 ]
