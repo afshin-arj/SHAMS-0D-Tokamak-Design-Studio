@@ -6,7 +6,25 @@ from nicegui import run, ui
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.lib.cr_chronicle_helpers import validation_envelope_report
 from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
+
+
+def watermark_envelope_rows(rows: list, *, feasible: bool, outputs: dict | None = None) -> list[dict]:
+    """PHYS-KPI-001: claim metric values are diagnostic on INFEASIBLE points."""
+    out = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        rr = dict(r)
+        metric = str(rr.get("metric") or "")
+        if is_claim_kpi_key(metric):
+            rr["value"] = format_claim_kpi_for_table(
+                metric, rr.get("value"), feasible=feasible, point_out=outputs
+            )
+        out.append(rr)
+    return out
 
 
 def render_validation_envelopes(session: DesignSession) -> None:
@@ -83,12 +101,20 @@ def _table(session: DesignSession) -> None:
     rows = rep.get("rows") or []
     if not rows:
         return
+    outs = session.pd_last_outputs if isinstance(session.pd_last_outputs, dict) else {}
+    feasible = bool(verdict_summary(outs).get("feasible")) if outs else False
+    if not feasible:
+        ui.label(
+            "PHYS-KPI-001: Q / H98 / P_net claim values below are diagnostic residue on an "
+            "INFEASIBLE point — envelope ok/fail is still a band check, not a design achievement."
+        ).classes("text-caption text-orange q-mb-xs")
+    display_rows = watermark_envelope_rows(rows, feasible=feasible, outputs=outs)
     ui.table(
         columns=[
             {"name": c, "label": c, "field": c, "align": "left"}
             for c in ("metric", "value", "lo", "hi", "ok")
         ],
-        rows=rows,
+        rows=display_rows,
         row_key="metric",
     ).classes("w-full q-mt-sm")
     n_fail = int(rep.get("n_fail") or 0)

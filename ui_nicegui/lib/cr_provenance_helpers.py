@@ -186,6 +186,9 @@ def save_point_study(session, *, notes: str = "") -> dict:
 
 
 def regression_artifact_diff(art_a: dict, art_b: dict) -> dict:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
     def _kpi_map(art: dict) -> dict:
         k = art.get("kpis") if isinstance(art.get("kpis"), dict) else {}
         if k:
@@ -219,17 +222,45 @@ def regression_artifact_diff(art_a: dict, art_b: dict) -> dict:
                 m[str(name)] = c
         return m
 
+    def _hard_failed(c: dict) -> bool:
+        if not isinstance(c, dict):
+            return False
+        sev = str(c.get("severity", "hard") or "hard").strip().lower() or "hard"
+        failed = bool(c.get("failed") or c.get("passed") is False)
+        return failed and sev == "hard"
+
+    def _feasible(art: dict) -> bool:
+        out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+        if not out:
+            return False
+        return bool(verdict_summary(out).get("feasible"))
+
+    feas_a = _feasible(art_a)
+    feas_b = _feasible(art_b)
     kA, kB = _kpi_map(art_a), _kpi_map(art_b)
+    out_a = art_a.get("outputs") if isinstance(art_a.get("outputs"), dict) else {}
+    out_b = art_b.get("outputs") if isinstance(art_b.get("outputs"), dict) else {}
     kpi_rows = []
     for name in sorted(set(kA.keys()) | set(kB.keys())):
         a, b = kA.get(name), kB.get(name)
-        delta = None
-        try:
-            if a is not None and b is not None:
-                delta = float(b) - float(a)
-        except (TypeError, ValueError):
-            pass
-        kpi_rows.append({"kpi": name, "value_A": a, "value_B": b, "delta": delta})
+        if is_claim_kpi_key(name):
+            a_disp = format_claim_kpi_for_table(name, a, feasible=feas_a, point_out=out_a)
+            b_disp = format_claim_kpi_for_table(name, b, feasible=feas_b, point_out=out_b)
+            delta: Any = "— (diagnostic)" if not (feas_a and feas_b) else None
+            if feas_a and feas_b:
+                try:
+                    delta = float(b) - float(a)
+                except (TypeError, ValueError):
+                    delta = None
+            kpi_rows.append({"kpi": name, "value_A": a_disp, "value_B": b_disp, "delta": delta})
+        else:
+            delta = None
+            try:
+                if a is not None and b is not None:
+                    delta = float(b) - float(a)
+            except (TypeError, ValueError):
+                pass
+            kpi_rows.append({"kpi": name, "value_A": a, "value_B": b, "delta": delta})
 
     consA = art_a.get("constraints") if isinstance(art_a.get("constraints"), list) else []
     consB = art_b.get("constraints") if isinstance(art_b.get("constraints"), list) else []
@@ -237,8 +268,8 @@ def regression_artifact_diff(art_a: dict, art_b: dict) -> dict:
     cons_rows = []
     for name in sorted(set(mA.keys()) | set(mB.keys())):
         a, b = mA.get(name, {}), mB.get(name, {})
-        fa = bool(a.get("failed")) if isinstance(a, dict) else False
-        fb = bool(b.get("failed")) if isinstance(b, dict) else False
+        fa = _hard_failed(a) if isinstance(a, dict) else False
+        fb = _hard_failed(b) if isinstance(b, dict) else False
         ma = a.get("margin") if isinstance(a, dict) else None
         mb = b.get("margin") if isinstance(b, dict) else None
         md = None
@@ -264,6 +295,8 @@ def regression_artifact_diff(art_a: dict, art_b: dict) -> dict:
         "new_failures": new_failures,
         "model_set_A": art_a.get("model_set"),
         "model_set_B": art_b.get("model_set"),
+        "feasible_A": feas_a,
+        "feasible_B": feas_b,
     }
 
 

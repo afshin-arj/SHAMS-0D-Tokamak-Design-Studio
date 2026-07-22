@@ -501,6 +501,10 @@ def _reg_diff(session: DesignSession) -> None:
     kpi_rows = d.get("kpi_rows") or []
     if kpi_rows:
         ui.label("KPI diff").classes("text-subtitle2")
+        if d.get("feasible_A") is False or d.get("feasible_B") is False:
+            ui.label(
+                "PHYS-KPI-001: claim KPIs on INFEASIBLE artifacts are shown as diagnostic — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         ui.table(
             columns=[
                 {"name": "kpi", "label": "KPI", "field": "kpi", "align": "left"},
@@ -513,7 +517,7 @@ def _reg_diff(session: DesignSession) -> None:
         ).classes("w-full")
     new_f = d.get("new_failures") or []
     if new_f:
-        ui.label("New failures in B").classes("text-subtitle2 q-mt-sm")
+        ui.label("New hard failures in B").classes("text-subtitle2 q-mt-sm")
         ui.table(
             columns=[
                 {"name": "name", "label": "Constraint", "field": "name", "align": "left"},
