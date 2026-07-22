@@ -59,6 +59,13 @@ def test_has_systems_closure_ignores_pd_apply():
     assert has_systems_closure(sess) is True
 
     sess.systems_last_solve_artifact = {"source": "systems_recovery", "verdict": "INFEASIBLE"}
+    assert has_systems_closure(sess) is False
+
+    sess.systems_last_solve_artifact = {
+        "source": "systems_recovery",
+        "verdict": "FEASIBLE",
+        "outputs": {"Q_DT_eqv": 2.0},
+    }
     assert has_systems_closure(sess) is True
 
     sess.systems_last_solve_artifact = None
@@ -76,6 +83,7 @@ def test_next_action_hint_apply_not_systems_solve():
         precheck_ok=True,
         solve_ok=True,
         n_candidates=2,
+        n_feasible=0,
     )
     assert "not a Systems solve" in msg
     assert "target solve" in msg.lower()

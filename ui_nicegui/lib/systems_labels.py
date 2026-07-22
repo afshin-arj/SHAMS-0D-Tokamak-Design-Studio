@@ -90,6 +90,7 @@ def next_action_hint(
     precheck_ok: bool | None,
     solve_ok: bool | None,
     n_candidates: int,
+    n_feasible: int = 0,
 ) -> str:
     if not has_artifact:
         return "Evaluate in **Point Designer** first to establish a machine baseline."
@@ -118,12 +119,22 @@ def next_action_hint(
     if solve_ok is False:
         return "Target solve did not converge — adjust targets or try **3 · Alternatives**."
     if artifact_source == "systems_recovery":
+        if int(n_feasible or 0) > 0:
+            return (
+                f"{int(n_feasible)} feasible recovery candidate(s) — promote on **4 · Apply**, "
+                "or run target solve for a certified Systems result."
+            )
         return (
-            "Recovery finished — promote only a **feasible** candidate on **4 · Apply**, "
-            "or run target solve for a certified Systems result."
+            "Recovery finished without a feasible point — continue **3 · Alternatives**, "
+            "retarget, or Apply only as a **diagnostic seed** on **4 · Apply**."
         )
-    if n_candidates > 0:
-        return f"{n_candidates} candidate(s) ready — promote on **4 · Apply**."
+    if int(n_feasible or 0) > 0:
+        return f"{int(n_feasible)} feasible candidate(s) ready — promote on **4 · Apply**."
+    if int(n_candidates or 0) > 0:
+        return (
+            f"{int(n_candidates)} candidate(s) but none intent-feasible — recover / retarget on "
+            "**3 · Alternatives**, or Apply only as a diagnostic seed on **4 · Apply**."
+        )
     if precheck_ok and solve_ok:
         return "Feasible solve complete — explore **3 · Alternatives** or export on **5 · Review**."
     return "Review design status above, then continue the workflow left to right."
