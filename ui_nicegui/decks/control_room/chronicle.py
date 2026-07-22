@@ -82,6 +82,9 @@ def _artifact_for_chronicle(session: DesignSession) -> dict | None:
 
 def _sensitivity(session: DesignSession) -> None:
     ui.label("Sensitivity Explorer").classes("text-subtitle1")
+    ui.label(
+        "PHYS-KPI-001: jacobians of Q / H98 / Pfus / P_net on an INFEASIBLE artifact baseline are diagnostic residue."
+    ).classes("text-caption text-orange q-mb-xs")
     art = _artifact_for_chronicle(session)
     if not isinstance(art, dict):
         empty_state("Load a run artifact (Artifacts section) or evaluate in Point Designer.", kind="info")

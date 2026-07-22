@@ -17,14 +17,37 @@ the SHAMS robustness authority path.
 import math
 import random
 from dataclasses import asdict, replace
-from typing import Dict, List, Tuple, Callable, Optional
+from typing import Any, Dict, List, Tuple, Callable, Optional
 
 try:
     from ..models.inputs import PointInputs  # type: ignore
 except Exception:
     from models.inputs import PointInputs  # type: ignore
-from physics.hot_ion import hot_ion_point
 from constraints.system import build_constraints_from_outputs
+
+try:
+    from solvers.evaluator_bridge import evaluate_point
+except ImportError:
+    from src.solvers.evaluator_bridge import evaluate_point  # type: ignore
+
+
+def _resolve_outputs(
+    inp: PointInputs,
+    *,
+    evaluate_fn: Optional[Callable[[PointInputs], Dict[str, Any]]] = None,
+    evaluator: Any = None,
+) -> Dict[str, Any]:
+    if evaluate_fn is not None:
+        out = evaluate_fn(inp)
+        return dict(out) if isinstance(out, dict) else {}
+    if evaluator is not None:
+        res = evaluator.evaluate(inp)
+        out = getattr(res, "out", None)
+        if not isinstance(out, dict):
+            out = getattr(res, "outputs", None)
+        return dict(out) if isinstance(out, dict) else {}
+    return evaluate_point(inp, origin="analysis_sensitivity")
+
 
 def _rand_lognormal(mu: float, sigma: float) -> float:
     # mu,sigma in linear space, approximate by sampling in log space
@@ -43,6 +66,8 @@ def monte_carlo_feasibility(
     # additive uncertainties
     sigma_zeff: float = 0.15,
     seed: Optional[int] = None,
+    evaluate_fn: Optional[Callable[[PointInputs], Dict[str, Any]]] = None,
+    evaluator: Any = None,
 ) -> Dict[str, object]:
     """
     Simple Monte Carlo uncertainty engine.
@@ -67,7 +92,7 @@ def monte_carlo_feasibility(
             hts_Jc_mult=_rand_lognormal(max(getattr(base, "hts_Jc_mult", 1.0), 1e-6), sigma_hts_jc),
             zeff=max(1.0, random.gauss(base.zeff, sigma_zeff)),
         )
-        out = hot_ion_point(inp)
+        out = _resolve_outputs(inp, evaluate_fn=evaluate_fn, evaluator=evaluator)
         cs = build_constraints_from_outputs(out)
         ok = all(c.ok for c in cs)
         if ok:
@@ -99,6 +124,8 @@ def deterministic_sensitivity_pack(
     variables: Dict[str, float],
     outputs: List[str],
     step_rel: float = 1e-3,
+    evaluate_fn: Optional[Callable[[PointInputs], Dict[str, Any]]] = None,
+    evaluator: Any = None,
 ) -> Dict[str, object]:
     """Compute a deterministic local sensitivity pack.
 
@@ -110,9 +137,11 @@ def deterministic_sensitivity_pack(
         Mapping var_name -> characteristic scale (used when base value is 0).
         Example: {"Paux_MW": 10.0, "fG": 0.1, "Bt_T": 0.5}
     outputs:
-        List of hot_ion_point output keys to differentiate.
+        List of evaluator output keys to differentiate.
     step_rel:
         Relative perturbation size (central difference), default 1e-3.
+    evaluate_fn / evaluator:
+        Optional choke-point injection (NiceGUI ``ui_evaluate`` / ``ui_evaluator``).
 
     Returns
     -------
@@ -125,7 +154,7 @@ def deterministic_sensitivity_pack(
     if step_rel <= 0:
         raise ValueError("step_rel must be > 0")
 
-    base_out = hot_ion_point(base)
+    base_out = _resolve_outputs(base, evaluate_fn=evaluate_fn, evaluator=evaluator)
     cs = build_constraints_from_outputs(base_out)
 
     def _tightness() -> List[Dict[str, float]]:
@@ -156,8 +185,8 @@ def deterministic_sensitivity_pack(
             log.append({"var": var, "status": "SKIP", "reason": f"replace_failed: {e}"})
             continue
 
-        out_p = hot_ion_point(plus)
-        out_m = hot_ion_point(minus)
+        out_p = _resolve_outputs(plus, evaluate_fn=evaluate_fn, evaluator=evaluator)
+        out_m = _resolve_outputs(minus, evaluate_fn=evaluate_fn, evaluator=evaluator)
 
         for ok in outputs:
             try:

@@ -8,12 +8,13 @@ without requiring full optimization runs.
 This module is intentionally lightweight:
 - Uses central finite differences where possible
 - Works on the PointInputs dataclass
-- Calls the standard hot_ion_point() evaluator
+- Routes evaluations through an injected MetricFn, or ``evaluator_bridge.evaluate_point``
+  (NiceGUI override / Evaluator choke point). Never calls bare ``hot_ion_point``.
 
 Returned sensitivities are *local* derivatives at the chosen point.
 """
 from dataclasses import replace
-from typing import Dict, Iterable, Callable, Tuple, Any
+from typing import Dict, Iterable, Callable, Optional, Any
 
 try:
     from ..models.inputs import PointInputs  # type: ignore
@@ -24,6 +25,15 @@ except Exception:
         from models.inputs import PointInputs  # type: ignore
 
 MetricFn = Callable[[PointInputs], Dict[str, float]]
+
+
+def _default_evaluator(inp: PointInputs) -> Dict[str, Any]:
+    try:
+        from solvers.evaluator_bridge import evaluate_point
+    except ImportError:
+        from src.solvers.evaluator_bridge import evaluate_point  # type: ignore
+    return evaluate_point(inp, origin="local_sensitivities")
+
 
 def finite_difference_sensitivities(
     base: PointInputs,
@@ -77,3 +87,31 @@ def finite_difference_sensitivities(
     # Helpful: include base outputs snapshot
     sens["_base"] = {o: float(base_out.get(o, float("nan"))) for o in outputs}  # type: ignore
     return sens
+
+
+def local_sensitivities(
+    base: PointInputs,
+    *,
+    params: Iterable[str],
+    outputs: Iterable[str],
+    evaluator: Optional[MetricFn] = None,
+    h: float = 0.05,
+) -> Dict[str, Dict[str, float]]:
+    """Absolute-step central FD used by Systems Mode (NiceGUI + Streamlit).
+
+    When ``evaluator`` is omitted, routes through ``evaluator_bridge.evaluate_point``
+    so NiceGUI overrides / Evaluator provenance are honored.
+    """
+    ev = evaluator if evaluator is not None else _default_evaluator
+    abs_h = float(h)
+    if not (abs_h > 0.0):
+        abs_h = 0.05
+    abs_steps = {str(p): abs_h for p in params}
+    return finite_difference_sensitivities(
+        base,
+        ev,
+        params=params,
+        outputs=outputs,
+        rel_step=1e-3,
+        abs_steps=abs_steps,
+    )

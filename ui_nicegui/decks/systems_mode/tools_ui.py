@@ -38,6 +38,9 @@ def render_tools_panel(session: DesignSession) -> None:
 
         ui.separator().classes("q-my-sm")
         ui.label("Local sensitivities (finite difference)").classes("text-subtitle2")
+        ui.label(
+            "PHYS-KPI-001: Q / H98 / P_net derivatives around an INFEASIBLE base are diagnostic residue — not design claims."
+        ).classes("text-caption text-orange")
         knobs = ui.select(
             ["Ip_MA", "fG", "Paux_MW", "R0_m", "Bt_T"],
             label="Knobs",
@@ -77,13 +80,10 @@ def render_tools_panel(session: DesignSession) -> None:
                     from src.solvers.sensitivity import local_sensitivities
                 except ImportError:
                     from solvers.sensitivity import local_sensitivities  # type: ignore
-                from ui_nicegui.lib.systems_workflow_helpers import _get_evaluator
-
-                ev = _get_evaluator()
+                from ui_nicegui.evaluate import ui_evaluate
 
                 def _ev(x):
-                    res = ev.evaluate(x)
-                    return dict(res.out) if res and res.ok else {}
+                    return ui_evaluate(x, origin="NiceGUI:SystemsSens")
 
                 return local_sensitivities(base, params=k_list, outputs=o_list, evaluator=_ev, h=h)
 
