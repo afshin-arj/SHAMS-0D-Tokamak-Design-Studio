@@ -1,7 +1,7 @@
 """UI helpers for plant KPI honesty watermark (Independence 1.2)."""
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 try:
     from diagnostics.plant_kpi_honesty import (
@@ -152,6 +152,60 @@ def is_claim_kpi_key(key: str) -> bool:
     return str(key) in _CLAIM_KPI_KEYS
 
 
+def watermark_claim_kpi_map(
+    mapping: Mapping[str, Any],
+    *,
+    feasible: bool,
+    point_out: Optional[Mapping[str, Any]] = None,
+    design_intent: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Copy a KPI/outputs map with claim keys watermarked (PHYS-KPI-001)."""
+    out: Dict[str, Any] = {}
+    src = mapping if isinstance(mapping, Mapping) else {}
+    for k, v in src.items():
+        if is_claim_kpi_key(str(k)):
+            out[str(k)] = format_claim_kpi_for_table(
+                str(k), v, feasible=feasible, point_out=point_out or src, design_intent=design_intent
+            )
+        else:
+            out[str(k)] = v
+    return out
+
+
+def changed_kpis_table_rows(
+    changed_kpis: Mapping[str, Any],
+    *,
+    feasible_base: bool,
+    feasible_scenario: bool,
+) -> List[Dict[str, Any]]:
+    """Rows for embedded scenario_delta.changed_kpis with per-side watermarking."""
+    rows: List[Dict[str, Any]] = []
+    if not isinstance(changed_kpis, Mapping):
+        return rows
+    for k, pair in changed_kpis.items():
+        if not isinstance(pair, Mapping):
+            continue
+        base_v = pair.get("base")
+        scen_v = pair.get("scenario")
+        if is_claim_kpi_key(str(k)):
+            a = format_claim_kpi_for_table(str(k), base_v, feasible=feasible_base)
+            b = format_claim_kpi_for_table(str(k), scen_v, feasible=feasible_scenario)
+            delta: Any = "— (diagnostic)"
+            if feasible_base and feasible_scenario:
+                try:
+                    delta = float(scen_v) - float(base_v)
+                except (TypeError, ValueError):
+                    delta = ""
+        else:
+            a, b = base_v, scen_v
+            try:
+                delta = float(scen_v) - float(base_v)
+            except (TypeError, ValueError):
+                delta = ""
+        rows.append({"kpi": str(k), "baseline": a, "scenario": b, "delta": delta})
+    return rows
+
+
 def format_claim_kpi_for_table(
     key: str,
     value: Any,
@@ -234,5 +288,7 @@ __all__ = [
     "plant_kpi_banner_text",
     "is_claim_kpi_key",
     "format_claim_kpi_for_table",
+    "watermark_claim_kpi_map",
+    "changed_kpis_table_rows",
     "honest_performance_caption",
 ]

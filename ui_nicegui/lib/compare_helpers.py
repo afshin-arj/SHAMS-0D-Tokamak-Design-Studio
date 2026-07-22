@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 COMPARE_METRICS: List[str] = [
     "Q",
@@ -488,6 +488,22 @@ def numeric_output_diff_rows(
     return rows[:limit]
 
 
+def _constraint_severity(c: Mapping[str, Any]) -> str:
+    sev = str(c.get("severity", "hard") or "hard").strip().lower()
+    return sev or "hard"
+
+
+def _constraint_any_failed(c: Mapping[str, Any]) -> bool:
+    if not c:
+        return False
+    return bool(c.get("failed") or c.get("passed") is False)
+
+
+def _constraint_hard_failed(c: Mapping[str, Any]) -> bool:
+    """Hard fail only — soft/diagnostic fails must not read as hard new_failure."""
+    return _constraint_any_failed(c) and _constraint_severity(c) == "hard"
+
+
 def constraint_margin_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
     ca = {c.get("name"): c for c in constraint_rows(art_a, limit=500) if c.get("name")}
     cb = {c.get("name"): c for c in constraint_rows(art_b, limit=500) if c.get("name")}
@@ -496,10 +512,14 @@ def constraint_margin_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]
     for n in names:
         a = ca.get(n, {})
         b = cb.get(n, {})
-        fa = bool(a.get("failed") or a.get("passed") is False)
-        fb = bool(b.get("failed") or b.get("passed") is False)
-        ma = a.get("margin", a.get("residual"))
-        mb = b.get("margin", b.get("residual"))
+        sev_a = _constraint_severity(a) if a else ""
+        sev_b = _constraint_severity(b) if b else ""
+        fa_any = _constraint_any_failed(a)
+        fb_any = _constraint_any_failed(b)
+        fa = _constraint_hard_failed(a)
+        fb = _constraint_hard_failed(b)
+        ma = a.get("margin", a.get("residual")) if a else None
+        mb = b.get("margin", b.get("residual")) if b else None
         md = None
         try:
             if ma is not None and mb is not None:
@@ -509,11 +529,16 @@ def constraint_margin_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]
         rows.append(
             {
                 "name": n,
+                "severity_A": sev_a or None,
+                "severity_B": sev_b or None,
                 "failed_A": fa,
                 "failed_B": fb,
+                "soft_failed_A": fa_any and not fa,
+                "soft_failed_B": fb_any and not fb,
                 "margin_A": ma,
                 "margin_B": mb,
                 "margin_delta": md,
+                # Only hard→hard transitions count as new_failure (PHYS / feasibility honesty).
                 "new_failure": fb and not fa,
             }
         )

@@ -168,13 +168,26 @@ def _artifact_view(art: dict, session: DesignSession) -> None:
 
     tables = art.get("tables") or {}
     if isinstance(tables, dict) and session.cr_expert_view:
+        from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
+        feasible = bool(vs.get("feasible")) if vs.get("loaded") else False
+        if not feasible:
+            ui.label(
+                "PHYS-KPI-001: plasma / power_balance claim KPIs below are diagnostic residue "
+                "on an INFEASIBLE artifact — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         v1 = tables.get("v1") or tables
         if isinstance(v1, dict):
             for section in ("plasma", "power_balance", "tritium", "regimes"):
                 block = v1.get(section)
                 if isinstance(block, dict) and block:
+                    display = (
+                        watermark_claim_kpi_map(block, feasible=feasible, point_out=outs)
+                        if section in ("plasma", "power_balance")
+                        else block
+                    )
                     with ui.expansion(f"Table: {section}", icon="table_chart").classes("w-full"):
-                        render_json_blob(block)
+                        render_json_blob(display)
 
     if session.cr_expert_view:
         with ui.expansion("Full artifact JSON", icon="data_object").classes("w-full"):
