@@ -232,6 +232,10 @@ def _pack_view(session: DesignSession) -> None:
                     icon="table_view",
                     on_click=lambda: ui.download(p.read_bytes(), "point_designer_benchmark_table.csv"),
                 ).props("outline")
+                ui.label(
+                    "PHYS-KPI-001: claim columns (Q / H98 / Pfus / P_net) on FAIL rows are "
+                    "— (diagnostic) in the CSV — not paper achievements."
+                ).classes("text-caption text-grey")
 
     ui.label("Explain delta vs baseline").classes("text-subtitle2 q-mt-md")
     baselines = list_baseline_packs()
@@ -272,4 +276,8 @@ def _delta_view(session: DesignSession) -> None:
     md = session.pub_bench_delta_md or ""
     if md.strip():
         with ui.expansion("delta.md", icon="description").classes("w-full"):
+            if "PHYS-KPI-001" in md or "diagnostic" in md.lower():
+                ui.label(
+                    "PHYS-KPI-001: claim KPI deltas involving FAIL rows are diagnostic — not design achievements."
+                ).classes("text-caption text-orange q-mb-xs")
             ui.markdown(md[:12000])

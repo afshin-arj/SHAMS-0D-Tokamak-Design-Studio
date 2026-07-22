@@ -145,6 +145,9 @@ def constitution_diff_rows(res_dict: dict) -> List[Dict[str, str]]:
 
 
 def atlas_evidence_json(res_dict: dict) -> bytes:
+    """Serialize Atlas evidence capsule with PHYS-KPI-001 watermark on FAIL runs."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
     payload = {
         "schema": res_dict.get("schema"),
         "preset_key": res_dict.get("preset_key"),
@@ -157,4 +160,41 @@ def atlas_evidence_json(res_dict: dict) -> bytes:
         "run": res_dict.get("run"),
         "stamp_sha256": res_dict.get("stamp_sha256"),
     }
+    run = payload.get("run")
+    if isinstance(run, dict):
+        verdict = str(run.get("verdict") or "").upper()
+        feasible = verdict in ("PASS", "FEASIBLE", "OK")
+        display_run = dict(run)
+        outs = run.get("outputs")
+        if isinstance(outs, dict):
+            display_run["outputs"] = watermark_claim_kpi_map(outs, feasible=feasible, point_out=outs)
+        art = run.get("artifact")
+        if isinstance(art, dict):
+            art2 = dict(art)
+            aouts = art.get("outputs")
+            if isinstance(aouts, dict):
+                art2["outputs"] = watermark_claim_kpi_map(aouts, feasible=feasible, point_out=aouts)
+            tables = art.get("tables")
+            if isinstance(tables, dict):
+                t2 = dict(tables)
+                v1 = tables.get("v1") or tables
+                if isinstance(v1, dict):
+                    v1d = dict(v1)
+                    for section in ("plasma", "power_balance"):
+                        block = v1.get(section)
+                        if isinstance(block, dict):
+                            v1d[section] = watermark_claim_kpi_map(
+                                block, feasible=feasible, point_out=aouts if isinstance(aouts, dict) else outs
+                            )
+                    if "v1" in tables:
+                        t2["v1"] = v1d
+                    else:
+                        t2.update(v1d)
+                art2["tables"] = t2
+            display_run["artifact"] = art2
+        if not feasible:
+            display_run["phys_kpi_001"] = (
+                "Claim KPIs (Q/H98/Pfus/P_net) watermarked as diagnostic on FAIL — not design claims."
+            )
+        payload["run"] = display_run
     return json.dumps(payload, indent=2, default=str).encode("utf-8")

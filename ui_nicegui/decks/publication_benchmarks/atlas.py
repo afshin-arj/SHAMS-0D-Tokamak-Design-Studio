@@ -261,7 +261,8 @@ def _render_atlas_detail(session: DesignSession) -> None:
             ),
         ).props("outline")
         ui.label(
-            "Deterministic single-case capsule: inputs, outputs, ledger, constitution semantics, SHA-256 stamp."
+            "Deterministic single-case capsule: inputs, outputs, ledger, constitution semantics, SHA-256 stamp. "
+            "PHYS-KPI-001: claim KPIs on FAIL runs are watermarked as diagnostic in the download."
         ).classes("text-caption text-grey")
 
     if expert:
