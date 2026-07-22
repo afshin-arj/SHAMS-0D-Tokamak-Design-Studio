@@ -388,6 +388,8 @@ def test_cr_knob_grid_uses_pfus_total() -> None:
     assert "Pfus_total_MW" in src
     view = inspect.getsource(kts)
     assert "Pfus_total_MW" in view
+    assert "watermark_knob_grid_rows" in view
+    assert "format_claim_kpi_for_table" in view
 
 
 def test_compare_handoff_and_atlas_solve_use_runlock() -> None:

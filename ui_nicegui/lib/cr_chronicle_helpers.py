@@ -161,11 +161,7 @@ def evaluate_knob_trade_grid(
     from dataclasses import replace
 
     from ui_nicegui.evaluate import ui_evaluate
-
-    try:
-        from constraints.constraints import evaluate_constraints
-    except ImportError:
-        from src.constraints.constraints import evaluate_constraints
+    from ui_nicegui.lib.verdict_core import verdict_summary
 
     pi = base
     if patch:
@@ -189,17 +185,10 @@ def evaluate_knob_trade_grid(
             cand = _setv(_setv(pi, kx, xv), ky, yv)
             try:
                 out = ui_evaluate(cand, origin="control_room_knob_grid")
-                cons = evaluate_constraints(out, point_inputs=cand)
-                cons_json = [
-                    {
-                        "name": getattr(c, "name", ""),
-                        "failed": not bool(getattr(c, "passed", True)),
-                        "passed": bool(getattr(c, "passed", True)),
-                    }
-                    for c in cons
-                ]
-                ok = all(not bool(c.get("failed")) for c in cons_json)
-                top = next((c.get("name") for c in cons_json if c.get("failed")), None)
+                vs = verdict_summary(out)
+                # Hard / governance feasibility only — soft/diagnostic fails are not INFEASIBLE.
+                ok = bool(vs.get("feasible"))
+                top = vs.get("dominant") if not ok else None
                 rows.append(
                     {
                         kx: float(xv),
@@ -207,8 +196,12 @@ def evaluate_knob_trade_grid(
                         "feasible": bool(ok),
                         "top_blocker": top,
                         "Q": float(out.get("Q_DT_eqv", out.get("Q", float("nan")))),
+                        "H98": float(out.get("H98", float("nan"))),
                         "Pfus_total_MW": float(
                             out.get("Pfus_total_MW", out.get("P_fus_MW", out.get("Pfus_MW", float("nan"))))
+                        ),
+                        "P_e_net_MW": float(
+                            out.get("P_e_net_MW", out.get("P_net_e_MW", float("nan")))
                         ),
                     }
                 )
@@ -220,7 +213,9 @@ def evaluate_knob_trade_grid(
                         "feasible": False,
                         "top_blocker": "eval_error",
                         "Q": float("nan"),
+                        "H98": float("nan"),
                         "Pfus_total_MW": float("nan"),
+                        "P_e_net_MW": float("nan"),
                     }
                 )
     return rows
