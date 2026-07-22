@@ -345,10 +345,13 @@ def atlas_evidence_zip(atlas: dict) -> bytes:
     import hashlib
     import time
 
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_regime_atlas_export
+
+    payload = watermark_regime_atlas_export(atlas if isinstance(atlas, dict) else {})
     ts = time.strftime("%Y%m%d_%H%M%S")
     base = f"atlas_v365_{ts}"
     files: Dict[str, bytes] = {}
-    files[f"{base}/atlas.json"] = json.dumps(atlas, indent=2, sort_keys=True).encode("utf-8")
+    files[f"{base}/atlas.json"] = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
     bio = io.BytesIO()
     with zipfile.ZipFile(bio, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path, content in sorted(files.items()):

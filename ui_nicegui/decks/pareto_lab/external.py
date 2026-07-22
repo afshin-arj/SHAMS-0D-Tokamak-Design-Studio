@@ -265,6 +265,10 @@ def _render_regime_atlas(session: DesignSession) -> None:
         label="Feasibility gate",
         value=session.regime_atlas_gate or "robust_only",
     )
+    ui.label(
+        "PHYS-KPI-001: hard-infeasible records are excluded from every gate — "
+        "P_net / CoE claim FoMs never enter Pareto as achievements on hard-fail rows."
+    ).classes("text-caption text-orange q-mb-xs")
     min_bucket = ui.number("Min bucket size", value=session.regime_atlas_min_bucket or 8, min=1)
 
     async def _build() -> None:
@@ -297,6 +301,11 @@ def _atlas_view(session: DesignSession) -> None:
         return
     with ui.expansion("Atlas summary", icon="analytics").classes("w-full"):
         render_json_blob({k: atlas.get(k) for k in ["schema", "fingerprint_sha256", "config"] if k in atlas})
+    n_pareto = len(atlas.get("pareto_sets") or [])
+    ui.label(
+        f"Pareto points under current gate: {n_pareto}. "
+        "Evidence ZIP applies PHYS-KPI-001 watermark on any INFEASIBLE-class claim FoMs."
+    ).classes("text-caption q-mb-xs")
     ui.button(
         "Download Atlas Evidence Pack ZIP",
         icon="download",

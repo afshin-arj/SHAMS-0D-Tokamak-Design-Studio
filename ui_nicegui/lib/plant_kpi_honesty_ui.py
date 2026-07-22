@@ -136,6 +136,7 @@ _CLAIM_KPI_KEYS = frozenset(
         "LCOE_proxy_USD_per_MWh",
         "LCOE_USD_per_MWh",
         "COE_proxy_USD_per_MWh",
+        "CoE_USD_MWh",
         "avail_v420_LCOE_USD_per_MWh",
         "costing_v421_LCOE_USD_per_MWh",
         "H98",
@@ -267,6 +268,37 @@ def scatter_physkpi_caption(x_key: str, y_key: str, *, show_infeasible: bool) ->
         "PHYS-KPI-001: infeasible shadow omitted on claim-KPI axes "
         "(Q / H98 / Pfus / P_net / LCOE) — diagnostic residue is not achievement space."
     )
+
+
+def watermark_regime_atlas_export(atlas: Mapping[str, Any]) -> Dict[str, Any]:
+    """Copy Regime Atlas artifact for download with PHYS-KPI-001 claim hygiene.
+
+    Hard-infeasible records are excluded at the gate; this still watermarks
+    claim FoMs on any INFEASIBLE-class Pareto rows that slipped through, and
+    stamps an explicit honesty note.
+    """
+    out: Dict[str, Any] = dict(atlas) if isinstance(atlas, Mapping) else {}
+    sets: List[Dict[str, Any]] = []
+    for row in out.get("pareto_sets") or []:
+        if not isinstance(row, Mapping):
+            continue
+        rr = dict(row)
+        metrics = dict(rr.get("metrics") or {}) if isinstance(rr.get("metrics"), Mapping) else {}
+        rclass = str(rr.get("robustness_class") or "").upper()
+        if rclass in ("INFEASIBLE", "FAIL"):
+            for k, v in list(metrics.items()):
+                claim = claim_key_for_objective_column(str(k))
+                if claim:
+                    metrics[k] = format_claim_kpi_for_table(claim, v, feasible=False)
+        rr["metrics"] = metrics
+        sets.append(rr)
+    out["pareto_sets"] = sets
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: hard-infeasible records are excluded from feasibility gates; "
+        "claim FoMs (Q/H98/Pfus/P_net/CoE) on INFEASIBLE-class Pareto rows are "
+        "— (diagnostic) — not design claims."
+    )
+    return out
 
 
 def watermark_trade_study_table_rows(
@@ -440,5 +472,6 @@ __all__ = [
     "watermark_trade_study_table_rows",
     "watermark_robust_pareto_rows",
     "watermark_robust_pareto_export",
+    "watermark_regime_atlas_export",
     "honest_performance_caption",
 ]
