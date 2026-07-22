@@ -160,7 +160,14 @@ def render_point_designer(session: DesignSession) -> None:
                 },
             )
             if ok:
-                ui.notify("Point evaluation complete. Open Telemetry for results.", type="positive")
+                if vsum.get("feasible"):
+                    ui.notify("Point evaluation complete. Open Telemetry for results.", type="positive")
+                else:
+                    ui.notify(
+                        "Evaluation complete — point is INFEASIBLE (targets may match; hard constraints fail). "
+                        "Open Constraints for attribution.",
+                        type="warning",
+                    )
                 session.pd_workflow_tab = "2 · Telemetry"
             else:
                 msg = "Solver did not fully meet targets"

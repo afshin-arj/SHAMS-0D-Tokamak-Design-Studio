@@ -44,6 +44,9 @@ def render_sensitivity_lab(session: DesignSession) -> None:
 
     with ui.expansion("Local sensitivities — finite difference", icon="functions").classes("w-full"):
         ui.label("Local derivatives around the current point (±0.1% central difference).").classes("text-caption")
+        ui.label(
+            "PHYS-KPI-001: claim-KPI derivatives on an INFEASIBLE baseline are diagnostic only — not performance claims."
+        ).classes("text-caption text-orange")
         fd_area = ui.column().classes("w-full")
 
         async def _run_fd() -> None:

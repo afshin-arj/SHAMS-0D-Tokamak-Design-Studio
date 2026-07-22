@@ -20,14 +20,17 @@ import math
 
 try:
     from ..models.inputs import PointInputs
-    from ..physics.hot_ion import hot_ion_point
     from ..constraints.system import build_constraints_from_outputs
     from schema.constraints import LedgerConstraint as Constraint
 except Exception:  # pragma: no cover
     from models.inputs import PointInputs
-    from physics.hot_ion import hot_ion_point
     from constraints.system import build_constraints_from_outputs
     from schema.constraints import LedgerConstraint as Constraint
+
+try:
+    from solvers.evaluator_bridge import evaluate_point
+except ImportError:
+    from src.solvers.evaluator_bridge import evaluate_point  # type: ignore
 
 try:
     from ...tools.process_compat.process_compat import constraints_to_records, active_constraints
@@ -63,8 +66,24 @@ DEFAULT_KNOBS: Tuple[KnobSpec, ...] = (
 )
 
 
-def _eval_constraints(pi: PointInputs, design_intent: Optional[str] = None) -> Tuple[Dict[str, Any], List[Constraint]]:
-    out = hot_ion_point(pi)
+def _eval_constraints(
+    pi: PointInputs,
+    design_intent: Optional[str] = None,
+    *,
+    evaluate_fn: Optional[Any] = None,
+    evaluator: Any = None,
+) -> Tuple[Dict[str, Any], List[Constraint]]:
+    if evaluate_fn is not None:
+        out = evaluate_fn(pi)
+        out = dict(out) if isinstance(out, dict) else {}
+    elif evaluator is not None:
+        res = evaluator.evaluate(pi)
+        out = getattr(res, "out", None)
+        if not isinstance(out, dict):
+            out = getattr(res, "outputs", None)
+        out = dict(out) if isinstance(out, dict) else {}
+    else:
+        out = evaluate_point(pi, origin="forensics")
     cons = build_constraints_from_outputs(out, design_intent=design_intent)
     return out, cons
 
@@ -75,6 +94,8 @@ def local_sensitivity(
     knobs: Iterable[KnobSpec] = DEFAULT_KNOBS,
     design_intent: Optional[str] = None,
     top_k_constraints: int = 12,
+    evaluate_fn: Optional[Any] = None,
+    evaluator: Any = None,
 ) -> Dict[str, Any]:
     """Compute local sensitivities of constraint signed margins.
 
@@ -82,7 +103,9 @@ def local_sensitivity(
 
     Returns a JSON-serializable dict.
     """
-    base_out, base_cons = _eval_constraints(pi, design_intent=design_intent)
+    base_out, base_cons = _eval_constraints(
+        pi, design_intent=design_intent, evaluate_fn=evaluate_fn, evaluator=evaluator
+    )
     base_recs = constraints_to_records(base_cons)
 
     # pick a stable subset of constraints (all, but UI can display top-k)
@@ -112,8 +135,12 @@ def local_sensitivity(
         pi_p = PointInputs(**plus)
         pi_m = PointInputs(**minus)
 
-        _, cons_p = _eval_constraints(pi_p, design_intent=design_intent)
-        _, cons_m = _eval_constraints(pi_m, design_intent=design_intent)
+        _, cons_p = _eval_constraints(
+            pi_p, design_intent=design_intent, evaluate_fn=evaluate_fn, evaluator=evaluator
+        )
+        _, cons_m = _eval_constraints(
+            pi_m, design_intent=design_intent, evaluate_fn=evaluate_fn, evaluator=evaluator
+        )
         rec_p = {r.name: r for r in constraints_to_records(cons_p) if r.name}
         rec_m = {r.name: r for r in constraints_to_records(cons_m) if r.name}
 
@@ -146,7 +173,9 @@ def local_sensitivity(
             trials += 1
             pert = pi.__dict__.copy(); pert[ks.name] = x0 + sgn * dx
             pi_t = PointInputs(**pert)
-            _, cons_t = _eval_constraints(pi_t, design_intent=design_intent)
+            _, cons_t = _eval_constraints(
+                pi_t, design_intent=design_intent, evaluate_fn=evaluate_fn, evaluator=evaluator
+            )
             rec_t = constraints_to_records(cons_t)
             top_t = active_constraints(rec_t, top_k=1)[0].name if rec_t else ""
             if top_t and base_top and top_t != base_top:

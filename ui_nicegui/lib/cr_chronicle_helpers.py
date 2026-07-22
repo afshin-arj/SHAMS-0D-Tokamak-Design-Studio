@@ -33,14 +33,20 @@ def run_sensitivity_pack(
     step_rel: float = 1e-3,
 ) -> dict:
     from src.analysis.sensitivity import deterministic_sensitivity_pack
+    from ui_nicegui.evaluate import ui_evaluate
 
     scales = {k: 1.0 for k in knobs}
     scales.update({"Paux_MW": 10.0, "Ip_MA": 1.0, "fG": 0.1, "Bt_T": 0.5, "R0_m": 0.5, "a_m": 0.2})
+
+    def _eval(inp):
+        return ui_evaluate(inp, origin="NiceGUI:CRSensitivity")
+
     return deterministic_sensitivity_pack(
         base,
         variables={k: scales.get(k, 1.0) for k in knobs},
         outputs=list(outputs),
         step_rel=float(step_rel),
+        evaluate_fn=_eval,
     )
 
 
@@ -122,8 +128,12 @@ def analyze_interval_narrowing(
 
 def run_local_forensics(base, *, design_intent: str = "Reactor") -> dict:
     from src.analysis.forensics import local_sensitivity
+    from ui_nicegui.evaluate import ui_evaluate
 
-    return local_sensitivity(base, design_intent=design_intent)
+    def _eval(inp):
+        return ui_evaluate(inp, origin="NiceGUI:CRForensics")
+
+    return local_sensitivity(base, design_intent=design_intent, evaluate_fn=_eval)
 
 
 def list_variable_registry_keys() -> List[str]:
