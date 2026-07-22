@@ -166,6 +166,7 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
                 "Recovery found feasible point" if rep.get("ok") else "Recovery best-effort complete",
                 type="positive" if rep.get("ok") else "warning",
             )
+            _apply_ctas.refresh()
             _results.refresh()
             if on_complete:
                 on_complete()
@@ -175,10 +176,16 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             session.systems_recovery_running = False
             runlock_release("SystemsMode")
 
-    def _apply_best_to_inputs() -> None:
+    def _apply_best_to_inputs(*, diagnostic: bool = False) -> None:
         rep = session.systems_recovery_last
         if not isinstance(rep, dict) or not isinstance(rep.get("best_point"), dict):
             ui.notify("No recovery best point", type="warning")
+            return
+        if not bool(rep.get("ok")) and not diagnostic:
+            ui.notify(
+                "Recovery did not find a feasible point — use Apply diagnostic seed if you intentionally want an INFEASIBLE seed.",
+                type="warning",
+            )
             return
         applied = apply_x_to_session(session, rep["best_point"])
         from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
@@ -187,13 +194,43 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
         refresh_helm()
         refresh_status()
         navigate_to_point_designer(session)
-        ui.notify(
-            f"Applied {len(applied)} variables — KPIs STALE until Evaluate Point.",
-            type="warning",
-        )
+        if bool(rep.get("ok")):
+            ui.notify(
+                f"Applied {len(applied)} variables — KPIs STALE until Evaluate Point.",
+                type="warning",
+            )
+        else:
+            ui.notify(
+                f"Applied {len(applied)} diagnostic (INFEASIBLE) variables — KPIs STALE until Evaluate Point.",
+                type="warning",
+            )
+
+    @ui.refreshable
+    def _apply_ctas() -> None:
+        rep = session.systems_recovery_last
+        has = isinstance(rep, dict) and isinstance(rep.get("best_point"), dict)
+        ok = bool(rep.get("ok")) if isinstance(rep, dict) else False
+        if not has:
+            ui.label("Run recovery to unlock Apply to Point Designer.").classes("text-caption text-grey q-mt-sm")
+            return
+        if ok:
+            ui.button(
+                "Apply best feasible → Point Designer",
+                icon="input",
+                on_click=lambda: _apply_best_to_inputs(diagnostic=False),
+            ).props("flat q-ml-sm q-mt-sm")
+        else:
+            ui.label(
+                "Recovery best-effort only (INFEASIBLE) — not a closed Systems result."
+            ).classes("text-caption text-orange q-mt-sm")
+            ui.button(
+                "Apply diagnostic seed → Point Designer",
+                icon="warning",
+                on_click=lambda: _apply_best_to_inputs(diagnostic=True),
+            ).props("outline color=orange q-ml-sm q-mt-sm")
 
     ui.button("Run seeded recovery", icon="healing", on_click=_run).props("outline q-mt-sm")
-    ui.button("Apply best point → Point Designer", icon="input", on_click=_apply_best_to_inputs).props("flat q-ml-sm")
+    _apply_ctas()
     _results(session)
 
 

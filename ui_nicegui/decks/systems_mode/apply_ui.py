@@ -71,7 +71,10 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         )
     ids = [c["id"] for c in cands]
     if session.systems_selected_candidate_id not in ids:
-        session.systems_selected_candidate_id = cands[0]["id"]
+        session.systems_selected_candidate_id = next(
+            (c["id"] for c in cands if bool(c.get("feasible"))),
+            cands[0]["id"],
+        )
 
     ui.select(
         labels,
@@ -170,13 +173,21 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         ui.notify("Opened Point Designer Configure.", type="info")
 
     apply_props = "color=primary w-full q-mb-sm"
-    if sel and not bool(sel.get("feasible")):
-        apply_props = "outline color=orange w-full q-mb-sm"
-    ui.button(
-        "Apply to PD & re-evaluate" + (" (infeasible seed)" if sel and not bool(sel.get("feasible")) else ""),
-        icon="check",
-        on_click=_apply_evaluate,
-    ).props(apply_props)
+    if sel and bool(sel.get("feasible")):
+        ui.button(
+            "Apply to PD & re-evaluate",
+            icon="check",
+            on_click=_apply_evaluate,
+        ).props(apply_props)
+    else:
+        ui.label(
+            "No feasible candidate selected — primary promote is gated; diagnostic Apply remains available."
+        ).classes("text-caption text-orange q-mb-xs")
+        ui.button(
+            "Apply diagnostic seed to PD & re-evaluate",
+            icon="warning",
+            on_click=_apply_evaluate,
+        ).props("outline color=orange w-full q-mb-sm")
     ui.button("Undo last apply", icon="undo", on_click=_undo_apply).props("flat q-mb-sm")
     with ui.row().classes("gap-2 flex-wrap"):
         ui.button("Open Point Designer", icon="design_services", on_click=_open_pd).props("outline color=primary")

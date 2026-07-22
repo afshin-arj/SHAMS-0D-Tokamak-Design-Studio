@@ -176,7 +176,9 @@ def _render_posture(session: DesignSession) -> None:
     art = fetch_systems_artifact(session)
     _, targets, variables = resolve_systems_problem(session)
     targets_ok = bool(targets and variables)
-    n_cands = len(collect_candidates(session))
+    cands = collect_candidates(session)
+    n_cands = len(cands)
+    n_feas = sum(1 for c in cands if bool(c.get("feasible")))
     has_art = isinstance(art, dict)
 
     hint = next_action_hint(
@@ -186,6 +188,7 @@ def _render_posture(session: DesignSession) -> None:
         precheck_ok=_precheck_ok(session),
         solve_ok=_solve_ok(session),
         n_candidates=n_cands,
+        n_feasible=n_feas,
     )
 
     if has_art:
@@ -226,7 +229,9 @@ def _render_workflow_chips(session: DesignSession) -> None:
     _, targets, variables = resolve_systems_problem(session)
     pre = _precheck_ok(session)
     sol = _solve_ok(session)
-    n = len(collect_candidates(session))
+    cands = collect_candidates(session)
+    n = len(cands)
+    n_feas = sum(1 for c in cands if bool(c.get("feasible")))
 
     def _chip(label: str, state: str) -> None:
         color = {"ok": "text-positive", "fail": "text-negative", "pending": "text-grey"}.get(state, "")
@@ -239,7 +244,7 @@ def _render_workflow_chips(session: DesignSession) -> None:
         _chip("Targets", "ok" if targets and variables else "fail")
         _chip("Precheck", "ok" if pre else ("fail" if pre is False else "pending"))
         _chip("Solve", "ok" if sol else ("fail" if sol is False else "pending"))
-        ui.label(f"Candidates: {n}").classes("text-caption q-mr-md")
+        ui.label(f"Candidates: {n} ({n_feas} feasible)").classes("text-caption q-mr-md")
 
 
 @ui.refreshable

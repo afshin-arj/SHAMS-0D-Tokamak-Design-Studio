@@ -36,7 +36,7 @@ DECK_NOW_ACTIONS: dict[str, list[str]] = {
     "Systems Mode": [
         "Set targets and iteration variables, then precheck / solve.",
         "Review candidates and recovery posture on the constraint ledger.",
-        "Apply a candidate to Point Designer (frozen re-evaluate) or Compare.",
+        "Apply only a feasible candidate to Point Designer (or an explicit diagnostic seed).",
     ],
     "Opt Lab": [
         "Follow the three-step certified-search path (propose→CCFS).",
@@ -130,17 +130,40 @@ def has_compare_slots(session: Any) -> bool:
     return (isinstance(a, dict) and use_a) and (isinstance(b, dict) and use_b)
 
 
+def _systems_artifact_intent_feasible(art: dict) -> bool:
+    """True when a Systems artifact represents an intent-feasible closure."""
+    v = str(art.get("verdict") or "").upper()
+    if v in ("FEASIBLE", "PASS", "PASS+DIAG", "OK", "VERIFIED"):
+        return True
+    if v in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NOSOLUTION", "REJECTED"):
+        return False
+    out = art.get("outputs")
+    if isinstance(out, dict) and out:
+        try:
+            from ui_nicegui.lib.verdict_core import verdict_summary
+
+            return bool(verdict_summary(out).get("feasible"))
+        except Exception:
+            return False
+    return False
+
+
 def has_systems_closure(session: Any) -> bool:
-    """True when Systems Mode has a real Systems result (not PD fallback/Apply)."""
+    """True when Systems Mode closed with an intent-feasible Systems result.
+
+    PD fallback / Apply re-eval and INFEASIBLE recovery seeds do not close systems.
+    """
     from ui_nicegui.lib.systems_artifact import is_systems_result_source, normalize_systems_artifact_source
 
+    rep = getattr(session, "systems_last_solve_result", None)
+    if isinstance(rep, dict) and (
+        rep.get("ok") or rep.get("intent_feasible") or rep.get("feasible")
+    ):
+        return True
     art = getattr(session, "systems_last_solve_artifact", None)
     if isinstance(art, dict) and art:
         if is_systems_result_source(normalize_systems_artifact_source(art)):
-            return True
-    rep = getattr(session, "systems_last_solve_result", None)
-    if isinstance(rep, dict) and (rep.get("ok") or rep.get("feasible")):
-        return True
+            return _systems_artifact_intent_feasible(art)
     return False
 
 
