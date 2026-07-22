@@ -233,12 +233,37 @@ def plotly_robustness_figure(rep: dict, intent: str):
 def plotly_contour_figure(rep: dict, intent: str, field: str):
     import plotly.graph_objects as go
 
+    from ui_nicegui.lib.plant_kpi_honesty_ui import is_claim_kpi_key
+
     x_vals = rep.get("x_vals") or []
     y_vals = rep.get("y_vals") or []
     z = _contour_matrix(rep, field)
-    fig = go.Figure(data=go.Heatmap(x=x_vals, y=y_vals, z=z, colorbar={"title": field}))
+    claim = is_claim_kpi_key(str(field))
+    if claim:
+        # PHYS-KPI-001: never paint claim KPI heatmaps on blocking-infeasible cells.
+        grid = build_point_grid(rep)
+        masked: List[List[float]] = []
+        for j in range(len(y_vals)):
+            row: List[float] = []
+            for i in range(len(x_vals)):
+                s = cell_intent_state(grid, intent, i, j)
+                if not bool(s.get("blocking_feasible")):
+                    row.append(float("nan"))
+                else:
+                    try:
+                        row.append(float(z[j][i]))
+                    except (IndexError, TypeError, ValueError):
+                        row.append(float("nan"))
+            masked.append(row)
+        z = masked
+        title = f"Operating contour: {field} (feasible cells) — INFEASIBLE = diagnostic blank"
+        cbar = f"{field} (claim)"
+    else:
+        title = f"Operating contour: {field} — context {intent}"
+        cbar = field
+    fig = go.Figure(data=go.Heatmap(x=x_vals, y=y_vals, z=z, colorbar={"title": cbar}))
     fig.update_layout(
-        title=f"Operating contour: {field} — context {intent}",
+        title=title,
         xaxis_title=str(rep.get("x_key") or "x"),
         yaxis_title=str(rep.get("y_key") or "y"),
         height=420,

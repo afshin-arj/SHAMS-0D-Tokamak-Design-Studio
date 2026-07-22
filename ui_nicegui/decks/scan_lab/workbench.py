@@ -109,6 +109,13 @@ def _render_nav(
                     _changed(),
                 ),
             ).props("dense").classes("w-full")
+            from ui_nicegui.lib.plant_kpi_honesty_ui import is_claim_kpi_key
+
+            if is_claim_kpi_key(str(session.scan_wb_contour_field)):
+                ui.label(
+                    "PHYS-KPI-001: claim-KPI contours blank blocking-INFEASIBLE cells — "
+                    "values shown only where intent-feasible."
+                ).classes("text-caption text-orange q-mb-xs")
 
     if len(intents) >= 2:
         ui.checkbox(

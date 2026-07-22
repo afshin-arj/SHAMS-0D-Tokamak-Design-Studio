@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_trade_study_table_rows
 from ui_nicegui.lib.trade_study_helpers import report_to_json_bytes
 from ui_nicegui.session import DesignSession
 
@@ -105,9 +106,7 @@ def _render_table(title: str, rows: list[dict], objectives: list[str]) -> None:
     cols = ["i", "is_feasible", "dominant_constraint", "min_margin_frac"]
     cols += [c for c in objectives if c in rows[0]][:4]
     cols += [c for c in ("design_family", "R0_m", "Bt_T", "Ip_MA") if c in rows[0] and c not in cols]
-    table_rows = []
-    for r in rows:
-        table_rows.append({k: r.get(k) for k in cols if k in r})
+    table_rows = watermark_trade_study_table_rows(rows, cols)
     with ui.expansion(title, icon="table_chart").classes("w-full"):
         if any(not bool(r.get("is_feasible")) for r in rows):
             ui.label(
