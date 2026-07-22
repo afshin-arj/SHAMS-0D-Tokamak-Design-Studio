@@ -137,6 +137,7 @@ _CLAIM_KPI_KEYS = frozenset(
         "LCOE_USD_per_MWh",
         "COE_proxy_USD_per_MWh",
         "CoE_USD_MWh",
+        "net_electric_MW",
         "avail_v420_LCOE_USD_per_MWh",
         "costing_v421_LCOE_USD_per_MWh",
         "H98",

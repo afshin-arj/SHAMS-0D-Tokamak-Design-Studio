@@ -259,8 +259,15 @@ def _render_candidate_inspector(session: DesignSession, archive: list, intent: s
     cand = archive[idx]
     if not isinstance(cand, dict):
         return
-    ui.label(f"Feasible: {bool(cand.get('feasible'))} · Score: {cand.get('_score')} · "
-             f"Failure: {cand.get('failure_mode') or '-'}").classes("text-body2")
+    feasible = bool(cand.get("feasible"))
+    ui.label(
+        f"Feasible: {feasible} · Score: {cand.get('_score')} · "
+        f"Failure: {cand.get('failure_mode') or '-'}"
+    ).classes("text-body2")
+    if not feasible:
+        ui.label(
+            "PHYS-KPI-001: Closure / report claim FoMs below are diagnostic residue — not design claims."
+        ).classes("text-caption text-orange q-mb-xs")
 
     instruments = enrich_candidate_instruments(cand, intent)
     if instruments.get("error"):

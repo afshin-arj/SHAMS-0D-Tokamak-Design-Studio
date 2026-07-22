@@ -38,6 +38,7 @@ def enrich_candidate_instruments(cand: dict, intent: str) -> dict:
     cost = cand.get("cost") or {}
     if not isinstance(outputs, dict):
         return out
+    feasible = bool(cand.get("feasible", False))
     try:
         from tools.sandbox.closure_console import closure_console
         from tools.sandbox.margin_budget import margin_budget
@@ -55,13 +56,114 @@ def enrich_candidate_instruments(cand: dict, intent: str) -> dict:
             closure_bundle=closure if isinstance(closure, dict) else None,
             margin_budget=mb,
             reality_gates=rg,
+            feasible=feasible,
+            failure_mode=cand.get("failure_mode"),
         )
-        out["closure_bundle"] = closure
+        out["closure_bundle"] = watermark_forge_closure_bundle(
+            closure if isinstance(closure, dict) else {},
+            feasible=feasible,
+            point_out=outputs,
+        )
         out["margin_budget"] = mb
         out["reality_gates"] = rg
-        out["report_pack"] = rp
+        out["report_pack"] = watermark_forge_report_pack(
+            rp if isinstance(rp, dict) else {},
+            feasible=feasible,
+            point_out=outputs,
+        )
+        out["feasible"] = feasible
     except Exception as exc:
         out["error"] = str(exc)
+    return out
+
+
+def watermark_forge_closure_bundle(
+    bundle: dict,
+    *,
+    feasible: bool,
+    point_out: Optional[dict] = None,
+) -> dict:
+    """PHYS-KPI-001: watermark claim FoMs in Forge closure_bundle for display/export."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
+    src = dict(bundle) if isinstance(bundle, dict) else {}
+    if feasible:
+        return src
+    out: Dict[str, Any] = {}
+    for k, v in src.items():
+        key = str(k)
+        claim = key if is_claim_kpi_key(key) else ("P_e_net_MW" if key == "net_electric_MW" else None)
+        if claim:
+            out[key] = format_claim_kpi_for_table(claim, v, feasible=False, point_out=point_out)
+        else:
+            out[key] = v
+    return out
+
+
+def watermark_forge_report_pack(
+    pack: dict,
+    *,
+    feasible: bool,
+    point_out: Optional[dict] = None,
+) -> dict:
+    """Copy report pack with claim FoMs watermarked when candidate is INFEASIBLE."""
+    import re
+
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        format_claim_kpi_for_table,
+        is_claim_kpi_key,
+        watermark_claim_kpi_map,
+    )
+
+    if not isinstance(pack, dict):
+        return {}
+    if feasible:
+        return dict(pack)
+
+    out = dict(pack)
+    j = dict(out.get("json") or {}) if isinstance(out.get("json"), dict) else {}
+    if isinstance(j.get("key_outputs"), dict):
+        j["key_outputs"] = watermark_claim_kpi_map(
+            j["key_outputs"], feasible=False, point_out=point_out or j.get("key_outputs")
+        )
+    if isinstance(j.get("closure_bundle"), dict):
+        j["closure_bundle"] = watermark_forge_closure_bundle(
+            j["closure_bundle"], feasible=False, point_out=point_out
+        )
+    fcc = j.get("closure_certificate")
+    if isinstance(fcc, dict):
+        fcc2 = dict(fcc)
+        kn = dict(fcc2.get("key_numbers") or {})
+        for k, v in list(kn.items()):
+            claim = str(k) if is_claim_kpi_key(str(k)) else (
+                "P_e_net_MW" if str(k) == "net_electric_MW" else None
+            )
+            if claim:
+                kn[k] = format_claim_kpi_for_table(claim, v, feasible=False, point_out=point_out)
+        fcc2["key_numbers"] = kn
+        notes = list(fcc2.get("notes") or [])
+        note = "PHYS-KPI-001: key_numbers claim FoMs are diagnostic on INFEASIBLE — not design claims."
+        if note not in notes:
+            notes.append(note)
+        fcc2["notes"] = notes
+        j["closure_certificate"] = fcc2
+    out["json"] = j
+
+    md = str(out.get("markdown") or "")
+    prefix = (
+        "PHYS-KPI-001: claim FoMs (Q / H98 / Pfus / P_net) on this INFEASIBLE candidate "
+        "are diagnostic residue — not design claims.\n\n"
+    )
+    if "PHYS-KPI-001" not in md:
+        md = prefix + md
+    cb = j.get("closure_bundle") if isinstance(j.get("closure_bundle"), dict) else {}
+    net = cb.get("net_electric_MW")
+    if net is not None:
+        md = re.sub(r"(?m)^- net_electric_MW:.*$", f"- net_electric_MW: {net}", md)
+    out["markdown"] = md
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim FoMs watermarked as diagnostic on INFEASIBLE Forge candidate."
+    )
     return out
 
 
