@@ -386,7 +386,23 @@ def render_tab_ops_thermal(ctx: SuiteContext) -> None:
                         color="orange",
                     ).props("outline").classes("q-mb-xs")
                 stamp_label(tr.stamp_sha256)
-                _plot_lines(tr.t_s, {"P_net_MW": tr.Pe_net_MW, "P_recirc_MW": tr.Precirc_MW}, title="Pulse power")
+                # PHYS-KPI-001: never plot P_net as achievement space on hard-infeasible.
+                if honesty.get("claim_allowed"):
+                    _plot_lines(
+                        tr.t_s,
+                        {"P_net_MW": tr.Pe_net_MW, "P_recirc_MW": tr.Precirc_MW},
+                        title="Pulse power",
+                    )
+                else:
+                    _plot_lines(
+                        tr.t_s,
+                        {"P_recirc_MW": tr.Precirc_MW},
+                        title="Pulse power (recirc only — P_net omitted on INFEASIBLE)",
+                    )
+                    ui.label(
+                        "PHYS-KPI-001: net-electric pulse trace omitted on hard-infeasible — "
+                        "diagnostic residue is not achievement space."
+                    ).classes("text-caption text-orange q-mb-xs")
                 if tr.violations:
                     ui.label("Trajectory violations detected.").classes("text-negative")
                     ui.table(
@@ -885,11 +901,18 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
             render_json_blob(summary)
         preview = ctx.session.suite_campaign_results_preview
         if isinstance(preview, list) and preview:
-            cols = list(preview[0].keys())[:10] if isinstance(preview[0], dict) else []
-            with ui.expansion(f"Results preview ({len(preview)} rows)", icon="table_chart").classes("w-full"):
+            from ui_nicegui.lib.suite_extended_helpers import watermark_campaign_preview_rows
+
+            display = watermark_campaign_preview_rows([r for r in preview if isinstance(r, dict)])
+            cols = list(display[0].keys())[:10] if display else []
+            with ui.expansion(f"Results preview ({len(display)} rows)", icon="table_chart").classes("w-full"):
+                if any(not bool(r.get("feasible_hard")) for r in display):
+                    ui.label(
+                        "PHYS-KPI-001: claim KPI columns on hard-infeasible rows are diagnostic — not design claims."
+                    ).classes("text-caption text-orange q-mb-xs")
                 ui.table(
                     columns=[{"name": c, "label": c, "field": c, "align": "left"} for c in cols],
-                    rows=[{c: r.get(c) for c in cols} for r in preview if isinstance(r, dict)],
+                    rows=[{c: r.get(c) for c in cols} for r in display],
                     row_key=cols[0] if cols else "case",
                 ).classes("w-full")
         data = ctx.session.suite_campaign_jsonl_bytes

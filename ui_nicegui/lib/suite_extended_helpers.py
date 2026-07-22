@@ -101,7 +101,27 @@ def evaluate_campaign_batch(spec, candidates: list) -> Tuple[dict, list, bytes]:
             "worst_hard_margin": r.worst_hard_margin,
             **{k: v for k, v in (r.inputs or {}).items()},
         })
-    return summary, preview, out_jsonl.read_bytes()
+    return summary, watermark_campaign_preview_rows(preview), out_jsonl.read_bytes()
+
+
+def watermark_campaign_preview_rows(rows: List[dict]) -> List[dict]:
+    """PHYS-KPI-001: suppress claim KPI cells on hard-infeasible campaign preview rows."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
+    out: List[dict] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        feas = bool(r.get("feasible_hard"))
+        if feas:
+            out.append(dict(r))
+            continue
+        rr = dict(r)
+        for k, v in list(rr.items()):
+            if is_claim_kpi_key(str(k)):
+                rr[k] = format_claim_kpi_for_table(str(k), v, feasible=False)
+        out.append(rr)
+    return out
 
 
 def list_parity_cases(suite: str) -> List[Tuple[str, Path]]:
