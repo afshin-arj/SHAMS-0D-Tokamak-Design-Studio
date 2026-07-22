@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from dataclasses import replace
-
 from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
@@ -13,10 +11,12 @@ from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.lib.cr_artifacts_helpers import collect_session_artifacts
 from ui_nicegui.lib.cr_chronicle_helpers import evaluate_knob_trade_grid, point_inputs_from_artifact
 from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
 from ui_nicegui.session import DesignSession
 
 
 _KNOBS = ["Ip_MA", "fG", "Bt_T", "R0_m", "Paux_MW", "Ti_keV", "a_m", "kappa"]
+_CLAIM_COLS = ("Q", "H98", "Pfus_total_MW", "P_e_net_MW")
 
 
 def render_knob_trade_space(session: DesignSession) -> None:
@@ -123,32 +123,39 @@ def render_knob_trade_space(session: DesignSession) -> None:
     _grid_view(session)
 
 
+def watermark_knob_grid_rows(rows: list, *, kx: str, ky: str) -> list[dict]:
+    """PHYS-KPI-001: suppress claim KPIs on infeasible grid cells (shared for UI + tests)."""
+    cols = [kx, ky, "feasible", "top_blocker", *_CLAIM_COLS]
+    display_rows: list[dict] = []
+    for r in rows:
+        feas = bool(r.get("feasible"))
+        row = {c: r.get(c) for c in cols}
+        for col in _CLAIM_COLS:
+            key = "Q_DT_eqv" if col == "Q" else col
+            row[col] = format_claim_kpi_for_table(key, r.get(col), feasible=feas)
+        display_rows.append(row)
+    return display_rows
+
+
 @ui.refreshable
 def _grid_view(session: DesignSession) -> None:
     payload = session.cr_knob_grid_last if isinstance(session.cr_knob_grid_last, dict) else None
     if not payload:
         return
     rows = payload.get("rows") or []
-    kx = payload.get("kx", "x")
-    ky = payload.get("ky", "y")
+    kx = str(payload.get("kx", "x"))
+    ky = str(payload.get("ky", "y"))
     if not rows:
         return
     n_feas = sum(1 for r in rows if r.get("feasible"))
     kpi_row([("Points", str(len(rows))), ("Feasible", str(n_feas)), ("X", kx), ("Y", ky)])
     if n_feas < len(rows):
         ui.label(
-            "PHYS-KPI-001: Q / Pfus on infeasible grid rows are diagnostic residue — not design claims."
+            "PHYS-KPI-001: Q / H98 / Pfus / P_net on infeasible grid rows are "
+            "— (diagnostic) — not design claims."
         ).classes("text-caption text-orange q-mb-xs")
-    cols = [kx, ky, "feasible", "top_blocker", "Q", "Pfus_total_MW"]
-    display_rows = []
-    for r in rows:
-        row = {c: r.get(c) for c in cols}
-        if not r.get("feasible"):
-            if row.get("Q") is not None:
-                row["Q"] = f"{row['Q']} (diag)"
-            if row.get("Pfus_total_MW") is not None:
-                row["Pfus_total_MW"] = f"{row['Pfus_total_MW']} (diag)"
-        display_rows.append(row)
+    cols = [kx, ky, "feasible", "top_blocker", *_CLAIM_COLS]
+    display_rows = watermark_knob_grid_rows(rows, kx=kx, ky=ky)
     ui.table(
         columns=[{"name": c, "label": c, "field": c, "align": "left"} for c in cols],
         rows=display_rows,

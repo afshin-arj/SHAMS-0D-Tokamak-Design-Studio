@@ -37,6 +37,17 @@ def _fmt(v: float, prec: int = 2) -> str:
     return f"{v:.{prec}f}" if v == v else "n/a"
 
 
+def _claim_disp(out: Dict[str, Any], key: str, *alts: str, feasible: bool, prec: int = 2) -> str:
+    """PHYS-KPI-001: watermark claim KPIs on INFEASIBLE deepening cards."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
+    v = _sf(out, key, *alts)
+    canon = key if is_claim_kpi_key(key) else next((a for a in alts if is_claim_kpi_key(a)), key)
+    if is_claim_kpi_key(canon):
+        return format_claim_kpi_for_table(canon, v, feasible=feasible, point_out=out, digits=prec)
+    return _fmt(v, prec)
+
+
 def _margin_rows(out: Dict[str, Any], prefix: str, replace: str = "") -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for k, v in sorted(out.items(), key=lambda kv: str(kv[0])):
@@ -60,7 +71,8 @@ def _table_from_dicts(rows: List[Dict[str, Any]], *, row_key: str = "check") -> 
 def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None) -> None:
     from ui_nicegui.lib.verdict_core import verdict_summary
 
-    if not bool(verdict_summary(out).get("feasible")):
+    feasible = bool(verdict_summary(out).get("feasible"))
+    if not feasible:
         ui.label(
             "PHYS-KPI-001: confinement / burn / performance KPIs below are diagnostic residue on an INFEASIBLE point — not design claims."
         ).classes("text-caption text-orange q-mb-sm")
@@ -74,7 +86,7 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
             if v == "Regime & Confinement":
                 kpi_row([
                     ("Regime label", str(out.get("confinement_regime", "unknown"))),
-                    ("H98(y,2)", _fmt(_sf(out, "H98"))),
+                    ("H98(y,2)", _claim_disp(out, "H98", feasible=feasible)),
                     ("H_regime", _fmt(_sf(out, "H_regime"))),
                     ("P_LH (MW)", _fmt(_sf(out, "P_LH_MW"), 1)),
                 ])
