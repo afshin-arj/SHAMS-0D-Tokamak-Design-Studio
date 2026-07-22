@@ -11,10 +11,11 @@ def render_constraints_panel(art_a: dict, art_b: dict) -> None:
     diff_rows = constraint_margin_diff_rows(art_a, art_b)
     new_fail = [r for r in diff_rows if r.get("new_failure")]
     if new_fail:
-        ui.label("New failures in B (passed in A)").classes("text-subtitle2 text-negative")
+        ui.label("New hard failures in B (passed hard in A)").classes("text-subtitle2 text-negative")
         ui.table(
             columns=[
                 {"name": "name", "label": "Constraint", "field": "name", "align": "left"},
+                {"name": "severity_B", "label": "Severity B", "field": "severity_B"},
                 {"name": "margin_A", "label": "Margin A", "field": "margin_A"},
                 {"name": "margin_B", "label": "Margin B", "field": "margin_B"},
             ],
@@ -22,16 +23,21 @@ def render_constraints_panel(art_a: dict, art_b: dict) -> None:
             row_key="name",
         ).classes("w-full q-mb-md")
     else:
-        ui.label("No new constraint failures in B relative to A.").classes("text-caption text-positive q-mb-sm")
+        ui.label("No new hard constraint failures in B relative to A.").classes("text-caption text-positive q-mb-sm")
 
     ui.label("Margin regressions (largest Δ first)").classes("text-subtitle2")
+    ui.label(
+        "Fail columns are hard-severity only; soft/diagnostic appear under soft_failed_*."
+    ).classes("text-caption text-grey q-mb-xs")
     regressed = [r for r in diff_rows if r.get("margin_delta") is not None][:25]
     if regressed:
         ui.table(
             columns=[
                 {"name": "name", "label": "Constraint", "field": "name", "align": "left"},
-                {"name": "failed_A", "label": "Fail A", "field": "failed_A"},
-                {"name": "failed_B", "label": "Fail B", "field": "failed_B"},
+                {"name": "severity_A", "label": "Sev A", "field": "severity_A"},
+                {"name": "severity_B", "label": "Sev B", "field": "severity_B"},
+                {"name": "failed_A", "label": "Hard fail A", "field": "failed_A"},
+                {"name": "failed_B", "label": "Hard fail B", "field": "failed_B"},
                 {"name": "margin_A", "label": "Margin A", "field": "margin_A"},
                 {"name": "margin_B", "label": "Margin B", "field": "margin_B"},
                 {"name": "margin_delta", "label": "Δ margin", "field": "margin_delta"},

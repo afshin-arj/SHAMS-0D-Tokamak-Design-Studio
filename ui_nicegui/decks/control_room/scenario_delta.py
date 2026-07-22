@@ -18,6 +18,8 @@ from ui_nicegui.lib.compare_helpers import (
 )
 from ui_nicegui.lib.cr_artifacts_helpers import load_json_bytes
 from ui_nicegui.lib.navigation import switch_deck
+from ui_nicegui.lib.plant_kpi_honesty_ui import changed_kpis_table_rows
+from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
 
@@ -100,6 +102,11 @@ def _delta(session: DesignSession) -> None:
         return
 
     summary = summarize_comparison(base, scen)
+    out_a = base.get("outputs") if isinstance(base.get("outputs"), dict) else {}
+    out_b = scen.get("outputs") if isinstance(scen.get("outputs"), dict) else {}
+    feas_a = bool(verdict_summary(out_a).get("feasible")) if out_a else False
+    feas_b = bool(verdict_summary(out_b).get("feasible")) if out_b else False
+
     kpi_row([
         ("Verdict A", summary.get("verdict_a", "-")),
         ("Verdict B", summary.get("verdict_b", "-")),
@@ -108,10 +115,42 @@ def _delta(session: DesignSession) -> None:
         ("Top Δ", summary.get("top_delta", "-")),
     ])
 
+    if not feas_a or not feas_b:
+        ui.label(
+            "PHYS-KPI-001: Q / H98 / Pfus / P_net on INFEASIBLE baseline or scenario "
+            "are diagnostic residue — not design claims."
+        ).classes("text-caption text-orange q-mb-xs")
+
     sd = scen.get("scenario_delta")
     with ui.expansion("Embedded scenario_delta", icon="difference").classes("w-full"):
-        if sd:
-            render_json_blob(sd)
+        if isinstance(sd, dict):
+            changed = sd.get("changed_kpis")
+            ck_rows = (
+                changed_kpis_table_rows(changed, feasible_base=feas_a, feasible_scenario=feas_b)
+                if isinstance(changed, dict) and changed
+                else []
+            )
+            if ck_rows:
+                ui.label("Changed KPIs (watermarked)").classes("text-caption q-mb-xs")
+                ui.table(
+                    columns=[
+                        {"name": c, "label": c, "field": c, "align": "left"}
+                        for c in ("kpi", "baseline", "scenario", "delta")
+                    ],
+                    rows=ck_rows,
+                    row_key="kpi",
+                ).classes("w-full q-mb-sm")
+            display_sd = dict(sd)
+            if ck_rows and (not feas_a or not feas_b):
+                by_kpi = {r["kpi"]: r for r in ck_rows}
+                display_sd["changed_kpis"] = {
+                    k: {
+                        "base": by_kpi.get(k, {}).get("baseline", "— (diagnostic)"),
+                        "scenario": by_kpi.get(k, {}).get("scenario", "— (diagnostic)"),
+                    }
+                    for k in (changed or {})
+                }
+            render_json_blob(display_sd)
         else:
             ui.label("No embedded scenario_delta — computed diffs below.").classes("text-caption")
 
@@ -132,12 +171,27 @@ def _delta(session: DesignSession) -> None:
 
     cons_rows = constraint_margin_diff_rows(base, scen)
     ui.label("Constraint margin shifts").classes("text-subtitle2 q-mt-sm")
+    ui.label(
+        "new_failure / failed_* count hard severity only — soft/diagnostic fails are soft_failed_*."
+    ).classes("text-caption text-grey")
     if cons_rows:
         show = [r for r in cons_rows if r.get("new_failure") or r.get("margin_delta") is not None][:40]
         ui.table(
             columns=[
                 {"name": c, "label": c, "field": c, "align": "left"}
-                for c in ("name", "failed_A", "failed_B", "margin_A", "margin_B", "margin_delta", "new_failure")
+                for c in (
+                    "name",
+                    "severity_A",
+                    "severity_B",
+                    "failed_A",
+                    "failed_B",
+                    "soft_failed_A",
+                    "soft_failed_B",
+                    "margin_A",
+                    "margin_B",
+                    "margin_delta",
+                    "new_failure",
+                )
             ],
             rows=show,
             row_key="name",
