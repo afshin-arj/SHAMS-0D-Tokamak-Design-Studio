@@ -4,8 +4,44 @@ from __future__ import annotations
 from nicegui import run, ui
 
 from ui_nicegui.lib.cr_governance_helpers import run_case_deck_file
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
+
+
+def watermark_case_deck_artifact(art: dict) -> dict:
+    """PHYS-KPI-001 display copy — claim KPIs diagnostic on INFEASIBLE artifacts."""
+    if not isinstance(art, dict):
+        return {}
+    outs = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+    feasible = bool(verdict_summary(outs).get("feasible")) if outs else False
+    display = dict(art)
+    if outs:
+        display["outputs"] = watermark_claim_kpi_map(outs, feasible=feasible, point_out=outs)
+    kpis = art.get("kpis")
+    if isinstance(kpis, dict):
+        display["kpis"] = watermark_claim_kpi_map(kpis, feasible=feasible, point_out=outs or kpis)
+    tables = art.get("tables")
+    if isinstance(tables, dict):
+        t2 = dict(tables)
+        v1 = tables.get("v1") or tables
+        if isinstance(v1, dict):
+            v1d = dict(v1)
+            for section in ("plasma", "power_balance"):
+                block = v1.get(section)
+                if isinstance(block, dict):
+                    v1d[section] = watermark_claim_kpi_map(block, feasible=feasible, point_out=outs)
+            if "v1" in tables:
+                t2["v1"] = v1d
+            else:
+                t2.update(v1d)
+        display["tables"] = t2
+    if not feasible:
+        display["phys_kpi_001"] = (
+            "Claim KPIs watermarked as diagnostic on INFEASIBLE — not design claims."
+        )
+    return display
 
 
 def render_case_deck_runner(session: DesignSession) -> None:
@@ -71,5 +107,13 @@ def _result(session: DesignSession) -> None:
         with ui.expansion("Resolved config", icon="settings").classes("w-full"):
             render_json_blob(result["resolved_config"])
     if isinstance(result.get("artifact"), dict):
+        art = result["artifact"]
+        outs = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+        feasible = bool(verdict_summary(outs).get("feasible")) if outs else False
         with ui.expansion("Run artifact preview", icon="data_object").classes("w-full"):
-            render_json_blob(result["artifact"])
+            if not feasible:
+                ui.label(
+                    "PHYS-KPI-001: Q / H98 / Pfus / P_net below are diagnostic residue on an "
+                    "INFEASIBLE artifact — not design claims."
+                ).classes("text-caption text-orange q-mb-xs")
+            render_json_blob(watermark_case_deck_artifact(art))

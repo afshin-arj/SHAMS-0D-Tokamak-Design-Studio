@@ -304,6 +304,12 @@ def run_one(case_id: str, inp: PointInputs, *, design_intent: str) -> Dict[str, 
         "tightest_hard": ";".join([f"{nm}:{m:.3g}" for (nm, m) in tight]),
     }
 
+    # PHYS-KPI-001: paper-facing CSV must not present claim KPIs as achievements on FAIL.
+    if not row["ok_blocking"]:
+        for _claim_k in ("H98", "Q_DT_eqv", "P_fus_MW", "P_e_net_MW"):
+            if _claim_k in row:
+                row[_claim_k] = "— (diagnostic)"
+
     artifact = {
         "schema_version": "publication_point_benchmark_v1",
         "case_id": case_id,

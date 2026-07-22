@@ -72,6 +72,7 @@ def main() -> int:
     lines.append(f"Candidate: {cdir}\n")
 
     channels = ["H98","Q_DT_eqv","P_fus_MW","P_e_net_MW","q95","fG","betaN","q_div_MW_m2","TBR","CAPEX_$","recirc_frac","worst_hard_margin"]
+    claim_channels = {"H98", "Q_DT_eqv", "P_fus_MW", "P_e_net_MW"}
 
     changed = 0
     for k in keys:
@@ -89,9 +90,15 @@ def main() -> int:
             lines.append(f"- Verdict: {vb} → {vc}\n")
             if dom_b != dom_c:
                 lines.append(f"- Dominant constraint: {dom_b} → {dom_c}\n")
+            ok_b = vb.strip().lower() in ("true", "1", "yes")
+            ok_c = vc.strip().lower() in ("true", "1", "yes")
             # numeric deltas
             deltas: List[str] = []
             for ch in channels:
+                # PHYS-KPI-001: never print claim KPI deltas when either side is FAIL.
+                if ch in claim_channels and not (ok_b and ok_c):
+                    deltas.append(f"  - d{ch} = — (diagnostic) (PHYS-KPI-001; claim residue omitted)")
+                    continue
                 bv = _to_float(b.get(ch))
                 cv = _to_float(c.get(ch))
                 if bv is None or cv is None:
