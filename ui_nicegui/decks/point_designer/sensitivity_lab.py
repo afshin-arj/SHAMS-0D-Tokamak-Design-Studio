@@ -67,8 +67,17 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                     return ui_evaluate(pi, origin="NiceGUI:LocalFD", Paux_for_Q_MW=session.paux_for_q)
 
                 rows = await run.io_bound(local_fd_sensitivity_rows, base, _eval)
+                from ui_nicegui.lib.sensitivity_honesty import fd_parity_rows_watermark
+                from ui_nicegui.lib.verdict_core import verdict_summary
+
+                feasible = bool(verdict_summary(out).get("feasible"))
+                rows = fd_parity_rows_watermark(rows, feasible=feasible)
                 fd_area.clear()
                 with fd_area:
+                    if not feasible:
+                        ui.label(
+                            "Baseline INFEASIBLE — claim-KPI ∂Y/∂X cells shown as diag· (PHYS-KPI-001)."
+                        ).classes("text-caption text-orange")
                     if rows:
                         ui.table(
                             columns=[
@@ -192,7 +201,12 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                     from ui_nicegui.lib.verdict_core import verdict_summary
 
                     feas = "yes" if verdict_summary(yo).get("feasible") else "no"
-                    rows.append({"step": label, "knob": k, "value": f"{x0 * mult:.4g}", "Q": _fmt(q), "feasible": feas})
+                    q_disp = _fmt(q)
+                    if feas == "no":
+                        from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
+
+                        q_disp = format_claim_kpi_for_table("Q_DT_eqv", q, feasible=False, point_out=yo)
+                    rows.append({"step": label, "knob": k, "value": f"{x0 * mult:.4g}", "Q": q_disp, "feasible": feas})
                 result_area.clear()
                 with result_area:
                     ui.table(

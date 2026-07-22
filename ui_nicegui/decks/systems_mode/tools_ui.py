@@ -171,11 +171,19 @@ def _sens_view(session: DesignSession) -> None:
     rep = session.systems_sensitivities_last
     if not isinstance(rep, dict):
         return
-    rows = []
-    for outk, dd in rep.items():
-        if isinstance(dd, dict):
-            for pk, dv in dd.items():
-                rows.append({"output": outk, "param": pk, "sensitivity": dv})
+    from ui_nicegui.lib.sensitivity_honesty import fd_sensitivity_table_rows
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    art = session.systems_last_solve_artifact if isinstance(session.systems_last_solve_artifact, dict) else {}
+    out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+    if not out:
+        out = session.pd_last_outputs or session.last_eval or {}
+    feasible = bool(verdict_summary(out if isinstance(out, dict) else {}).get("feasible"))
+    if not feasible:
+        ui.label(
+            "Baseline INFEASIBLE — claim-KPI sensitivities shown as diag· (PHYS-KPI-001)."
+        ).classes("text-caption text-orange q-mb-xs")
+    rows = fd_sensitivity_table_rows(rep, feasible=feasible, max_rows=40)
     if rows:
         ui.table(
             columns=[
@@ -183,6 +191,6 @@ def _sens_view(session: DesignSession) -> None:
                 {"name": "param", "label": "Param", "field": "param"},
                 {"name": "sensitivity", "label": "d(out)/d(param)", "field": "sensitivity"},
             ],
-            rows=rows[:40],
+            rows=rows,
             row_key="output",
         ).classes("w-full")

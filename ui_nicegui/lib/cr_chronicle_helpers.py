@@ -50,17 +50,16 @@ def run_sensitivity_pack(
     )
 
 
-def sensitivity_table_rows(pack: dict, knobs: List[str], outputs: List[str]) -> List[dict]:
-    rows: List[dict] = []
-    jac = pack.get("jacobian") if isinstance(pack.get("jacobian"), dict) else {}
-    for o in outputs:
-        for p in knobs:
-            try:
-                v = float((jac.get(o) or {}).get(p))
-            except (TypeError, ValueError):
-                v = None
-            rows.append({"output": o, "knob": p, "jacobian": v})
-    return rows
+def sensitivity_table_rows(
+    pack: dict,
+    knobs: List[str],
+    outputs: List[str],
+    *,
+    feasible: bool = True,
+) -> List[dict]:
+    from ui_nicegui.lib.sensitivity_honesty import jacobian_table_rows
+
+    return jacobian_table_rows(pack, knobs, outputs, feasible=feasible)
 
 
 def load_study_index(path: Path) -> dict:
