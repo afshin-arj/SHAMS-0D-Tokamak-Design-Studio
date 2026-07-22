@@ -63,7 +63,15 @@ def render_assumptions_panel(session: DesignSession) -> None:
             )
             out = await run.io_bound(ui_evaluate, pi, origin="control_room_assumptions")
             set_point_evaluation(session, outputs=out, inputs=asdict(pi))
-            ui.notify("Re-evaluated with toggled assumptions (full artifact updated)", type="positive")
+            vs = verdict_summary(out) if isinstance(out, dict) else {}
+            if vs.get("feasible"):
+                ui.notify("Re-evaluated with toggled assumptions (full artifact updated)", type="positive")
+            else:
+                ui.notify(
+                    "Re-evaluated — point is INFEASIBLE under toggled assumptions. "
+                    "Claim KPIs are diagnostic only.",
+                    type="warning",
+                )
             _result.refresh(session)
             try:
                 from ui_nicegui.decks.control_room.verdict import render_governance_verdict_live
@@ -88,12 +96,20 @@ def _result(session: DesignSession) -> None:
     vs = verdict_summary(payload)
     if not vs.get("loaded"):
         return
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
     feasible = bool(vs.get("feasible"))
     ui.label(f"Verdict: {vs.get('verdict', 'n/a')}").classes(
         "text-h6 " + ("text-positive" if feasible else "text-negative")
     )
     ui.label(f"Dominant: {vs.get('dominant', '-')}").classes("text-body2")
-    ui.label(f"{vs.get('q_label', '')} · {vs.get('nt_label', '')}").classes("text-caption")
+    q_nt = f"{vs.get('q_label', '')} · {vs.get('nt_label', '')}"
+    if not feasible:
+        ui.label(
+            "PHYS-KPI-001: Q / Pfus / P_net below are diagnostic residue — not design claims."
+        ).classes("text-caption text-orange")
+        q_nt = "Q / n·T — (diagnostic)"
+    ui.label(q_nt).classes("text-caption")
     art = session.pd_last_artifact if isinstance(session.pd_last_artifact, dict) else {}
     kpis = art.get("kpis") if isinstance(art.get("kpis"), dict) else {}
     if kpis.get("feasible_hard") is not None:
@@ -116,4 +132,8 @@ def _result(session: DesignSession) -> None:
                     val = outs[alt]
                     break
         if val is not None:
-            ui.label(f"{k}: {val}").classes("text-caption")
+            if is_claim_kpi_key(k):
+                disp = format_claim_kpi_for_table(k, val, feasible=feasible, point_out=outs)
+            else:
+                disp = str(val)
+            ui.label(f"{k}: {disp}").classes("text-caption")
