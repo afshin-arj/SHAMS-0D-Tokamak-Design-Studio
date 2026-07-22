@@ -142,7 +142,36 @@ def _sens_view(session: DesignSession) -> None:
         return
     ks = session.cr_sensitivity_knobs or []
     outs = session.cr_sensitivity_outputs or []
-    rows = sensitivity_table_rows(pack, ks, outs)
+    from ui_nicegui.lib.sensitivity_honesty import base_output_table_rows
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    art = _artifact_for_chronicle(session)
+    out = (art.get("outputs") if isinstance(art, dict) else None) or {}
+    if not isinstance(out, dict) or not out:
+        out = pack.get("base_outputs") if isinstance(pack.get("base_outputs"), dict) else {}
+    feasible = bool(verdict_summary(out if isinstance(out, dict) else {}).get("feasible"))
+    if not feasible:
+        ui.label(
+            "Baseline INFEASIBLE — claim-KPI jacobians and base values shown as diagnostic (PHYS-KPI-001)."
+        ).classes("text-caption text-orange q-mb-xs")
+    base_rows = base_output_table_rows(
+        pack,
+        outs,
+        feasible=feasible,
+        point_out=out if isinstance(out, dict) else None,
+        design_intent=str(getattr(session, "design_intent", "") or ""),
+    )
+    if base_rows:
+        ui.label("Baseline outputs (pack)").classes("text-caption")
+        ui.table(
+            columns=[
+                {"name": "output", "label": "Output", "field": "output", "align": "left"},
+                {"name": "value", "label": "Value", "field": "value"},
+            ],
+            rows=base_rows,
+            row_key="output",
+        ).classes("w-full q-mb-sm")
+    rows = sensitivity_table_rows(pack, ks, outs, feasible=feasible)
     if rows:
         ui.table(
             columns=[
