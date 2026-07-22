@@ -551,6 +551,37 @@ def constraint_margin_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]
     return rows
 
 
+def new_hard_failures_caption(
+    *,
+    feas_a: bool,
+    feas_b: bool,
+    n_new_fail: int,
+) -> tuple[str, str]:
+    """Compare constraints header: message + NiceGUI classes.
+
+    Dual-INFEASIBLE with identical hard fails must not read as a green PASS-adjacent win.
+    """
+    if int(n_new_fail or 0) > 0:
+        return (
+            f"{int(n_new_fail)} new hard failure(s) in B relative to A.",
+            "text-subtitle2 text-negative q-mb-sm",
+        )
+    if feas_a and feas_b:
+        return (
+            "No new hard constraint failures in B relative to A.",
+            "text-caption text-positive q-mb-sm",
+        )
+    if not feas_a and not feas_b:
+        return (
+            "No new hard failures in B vs A — both slots remain INFEASIBLE (not a PASS).",
+            "text-caption text-orange q-mb-sm",
+        )
+    return (
+        "No new hard failures in B vs A — at least one slot is INFEASIBLE (not a PASS).",
+        "text-caption text-orange q-mb-sm",
+    )
+
+
 def kpi_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
     from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
     from ui_nicegui.lib.verdict_core import verdict_summary

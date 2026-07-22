@@ -41,7 +41,22 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
         "Apply variant (B) or baseline (A) inputs to Point Designer for re-evaluation with frozen truth."
     ).classes("text-caption text-grey q-mb-sm")
 
-    def _apply(slot_art: dict, label: str) -> None:
+    from ui_nicegui.lib.compare_helpers import normalize_compare_artifact
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    feas_a = bool(
+        verdict_summary(normalize_compare_artifact(art_a).get("outputs") or {}).get("feasible")
+    )
+    feas_b = bool(
+        verdict_summary(normalize_compare_artifact(art_b).get("outputs") or {}).get("feasible")
+    )
+    if not feas_a or not feas_b:
+        ui.label(
+            "One or both slots are INFEASIBLE — Apply is a diagnostic seed handoff; "
+            "KPIs will be STALE until Evaluate Point."
+        ).classes("text-caption text-orange q-mb-xs")
+
+    def _apply(slot_art: dict, label: str, *, feasible: bool) -> None:
         n = apply_artifact_inputs(session, slot_art)
         if n:
             try:
@@ -52,15 +67,30 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
             except Exception:
                 pass
             navigate_to_point_designer(session)
-            ui.notify(
-                f"Applied {n} input fields from slot {label} — KPIs marked STALE until Evaluate Point.",
-                type="warning",
-            )
+            if feasible:
+                ui.notify(
+                    f"Applied {n} input fields from slot {label} — KPIs marked STALE until Evaluate Point.",
+                    type="warning",
+                )
+            else:
+                ui.notify(
+                    f"Applied {n} diagnostic (INFEASIBLE) fields from slot {label} — "
+                    "KPIs STALE until Evaluate Point.",
+                    type="warning",
+                )
         else:
             ui.notify(f"No overlapping inputs copied from slot {label}.", type="warning")
 
-    with ui.row().classes("gap-2"):
-        ui.button("Apply slot A → Point Designer", icon="input", on_click=lambda: _apply(art_a, "A")).props("outline")
-        ui.button("Apply slot B → Point Designer", icon="input", on_click=lambda: _apply(art_b, "B")).props(
-            "outline color=primary"
-        )
+    with ui.row().classes("gap-2 flex-wrap"):
+        a_props = "outline" if feas_a else "outline color=orange"
+        b_props = "outline color=primary" if feas_b else "outline color=orange"
+        ui.button(
+            "Apply slot A → Point Designer" + ("" if feas_a else " (diagnostic)"),
+            icon="input",
+            on_click=lambda: _apply(art_a, "A", feasible=feas_a),
+        ).props(a_props)
+        ui.button(
+            "Apply slot B → Point Designer" + ("" if feas_b else " (diagnostic)"),
+            icon="input",
+            on_click=lambda: _apply(art_b, "B", feasible=feas_b),
+        ).props(b_props)

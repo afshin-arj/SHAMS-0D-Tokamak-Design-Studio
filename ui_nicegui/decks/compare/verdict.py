@@ -49,14 +49,16 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
         banner = "MIXED"
     else:
         banner = va
-    verdict_banner(
-        banner,
-        detail=(
-            f"A: {va} (dom {summary.get('dominant_a', '-')}) · "
-            f"B: {vb} (dom {summary.get('dominant_b', '-')}) · "
-            f"Largest Δ: {summary.get('top_delta', '-')}"
-        ),
+    detail = (
+        f"A: {va} (dom {summary.get('dominant_a', '-')}) · "
+        f"B: {vb} (dom {summary.get('dominant_b', '-')}) · "
+        f"Largest Δ: {summary.get('top_delta', '-')}"
     )
+    if both_infeasible:
+        detail += " · Both slots INFEASIBLE — comparison is diagnostic, not a PASS"
+    elif not summary.get("feasible_a") or not summary.get("feasible_b"):
+        detail += " · At least one slot INFEASIBLE — claim KPIs are diagnostic"
+    verdict_banner(banner, detail=detail)
     kpi_row([
         ("Verdict A", summary.get("verdict_a", "-")),
         ("Verdict B", summary.get("verdict_b", "-")),
