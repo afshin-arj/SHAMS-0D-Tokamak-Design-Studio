@@ -64,7 +64,8 @@ def test_regression_artifact_diff() -> None:
     a = {"outputs": {"Q": 1.0}, "constraints": [{"name": "beta", "failed": False, "margin": 0.1}]}
     b = {"outputs": {"Q": 1.1}, "constraints": [{"name": "beta", "failed": True, "margin": -0.01}]}
     d = regression_artifact_diff(a, b)
-    assert any(r["kpi"] == "Q" for r in d["kpi_rows"])
+    # Alias Q → Q_DT_eqv; claim cells watermarked when sides are not hard-feasible.
+    assert any(r["kpi"] == "Q_DT_eqv" for r in d["kpi_rows"])
     assert len(d["new_failures"]) == 1
 
 

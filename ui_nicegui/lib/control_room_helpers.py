@@ -309,16 +309,16 @@ def governance_summary(session: Any) -> Dict[str, Any]:
             mechanism = str(atlas.get("dominant_mechanism") or "-")
         except Exception:
             mechanism = "-"
-    # PHYS-KPI-001: never present Pfus as an achieved claim on INFEASIBLE.
+    # PHYS-KPI-001: never present Pfus / Q as achieved claims on INFEASIBLE.
     if vs.get("loaded") and not feasible:
         pfus_label = "— (diagnostic)"
-    elif isinstance(pfus, (int, float)) and float(pfus) == float(pfus):
-        pfus_label = f"{float(pfus):.3g} MW"
+        q_label = "— (diagnostic)"
     else:
-        pfus_label = "-"
-    q_label = str(vs.get("q_label", "-")) if vs.get("loaded") else "-"
-    if vs.get("loaded") and not feasible and q_label not in ("-", ""):
-        q_label = f"{q_label} (diagnostic)"
+        if isinstance(pfus, (int, float)) and float(pfus) == float(pfus):
+            pfus_label = f"{float(pfus):.3g} MW"
+        else:
+            pfus_label = "-"
+        q_label = str(vs.get("q_label", "-")) if vs.get("loaded") else "-"
     stale = False
     try:
         from ui_nicegui.lib.pd_solver_helpers import inputs_stale
@@ -330,6 +330,8 @@ def governance_summary(session: Any) -> Dict[str, Any]:
         verdict = f"STALE · {verdict}" if verdict and verdict != "-" else "STALE"
         if pfus_label not in ("-", "— (diagnostic)"):
             pfus_label = f"{pfus_label} (stale)"
+        if q_label not in ("-", "— (diagnostic)"):
+            q_label = f"{q_label} (stale)"
     return {
         "version": ver,
         "active_deck": str(getattr(session, "active_deck", "-")),
