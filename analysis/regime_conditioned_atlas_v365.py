@@ -101,7 +101,31 @@ def extract_labels(rec: Mapping[str, Any]) -> Json:
     }
 
 
+def _record_hard_feasible(rec: Mapping[str, Any]) -> Optional[bool]:
+    """Return False when hard-infeasible, True when hard-feasible, None if unknown.
+
+    PHYS-KPI-001: hard-fail residues must never enter claim-FoM Pareto sets.
+    """
+    if "feasible_hard" in rec and rec.get("feasible_hard") is not None:
+        return bool(rec.get("feasible_hard"))
+    kpis = rec.get("kpis")
+    if isinstance(kpis, Mapping) and "feasible_hard" in kpis and kpis.get("feasible_hard") is not None:
+        return bool(kpis.get("feasible_hard"))
+    verdict = rec.get("verdict")
+    if isinstance(verdict, str):
+        vu = verdict.strip().upper()
+        if vu in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NOSOLUTION", "REJECTED"):
+            return False
+        if vu in ("FEASIBLE", "PASS", "PASS+DIAG", "OK", "VERIFIED"):
+            return True
+    return None
+
+
 def _is_feasible(rec: Mapping[str, Any], gate: str) -> bool:
+    hard = _record_hard_feasible(rec)
+    if hard is False:
+        return False
+
     # Try v362 flags first
     opt = rec.get("optimistic_feasible")
     rob = rec.get("robust_feasible")
