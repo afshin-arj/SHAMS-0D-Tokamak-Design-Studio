@@ -47,6 +47,14 @@ def render_workbench(
     session.scan_wb_j = max(0, min(int(session.scan_wb_j), len(y_vals) - 1))
 
     ui.label("Map & probe").classes("text-subtitle1")
+    from ui_nicegui.lib.scan_helpers import scan_cartography_stale_vs_session
+
+    if scan_cartography_stale_vs_session(session, rep):
+        ui.badge("SCAN MAP STALE", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Baseline inputs drifted since this map was built — re-run cartography on Setup & Run. "
+            "Probe KPIs below describe the stored grid, not the current session baseline."
+        ).classes("text-caption text-orange q-mb-sm")
     ui.label("Orient → look → probe. PASS = blocking-feasible; gray dominance = all cells feasible.").classes(
         "text-caption text-grey q-mb-sm"
     )

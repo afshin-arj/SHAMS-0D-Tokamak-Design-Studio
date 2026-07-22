@@ -161,6 +161,28 @@ def report_to_json_bytes(report: dict) -> bytes:
     return json.dumps(report, indent=2, default=str).encode("utf-8")
 
 
+def hash_scan_base_inputs(base_inputs: Any) -> str:
+    """Match tools.scan_cartography report['base_inputs_hash'] for the same PointInputs."""
+    from tools.scan_cartography import _serialize_inputs, _stable_hash
+
+    return str(_stable_hash(_serialize_inputs(base_inputs)))
+
+
+def scan_cartography_stale_vs_session(session: Any, rep: Optional[dict] = None) -> bool:
+    """True when cartography was built on a different baseline than current session inputs."""
+    report = rep if isinstance(rep, dict) else getattr(session, "scan_cartography_report", None)
+    if not isinstance(report, dict):
+        return False
+    stored = report.get("base_inputs_hash")
+    if not stored:
+        return False
+    try:
+        cur = hash_scan_base_inputs(session.build_point_inputs())
+        return str(stored) != str(cur)
+    except Exception:
+        return False
+
+
 def dominance_table_rows(rep: dict, *, intent: Optional[str] = None) -> List[Dict[str, Any]]:
     summary = summarize_scan_report(rep, intent=intent)
     rows: List[Dict[str, Any]] = []

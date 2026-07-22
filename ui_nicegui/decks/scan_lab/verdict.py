@@ -10,7 +10,7 @@ from ui_nicegui.lib.scan_helpers import summarize_scan_report
 from ui_nicegui.lib.scan_labels import ROBUSTNESS_GLOSSARY
 
 
-def render_scan_verdict(rep: dict | None) -> None:
+def render_scan_verdict(rep: dict | None, *, map_stale: bool = False) -> None:
     if not isinstance(rep, dict):
         empty_state(
             "No cartography scan results yet. Run a scan on **Setup & Run** "
@@ -29,16 +29,22 @@ def render_scan_verdict(rep: dict | None) -> None:
         return
     from ui_nicegui.components.verdict_banner import verdict_banner
 
+    if map_stale:
+        ui.badge("SCAN MAP STALE", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "This cartography was built on a different baseline — re-run scan before claiming feasible fraction / dominance."
+        ).classes("text-caption text-orange q-mb-xs")
+
     rob = str(summary.get("robustness") or "UNKNOWN")
-    verdict_banner(
-        rob,
-        detail=(
-            f"Dominant: {summary['dominant']} · "
-            f"Feasible ({summary['intent']}): {summary['feasible_pct']} · "
-            f"Cliffiness proxy: {summary['cliffiness']:.2f} "
-            "(screening proxy — not UQ robustness)"
-        ),
+    detail = (
+        f"Dominant: {summary['dominant']} · "
+        f"Feasible ({summary['intent']}): {summary['feasible_pct']} · "
+        f"Cliffiness proxy: {summary['cliffiness']:.2f} "
+        "(screening proxy — not UQ robustness)"
     )
+    if map_stale:
+        detail = "SCAN MAP STALE · " + detail
+    verdict_banner(rob, detail=detail)
     kpi_row([
         ("Dominant constraint", summary["dominant"]),
         (f"Feasible fraction ({summary['intent']})", summary["feasible_pct"]),
