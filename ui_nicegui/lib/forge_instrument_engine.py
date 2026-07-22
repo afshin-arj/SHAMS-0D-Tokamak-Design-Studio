@@ -584,12 +584,27 @@ def _inst_closure_certificate(ctx: ForgeContext) -> InstrumentView:
         return InstrumentView(error="No candidate selected.")
     try:
         from tools.sandbox.closure_certificate import build_closure_certificate
+        from ui_nicegui.lib.forge_interpret_helpers import watermark_forge_report_pack
 
+        feasible = bool(cand.get("feasible", False))
         cert = cand.get("closure_certificate") or build_closure_certificate(cand)
-        blob = json.dumps(cert, indent=2, sort_keys=True, default=str).encode("utf-8")
+        # Reuse report-pack watermark path for key_numbers via a thin wrap.
+        wrapped = watermark_forge_report_pack(
+            {"json": {"closure_certificate": cert, "key_outputs": {}, "closure_bundle": {}}},
+            feasible=feasible,
+            point_out=cand.get("outputs") if isinstance(cand.get("outputs"), dict) else None,
+        )
+        cert_disp = (wrapped.get("json") or {}).get("closure_certificate") or cert
+        blob = json.dumps(cert_disp, indent=2, sort_keys=True, default=str).encode("utf-8")
+        caption = None
+        if not feasible:
+            caption = (
+                "PHYS-KPI-001: key_numbers claim FoMs are diagnostic on INFEASIBLE — not design claims."
+            )
         return InstrumentView(
-            kpis=[("Verdict", str(cert.get("verdict", "-")))],
-            json_blob=cert,
+            caption=caption,
+            kpis=[("Verdict", str(cert_disp.get("verdict", "-")))],
+            json_blob=cert_disp,
             download=(blob, "shams_closure_certificate.json", "application/json"),
         )
     except Exception as exc:
@@ -600,9 +615,22 @@ def _inst_accounting_console(ctx: ForgeContext) -> InstrumentView:
     cand = _need_cand(ctx)
     if not cand:
         return InstrumentView(error="No candidate selected.")
+    from ui_nicegui.lib.forge_interpret_helpers import watermark_forge_closure_bundle
+
+    feasible = bool(cand.get("feasible", False))
+    raw = cand.get("closure_bundle") or {}
+    disp = watermark_forge_closure_bundle(
+        raw if isinstance(raw, dict) else {},
+        feasible=feasible,
+        point_out=cand.get("outputs") if isinstance(cand.get("outputs"), dict) else None,
+    )
     return InstrumentView(
-        caption="Explicit plant closure (derived). No hidden penalties.",
-        json_blob=cand.get("closure_bundle") or {},
+        caption=(
+            "Explicit plant closure (derived). No hidden penalties."
+            if feasible
+            else "PHYS-KPI-001: net_electric / claim FoMs are diagnostic on INFEASIBLE — not design claims."
+        ),
+        json_blob=disp,
     )
 
 
@@ -719,9 +747,23 @@ def _inst_report_pack(ctx: ForgeContext) -> InstrumentView:
     cand = _need_cand(ctx)
     if not cand:
         return InstrumentView(error="No candidate selected.")
-    rp = cand.get("report_pack") or {}
+    from ui_nicegui.lib.forge_interpret_helpers import watermark_forge_report_pack
+
+    feasible = bool(cand.get("feasible", False))
+    rp_raw = cand.get("report_pack") or {}
+    # Prefer enriched instruments if already on candidate via workbench path.
+    rp = watermark_forge_report_pack(
+        rp_raw if isinstance(rp_raw, dict) else {},
+        feasible=feasible,
+        point_out=cand.get("outputs") if isinstance(cand.get("outputs"), dict) else None,
+    )
     md = rp.get("markdown") or "(no report)"
     return InstrumentView(
+        caption=(
+            None
+            if feasible
+            else "PHYS-KPI-001: report pack claim FoMs are diagnostic on INFEASIBLE — not design claims."
+        ),
         markdown=str(md),
         json_blob=rp.get("json") or rp,
         download=(str(md).encode("utf-8"), "shams_forge_report.md", "text/markdown"),
