@@ -71,7 +71,10 @@ def merge_base_overrides_into_session(session: Any, overrides: Dict[str, float])
     hist.append({"base_overrides": dict(getattr(session, "systems_base_overrides", {}) or {}), "source": "apply"})
     session.systems_base_history = hist[-20:]
     session.systems_base_overrides = dict(overrides)
-    # Inputs changed — keep prior PD outputs but refresh Helm so STALE posture is visible.
+    # Geometry/base seed changed — clear prior PD KPIs (Atlas/Compare parity).
+    from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+    invalidate_point_designer_after_seed(session)
     try:
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 

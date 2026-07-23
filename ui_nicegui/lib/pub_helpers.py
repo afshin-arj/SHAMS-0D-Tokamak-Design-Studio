@@ -220,7 +220,7 @@ def render_pub_handoffs(session: DesignSession) -> None:
 
             navigate_to_point_designer(session)
             ui.notify(
-                f"Promoted {n} atlas inputs → Point Designer — KPIs STALE until Evaluate Point.",
+                f"Promoted {n} atlas inputs → Point Designer — prior KPIs cleared; Evaluate Point to re-certify.",
                 type="warning",
             )
             log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffPointDesigner", {"n": n})
