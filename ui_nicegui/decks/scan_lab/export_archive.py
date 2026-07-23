@@ -166,6 +166,10 @@ def _dl_summary(rep: dict, intent: str) -> None:
 
 def _render_atlases(session: DesignSession, rep: dict, intents: list) -> None:
     ui.label("Atlas exports (PDF)").classes("text-subtitle2")
+    ui.label(
+        "PHYS-KPI-001: atlases are built from a watermarked cartography copy "
+        "(claim FoMs on blocking-infeasible cells are diagnostic)."
+    ).classes("text-caption text-grey q-mb-sm")
     ui.input(
         "Reference atlas title",
         value=session.scan_atlas_title,
@@ -177,12 +181,14 @@ def _render_atlases(session: DesignSession, rep: dict, intents: list) -> None:
         on_change=lambda e: setattr(session, "scan_signature_atlas_title", str(e.value or "")),
     ).classes("w-full")
 
+    wm_rep = watermark_scan_cartography_export(rep)
+
     async def _ref_atlas() -> None:
         ui.notify("Building reference atlas…", type="info")
         try:
             pdf = await run.io_bound(
                 build_atlas_pdf_bytes,
-                rep,
+                wm_rep,
                 intents,
                 title=session.scan_atlas_title or "SHAMS — Scan Lab Atlas",
             )
@@ -195,17 +201,17 @@ def _render_atlases(session: DesignSession, rep: dict, intents: list) -> None:
     async def _sig_atlas() -> None:
         ui.notify("Building signature atlas (10 pages)…", type="info")
         try:
-            maps = {str(it): dominance_map_png_bytes(rep, str(it)) for it in intents}
+            maps = {str(it): dominance_map_png_bytes(wm_rep, str(it)) for it in intents}
             split_png = None
             try:
                 from ui_nicegui.lib.scan_deep_viz_helpers import intent_split_png_bytes
 
-                split_png = intent_split_png_bytes(rep)
+                split_png = intent_split_png_bytes(wm_rep)
             except Exception:
                 pass
             pdf = await run.io_bound(
                 build_signature_atlas,
-                rep,
+                wm_rep,
                 title=session.scan_signature_atlas_title,
                 map_png_by_intent=maps,
                 intent_split_png=split_png,

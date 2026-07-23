@@ -110,6 +110,8 @@ def watermark_run_artifact_export(art: Mapping[str, Any]) -> Dict[str, Any]:
     # rebuild a full constraint ledger via verdict_summary).
     if outs.get("hard_feasible") is False or outs.get("feasible") is False:
         feasible = False
+    if out.get("feasible") is False or out.get("governance_feasible") is False:
+        feasible = False
     verdict_u = str(out.get("verdict") or outs.get("verdict") or "").strip().upper()
     if verdict_u in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NO_SOLUTION", "REJECTED"):
         feasible = False

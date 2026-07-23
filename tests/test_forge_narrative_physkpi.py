@@ -60,6 +60,27 @@ def test_design_card_keeps_claim_foms_when_feasible():
     assert "Net electric: `100" in md
 
 
+def test_design_card_resolves_l0_output_aliases():
+    from tools.sandbox.design_card import build_design_card_md
+
+    cand = {
+        "feasible": True,
+        "feasibility_state": "FEASIBLE",
+        "outputs": {
+            "Q_DT_eqv": 5.0,
+            "H_IPB98y2": 1.1,
+            "q95_proxy": 3.2,
+            "Pfus_total_MW": 450.0,
+            "Pe_net_MW": 80.0,
+        },
+    }
+    md = build_design_card_md(cand)
+    assert "H98: `1.1" in md
+    assert "q95_proxy: `3.2" in md
+    assert "Pfus_total_MW: `450" in md
+    assert "P_e_net_MW: `80" in md
+
+
 def test_narrative_watermarks_net_on_infeasible():
     from tools.sandbox.narrative_pack import build_narrative
 

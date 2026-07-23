@@ -356,12 +356,14 @@ def probe_cell_summary(grid: Dict[Tuple[int, int], dict], rep: dict, intent: str
     # Prefer L0 keys; keep legacy aliases only as fallback fill.
     key_chain = (
         ("Q_DT_eqv", ("Q_DT_eqv", "Q")),
-        ("H98", ("H98",)),
+        ("H98", ("H98", "H_IPB98y2", "H98y2", "H_IPB98")),
         ("Pfus_total_MW", ("Pfus_total_MW", "P_fus_MW", "Pfus_MW")),
         ("Pfus_DT_adj_MW", ("Pfus_DT_adj_MW",)),
-        ("P_e_net_MW", ("P_e_net_MW", "P_net_e_MW")),
+        ("P_e_net_MW", ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe")),
+        ("tauE_eff_s", ("tauE_eff_s", "tau_E_s", "tauE_s")),
         ("q95_proxy", ("q95_proxy", "q95")),
         ("q_div_MW_m2", ("q_div_MW_m2",)),
+        ("beta_N", ("beta_N", "betaN_proxy", "betaN")),
     )
     for label, aliases in key_chain:
         for k in aliases:

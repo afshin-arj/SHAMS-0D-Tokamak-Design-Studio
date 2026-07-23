@@ -117,8 +117,44 @@ def test_watermark_scan_cartography_export_masks_q_on_infeasible():
 def test_scan_export_archive_wires_watermark_scan_cartography():
     src = Path("ui_nicegui/decks/scan_lab/export_archive.py").read_text(encoding="utf-8")
     assert "watermark_scan_cartography_export" in src
+    assert src.count("watermark_scan_cartography_export") >= 2  # JSON downloads + atlas builders
+    assert "wm_rep = watermark_scan_cartography_export(rep)" in src
+    assert "build_atlas_pdf_bytes,\n                wm_rep" in src or "build_atlas_pdf_bytes,\n                wm_rep," in src or "wm_rep,\n                intents" in src
     res = Path("ui_nicegui/decks/scan_lab/results.py").read_text(encoding="utf-8")
     assert "watermark_scan_cartography_export" in res
+
+
+def test_scan_lab_busy_guards_include_legacy_running():
+    src = Path("ui_nicegui/decks/scan_lab/__init__.py").read_text(encoding="utf-8")
+    assert "scan_legacy_running" in src
+    assert src.count("scan_legacy_running") >= 3
+
+
+def test_scan_cartography_compact_keep_includes_l0_keys():
+    src = Path("tools/scan_cartography.py").read_text(encoding="utf-8")
+    assert '"q95_proxy"' in src
+    assert '"Pfus_total_MW"' in src
+    assert '"beta_N"' in src
+    assert '"tauE_eff_s"' in src
+
+
+def test_probe_cell_summary_resolves_h98_pe_net_tauE_aliases():
+    from ui_nicegui.lib.scan_workbench_helpers import probe_cell_summary
+
+    cell = {
+        "x": 1.0,
+        "y": 2.0,
+        "outputs": {"H_IPB98y2": 1.05, "Pe_net_MW": 40.0, "tauE_s": 1.2, "q95_proxy": 3.1},
+        "intent": {"Reactor": {"blocking_feasible": True}},
+    }
+    grid = {(0, 0): cell}
+    rep = {"x_key": "R0_m", "y_key": "Bt_T"}
+    summary = probe_cell_summary(grid, rep, "Reactor", 0, 0)
+    perf = summary["performance"]
+    assert perf["H98"] == 1.05
+    assert perf["P_e_net_MW"] == 40.0
+    assert perf["tauE_eff_s"] == 1.2
+    assert perf["q95_proxy"] == 3.1
 
 
 def test_watermark_pareto_artifact_export_masks_infeasible():
