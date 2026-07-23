@@ -126,11 +126,17 @@ def build_report_pack(candidate: Optional[Dict[str, Any]] = None, **kwargs: Any)
     md_lines.append("")
     md_lines.append("## Reference context")
     md_lines.append("Comparisons are anchors, not targets.")
+    if not feas:
+        md_lines.append(
+            "PHYS-KPI-001: Q / Pfus / P_net deltas vs historical anchors are diagnostic "
+            "on INFEASIBLE — not design claims."
+        )
     for ref in (hist.get("refs") or [])[:4]:
         rname = ref.get("ref")
         comp = ref.get("comparison") or {}
         q = comp.get("Q") or {}
-        md_lines.append(f"- {rname}: ΔQ={q.get('delta')}")
+        delta = q.get("delta")
+        md_lines.append(f"- {rname}: ΔQ={delta}")
     md_lines.append("")
     pack_md = "\n".join(md_lines).strip() + "\n"
 
