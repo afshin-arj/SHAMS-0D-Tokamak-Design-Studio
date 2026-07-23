@@ -805,13 +805,11 @@ def _inst_design_class(ctx: ForgeContext) -> InstrumentView:
 
 
 def _inst_citation_blocks(ctx: ForgeContext) -> InstrumentView:
-    cand = _need_cand(ctx)
-    if not cand:
-        return InstrumentView(error="No candidate selected.")
     try:
         from tools.sandbox.citation_blocks import build_citation_blocks
 
-        return InstrumentView(json_blob=build_citation_blocks(cand, intent=ctx.intent))
+        root = Path(__file__).resolve().parents[2]
+        return InstrumentView(json_blob=build_citation_blocks(root))
     except Exception as exc:
         return InstrumentView(error=str(exc))
 
@@ -823,7 +821,15 @@ def _inst_reference_reproduction(ctx: ForgeContext) -> InstrumentView:
     try:
         from tools.sandbox.history_repro import history_repro_bundle
 
-        return InstrumentView(json_blob=history_repro_bundle(cand))
+        bundle = history_repro_bundle(cand)
+        feasible = bool(cand.get("feasible", False))
+        caption = (
+            "PHYS-KPI-001: Q / Pfus / P_net deltas vs historical anchors are diagnostic "
+            "on INFEASIBLE — not design claims."
+            if not feasible
+            else "Reference comparisons are contextual anchors, not targets."
+        )
+        return InstrumentView(caption=caption, json_blob=bundle)
     except Exception as exc:
         return InstrumentView(error=str(exc))
 
