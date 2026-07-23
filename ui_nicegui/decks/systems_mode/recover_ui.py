@@ -119,6 +119,10 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.systems_recovery_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         ui.notify("Running seeded recovery…", type="info")
         try:
             b, _, v = resolve_systems_problem(session)

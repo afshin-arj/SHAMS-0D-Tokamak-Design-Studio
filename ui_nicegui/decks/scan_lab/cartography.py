@@ -178,6 +178,10 @@ def render_cartography_controls(
         session.scan_running = True
         session.scan_progress = 0.0
         session.scan_progress_text = "Quick probe (11×11)…"
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         _progress_timer.activate()
         _scan_progress_panel.refresh()
         try:
@@ -237,6 +241,10 @@ def render_cartography_controls(
         session.scan_running = True
         session.scan_progress = 0.0
         session.scan_progress_text = "Starting cartography scan…"
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         _progress_timer.activate()
         _scan_progress_panel.refresh()
         ui.notify("Cartography scan started", type="info")
@@ -293,7 +301,8 @@ def render_cartography_controls(
             runlock_release("ScanLab")
 
     with ui.row().classes("gap-2 q-mt-sm"):
-        ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")
+        btn_q = ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")
         btn = ui.button("Run cartography scan", icon="play_arrow", on_click=_run_scan).props("color=primary")
     if session.scan_running:
+        btn_q.props("disable")
         btn.props("disable")

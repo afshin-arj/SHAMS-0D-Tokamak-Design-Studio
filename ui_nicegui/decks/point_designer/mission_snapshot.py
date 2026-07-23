@@ -263,6 +263,11 @@ def render_mission_snapshot(session: DesignSession) -> None:
         ui.label("Expert quick-check panel. Values are diagnostic unless explicitly constrained.").classes(
             "text-caption"
         )
+        feas_compass = bool(verdict_summary(out).get("feasible"))
+        if not feas_compass:
+            ui.label(
+                "PHYS-KPI-001: H98 (and other claim KPIs) are diagnostic on INFEASIBLE — not Authoritative."
+            ).classes("text-caption text-orange q-mb-xs")
         show_unc = ui.checkbox("Show proxy uncertainty bands (diagnostic)", value=False)
         unc_proxy = ui.slider(min=0.0, max=0.5, value=0.15, step=0.01).bind_visibility_from(show_unc, "value")
         unc_neut = ui.slider(min=0.0, max=0.5, value=0.20, step=0.01).bind_visibility_from(show_unc, "value")
@@ -276,6 +281,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
                 show_unc=bool(show_unc.value),
                 unc_proxy_frac=float(unc_proxy.value or 0.15),
                 unc_neut_frac=float(unc_neut.value or 0.20),
+                feasible=feas_compass,
             )
             ui.table(
                 columns=[
@@ -383,7 +389,13 @@ def render_mission_snapshot(session: DesignSession) -> None:
             ui.label("No summary metrics available.").classes("text-caption")
 
     with ui.expansion("Raw telemetry (diagnostic keys)", icon="data_object").classes("w-full"):
-        rt = raw_telemetry_rows(out)
+        feas_rt = bool(verdict_summary(out).get("feasible"))
+        if not feas_rt:
+            ui.label(
+                "PHYS-KPI-001: Q / H98 / Pfus / P_net shown as — (diagnostic) on INFEASIBLE — "
+                "open JSON export / Telemetry for raw closure values."
+            ).classes("text-caption text-orange q-mb-xs")
+        rt = raw_telemetry_rows(out, feasible=feas_rt)
         ui.table(
             columns=[
                 {"name": "key", "label": "Output key", "field": "key", "align": "left"},

@@ -266,7 +266,10 @@ def regime_compass_rows(
     show_unc: bool = False,
     unc_proxy_frac: float = 0.15,
     unc_neut_frac: float = 0.20,
+    feasible: Optional[bool] = None,
 ) -> List[Dict[str, Any]]:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
     spec = [
         ("ρ*", "rho_star", "–", "Diagnostic"),
         ("H98", "H98", "–", "Authoritative"),
@@ -286,6 +289,7 @@ def regime_compass_rows(
         ("B_peak", "B_peak_T", "T", "Authoritative"),
     ]
     rows: List[Dict[str, Any]] = []
+    claim_blocked = feasible is False
     for label, key, unit, badge_type in spec:
         raw = out.get(key)
         if raw is None and key == "beta_N":
@@ -303,12 +307,20 @@ def regime_compass_rows(
             frac = unc_neut_frac if key in ("TBR", "lambda_q_mm") else unc_proxy_frac
             unc = f"±{(100 * frac):.0f}%"
         typical = f"{lo:g}–{hi:g}" if math.isfinite(lo) and math.isfinite(hi) else ""
+        type_label = badge_type
+        if claim_blocked and is_claim_kpi_key(key):
+            type_label = "Diagnostic"
+            value_disp = format_claim_kpi_for_table(key, v if math.isfinite(v) else raw, feasible=False, point_out=out)
+            flag = ""
+            unc = ""
+        else:
+            value_disp = fmt_num(v) if math.isfinite(v) else "n/a"
         rows.append({
             "metric": label,
             "key": key,
-            "value": fmt_num(v) if math.isfinite(v) else "n/a",
+            "value": value_disp,
             "units": unit,
-            "type": badge_type,
+            "type": type_label,
             "typical": typical,
             "flag": flag,
             "unc": unc,
@@ -1158,13 +1170,34 @@ _RAW_TELEMETRY_PRIORITY = [
 ]
 
 
-def raw_telemetry_rows(out: Dict[str, Any], *, max_rows: int = 80) -> List[Dict[str, str]]:
+def raw_telemetry_rows(
+    out: Dict[str, Any],
+    *,
+    max_rows: int = 80,
+    feasible: Optional[bool] = None,
+) -> List[Dict[str, str]]:
+    """Priority + overflow telemetry table for Mission Snapshot.
+
+    When ``feasible is False``, claim KPIs (Q / H98 / Pfus / P_net) are watermarked
+    as diagnostic (PHYS-KPI-001) — raw evaluator values stay in the artifact/JSON.
+    """
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
     rows: List[Dict[str, str]] = []
     seen: set[str] = set()
+    claim_blocked = feasible is False
+
+    def _cell(key: str, val: Any) -> str:
+        if claim_blocked and is_claim_kpi_key(key):
+            return format_claim_kpi_for_table(key, val, feasible=False, point_out=out)
+        if isinstance(val, (int, float)):
+            return fmt_num(val)
+        return str(val)
+
     for key in _RAW_TELEMETRY_PRIORITY:
         if key in out and key not in seen:
             seen.add(key)
-            rows.append({"key": key, "value": fmt_num(out.get(key))})
+            rows.append({"key": key, "value": _cell(key, out.get(key))})
     for key in sorted(out.keys()):
         if len(rows) >= max_rows:
             break
@@ -1174,5 +1207,5 @@ def raw_telemetry_rows(out: Dict[str, Any], *, max_rows: int = 80) -> List[Dict[
         if isinstance(val, (dict, list)):
             continue
         seen.add(key)
-        rows.append({"key": str(key), "value": fmt_num(val) if isinstance(val, (int, float)) else str(val)})
+        rows.append({"key": str(key), "value": _cell(str(key), val)})
     return rows[:max_rows]

@@ -138,6 +138,10 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.systems_fs_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         ui.notify("Running feasible search…", type="info")
         try:
             reactor = "reactor" in str(session.design_intent).lower()

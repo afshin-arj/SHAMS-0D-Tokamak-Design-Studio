@@ -119,6 +119,10 @@ def render_study_controls(
         _, catalog_senses = objectives_catalog()
         senses = {o: str(catalog_senses.get(o, "min")) for o in session.trade_objectives}
         session.trade_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         ui.notify("Running trade study…", type="info")
         try:
             base = session.build_point_inputs()

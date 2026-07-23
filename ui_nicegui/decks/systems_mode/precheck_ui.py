@@ -123,6 +123,10 @@ def render_precheck_panel(
             {"n_random": session.systems_precheck_n_random, "seed": session.systems_precheck_seed},
         )
         session.systems_precheck_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         ui.notify("Running precheck…", type="info")
         try:
             report = await run.io_bound(
