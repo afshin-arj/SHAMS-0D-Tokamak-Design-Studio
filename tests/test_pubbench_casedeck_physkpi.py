@@ -19,12 +19,19 @@ def test_run_one_watermarks_claim_kpis_on_blocking_fail():
     )
     res = run_one("physkpi_case", inp, design_intent="Reactor")
     row = res["row"]
+    art = res["artifact"]
     if row.get("ok_blocking") is False:
         for k in ("H98", "Q_DT_eqv", "P_fus_MW", "P_e_net_MW"):
             assert "diagnostic" in str(row.get(k)).lower(), f"{k}={row.get(k)}"
+        outs = art.get("outputs") or {}
+        for k in ("H98", "Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW"):
+            if k in outs:
+                assert "diagnostic" in str(outs.get(k)).lower(), f"artifact.outputs.{k}={outs.get(k)}"
+        assert "PHYS-KPI-001" in str(art.get("phys_kpi_note") or "")
     else:
         src = Path("benchmarks/publication/run_point_designer_benchmarks.py").read_text(encoding="utf-8")
         assert "— (diagnostic)" in src
+        assert "phys_kpi_note" in src
 
 
 def test_watermark_case_deck_artifact():
@@ -72,9 +79,41 @@ def test_ui_wires_physkpi_captions():
     assert "PHYS-KPI-001" in Path(
         "ui_nicegui/decks/publication_benchmarks/benchmark_pack.py"
     ).read_text(encoding="utf-8")
+    assert "artifacts/*.json" in Path(
+        "ui_nicegui/decks/publication_benchmarks/benchmark_pack.py"
+    ).read_text(encoding="utf-8")
     assert "— (diagnostic)" in Path(
         "benchmarks/publication/run_point_designer_benchmarks.py"
     ).read_text(encoding="utf-8")
     assert "PHYS-KPI-001" in Path("benchmarks/publication/explain_delta.py").read_text(
         encoding="utf-8"
     )
+
+
+def test_promote_atlas_clears_point_designer_kpis():
+    from ui_nicegui.lib.pub_helpers import promote_atlas_inputs_to_point_designer
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.inputs["R0_m"] = 1.0
+    s.pd_last_outputs = {"Q_DT_eqv": 99.0, "H98": 2.0}
+    s.pd_last_artifact = {"outputs": {"Q_DT_eqv": 99.0}}
+    s.pd_last_run_ts = 1.0
+    s.pub_atlas_last = {
+        "run": {"artifact": {"inputs": {"R0_m": 6.2, "Bt_T": 5.3}}},
+    }
+    n = promote_atlas_inputs_to_point_designer(s)
+    assert n >= 1
+    assert s.inputs["R0_m"] == 6.2
+    assert s.pd_last_outputs is None
+    assert s.pd_last_artifact is None
+
+
+def test_pub_licensing_and_regulatory_use_pub_lock():
+    lic = Path("ui_nicegui/decks/publication_benchmarks/licensing_pack.py").read_text(encoding="utf-8")
+    reg = Path("ui_nicegui/decks/publication_benchmarks/regulatory_pack.py").read_text(encoding="utf-8")
+    assert "try_acquire_pub_lock" in lic
+    assert "release_pub_lock" in lic
+    assert "try_acquire_pub_lock" in reg
+    assert "release_pub_lock" in reg
+    assert "runlock_acquire(" not in lic or "try_acquire_pub_lock" in lic

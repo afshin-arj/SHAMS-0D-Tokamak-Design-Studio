@@ -54,30 +54,12 @@ def render_licensing_tier2_pack(session: DesignSession) -> None:
     render_json_blob(artifact_snapshot(art))
 
     async def _gen() -> None:
-        from ui_nicegui.lib.run_lock import (
-            acquire as runlock_acquire,
-            release as runlock_release,
-            status as runlock_status,
-            current_lease,
-            lease_valid,
-        )
+        from ui_nicegui.lib.pub_helpers import release_pub_lock, try_acquire_pub_lock
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
 
-        if getattr(session, "pub_running", False):
-            ui.notify("Publication job already running", type="warning")
-            return
-        locked, task, is_owner = runlock_status("PublicationBenchmarks")
-        if locked and not is_owner:
-            ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
-            return
-        if not runlock_acquire("Publication: Licensing Tier 2 pack", "PublicationBenchmarks"):
-            ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
+        if not try_acquire_pub_lock(session, "Publication: Licensing Tier 2 pack"):
             return
         lease = current_lease()
-        session.pub_running = True
-        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-
-        refresh_status()
-        refresh_helm()
         try:
             data = await run.io_bound(build_licensing_tier2_pack, session)
             if not lease_valid(lease):
@@ -90,11 +72,7 @@ def render_licensing_tier2_pack(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Licensing pack failed: {exc}", type="negative")
         finally:
-            if lease_valid(lease):
-                session.pub_running = False
-                runlock_release("PublicationBenchmarks", lease)
-                refresh_status()
-                refresh_helm()
+            release_pub_lock(session)
 
     ui.button("Generate Tier 2 licensing pack", icon="folder_zip", on_click=_gen).props("outline q-mt-sm")
     _actions(session)

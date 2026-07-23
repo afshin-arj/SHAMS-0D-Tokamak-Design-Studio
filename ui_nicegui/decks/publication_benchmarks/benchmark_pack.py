@@ -235,7 +235,8 @@ def _pack_view(session: DesignSession) -> None:
                 ).props("outline")
                 ui.label(
                     "PHYS-KPI-001: claim columns (Q / H98 / Pfus / P_net) on FAIL rows are "
-                    "— (diagnostic) in the CSV — not paper achievements."
+                    "— (diagnostic) in the CSV and in artifacts/*.json — not paper achievements. "
+                    "TBR / betaN / q95 columns are screening proxies, not licensing or equilibrium truth."
                 ).classes("text-caption text-grey")
 
     ui.label("Explain delta vs baseline").classes("text-subtitle2 q-mt-md")
