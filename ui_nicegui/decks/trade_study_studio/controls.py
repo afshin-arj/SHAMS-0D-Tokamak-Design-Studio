@@ -97,7 +97,13 @@ def render_study_controls(
         ui.linear_progress(show_value=False).props("indeterminate").classes("w-full q-my-sm")
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if session.trade_running:
             ui.notify("Trade study already running", type="warning")
@@ -112,6 +118,7 @@ def render_study_controls(
         if not runlock_acquire("Trade Study Studio", "TradeStudy"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         ksel_now = next(
             (k for k in knob_sets if k.name == (session.trade_knob_set or names[0])),
             knob_sets[0],
@@ -136,6 +143,9 @@ def render_study_controls(
                 seed=session.trade_seed,
                 design_intent=session.design_intent,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.trade_last = rep
             session.trade_last_lane = session.trade_lane_mode
             session.active_study_capsule = build_study_capsule(
@@ -151,11 +161,12 @@ def render_study_controls(
             session.last_error = str(exc)
             ui.notify(f"Trade study failed: {exc}", type="negative")
         finally:
-            session.trade_running = False
-            runlock_release("TradeStudy")
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_complete:
-                on_complete()
+            if lease_valid(lease):
+                session.trade_running = False
+                runlock_release("TradeStudy", lease)
+                # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+                if on_complete:
+                    on_complete()
 
     btn = ui.button("Run trade study", icon="play_arrow", on_click=_run).props("color=primary")
     if session.trade_running or not session.trade_objectives:

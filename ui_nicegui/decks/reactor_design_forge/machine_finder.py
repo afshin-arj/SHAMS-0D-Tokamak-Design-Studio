@@ -282,6 +282,9 @@ def render_machine_finder(
         if not runlock_acquire("Reactor Design Forge: Machine Finder", FORGE_RUNLOCK_OWNER):
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
+        lease = current_lease()
 
         session.forge_mf_running = True
         # HELM-BUSY-001: runlock.acquire paints chrome; re-paint after session flag so
@@ -323,6 +326,9 @@ def render_machine_finder(
                 use_knowledge_store=bool(session.forge_adv_memory),
                 track_other_intent=bool(session.forge_adv_multi_intent),
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding Machine Finder results.", type="warning")
+                return
             session.forge_workbench_run = run_rep
             session.forge_mf_last_bounds = {k: list(v) for k, v in bounds.items()}
             n = len(run_rep.get("archive") or [])
@@ -337,15 +343,15 @@ def render_machine_finder(
             session.last_error = str(exc)
             ui.notify(f"Machine Finder failed: {exc}", type="negative")
         finally:
-            session.forge_mf_running = False
-            runlock_release(FORGE_RUNLOCK_OWNER)
-            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+            if lease_valid(lease):
+                session.forge_mf_running = False
+                runlock_release(FORGE_RUNLOCK_OWNER, lease)
+                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
-            refresh_status()
-            refresh_helm()
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_complete:
-                on_complete()
+                refresh_status()
+                refresh_helm()
+                if on_complete:
+                    on_complete()
 
     btn = ui.button("Run machine finder", icon="play_arrow", on_click=_run_finder).props("color=primary")
     if session.forge_mf_running:
@@ -362,6 +368,8 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
     done = stg.get("done") or {}
 
     async def _phase(name: str, fn, *args) -> None:
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
         if session.forge_mf_running:
             ui.notify("Machine Finder phase already running", type="warning")
             return
@@ -372,6 +380,7 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
         if not runlock_acquire(f"Reactor Design Forge: {name.title()} phase", FORGE_RUNLOCK_OWNER):
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
+        lease = current_lease()
         session.forge_mf_running = True
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -380,6 +389,9 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
         log_ui_event(session, FORGE_RUNLOCK_OWNER, "MachineFinderPhaseStart", {"phase": name})
         try:
             pts, tr = await run.io_bound(fn, *args)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             stg["all_points"] = (stg.get("all_points") or []) + list(pts)
             stg["trace"] = (stg.get("trace") or []) + list(tr)
             done[name] = True
@@ -396,14 +408,15 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
         except Exception as exc:
             ui.notify(f"Phase failed: {exc}", type="negative")
         finally:
-            session.forge_mf_running = False
-            runlock_release(FORGE_RUNLOCK_OWNER)
-            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+            if lease_valid(lease):
+                session.forge_mf_running = False
+                runlock_release(FORGE_RUNLOCK_OWNER, lease)
+                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
-            refresh_status()
-            refresh_helm()
-            if on_complete:
-                on_complete()
+                refresh_status()
+                refresh_helm()
+                if on_complete:
+                    on_complete()
 
     with ui.row().classes("gap-2 flex-wrap"):
         if not done.get("global"):

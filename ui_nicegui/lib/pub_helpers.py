@@ -11,7 +11,13 @@ from nicegui import ui
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.verdict_banner import verdict_banner
 from ui_nicegui.lib.helm_helpers import log_ui_event
-from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+from ui_nicegui.lib.run_lock import (
+    acquire as runlock_acquire,
+    current_lease,
+    lease_valid,
+    release as runlock_release,
+    status as runlock_status,
+)
 from ui_nicegui.session import DesignSession
 
 PUB_RUNLOCK_OWNER = "PublicationBenchmarks"
@@ -41,6 +47,7 @@ def try_acquire_pub_lock(session: DesignSession, task: str) -> bool:
     if not runlock_acquire(task, PUB_RUNLOCK_OWNER):
         ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
         return False
+    session.pub_run_lease = current_lease()
     session.pub_running = True
     # runlock_acquire already paints Helm; re-paint after session flag so orphan
     # recovery labels (pub_*) match busy chrome if the lock is later force-cleared.
@@ -52,7 +59,13 @@ def try_acquire_pub_lock(session: DesignSession, task: str) -> bool:
 
 
 def release_pub_lock(session: DesignSession) -> None:
-    runlock_release(PUB_RUNLOCK_OWNER)
+    lease = getattr(session, "pub_run_lease", None)
+    if lease is not None and not lease_valid(lease):
+        # WRITE-FENCE-001: zombie after force-clear — do not wipe a newer job's busy flags.
+        session.pub_run_lease = None
+        return
+    runlock_release(PUB_RUNLOCK_OWNER, lease)
+    session.pub_run_lease = None
     session.pub_running = False
     session.pub_atlas_running = False
     session.pub_atlas_fragility_running = False

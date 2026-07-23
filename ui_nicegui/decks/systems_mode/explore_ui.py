@@ -125,7 +125,13 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
         ).classes("w-28")
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if session.systems_fs_running:
             ui.notify("Search already running", type="warning")
@@ -137,6 +143,7 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
         if not runlock_acquire("Systems Mode: Feasible search", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         session.systems_fs_running = True
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -172,6 +179,9 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
             runs = []
             for j in range(nms):
                 runs.append(await run.io_bound(_one_run, j))
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             rep = merge_multiseed_feasible_search(
                 runs,
                 topk=session.systems_fs_topk,
@@ -200,11 +210,12 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
         except Exception as exc:
             ui.notify(f"Search failed: {exc}", type="negative")
         finally:
-            session.systems_fs_running = False
-            runlock_release("SystemsMode")
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_complete:
-                on_complete()
+            if lease_valid(lease):
+                session.systems_fs_running = False
+                runlock_release("SystemsMode", lease)
+                # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+                if on_complete:
+                    on_complete()
 
     fs_btn = ui.button("Run feasible search", icon="travel_explore", on_click=_run).props("outline q-mb-sm")
     if session.systems_fs_running:

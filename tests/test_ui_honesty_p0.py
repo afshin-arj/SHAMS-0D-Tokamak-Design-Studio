@@ -1054,6 +1054,28 @@ def test_helm_force_clear_requires_orphan_confirm() -> None:
     assert "_STUCK_RUN_THRESHOLD_LONG_S" in src
     assert "_scan_progress_still_advancing" in src
     assert "Force-clear stuck run…" in src
+    assert "write-fence" in src.lower() or "discard" in src.lower()
+
+
+def test_run_lock_write_fence_epoch() -> None:
+    from ui_nicegui.lib import run_lock
+
+    run_lock.force_clear()
+    assert run_lock.acquire("t1", "OwnerA") is True
+    lease = run_lock.current_lease()
+    assert lease is not None
+    assert run_lock.lease_valid(lease)
+    # New holder after force-clear
+    assert run_lock.force_clear() == "OwnerA"
+    assert not run_lock.lease_valid(lease)
+    assert run_lock.acquire("t2", "OwnerA") is True
+    lease2 = run_lock.current_lease()
+    # Zombie release must not unlock the new holder
+    assert run_lock.release("OwnerA", lease) is False
+    locked, task, holder = run_lock.global_status()
+    assert locked and holder == "OwnerA" and task == "t2"
+    assert run_lock.release("OwnerA", lease2) is True
+    assert run_lock.global_status()[0] is False
 
 
 def test_watermark_sensitivity_and_artifact_exports() -> None:
@@ -1099,3 +1121,37 @@ def test_forge_intent_compiler_remount_after_clear() -> None:
     audit_finally = src.split("async def _audit")[1]
     assert "forge_auditing = False" in audit_finally
     assert audit_finally.index("forge_auditing = False") < audit_finally.index("if on_complete")
+    assert "current_lease" in audit_finally and "lease_valid" in audit_finally
+
+
+def test_write_fence_source_contracts_priority_decks() -> None:
+    """WRITE-FENCE-001: priority long-job decks snapshot lease and gate release."""
+    from pathlib import Path
+
+    paths = [
+        Path("ui_nicegui/decks/point_designer/__init__.py"),
+        Path("ui_nicegui/decks/scan_lab/cartography.py"),
+        Path("ui_nicegui/decks/pareto_lab/controls.py"),
+        Path("ui_nicegui/decks/systems_mode/solve_ui.py"),
+        Path("ui_nicegui/decks/trade_study_studio/controls.py"),
+        Path("ui_nicegui/decks/reactor_design_forge/machine_finder.py"),
+        Path("ui_nicegui/decks/point_designer/forensics.py"),
+        Path("ui_nicegui/decks/control_room/certified_search.py"),
+        Path("ui_nicegui/decks/systems_mode/recover_ui.py"),
+        Path("ui_nicegui/decks/systems_mode/explore_ui.py"),
+        Path("ui_nicegui/decks/systems_mode/apply_ui.py"),
+    ]
+    for p in paths:
+        src = p.read_text(encoding="utf-8")
+        assert "current_lease" in src, f"{p}: missing current_lease"
+        assert "lease_valid" in src, f"{p}: missing lease_valid"
+        assert "force-cleared" in src or "discarding" in src.lower(), f"{p}: missing discard notify"
+
+
+def test_point_designer_export_watermarks_infeasible() -> None:
+    from pathlib import Path
+
+    src = Path("ui_nicegui/decks/point_designer/export_ui.py").read_text(encoding="utf-8")
+    assert "watermark_run_artifact_export" in src
+    assert "watermark_claim_kpi_map" in src
+    assert "PHYS-KPI" in src

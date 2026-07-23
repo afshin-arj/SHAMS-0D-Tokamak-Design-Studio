@@ -420,6 +420,7 @@ class DesignSession:
     suite_teaching_mode: bool = True
     suite_expert_view: bool = False
     suite_running: bool = False
+    suite_run_lease: Optional[int] = None
     suite_pareto_bridge_meta: Optional[dict[str, Any]] = None
     # Control Room Provenance Phase 15
     cr_provenance_tab: str = "Studies & Protocol"
@@ -483,6 +484,7 @@ class DesignSession:
     pub_teaching_mode: bool = True
     pub_expert_view: bool = False
     pub_running: bool = False
+    pub_run_lease: Optional[int] = None
     pub_decision_state: str = "Benchmark a tokamak preset (ITER, SPARC, …)"
     pub_regulatory_zip_bytes: Optional[bytes] = None
     pub_regulatory_validate: Optional[dict[str, Any]] = None

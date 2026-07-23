@@ -34,32 +34,39 @@ from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.session import DesignSession
 
 
-def _pareto_busy_guard(session: DesignSession, task: str) -> bool:
-    from ui_nicegui.lib.run_lock import acquire as runlock_acquire, status as runlock_status
+def _pareto_busy_guard(session: DesignSession, task: str) -> Optional[int]:
+    from ui_nicegui.lib.run_lock import (
+        acquire as runlock_acquire,
+        current_lease,
+        status as runlock_status,
+    )
 
     if session.pareto_running:
         ui.notify("Pareto Lab already running — wait for the active job.", type="warning")
-        return False
+        return None
     locked, busy_task, is_owner = runlock_status("ParetoLab")
     if locked and not is_owner:
         ui.notify(f"Busy: {busy_task} — wait or force-clear from Helm.", type="warning")
-        return False
+        return None
     if not runlock_acquire(task, "ParetoLab"):
         ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
-        return False
+        return None
+    lease = current_lease()
     session.pareto_running = True
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
     refresh_status()
     refresh_helm()
-    return True
+    return lease
 
 
-def _pareto_busy_release(session: DesignSession) -> None:
-    from ui_nicegui.lib.run_lock import release as runlock_release
+def _pareto_busy_release(session: DesignSession, lease: Optional[int]) -> None:
+    from ui_nicegui.lib.run_lock import lease_valid, release as runlock_release
 
+    if not lease_valid(lease):
+        return
     session.pareto_running = False
-    runlock_release("ParetoLab")
+    runlock_release("ParetoLab", lease)
 
 
 def render_external_deck(session: DesignSession, deck: str) -> None:
@@ -111,7 +118,8 @@ def _render_robust_pareto(session: DesignSession) -> None:
     n_take = ui.number("Max points", value=min(20, len(bundle.get("pareto") or [])), min=1, max=200)
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         session.robust_pareto_phases_json = str(phases.value or "")
         session.robust_pareto_uq_json = str(uq.value or "")
@@ -126,13 +134,18 @@ def _render_robust_pareto(session: DesignSession) -> None:
                 uq_json=session.robust_pareto_uq_json,
                 n_take=int(n_take.value or 10),
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.robust_pareto_last = res
             ui.notify(f"Classified {res.get('n', 0)} points", type="positive")
             _robust_view.refresh()
         except Exception as exc:
             ui.notify(f"Robust Pareto failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Run Robust Frontier", icon="shield", on_click=_run).props("color=primary outline")
     _robust_view(session)
@@ -321,7 +334,8 @@ def _render_design_families(session: DesignSession) -> None:
     src = ui.toggle(["Pareto points", "All feasible points"], value="Pareto points")
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         try:
             res = await run.io_bound(
@@ -329,13 +343,18 @@ def _render_design_families(session: DesignSession) -> None:
                 session,
                 source="pareto" if src.value == "Pareto points" else "feasible",
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.design_families_last = res
             ui.notify(f"Built families from {res.get('n_records', 0)} records", type="positive")
             _fam_view.refresh()
         except Exception as exc:
             ui.notify(str(exc), type="warning")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Build design families", icon="category", on_click=_run).props("outline")
     _fam_view(session)
@@ -364,7 +383,8 @@ def _render_extopt_workbench(session: DesignSession) -> None:
     robust = ui.checkbox("Robust mode (UQ-lite corners)", value=False)
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         path = next(p for p in yamls if p.name == sel.value)
         try:
@@ -376,13 +396,18 @@ def _render_extopt_workbench(session: DesignSession) -> None:
                 robust=bool(robust.value),
                 evaluator_label="hot_ion_point",
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.extopt_workbench_last = bundle
             ui.notify("Reference optimizer run complete", type="positive")
             _wb_dl.refresh()
         except Exception as exc:
             ui.notify(f"Workbench failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Run reference optimizer", icon="play_arrow", on_click=_run).props("color=primary outline")
     _wb_dl(session)
@@ -423,7 +448,8 @@ def _render_extopt_suite(session: DesignSession) -> None:
         if not isinstance(data, (bytes, bytearray)):
             ui.notify("Upload a YAML first", type="warning")
             return
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         try:
             res = await run.io_bound(
@@ -434,13 +460,18 @@ def _render_extopt_suite(session: DesignSession) -> None:
                 intent=str(intent.value),
                 include_ep=bool(include_ep.value),
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.extopt_last_run = res
             ui.notify("Verification complete", type="positive")
             _suite_view.refresh()
         except Exception as exc:
             ui.notify(f"Orchestrator failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Run import & verification", icon="verified", on_click=_run).props("outline")
     _suite_view(session)
@@ -481,7 +512,8 @@ def _render_extopt_copilot(session: DesignSession) -> None:
         if not data:
             ui.notify("Upload YAML first", type="warning")
             return
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         tdir = repo() / "ui_runs" / "uploads"
         tdir.mkdir(parents=True, exist_ok=True)
@@ -501,12 +533,17 @@ def _render_extopt_copilot(session: DesignSession) -> None:
                 evaluator=ev,
                 export_candidate_packs=True,
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.extopt_copilot_last = res.__dict__ if hasattr(res, "__dict__") else dict(res)
             ui.notify("Co-Pilot run complete", type="positive")
         except Exception as exc:
             ui.notify(f"Co-Pilot failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Run Co-Pilot evaluation", icon="psychology", on_click=_run).props("outline")
 
@@ -555,7 +592,8 @@ def _render_certified_orchestrator(session: DesignSession) -> None:
         if not objs.value:
             ui.notify("Select objectives", type="warning")
             return
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         try:
             from src.trade_studies.spec import default_knob_sets
@@ -574,13 +612,18 @@ def _render_certified_orchestrator(session: DesignSession) -> None:
                 bounds=dict(ksel.bounds),
                 base=base,
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.certified_opt_last = res
             ui.notify("Optimizer job complete", type="positive")
             _cert_view.refresh()
         except Exception as exc:
             ui.notify(f"Orchestrator failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Run certified optimizer job", icon="gavel", on_click=_run).props("outline")
     _cert_view(session)
@@ -602,18 +645,24 @@ def _render_concept_cockpit(session: DesignSession) -> None:
     sel = ui.select([p.name for p in yamls], label="Concept family", value=yamls[0].name)
 
     async def _run() -> None:
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         path = next(p for p in yamls if p.name == sel.value)
         try:
             res = await run.io_bound(evaluate_concept_family_yaml, path)
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.concept_cockpit_last = res
             ui.notify("Batch evaluation complete", type="positive")
             _cockpit_view.refresh()
         except Exception as exc:
             ui.notify(f"Cockpit failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Batch evaluate family", icon="science", on_click=_run).props("color=primary outline")
     _cockpit_view(session)
@@ -660,7 +709,8 @@ def _render_feasible_optimizer(session: DesignSession) -> None:
         if len(chosen) < 1:
             ui.notify("Select at least one objective", type="warning")
             return
-        if not _pareto_busy_guard(session, "Pareto Lab: External"):
+        lease = _pareto_busy_guard(session, "Pareto Lab: External")
+        if lease is None:
             return
         senses = {o: "max" if o == "P_e_net_MW" else "min" for o in chosen}
         ui.notify("Launching external optimizer kit…", type="info")
@@ -675,6 +725,11 @@ def _render_feasible_optimizer(session: DesignSession) -> None:
                 bounds=bounds,
                 base=base,
             )
+            from ui_nicegui.lib.run_lock import lease_valid
+
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.feasible_optimizer_last = res
             rc = int(res.get("returncode", 1))
             if rc == 0:
@@ -685,7 +740,7 @@ def _render_feasible_optimizer(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Launch failed: {exc}", type="negative")
         finally:
-            _pareto_busy_release(session)
+            _pareto_busy_release(session, lease)
 
     ui.button("Run feasible optimizer kit", icon="rocket_launch", on_click=_run).props("color=primary outline")
     _feas_opt_view(session)

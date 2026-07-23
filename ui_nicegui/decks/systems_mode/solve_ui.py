@@ -121,6 +121,9 @@ def render_solve_panel(
         if not runlock_acquire("Systems Mode: Target solve", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
+        lease = current_lease()
         session.systems_solve_running = True
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -162,6 +165,9 @@ def render_solve_panel(
                 require_precheck=session.systems_do_precheck,
                 paux_for_q_mw=session.paux_for_q,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding solve results.", type="warning")
+                return
             if result.get("blocked"):
                 ui.notify(str(result.get("message", "Solve blocked")), type="warning")
                 return
@@ -211,11 +217,11 @@ def render_solve_panel(
         except Exception as exc:
             ui.notify(f"Target solve failed: {exc}", type="negative")
         finally:
-            session.systems_solve_running = False
-            runlock_release("SystemsMode")
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_complete:
-                on_complete()
+            if lease_valid(lease):
+                session.systems_solve_running = False
+                runlock_release("SystemsMode", lease)
+                if on_complete:
+                    on_complete()
 
     btn = ui.button("Run target solve", icon="bolt", on_click=_run_solve).props("color=primary q-mt-sm")
     if disabled or session.systems_solve_running:

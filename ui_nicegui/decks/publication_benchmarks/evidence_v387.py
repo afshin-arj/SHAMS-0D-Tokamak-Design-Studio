@@ -94,13 +94,13 @@ def render_evidence_pack_v387(
             session.pub_v387_last_bytes = res.zip_bytes
             log_ui_event(session, PUB_RUNLOCK_OWNER, "EvidencePackComplete", {})
             ui.notify("Evidence pack ZIP ready", type="positive")
-            if on_complete:
-                on_complete()
             _dl.refresh()
         except Exception as exc:
             ui.notify(f"Evidence pack failed: {exc}", type="negative")
         finally:
             release_pub_lock(session)
+            if on_complete:
+                on_complete()
 
     ui.button("Build Evidence Pack", icon="folder_zip", on_click=_build, color="primary")
     _dl(session)

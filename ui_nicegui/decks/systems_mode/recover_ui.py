@@ -107,7 +107,13 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
         _render_manual_seed(session, bounds)
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if session.systems_recovery_running:
             ui.notify("Recovery already running", type="warning")
@@ -119,6 +125,7 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
         if not runlock_acquire("Systems Mode: Seeded recovery", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         session.systems_recovery_running = True
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -152,6 +159,9 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
                 local_steps=session.systems_recovery_local_steps,
                 multi_start=session.systems_recovery_multistart,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.systems_recovery_last = rep
             art = build_solve_artifact(rep, design_intent=session.design_intent, base=b)
             session.systems_last_solve_artifact = art
@@ -183,10 +193,11 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
         except Exception as exc:
             ui.notify(f"Recovery failed: {exc}", type="negative")
         finally:
-            session.systems_recovery_running = False
-            runlock_release("SystemsMode")
-            if on_complete:
-                on_complete()
+            if lease_valid(lease):
+                session.systems_recovery_running = False
+                runlock_release("SystemsMode", lease)
+                if on_complete:
+                    on_complete()
 
     def _apply_best_to_inputs(*, diagnostic: bool = False) -> None:
         rep = session.systems_recovery_last

@@ -26,7 +26,13 @@ from ui_nicegui.lib.pd_workflow_labels import (
 )
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pd_input_guardrails import notify_input_guardrails, unrealistic_point_input_warnings
-from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+from ui_nicegui.lib.run_lock import (
+    acquire as runlock_acquire,
+    current_lease,
+    lease_valid,
+    release as runlock_release,
+    status as runlock_status,
+)
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.session import DesignSession
@@ -126,6 +132,7 @@ def render_point_designer(session: DesignSession) -> None:
         if not runlock_acquire("Point Designer: Evaluate Point", "PointDesigner"):
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
+        lease = current_lease()
         session.evaluating = True
         session.last_error = None
         mode = str(session.pd_eval_mode)
@@ -141,6 +148,9 @@ def render_point_designer(session: DesignSession) -> None:
             base = session.build_point_inputs()
             notify_input_guardrails(base, context="Point Designer")
             result = await run.io_bound(run_point_designer_evaluation, session)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding evaluation results.", type="warning")
+                return
             ok = bool(result.get("ok", True))
             out = result.get("outputs") or {}
             inputs_dict = result.get("inputs") or dict(session.inputs)
@@ -189,12 +199,13 @@ def render_point_designer(session: DesignSession) -> None:
             session.last_error = str(exc)
             ui.notify(f"Evaluation failed: {exc}", type="negative")
         finally:
-            session.evaluating = False
-            runlock_release("PointDesigner")
-            refresh_status()
-            refresh_helm()
-            if _pd_active(session):
-                _render_tab_body.refresh()
+            if lease_valid(lease):
+                session.evaluating = False
+                runlock_release("PointDesigner", lease)
+                refresh_status()
+                refresh_helm()
+                if _pd_active(session):
+                    _render_tab_body.refresh()
 
     _render_tab_body(session, on_evaluate=_evaluate)
 

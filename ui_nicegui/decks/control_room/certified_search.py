@@ -96,7 +96,13 @@ def render_certified_search(session: DesignSession) -> None:
     surr_frac = ui.number("Surrogate budget fraction", value=0.2, min=0.05, max=0.6, step=0.05)
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         knobs = list(chosen.value or [])
         if not knobs:
@@ -112,6 +118,7 @@ def render_certified_search(session: DesignSession) -> None:
         if not runlock_acquire("Control Room: Certified search", "ControlRoom"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         variables = []
         for name in knobs:
             lo_w = lo_inputs.get(name)
@@ -142,6 +149,9 @@ def render_certified_search(session: DesignSession) -> None:
                 mode="pareto" if str(mode.value).startswith("Multi") else "single",
                 pareto_objectives=[{"key": "R0_m", "sense": "min"}, {"key": "P_e_net_MW", "sense": "max"}],
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.v340_cert_search_last = art
             n_pass = 0
             n_tot = 0
@@ -158,7 +168,8 @@ def render_certified_search(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Certified search failed: {exc}", type="negative")
         finally:
-            runlock_release("ControlRoom")
+            if lease_valid(lease):
+                runlock_release("ControlRoom", lease)
 
     ui.button("Run certified search", icon="travel_explore", on_click=_run).props("color=primary outline q-mt-sm")
 
@@ -169,10 +180,41 @@ def render_certified_search(session: DesignSession) -> None:
             return
         try:
             from tools.simple_evidence_zip import build_simple_evidence_zip_bytes
+            from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
+            export = watermark_run_artifact_export(art)
+            # PHYS-KPI-001: watermark nested stage/record claim KPIs on REJECTED rows.
+            stages_out = []
+            has_infeasible = False
+            for stg in export.get("stages") or []:
+                if not isinstance(stg, dict):
+                    stages_out.append(stg)
+                    continue
+                stg2 = dict(stg)
+                recs = list(stg2.get("records") or [])
+                if any(str(r.get("verdict") or "").upper() not in ("PASS", "VERIFIED", "FEASIBLE", "OK") for r in recs if isinstance(r, dict)):
+                    has_infeasible = True
+                if recs:
+                    stg2["records"] = watermark_certified_search_rows(recs)
+                stages_out.append(stg2)
+            if stages_out:
+                export["stages"] = stages_out
+            best = export.get("best")
+            if isinstance(best, dict):
+                bv = str(best.get("verdict") or "").upper()
+                if bv not in ("PASS", "VERIFIED", "FEASIBLE", "OK"):
+                    has_infeasible = True
+                    wm = watermark_certified_search_rows([best])
+                    export["best"] = wm[0] if wm else best
+            if has_infeasible:
+                export["phys_kpi_note"] = (
+                    "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are "
+                    "— (diagnostic) — not design claims."
+                )
 
             b = await run.io_bound(
                 build_simple_evidence_zip_bytes,
-                art,
+                export,
                 basename=f"certified_search_{str(art.get('digest', ''))[:12]}",
             )
             ui.download(b, "certified_search_evidence.zip")

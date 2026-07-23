@@ -13,7 +13,13 @@ from ui_nicegui.lib.forge_helpers import (
     merge_candidate_to_session_inputs,
 )
 from ui_nicegui.lib.helm_helpers import log_ui_event
-from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+from ui_nicegui.lib.run_lock import (
+    acquire as runlock_acquire,
+    current_lease,
+    lease_valid,
+    release as runlock_release,
+    status as runlock_status,
+)
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
 
@@ -112,11 +118,15 @@ def render_intent_compiler(
             if not runlock_acquire("Reactor Design Forge: Intent audit", FORGE_RUNLOCK_OWNER):
                 ui.notify("Run lock busy (another deck is evaluating).", type="warning")
                 return
+            lease = current_lease()
             session.forge_auditing = True
             ui.notify("Auditing candidate via frozen evaluator…", type="info")
             log_ui_event(session, FORGE_RUNLOCK_OWNER, "IntentAuditStart", {})
             try:
                 audit = await run.io_bound(audit_candidate_inputs, dict(cand))
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.forge_last_audit = audit
                 log_ui_event(
                     session,
@@ -134,14 +144,15 @@ def render_intent_compiler(
             except Exception as exc:
                 ui.notify(f"Audit failed: {exc}", type="negative")
             finally:
-                session.forge_auditing = False
-                runlock_release(FORGE_RUNLOCK_OWNER)
-                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+                if lease_valid(lease):
+                    session.forge_auditing = False
+                    runlock_release(FORGE_RUNLOCK_OWNER, lease)
+                    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
-                refresh_status()
-                refresh_helm()
-                if on_complete:
-                    on_complete()
+                    refresh_status()
+                    refresh_helm()
+                    if on_complete:
+                        on_complete()
 
         ui.button("Audit candidate (frozen evaluator)", icon="verified", on_click=_audit).props("outline")
 

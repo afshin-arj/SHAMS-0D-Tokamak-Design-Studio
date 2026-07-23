@@ -335,9 +335,9 @@ def _render_run_lock_banner(session: DesignSession) -> None:
             with ui.dialog() as dialog, ui.card().classes("w-full").style("min-width: 28rem"):
                 ui.label("Force-clear stuck run?").classes("text-h6")
                 ui.markdown(
-                    "Force-clear resets UI busy flags and the global run lock. "
-                    "It does **not** cancel a live worker thread — a finishing job may still "
-                    "write results afterward and can overlap a new evaluation (L0 risk)."
+                    "Force-clear resets UI busy flags and the global run lock, and invalidates "
+                    "the worker write-fence. A finishing zombie **discards** results and will not "
+                    "unlock a newer job. It still does **not** cancel the OS thread mid-flight."
                 ).classes("text-body2 q-mb-sm")
                 confirm = ui.checkbox(
                     "I confirm this is an orphaned lock (no live worker is running).",

@@ -9,7 +9,13 @@ from nicegui import ui
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.components.verdict_banner import verdict_banner
 from ui_nicegui.lib.helm_helpers import log_ui_event
-from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+from ui_nicegui.lib.run_lock import (
+    acquire as runlock_acquire,
+    current_lease,
+    lease_valid,
+    release as runlock_release,
+    status as runlock_status,
+)
 from ui_nicegui.lib.systems_plant_authority import build_exhaust_authority_bundle, exhaust_table_row
 from ui_nicegui.session import DesignSession
 
@@ -34,6 +40,7 @@ def try_acquire_suite_lock(session: DesignSession, task: str) -> bool:
     if not runlock_acquire(task, SUITE_RUNLOCK_OWNER):
         ui.notify("Run lock busy (another deck is evaluating).", type="warning")
         return False
+    session.suite_run_lease = current_lease()
     session.suite_running = True
     try:
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
@@ -46,7 +53,12 @@ def try_acquire_suite_lock(session: DesignSession, task: str) -> bool:
 
 
 def release_suite_lock(session: DesignSession) -> None:
-    runlock_release(SUITE_RUNLOCK_OWNER)
+    lease = getattr(session, "suite_run_lease", None)
+    if lease is not None and not lease_valid(lease):
+        session.suite_run_lease = None
+        return
+    runlock_release(SUITE_RUNLOCK_OWNER, lease)
+    session.suite_run_lease = None
     session.suite_running = False
     try:
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status

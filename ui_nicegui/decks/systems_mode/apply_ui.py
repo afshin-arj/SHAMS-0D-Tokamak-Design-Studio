@@ -94,7 +94,13 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
             render_json_blob(sel["x"])
 
     async def _apply_evaluate() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         sel_now = _selected(cands, session.systems_selected_candidate_id)
         if not sel_now or not isinstance(sel_now.get("x"), dict):
@@ -112,6 +118,7 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         if not runlock_acquire("Systems Mode: Apply → Point Designer", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         _push_apply_undo(session)
         applied = apply_x_to_session(session, sel_now["x"])
         ui.notify(f"Applied {len(applied)} variables", type="info")
@@ -123,6 +130,9 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
                 origin="NiceGUI:SystemsApply",
                 Paux_for_Q_MW=session.paux_for_q,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             inputs_dict = inp.to_dict() if hasattr(inp, "to_dict") else dict(session.inputs)
             set_point_evaluation(session, outputs=out, inputs=inputs_dict)
             applied_art = build_point_artifact(
@@ -143,13 +153,15 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
                     "Re-evaluated via Point Designer — INFEASIBLE (diagnostic KPIs only; not a design claim).",
                     type="warning",
                 )
-            if on_complete:
-                on_complete()
         except Exception as exc:
-            _pop_apply_undo(session)
+            if lease_valid(lease):
+                _pop_apply_undo(session)
             ui.notify(f"Apply failed: {exc}", type="negative")
         finally:
-            runlock_release("SystemsMode")
+            if lease_valid(lease):
+                runlock_release("SystemsMode", lease)
+                if on_complete:
+                    on_complete()
 
     def _undo_apply() -> None:
         if _pop_apply_undo(session):

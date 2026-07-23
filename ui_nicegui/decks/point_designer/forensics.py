@@ -18,7 +18,13 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
     ).classes("text-caption q-mb-sm")
 
     async def _compute() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if getattr(session, "pd_forensics_running", False):
             ui.notify("Forensics already running", type="warning")
@@ -35,6 +41,7 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
         if not runlock_acquire("Point Designer: Forensics", "PointDesigner"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         session.pd_forensics_running = True
         ui.notify("Computing forensics…", type="info")
         try:
@@ -44,19 +51,24 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
                 base,
                 design_intent=session.design_intent,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.pd_last_forensics = ff
             _attach_forensics_to_artifact(session, ff)
             ui.notify("Forensics complete.", type="positive")
             _panel.refresh()
         except Exception as exc:
-            session.pd_last_forensics = {"status": "error", "message": str(exc)}
+            if lease_valid(lease):
+                session.pd_last_forensics = {"status": "error", "message": str(exc)}
+                _panel.refresh()
             ui.notify(f"Forensics failed: {exc}", type="negative")
-            _panel.refresh()
         finally:
-            session.pd_forensics_running = False
-            runlock_release("PointDesigner")
-            if on_complete:
-                on_complete()
+            if lease_valid(lease):
+                session.pd_forensics_running = False
+                runlock_release("PointDesigner", lease)
+                if on_complete:
+                    on_complete()
 
     btn = ui.button("Compute forensics", icon="analytics", on_click=_compute).props("outline q-mb-sm")
     if session.pd_forensics_running:

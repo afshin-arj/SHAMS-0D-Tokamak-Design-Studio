@@ -122,6 +122,9 @@ def render_pareto_controls(
         if not runlock_acquire("Pareto Lab: Study", "ParetoLab"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
+        lease = current_lease()
         bounds = _resolved_bounds(session, bounds_def)
         session.pareto_running = True
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
@@ -141,6 +144,9 @@ def render_pareto_controls(
                 robust_margin_thr=session.pareto_robust_margin_thr,
                 Paux_for_Q_MW=getattr(session, "paux_for_q", None),
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding Pareto results.", type="warning")
+                return
             session.pareto_last = result
             summary = result.get("summary") or {}
             ui.notify(
@@ -153,11 +159,11 @@ def render_pareto_controls(
             session.last_error = str(exc)
             ui.notify(f"Pareto study failed: {exc}", type="negative")
         finally:
-            session.pareto_running = False
-            runlock_release("ParetoLab")
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_complete:
-                on_complete()
+            if lease_valid(lease):
+                session.pareto_running = False
+                runlock_release("ParetoLab", lease)
+                if on_complete:
+                    on_complete()
 
     btn = ui.button("Run Pareto (feasible-only)", icon="play_arrow", on_click=_run).props("color=primary")
     if session.pareto_running or len(session.pareto_sel_objs) < 2:

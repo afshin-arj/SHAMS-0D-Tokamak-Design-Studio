@@ -7,7 +7,10 @@ import json
 from nicegui import ui
 
 from ui.export_bundle import build_export_bundle, bundle_json_bytes
+from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
 from ui_nicegui.lib.pd_solver_helpers import build_summary_pdf_bytes
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 
 
@@ -18,7 +21,7 @@ def _download_cite_shams_pack(art: dict) -> None:
             from reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
         except ImportError:
             from src.reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
-        pack = build_cite_shams_handoff_pack(art)
+        pack = build_cite_shams_handoff_pack(watermark_run_artifact_export(art))
         ui.download(pack["zip_bytes"], pack.get("suggested_filename") or "shams_cite_handoff.zip")
         ui.notify("Cite-SHAMS handoff pack ready", type="positive")
     except Exception as exc:
@@ -47,9 +50,19 @@ def render_export(session: DesignSession) -> None:
     if studies:
         extra["studies"] = studies
 
+    vs = verdict_summary(out if isinstance(out, dict) else {})
+    feasible = bool(vs.get("feasible")) if vs.get("loaded") else True
+    export_out = out
+    if isinstance(out, dict) and not feasible:
+        export_out = watermark_claim_kpi_map(out, feasible=False, point_out=out)
+        extra = dict(extra)
+        extra["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs on INFEASIBLE exports are — (diagnostic) — not design claims."
+        )
+
     bundle = build_export_bundle(
         deck="Point Designer",
-        outputs=out,
+        outputs=export_out,
         inputs=art.get("inputs") if isinstance(art, dict) else session.inputs,
         constraints=art.get("constraints") if isinstance(art, dict) else None,
         extra=extra or None,
@@ -68,7 +81,9 @@ def render_export(session: DesignSession) -> None:
             "Download full run artifact JSON",
             icon="download",
             on_click=lambda: ui.download(
-                json.dumps(art, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                json.dumps(watermark_run_artifact_export(art), indent=2, sort_keys=True, default=str).encode(
+                    "utf-8"
+                ),
                 "shams_run_artifact.json",
             ),
         ).props("flat q-mt-xs")
@@ -86,7 +101,8 @@ def render_export(session: DesignSession) -> None:
 
     pdf_bytes = session.pd_last_summary_pdf_bytes
     if not pdf_bytes and isinstance(art, dict) and art.get("outputs"):
-        pdf_bytes = build_summary_pdf_bytes(art)
+        pdf_src = watermark_run_artifact_export(art) if not feasible else art
+        pdf_bytes = build_summary_pdf_bytes(pdf_src)
         if pdf_bytes:
             session.pd_last_summary_pdf_bytes = pdf_bytes
 
@@ -98,5 +114,3 @@ def render_export(session: DesignSession) -> None:
         ).classes("q-mt-sm")
     else:
         ui.label("PDF summary export unavailable for this point.").classes("text-caption q-mt-sm")
-
-

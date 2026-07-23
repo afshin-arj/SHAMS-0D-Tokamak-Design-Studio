@@ -179,6 +179,9 @@ def render_cartography_controls(
         if not runlock_acquire("Scan Lab: Quick probe", "ScanLab"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
+        lease = current_lease()
         xl = session.scan_cart_x_lo if session.scan_cart_x_lo is not None else x_lo_def
         xh = session.scan_cart_x_hi if session.scan_cart_x_hi is not None else x_hi_def
         yl = session.scan_cart_y_lo if session.scan_cart_y_lo is not None else y_lo_def
@@ -209,20 +212,23 @@ def render_cartography_controls(
                 include_outputs=bool(session.scan_cart_include_outputs),
                 base_override=session.scan_cart_base_override,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding probe results.", type="warning")
+                return
             session.scan_cartography_report = rep
             ui.notify("Quick probe complete — review Map & Probe or run full grid.", type="positive")
         except Exception as exc:
             ui.notify(f"Quick probe failed: {exc}", type="negative")
         finally:
-            session.scan_running = False
-            session.scan_progress = 0.0
-            session.scan_progress_text = ""
-            _progress_timer.deactivate()
-            _scan_progress_panel.refresh()
-            runlock_release("ScanLab")
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_scan_complete:
-                on_scan_complete()
+            if lease_valid(lease):
+                session.scan_running = False
+                session.scan_progress = 0.0
+                session.scan_progress_text = ""
+                _progress_timer.deactivate()
+                _scan_progress_panel.refresh()
+                runlock_release("ScanLab", lease)
+                if on_scan_complete:
+                    on_scan_complete()
 
     async def _run_scan() -> None:
         from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
@@ -247,6 +253,9 @@ def render_cartography_controls(
         if not runlock_acquire("Scan Lab: Cartography", "ScanLab"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
+        lease = current_lease()
 
         session.scan_running = True
         session.scan_progress = 0.0
@@ -261,6 +270,8 @@ def render_cartography_controls(
         ui.notify("Cartography scan started", type="info")
 
         def _progress(done: int, total: int) -> None:
+            if not lease_valid(lease):
+                return
             session.scan_progress = float(done) / max(float(total), 1.0)
             session.scan_progress_text = f"{done}/{total} points"
 
@@ -281,6 +292,9 @@ def render_cartography_controls(
                 base_override=session.scan_cart_base_override,
                 progress_cb=_progress,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding scan results.", type="warning")
+                return
             session.scan_cartography_report = rep
             settings = {
                 "x_key": session.scan_cart_x_key,
@@ -302,15 +316,15 @@ def render_cartography_controls(
             session.last_error = str(exc)
             ui.notify(f"Scan failed: {exc}", type="negative")
         finally:
-            session.scan_running = False
-            session.scan_progress = 0.0
-            session.scan_progress_text = ""
-            _progress_timer.deactivate()
-            _scan_progress_panel.refresh()
-            runlock_release("ScanLab")
-            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
-            if on_scan_complete:
-                on_scan_complete()
+            if lease_valid(lease):
+                session.scan_running = False
+                session.scan_progress = 0.0
+                session.scan_progress_text = ""
+                _progress_timer.deactivate()
+                _scan_progress_panel.refresh()
+                runlock_release("ScanLab", lease)
+                if on_scan_complete:
+                    on_scan_complete()
 
     with ui.row().classes("gap-2 q-mt-sm"):
         _run_btns["quick"] = ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")

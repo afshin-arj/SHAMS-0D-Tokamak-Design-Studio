@@ -310,7 +310,8 @@ def force_clear_stuck_runs(session: "DesignSession") -> list[str]:
     ``finally`` release (client disconnect, hard crash in a worker thread). When
     that happens every deck reads "busy" forever with no in-UI way to recover
     short of restarting the process. This clears every ``*_running``/``evaluating``
-    dataclass field on the session plus the module-level run lock. It never
+    dataclass field on the session plus the module-level run lock, and bumps the
+    write-fence epoch so zombie workers discard results (WRITE-FENCE-001). It never
     touches physics state (inputs/outputs/artifacts are untouched).
     """
     from ui_nicegui.lib import run_lock

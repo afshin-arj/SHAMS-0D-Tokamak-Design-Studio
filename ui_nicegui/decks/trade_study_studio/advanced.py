@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from typing import Optional
 
 from nicegui import run, ui
 
@@ -30,33 +31,40 @@ from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, objectives_catalo
 from ui_nicegui.session import DesignSession
 
 
-def _trade_busy_guard(session: DesignSession, task: str) -> bool:
-    """Acquire TradeStudy runlock + trade_running. Returns True if caller may proceed."""
-    from ui_nicegui.lib.run_lock import acquire as runlock_acquire, status as runlock_status
+def _trade_busy_guard(session: DesignSession, task: str) -> Optional[int]:
+    """Acquire TradeStudy runlock + trade_running. Returns lease or None if blocked."""
+    from ui_nicegui.lib.run_lock import (
+        acquire as runlock_acquire,
+        current_lease,
+        status as runlock_status,
+    )
 
     if session.trade_running:
         ui.notify("Trade Study already running — wait for the active job.", type="warning")
-        return False
+        return None
     locked, busy_task, is_owner = runlock_status("TradeStudy")
     if locked and not is_owner:
         ui.notify(f"Busy: {busy_task} — wait or force-clear from Helm.", type="warning")
-        return False
+        return None
     if not runlock_acquire(task, "TradeStudy"):
         ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
-        return False
+        return None
+    lease = current_lease()
     session.trade_running = True
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
     refresh_status()
     refresh_helm()
-    return True
+    return lease
 
 
-def _trade_busy_release(session: DesignSession) -> None:
-    from ui_nicegui.lib.run_lock import release as runlock_release
+def _trade_busy_release(session: DesignSession, lease: Optional[int]) -> None:
+    from ui_nicegui.lib.run_lock import lease_valid, release as runlock_release
 
+    if not lease_valid(lease):
+        return
     session.trade_running = False
-    runlock_release("TradeStudy")
+    runlock_release("TradeStudy", lease)
 
 try:
     from src.trade_studies.spec import default_knob_sets
@@ -119,15 +127,21 @@ def _render_v351(session: DesignSession) -> None:
     lane_budget = ui.number("Lane classification budget", value=20, min=1, max=200)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import lease_valid
+
         objs = list(chosen.value) if chosen.value else []
         if not objs:
             ui.notify("Select objectives", type="warning")
             return
-        if not _trade_busy_guard(session, "Trade Study: Frontier atlas"):
+        lease = _trade_busy_guard(session, "Trade Study: Frontier atlas")
+        if lease is None:
             return
         senses = {o: str(obj_senses.get(o, "min")) for o in objs}
         try:
             atlas = await run.io_bound(build_v351_atlas, session, objectives=objs, senses=senses)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.v351_atlas_last = atlas
             feas = [r for r in records if r.get("is_feasible")]
             from src.atlas.frontier_atlas_v351 import pareto_front, classify_lanes_for_points, bin_counts
@@ -138,7 +152,7 @@ def _render_v351(session: DesignSession) -> None:
             pareto_rows = pareto_front(feas, objectives=objs, senses=senses)
             if pareto_rows and base_inputs:
                 ev = ui_evaluator(origin="NiceGUI:v351", cache_enabled=True)
-                session.v351_lane_rows = await run.io_bound(
+                lane_rows = await run.io_bound(
                     classify_lanes_for_points,
                     evaluator=ev,
                     base_inputs=base_inputs,
@@ -149,6 +163,10 @@ def _render_v351(session: DesignSession) -> None:
                     label_prefix="v351",
                     max_points=int(lane_budget.value or 20),
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
+                session.v351_lane_rows = lane_rows
             numeric = sorted(
                 {k for r in records[:50] for k in r if isinstance(r.get(k), (int, float))}
             )[:12]
@@ -160,7 +178,7 @@ def _render_v351(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Frontier atlas failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
 
     ui.button("Build frontier atlas + lane classify", icon="map", on_click=_run).props("outline")
     _v351_view(session)
@@ -250,12 +268,15 @@ def _render_v352(session: DesignSession) -> None:
     budget = ui.number("Certification budget (points)", value=10, min=1, max=100)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import lease_valid
+
         key = "feasible" if "Feasible" in str(source.value) else "pareto"
         rows = list(rep.get(key) or [])
         if not rows:
             ui.notify("Empty candidate source", type="warning")
             return
-        if not _trade_busy_guard(session, "Trade Study: Robust certification"):
+        lease = _trade_busy_guard(session, "Trade Study: Robust certification")
+        if lease is None:
             return
         try:
             from src.certification.robust_envelope_v352 import TierThresholds, certify_points_under_contract
@@ -288,13 +309,16 @@ def _render_v352(session: DesignSession) -> None:
                 max_points=int(budget.value or 10),
                 evaluator=ev,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.v352_cert_last = cert
             ui.notify("Certification complete", type="positive")
             _v352_view.refresh()
         except Exception as exc:
             ui.notify(f"Robust certification failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
 
     ui.button("Run Robust Envelope Certification", icon="verified_user", on_click=_run).props("outline")
     _v352_view(session)
@@ -354,11 +378,14 @@ def _render_surrogate_accel(session: DesignSession) -> None:
             ui.notify(f"Proposal failed: {exc}", type="negative")
 
     async def _verify() -> None:
+        from ui_nicegui.lib.run_lock import lease_valid
+
         cand = session.ts_sa_candidates
         if not cand:
             ui.notify("Propose candidates first", type="warning")
             return
-        if not _trade_busy_guard(session, "Trade Study: Surrogate verify"):
+        lease = _trade_busy_guard(session, "Trade Study: Surrogate verify")
+        if lease is None:
             return
         cap = session.active_study_capsule or {}
         study_obj = cap.get("objectives") or (rep.get("meta") or {}).get("objectives") or [str(primary.value)]
@@ -377,6 +404,9 @@ def _render_surrogate_accel(session: DesignSession) -> None:
                 objective_senses=dict(study_senses) if study_senses else {str(primary.value): str(obj_senses.get(str(primary.value), "min"))},
                 include_outputs=False,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.ts_sa_verified_rows = vrows
             n_ok = sum(1 for r in vrows if isinstance(r, dict) and bool(r.get("is_feasible")))
             ui.notify(
@@ -387,7 +417,7 @@ def _render_surrogate_accel(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Verification failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
 
     ui.button("Propose candidates (surrogate)", icon="bolt", on_click=_propose).props("outline")
     ui.button("Verify with frozen truth", icon="verified", on_click=_verify).props("outline")
@@ -433,11 +463,14 @@ def _render_optimizer_kits(session: DesignSession) -> None:
     knob = ui.select([k.name for k in ks], label="Knob bounds", value=ks[0].name)
 
     async def _launch() -> None:
+        from ui_nicegui.lib.run_lock import lease_valid
+
         objs = list(chosen.value) if chosen.value else []
         if not objs:
             ui.notify("Select objectives", type="warning")
             return
-        if not _trade_busy_guard(session, "Trade Study: Optimizer kit"):
+        lease = _trade_busy_guard(session, "Trade Study: Optimizer kit")
+        if lease is None:
             return
         ksel = next(k for k in ks if k.name == knob.value)
         try:
@@ -451,13 +484,16 @@ def _render_optimizer_kits(session: DesignSession) -> None:
                 bounds=dict(ksel.bounds),
                 base=session.build_point_inputs(),
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.ts_kit_last = rep
             ui.notify(f"Kit finished rc={rep.get('returncode')}", type="positive" if rep.get("returncode") == 0 else "warning")
             _kit_log.refresh()
         except Exception as exc:
             ui.notify(f"Kit launch failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
     _kit_log(session)
 
 
@@ -471,10 +507,16 @@ def _kit_log(session: DesignSession) -> None:
 
 def _render_two_lane(session: DesignSession) -> None:
     async def _eval() -> None:
-        if not _trade_busy_guard(session, "Trade Study: Two-lane UQ"):
+        from ui_nicegui.lib.run_lock import lease_valid
+
+        lease = _trade_busy_guard(session, "Trade Study: Two-lane UQ")
+        if lease is None:
             return
         try:
             res = await run.io_bound(run_two_lane_uq, session.build_point_inputs())
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.lane_last = res
             cls = str(res.get("class") or "")
             ntype = "positive" if cls == "ROBUST" else ("warning" if cls == "MIRAGE" else "negative")
@@ -483,7 +525,7 @@ def _render_two_lane(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Lane eval failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
 
     ui.button("Evaluate current point (lane O & R)", icon="compare", on_click=_eval).props("outline")
     _lane_view(session)
@@ -531,11 +573,14 @@ def _render_v324(session: DesignSession) -> None:
     max_bins = ui.number("Bins per feature", value=12, min=6, max=24)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import lease_valid
+
         feas = [r for r in records if isinstance(r, dict) and bool(r.get("is_feasible"))]
         if not feas:
             ui.notify("No feasible points", type="warning")
             return
-        if not _trade_busy_guard(session, "Trade Study: Regime maps"):
+        lease = _trade_busy_guard(session, "Trade Study: Regime maps")
+        if lease is None:
             return
         feats = sorted({k for r in feas[:80] for k in r.keys() if isinstance(k, str) and isinstance(r.get(k), (int, float))})[:6]
         try:
@@ -546,13 +591,16 @@ def _render_v324(session: DesignSession) -> None:
                 min_cluster=int(min_cluster.value or 6),
                 max_bins=int(max_bins.value or 12),
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.v324_regime_maps = rpt
             ui.notify(f"Built {len(rpt.get('clusters') or [])} clusters", type="positive")
             _v324_view.refresh()
         except Exception as exc:
             ui.notify(f"Regime maps failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
 
     ui.button("Build regime map report", icon="hub", on_click=_run).props("outline")
     _v324_view(session)
@@ -611,9 +659,12 @@ def _render_mirage_pathfinding(session: DesignSession) -> None:
     n = ui.number("Scan points", value=17, min=7, max=41, step=2)
 
     async def _run() -> None:
+        from ui_nicegui.lib.run_lock import lease_valid
+
         idx = labels.index(str(sel.value))
         knob, lo, hi = levers[idx]
-        if not _trade_busy_guard(session, "Trade Study: Mirage path scan"):
+        lease = _trade_busy_guard(session, "Trade Study: Mirage path scan")
+        if lease is None:
             return
         try:
             rep = await run.io_bound(
@@ -624,13 +675,16 @@ def _render_mirage_pathfinding(session: DesignSession) -> None:
                 hi,
                 int(n.value or 17),
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.pf_last = rep
             ui.notify("Path scan complete", type="positive")
             _pf_view.refresh()
         except Exception as exc:
             ui.notify(f"Path scan failed: {exc}", type="negative")
         finally:
-            _trade_busy_release(session)
+            _trade_busy_release(session, lease)
 
     ui.button("Run path scan", icon="route", on_click=_run).props("outline")
     _pf_view(session)
