@@ -48,6 +48,10 @@ def _pareto_busy_guard(session: DesignSession, task: str) -> bool:
         ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
         return False
     session.pareto_running = True
+    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+    refresh_status()
+    refresh_helm()
     return True
 
 

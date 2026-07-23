@@ -392,8 +392,12 @@ def collect_candidates(session: Any) -> List[dict]:
         sout = sol.get("out") if isinstance(sol.get("out"), dict) else {}
         headline = {
             "Q": sout.get("Q_DT_eqv", sout.get("Q")),
-            "P_net": sout.get("P_e_net_MW", sout.get("P_net_e_MW")),
+            "P_net": sout.get("P_e_net_MW", sout.get("P_net_e_MW", sout.get("P_net_MW"))),
             "H98": sout.get("H98"),
+            "Pfus": sout.get(
+                "Pfus_total_MW",
+                sout.get("Pfus_DT_adj_MW", sout.get("P_fus_MW", sout.get("Pfus_MW"))),
+            ),
         }
         out.append(
             {

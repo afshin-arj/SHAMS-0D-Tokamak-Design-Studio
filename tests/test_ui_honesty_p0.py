@@ -740,3 +740,53 @@ def test_pareto_external_and_frontier_l0_keys() -> None:
     assert '("Pfus_total_MW", ("Pfus_total_MW", "Pfus_DT_adj_MW"' not in prov
     assert "DT-adj fusion power vs size" in pareto_labels.QUESTION_PRESETS
     assert pareto_labels.QUESTION_PRESETS["Fusion power vs size"]["plot_y"] == "Pfus_total_MW"
+
+
+def test_raw_telemetry_watermarks_claim_kpis_on_infeasible() -> None:
+    from ui_nicegui.lib.pd_parity_helpers import raw_telemetry_rows
+
+    out = {
+        "Q_DT_eqv": 12.5,
+        "H98": 1.4,
+        "Pfus_total_MW": 500.0,
+        "P_e_net_MW": 80.0,
+        "Ip_MA": 8.0,
+        "q95_proxy": 3.2,
+    }
+    rows = {r["key"]: r["value"] for r in raw_telemetry_rows(out, feasible=False)}
+    assert rows["Q_DT_eqv"] == "— (diagnostic)"
+    assert rows["H98"] == "— (diagnostic)"
+    assert rows["Pfus_total_MW"] == "— (diagnostic)"
+    assert rows["P_e_net_MW"] == "— (diagnostic)"
+    assert "8" in rows["Ip_MA"] or rows["Ip_MA"].startswith("8")
+    assert "3.2" in rows["q95_proxy"] or rows["q95_proxy"].startswith("3")
+
+    ok = {r["key"]: r["value"] for r in raw_telemetry_rows(out, feasible=True)}
+    assert "12.5" in ok["Q_DT_eqv"] or ok["Q_DT_eqv"].startswith("12")
+
+
+def test_mission_snapshot_raw_telemetry_closed_and_honest() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import mission_snapshot as ms
+
+    src = inspect.getsource(ms)
+    assert 'ui.expansion("Raw telemetry (diagnostic keys)"' in src
+    # Must not open raw claim table by default above the fold.
+    block = src.split("Raw telemetry (diagnostic keys)")[1].split("with ui.expansion")[0]
+    assert "value=True" not in block
+    assert "feasible=" in src
+    assert "PHYS-KPI-001" in block or "PHYS-KPI-001" in src.split("Raw telemetry")[1][:500]
+
+
+def test_scan_pareto_trade_paint_busy_after_session_flags() -> None:
+    import inspect
+
+    from ui_nicegui.decks.scan_lab import cartography
+    from ui_nicegui.decks.pareto_lab import controls as pctrl
+    from ui_nicegui.decks.trade_study_studio import controls as tctrl
+
+    for mod in (cartography, pctrl, tctrl):
+        src = inspect.getsource(mod)
+        assert "refresh_status()" in src
+        assert "refresh_helm()" in src

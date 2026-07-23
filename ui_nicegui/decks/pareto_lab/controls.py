@@ -124,6 +124,10 @@ def render_pareto_controls(
             return
         bounds = _resolved_bounds(session, bounds_def)
         session.pareto_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         ui.notify("Running Pareto study (LHS sampling)…", type="info")
         try:
             result = await run.io_bound(
