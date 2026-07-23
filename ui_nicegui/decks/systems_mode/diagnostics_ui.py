@@ -91,6 +91,8 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
                     ui.label("— (diagnostic)").classes("text-body1 text-orange")
                 else:
                     val = out.get(key)
+                    if key == "H98" and val is None:
+                        val = out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98")))
                     if key == "q95_proxy" and val is None:
                         val = out.get("q95")
                     if key == "beta_N" and val is None:

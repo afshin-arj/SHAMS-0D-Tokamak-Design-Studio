@@ -60,6 +60,16 @@ def render_precheck_panel(
     ui.label(
         "Monte Carlo over declared variable bounds via frozen Evaluator. Run before target solve."
     ).classes("text-caption text-grey q-mb-sm")
+    try:
+        from ui_nicegui.lib.session_store import inputs_stale
+
+        if inputs_stale(session):
+            ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")
+            ui.label(
+                "Inputs changed since last Point Designer evaluation — precheck seed may not match current KPIs."
+            ).classes("text-caption text-orange q-mb-xs")
+    except Exception:
+        pass
 
     assumption_lock_ui.render_assumption_lock_bar(session)
 

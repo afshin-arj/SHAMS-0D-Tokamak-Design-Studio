@@ -240,8 +240,9 @@ def normalize_systems_artifact_source(art: Dict[str, Any]) -> str:
     src = str(art.get("source") or "").strip()
     if src in SYSTEMS_RESULT_SOURCES or src in PD_BASELINE_SOURCES:
         return src
+    # Uploaded / restored Systems-shaped packs without an explicit source token.
     if str(art.get("artifact_kind") or "").strip().lower() == "systems":
-        return "systems_solve"
+        return "systems_restored"
     # Missing source on a session "solve" slot is almost always Apply→PD re-eval residue.
     return "point_designer_fallback"
 
