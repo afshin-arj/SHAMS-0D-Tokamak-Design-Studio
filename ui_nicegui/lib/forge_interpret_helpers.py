@@ -182,13 +182,18 @@ def why_not_for_candidate(cand: dict, intent: str, *, disabled: Optional[List[st
         return {"error": str(exc)}
 
 
-def design_card_markdown(cand: dict, intent: str) -> str:
+def design_card_markdown(cand: dict, intent: str = "") -> str:
+    """Render design-card markdown. ``intent`` is unused (card reads candidate fields)."""
     try:
         from tools.sandbox.design_card import build_design_card_md
     except ImportError:
         return ""
     try:
-        return str(build_design_card_md(cand, intent=str(intent)))
+        c = dict(cand) if isinstance(cand, dict) else {}
+        # Prefer explicit intent from UI when candidate lacks it.
+        if intent and not (c.get("design_intent") or c.get("intent")):
+            c["intent"] = str(intent)
+        return str(build_design_card_md(c))
     except Exception:
         return ""
 

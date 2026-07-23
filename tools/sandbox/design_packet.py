@@ -37,10 +37,20 @@ def build_design_packet_markdown(
         ne = closure.get("net_electric_MW")
         re = closure.get("recirc_electric_MW")
         ge = closure.get("gross_electric_MW")
+        feasible = bool(candidate.get("feasible", False))
+        if not feasible:
+            state = str(candidate.get("feasibility_state") or "").strip().upper()
+            feasible = state == "FEASIBLE"
         headline.append("\n## Closure headline\n")
         headline.append(f"- Gross electric (MW): {ge}\n")
         headline.append(f"- Recirc electric (MW): {re}\n")
-        headline.append(f"- Net electric (MW): {ne}\n")
+        if feasible:
+            headline.append(f"- Net electric (MW): {ne}\n")
+        else:
+            headline.append(
+                "- Net electric (MW): — (diagnostic) "
+                "(PHYS-KPI-001: not a design claim on INFEASIBLE)\n"
+            )
 
     if isinstance(rg, dict):
         headline.append("\n## Reality Gates\n")
