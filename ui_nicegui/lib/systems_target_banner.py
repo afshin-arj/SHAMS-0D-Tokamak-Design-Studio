@@ -43,10 +43,11 @@ def systems_target_rows(
         "Pfus_DT_adj_MW": "Pfus_DT_adj_MW",
     }
     aliases = {
-        "P_e_net_MW": ("P_net_e_MW", "Pe_net_MW", "P_net_MW"),
-        "Pfus_DT_adj_MW": ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"),
+        "P_e_net_MW": ("P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe"),
+        # Do not fall back DT-adj → total fusion (wrong physics identity).
+        "Pfus_DT_adj_MW": (),
         "Q_DT_eqv": ("Q", "Q_DT"),
-        "H98": ("H_IPB98y2", "H98y2"),
+        "H98": ("H_IPB98y2", "H98y2", "H_IPB98"),
     }
     for tgt_key, val in targets.items():
         out_key = key_map.get(tgt_key, tgt_key)
@@ -82,7 +83,7 @@ def systems_target_rows(
             target_disp = f"{t:.4g}"
         else:
             target_disp = "—"
-        claim_key = "Pfus_total_MW" if tgt_key == "Pfus_DT_adj_MW" else tgt_key
+        claim_key = tgt_key
         if feasible is False and is_claim_kpi_key(claim_key):
             achieved_disp = format_claim_kpi_for_table(claim_key, a, feasible=False)
         else:

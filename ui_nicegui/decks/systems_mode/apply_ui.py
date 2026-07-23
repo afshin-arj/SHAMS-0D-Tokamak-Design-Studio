@@ -38,6 +38,16 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
     ui.label(
         "Applies iteration variables to PD inputs, then re-evaluates through the frozen Evaluator choke point."
     ).classes("text-caption q-mb-sm")
+    try:
+        from ui_nicegui.lib.session_store import inputs_stale
+
+        if inputs_stale(session):
+            ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")
+            ui.label(
+                "Point Designer inputs already changed — Apply will overwrite them; prior KPIs are STALE."
+            ).classes("text-caption text-orange q-mb-xs")
+    except Exception:
+        pass
 
     cands = rank_candidates(collect_candidates(session), session.systems_ranking_profile)
     if not cands:
@@ -143,6 +153,8 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
             # Apply is a PD re-eval, not a Systems target solve (provenance honesty).
             applied_art["source"] = "point_designer_apply"
             session.systems_last_solve_artifact = applied_art
+            # Invalidate Newton closure so Helm / chips do not claim Systems closed.
+            session.systems_last_solve_result = None
             from ui_nicegui.lib.verdict_core import verdict_summary
 
             vs = verdict_summary(out if isinstance(out, dict) else {})

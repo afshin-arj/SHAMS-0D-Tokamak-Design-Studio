@@ -26,6 +26,11 @@ def test_normalize_never_invents_systems_solve_for_pd_blob():
         normalize_systems_artifact_source({"source": "point_designer_apply"})
         == "point_designer_apply"
     )
+    assert (
+        normalize_systems_artifact_source({"artifact_kind": "systems"})
+        == "systems_restored"
+    )
+    assert normalize_systems_artifact_source({"artifact_kind": "systems"}) != "systems_solve"
 
     s = DesignSession()
     s.systems_last_solve_artifact = {
@@ -49,6 +54,10 @@ def test_has_systems_closure_ignores_pd_apply():
         },
         systems_last_solve_result=None,
     )
+    assert has_systems_closure(sess) is False
+
+    # Leftover Newton ok=True must not close when visible artifact is PD Apply.
+    sess.systems_last_solve_result = {"ok": True, "intent_feasible": True}
     assert has_systems_closure(sess) is False
 
     sess.systems_last_solve_artifact = {
@@ -107,6 +116,27 @@ def test_cockpit_markdown_labels_pd_source():
 def test_apply_ui_sets_point_designer_apply_source():
     src = Path("ui_nicegui/decks/systems_mode/apply_ui.py").read_text(encoding="utf-8")
     assert 'applied_art["source"] = "point_designer_apply"' in src
+    assert "systems_last_solve_result = None" in src
+    assert "inputs_stale" in src
+
+
+def test_systems_baseline_chip_distinguishes_pd_seed():
+    init_src = Path("ui_nicegui/decks/systems_mode/__init__.py").read_text(encoding="utf-8")
+    assert "_baseline_chip_state" in init_src
+    assert '"seed"' in init_src
+    assert "is_systems_result_source" in init_src
+
+
+def test_kpi_headline_does_not_use_dt_adj_as_total_pfus():
+    from ui_nicegui.lib.systems_workflow_helpers import kpi_headline_from_outputs
+
+    h = kpi_headline_from_outputs({"Pfus_DT_adj_MW": 400.0, "H_IPB98y2": 1.1, "Pe_net_MW": 50.0})
+    assert h.get("Pfus") is None
+    assert h.get("Pfus_DT_adj") == 400.0
+    assert h.get("H98") == 1.1
+    assert h.get("P_net") == 50.0
+    h2 = kpi_headline_from_outputs({"Pfus_total_MW": 500.0, "Pfus_DT_adj_MW": 400.0})
+    assert h2.get("Pfus") == 500.0
 
 
 def test_systems_posture_stale_and_apply_labels():
@@ -114,9 +144,23 @@ def test_systems_posture_stale_and_apply_labels():
     assert "inputs_stale" in init_src
     assert "point_designer_apply" in init_src
     assert "systems_recovery" in init_src
+    assert "systems_restored" in init_src
     vsrc = Path("ui_nicegui/decks/systems_mode/verdict.py").read_text(encoding="utf-8")
     assert "POINT DESIGNER APPLY" in vsrc
     assert "SYSTEMS RECOVERY" in vsrc
+    assert "SYSTEMS RESTORED" in vsrc
     dsrc = Path("ui_nicegui/decks/systems_mode/diagnostics_ui.py").read_text(encoding="utf-8")
     assert "NOT A SYSTEMS SOLVE" in dsrc
     assert "is_systems_result_source" in dsrc
+    for panel in (
+        "ui_nicegui/decks/systems_mode/precheck_ui.py",
+        "ui_nicegui/decks/systems_mode/solve_ui.py",
+        "ui_nicegui/decks/systems_mode/apply_ui.py",
+    ):
+        assert "inputs_stale" in Path(panel).read_text(encoding="utf-8")
+    assert "Artifact source:" in Path("tools/reports/decision_report.py").read_text(encoding="utf-8")
+    assert "Pfus_DT_adj_MW\": ()" in Path("ui_nicegui/lib/systems_target_banner.py").read_text(
+        encoding="utf-8"
+    ) or 'Pfus_DT_adj_MW": ()' in Path("ui_nicegui/lib/systems_target_banner.py").read_text(
+        encoding="utf-8"
+    )

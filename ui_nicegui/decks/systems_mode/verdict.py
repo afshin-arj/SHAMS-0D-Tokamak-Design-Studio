@@ -25,8 +25,11 @@ def _physics_kpis(art: dict) -> dict:
     return {
         "Q": out.get("Q_DT_eqv", out.get("Q")),
         "P_fus": out.get("Pfus_total_MW", out.get("Pfus_MW", out.get("P_fus_MW", out.get("P_fusion_MW")))),
-        "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("P_net_MW"))),
-        "H98": out.get("H98"),
+        "P_net": out.get(
+            "P_e_net_MW",
+            out.get("P_net_e_MW", out.get("Pe_net_MW", out.get("P_net_MW", out.get("Pnet_MWe")))),
+        ),
+        "H98": out.get("H98", out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98")))),
         "beta_N": out.get("beta_N", out.get("betaN_proxy", out.get("betaN"))),
         "f_G": out.get("fG", out.get("greenwald_fraction")),
         "q95": out.get("q95_proxy", out.get("q95")),
@@ -125,6 +128,11 @@ def render_posture_strip(
         ui.label(
             "Recovery / best-effort Systems seed — promote only if feasible; otherwise continue diagnosing."
         ).classes("text-caption text-blue-8 q-mb-xs")
+    elif src == "systems_restored":
+        ui.badge("SYSTEMS RESTORED (UNVERIFIED)", color="blue").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Restored/uploaded Systems-shaped pack — re-run Precheck / Target solve to certify under frozen truth."
+        ).classes("text-caption text-blue-8 q-mb-xs")
 
     detail_bits = []
     if src == "point_designer_fallback":
@@ -133,6 +141,8 @@ def render_posture_strip(
         detail_bits.append("PD Apply re-eval (not a Systems solve)")
     elif src == "systems_recovery":
         detail_bits.append("Systems recovery seed")
+    elif src == "systems_restored":
+        detail_bits.append("Systems restored pack (unverified)")
     elif src == "systems_solve":
         detail_bits.append("Systems target solve")
     if dom:

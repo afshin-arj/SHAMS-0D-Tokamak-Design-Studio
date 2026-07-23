@@ -70,10 +70,12 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
 
     feas = bool(vs.get("feasible")) if vs else str(verdict).upper() in ("FEASIBLE", "PASS", "PASS+DIAG")
     diag = "— (diagnostic)"
-    pfus = diag if not feas else fmt(out.get("Pfus_total_MW", out.get("P_fus_MW")))
-    pnet = diag if not feas else fmt(out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("Pnet_MWe"))))
+    pfus = diag if not feas else fmt(out.get("Pfus_total_MW", out.get("P_fus_MW", out.get("Pfus_MW"))))
+    pnet = diag if not feas else fmt(
+        out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("Pe_net_MW", out.get("Pnet_MWe", out.get("P_net_MW")))))
+    )
     qval = diag if not feas else fmt(out.get("Q_DT_eqv", out.get("Q")))
-    h98 = diag if not feas else fmt(out.get("H98", out.get("H_IPB98y2", out.get("H98y2"))))
+    h98 = diag if not feas else fmt(out.get("H98", out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98")))))
 
     src = str(art.get("source") or "") or "unknown"
     lines = [

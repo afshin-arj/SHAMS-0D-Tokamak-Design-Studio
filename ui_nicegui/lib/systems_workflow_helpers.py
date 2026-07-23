@@ -16,14 +16,19 @@ def kpi_headline_from_outputs(out: Optional[dict]) -> Dict[str, Any]:
     """L0-aware KPI headline for Systems candidates (Q / H98 / P_net / Pfus)."""
     if not isinstance(out, dict):
         return {}
+    # Prefer total fusion; never silently substitute DT-adj as Pfus total.
+    pfus = out.get("Pfus_total_MW")
+    if pfus is None:
+        pfus = out.get("P_fus_MW", out.get("Pfus_MW"))
     return {
         "Q": out.get("Q_DT_eqv", out.get("Q")),
-        "H98": out.get("H98"),
-        "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("P_net_MW"))),
-        "Pfus": out.get(
-            "Pfus_total_MW",
-            out.get("Pfus_DT_adj_MW", out.get("P_fus_MW", out.get("Pfus_MW"))),
+        "H98": out.get("H98", out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98")))),
+        "P_net": out.get(
+            "P_e_net_MW",
+            out.get("P_net_e_MW", out.get("Pe_net_MW", out.get("P_net_MW", out.get("Pnet_MWe")))),
         ),
+        "Pfus": pfus,
+        "Pfus_DT_adj": out.get("Pfus_DT_adj_MW"),
     }
 
 

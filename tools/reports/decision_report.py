@@ -48,7 +48,20 @@ def build_decision_report_pdf_bytes(
     y = h - 0.9*inch
     c.setFont("Helvetica-Bold", 16)
     c.drawString(0.8*inch, y, "SHAMS — Systems Mode Decision Report")
-    y -= 0.35*inch
+    y -= 0.28*inch
+    try:
+        src = str((systems_artifact or {}).get("source") or "").strip()
+        if src:
+            c.setFont("Helvetica", 9)
+            note = f"Artifact source: {src}"
+            if src in ("point_designer_fallback", "point_designer_apply", "systems_apply_reeval"):
+                note += " — Point Designer baseline/Apply (NOT a Systems target solve)"
+            elif src == "systems_restored":
+                note += " — restored pack (re-certify via Precheck/Solve)"
+            c.drawString(0.8*inch, y, note)
+            y -= 0.22*inch
+    except Exception:
+        pass
     c.setFont("Helvetica", 10)
     c.drawString(0.8*inch, y, time.strftime("Generated: %Y-%m-%d %H:%M:%S", time.localtime()))
     y -= 0.35*inch
@@ -86,11 +99,17 @@ def build_decision_report_pdf_bytes(
     c.setFont("Helvetica", 10)
     try:
         outs = (systems_artifact or {}).get("headline") or (systems_artifact or {}).get("outputs") or {}
-        keys = ["Q_DT_eqv", "H98", "P_e_net_MW", "q_div_MW_m2", "q95", "beta_N"]
+        keys = ["Q_DT_eqv", "H98", "P_e_net_MW", "q_div_MW_m2", "q95_proxy", "beta_N"]
         for k in keys:
             if y < 1.1*inch:
                 c.showPage(); y = h - 0.9*inch
             v = outs.get(k, None)
+            if v is None and k == "H98":
+                v = outs.get("H_IPB98y2", outs.get("H98y2"))
+            if v is None and k == "P_e_net_MW":
+                v = outs.get("P_net_e_MW", outs.get("Pe_net_MW"))
+            if v is None and k == "q95_proxy":
+                v = outs.get("q95")
             line(y, f"{k}: {v}", 10)
             y -= 0.18*inch
     except Exception:

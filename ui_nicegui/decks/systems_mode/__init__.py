@@ -61,6 +61,20 @@ def _precheck_ok(session: DesignSession) -> bool | None:
 
 
 def _solve_ok(session: DesignSession) -> bool | None:
+    """True only for a current Systems solve/recovery/restored artifact + ok result.
+
+    Leftover Newton ``systems_last_solve_result`` after Point Designer Apply must
+    not keep the Solve chip green.
+    """
+    from ui_nicegui.lib.systems_artifact import (
+        is_systems_result_source,
+        normalize_systems_artifact_source,
+    )
+
+    art = session.systems_last_solve_artifact
+    if isinstance(art, dict) and art:
+        if not is_systems_result_source(normalize_systems_artifact_source(art)):
+            return None
     result = session.systems_last_solve_result
     if not isinstance(result, dict):
         return None
@@ -70,7 +84,22 @@ def _solve_ok(session: DesignSession) -> bool | None:
 def _artifact_source(art: dict | None) -> str | None:
     if not isinstance(art, dict):
         return None
-    return str(art.get("source") or "")
+    from ui_nicegui.lib.systems_artifact import normalize_systems_artifact_source
+
+    return normalize_systems_artifact_source(art)
+
+
+def _baseline_chip_state(session: DesignSession) -> str:
+    """ok = Systems result; seed = PD baseline only; pending = none."""
+    from ui_nicegui.lib.systems_artifact import is_systems_result_source
+
+    art = fetch_systems_artifact(session)
+    if not art:
+        return "pending"
+    src = _artifact_source(art) or ""
+    if is_systems_result_source(src):
+        return "ok"
+    return "seed"
 
 
 def render_systems_mode(session: DesignSession) -> None:
@@ -240,6 +269,10 @@ def _render_posture(session: DesignSession) -> None:
             ).classes("text-caption text-orange")
         elif src == "systems_recovery":
             ui.label("Last artifact: Systems recovery seed.").classes("text-caption text-blue-8")
+        elif src == "systems_restored":
+            ui.label(
+                "Last artifact: restored/uploaded Systems pack — re-run Precheck/Solve to certify."
+            ).classes("text-caption text-blue-8")
         elif src == "systems_solve":
             ui.label("Last artifact: target solve.").classes("text-caption text-positive")
     else:
@@ -256,13 +289,17 @@ def _render_workflow_chips(session: DesignSession) -> None:
     n_feas = sum(1 for c in cands if bool(c.get("feasible")))
 
     def _chip(label: str, state: str) -> None:
-        color = {"ok": "text-positive", "fail": "text-negative", "pending": "text-grey"}.get(state, "")
-        ui.label(f"{label}: {'✓' if state == 'ok' else '✗' if state == 'fail' else '—'}").classes(
-            f"text-caption {color} q-mr-md"
-        )
+        color = {
+            "ok": "text-positive",
+            "fail": "text-negative",
+            "pending": "text-grey",
+            "seed": "text-orange",
+        }.get(state, "")
+        mark = {"ok": "✓", "fail": "✗", "pending": "—", "seed": "PD"}.get(state, "—")
+        ui.label(f"{label}: {mark}").classes(f"text-caption {color} q-mr-md")
 
     with ui.row().classes("q-mb-sm flex-wrap"):
-        _chip("Baseline", "ok" if fetch_systems_artifact(session) else "pending")
+        _chip("Baseline", _baseline_chip_state(session))
         _chip("Targets", "ok" if targets and variables else "fail")
         _chip("Precheck", "ok" if pre else ("fail" if pre is False else "pending"))
         _chip("Solve", "ok" if sol else ("fail" if sol is False else "pending"))

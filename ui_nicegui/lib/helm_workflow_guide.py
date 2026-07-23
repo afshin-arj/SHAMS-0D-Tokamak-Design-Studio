@@ -152,18 +152,22 @@ def has_systems_closure(session: Any) -> bool:
     """True when Systems Mode closed with an intent-feasible Systems result.
 
     PD fallback / Apply re-eval and INFEASIBLE recovery seeds do not close systems.
+    A leftover Newton ``systems_last_solve_result`` must not count when the visible
+    artifact is Point Designer Apply / fallback (Apply supersedes solve closure).
     """
     from ui_nicegui.lib.systems_artifact import is_systems_result_source, normalize_systems_artifact_source
 
+    art = getattr(session, "systems_last_solve_artifact", None)
+    if isinstance(art, dict) and art:
+        if is_systems_result_source(normalize_systems_artifact_source(art)):
+            return _systems_artifact_intent_feasible(art)
+        # PD Apply / fallback / re-eval supersedes any leftover Newton result.
+        return False
     rep = getattr(session, "systems_last_solve_result", None)
     if isinstance(rep, dict) and (
         rep.get("ok") or rep.get("intent_feasible") or rep.get("feasible")
     ):
         return True
-    art = getattr(session, "systems_last_solve_artifact", None)
-    if isinstance(art, dict) and art:
-        if is_systems_result_source(normalize_systems_artifact_source(art)):
-            return _systems_artifact_intent_feasible(art)
     return False
 
 

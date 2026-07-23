@@ -79,6 +79,16 @@ def render_solve_panel(
 ) -> None:
     ui.label("Step ② — Target solve (Newton)").classes("text-subtitle1")
     ui.label("Adjust declared variables to hit targets. Uses frozen Evaluator.").classes("text-caption q-mb-sm")
+    try:
+        from ui_nicegui.lib.session_store import inputs_stale
+
+        if inputs_stale(session):
+            ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")
+            ui.label(
+                "Inputs changed since last Point Designer evaluation — solve seed / KPIs may be stale."
+            ).classes("text-caption text-orange q-mb-xs")
+    except Exception:
+        pass
 
     assumption_lock_ui.render_assumption_lock_bar(session)
 
