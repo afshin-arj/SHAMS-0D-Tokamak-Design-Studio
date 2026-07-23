@@ -62,3 +62,5 @@ FORGE_RUNNING_ATTRS = (
 PARETO_RUNNING_ATTRS = ("pareto_running",)
 
 TRADE_RUNNING_ATTRS = ("trade_running",)
+
+SCAN_RUNNING_ATTRS = ("scan_running", "scan_legacy_running")

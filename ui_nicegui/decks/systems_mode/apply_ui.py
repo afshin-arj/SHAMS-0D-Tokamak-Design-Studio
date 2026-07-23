@@ -28,8 +28,16 @@ def _pop_apply_undo(session: DesignSession) -> bool:
     snap = stack.pop()
     session.systems_apply_undo_stack = stack
     for k, v in (snap.get("inputs") or {}).items():
-        if k in session.inputs:
+        if k not in session.inputs:
+            continue
+        try:
             session.inputs[k] = float(v)
+        except (TypeError, ValueError):
+            session.inputs[k] = v
+    # Restored pre-Apply inputs — clear Apply re-eval KPIs (wrong-machine hero risk).
+    from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+    invalidate_point_designer_after_seed(session)
     return True
 
 
@@ -184,7 +192,11 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
                 refresh_status()
             except Exception:
                 pass
-            ui.notify("Undid last apply — Point Designer inputs restored (KPIs STALE).", type="warning")
+            ui.notify(
+                "Undid last apply — Point Designer inputs restored; prior KPIs cleared. "
+                "Evaluate Point to re-certify.",
+                type="warning",
+            )
             if on_complete:
                 on_complete()
         else:
