@@ -658,13 +658,83 @@ def render_authority_ledger(
                 ).classes("w-full")
 
 
+def campaign_row_seed_inputs(row: Any) -> Dict[str, Any]:
+    """Extract PointInputs-shaped fields from a campaign preview / result row."""
+    if not isinstance(row, dict):
+        try:
+            return dict(getattr(row, "inputs", {}) or {})
+        except Exception:
+            return {}
+    nested = row.get("inputs")
+    if isinstance(nested, dict) and nested:
+        return dict(nested)
+    skip = {
+        "cid",
+        "feasible_hard",
+        "verdict",
+        "dominant_mechanism",
+        "worst_hard_margin",
+        "inputs",
+        "feasible",
+        "pass",
+    }
+    out: Dict[str, Any] = {}
+    for k, v in row.items():
+        if k in skip or str(k).startswith("e_"):
+            continue
+        if isinstance(v, str) and "diagnostic" in v.lower():
+            continue
+        out[str(k)] = v
+    return out
+
+
+def promote_campaign_row_to_point_designer(session: DesignSession, row_idx: int = 0) -> Tuple[int, bool]:
+    """Seed PD from campaign preview row ``row_idx``; clear prior KPIs.
+
+    Returns ``(n_fields, feasible_hard)``. Raises ``ValueError`` when no preview/row.
+    """
+    preview = session.suite_campaign_results_preview
+    if not isinstance(preview, list) or not preview:
+        raise ValueError("Run campaign batch first.")
+    ix = max(0, min(int(row_idx), len(preview) - 1))
+    row = preview[ix]
+    if not isinstance(row, dict):
+        try:
+            row = {
+                "inputs": dict(getattr(row, "inputs", {}) or {}),
+                "feasible_hard": bool(getattr(row, "feasible_hard", False)),
+            }
+        except Exception as exc:
+            raise ValueError("Invalid campaign row.") from exc
+    seed = campaign_row_seed_inputs(row)
+    if not seed:
+        raise ValueError("Campaign row has no overlapping inputs to promote.")
+    n = 0
+    for k, v in seed.items():
+        if k not in session.inputs:
+            continue
+        try:
+            session.inputs[k] = float(v) if isinstance(v, (int, float)) else v
+            n += 1
+        except (TypeError, ValueError):
+            session.inputs[k] = v
+            n += 1
+    if n <= 0:
+        raise ValueError("Campaign row has no overlapping inputs to promote.")
+    from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+    invalidate_point_designer_after_seed(session)
+    return n, bool(row.get("feasible_hard"))
+
+
 def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
     from ui_nicegui.lib.compare_helpers import artifact_from_point, send_row_to_compare_slot, store_compare_slot
     from ui_nicegui.lib.navigation import switch_deck
 
     ui.label("Cross-deck handoffs").classes("text-subtitle2")
     ui.label(
-        "Send the loaded point or a campaign row to Compare; open Control Room for audit on the same artifact."
+        "Send the loaded point or a campaign row to Compare / Point Designer; "
+        "open Control Room for audit on the same artifact."
     ).classes("text-caption text-grey q-mb-sm")
 
     def _point_compare(slot: str) -> None:
@@ -685,8 +755,10 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         log_ui_event(session, SUITE_RUNLOCK_OWNER, "HandoffControlRoom", {})
 
     def _open_pd() -> None:
-        switch_deck("Point Designer")
-        ui.notify("Opened Point Designer — re-evaluate after input changes.", type="info")
+        from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+
+        navigate_to_point_designer(session)
+        ui.notify("Opened Point Designer Configure.", type="info")
 
     def _to_pareto() -> None:
         try:
@@ -704,7 +776,7 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         except Exception as exc:
             ui.notify(f"Pareto bridge failed: {exc}", type="negative")
 
-    row_idx = ui.number("Campaign row # (for Compare)", value=0, min=0, step=1).classes("w-48")
+    row_idx = ui.number("Campaign row # (for Compare / PD)", value=0, min=0, step=1).classes("w-56")
 
     def _campaign_compare(slot: str) -> None:
         preview = session.suite_campaign_results_preview
@@ -731,12 +803,42 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         except Exception as exc:
             ui.notify(f"Compare handoff failed: {exc}", type="negative")
 
+    def _campaign_to_pd() -> None:
+        from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        try:
+            n, feas = promote_campaign_row_to_point_designer(session, int(row_idx.value or 0))
+        except ValueError as exc:
+            ui.notify(str(exc), type="warning")
+            return
+        refresh_helm()
+        refresh_status()
+        navigate_to_point_designer(session)
+        note = "" if feas else " (INFEASIBLE seed — diagnostic)"
+        ui.notify(
+            f"Promoted {n} campaign fields → Point Designer{note} — "
+            "prior KPIs cleared; Evaluate Point to re-certify.",
+            type="warning",
+        )
+        log_ui_event(
+            session,
+            SUITE_RUNLOCK_OWNER,
+            "HandoffPointDesigner",
+            {"source": "campaign", "n": n, "feasible_hard": feas},
+        )
+
     with ui.row().classes("gap-2 flex-wrap"):
         ui.button("Point → Compare A", icon="compare", on_click=lambda: _point_compare("A")).props("outline")
         ui.button("Point → Compare B", icon="compare", on_click=lambda: _point_compare("B")).props("outline")
         ui.button("Campaign row → Compare A", icon="compare", on_click=lambda: _campaign_compare("A")).props("flat outline")
         ui.button("Campaign row → Compare B", icon="compare", on_click=lambda: _campaign_compare("B")).props("flat outline")
-        ui.button("Campaign → Pareto Lab (extopt)", icon="hub", on_click=_to_pareto).props("color=primary outline")
+        ui.button(
+            "Campaign row → Point Designer",
+            icon="upload",
+            on_click=_campaign_to_pd,
+        ).props("outline color=primary data-testid=suite-campaign-promote-pd")
+        ui.button("Campaign → Pareto Lab (extopt)", icon="hub", on_click=_to_pareto).props("flat outline")
         ui.button("Open Control Room", icon="gavel", on_click=_open_cr).props("flat outline")
         ui.button("Open Point Designer", icon="design_services", on_click=_open_pd).props("flat outline")
 
