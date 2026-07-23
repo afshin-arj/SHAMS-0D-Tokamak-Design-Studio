@@ -19,6 +19,7 @@ from ui_nicegui.lib.opt_lab_entry import (
     OPT_LAB_SLSQP_HOOK_NOTE,
     OPT_LAB_STANCE_DOC,
     OPT_LAB_STEPS,
+    OPT_LAB_SURROGATE_HOOK_NOTE,
     OPT_LAB_TAGLINE,
     OPT_LAB_TITLE,
     apply_opt_lab_route_session,
@@ -74,6 +75,7 @@ def render_opt_lab_entry(session: DesignSession) -> None:
         ui.label(OPT_LAB_SLSQP_HOOK_NOTE).classes("text-caption text-grey q-mt-sm")
         ui.label(OPT_LAB_NSGA2_HOOK_NOTE).classes("text-caption text-grey q-mt-xs")
         ui.label(OPT_LAB_CERTIFIED_FRONT_NOTE).classes("text-caption text-grey q-mt-xs")
+        ui.label(OPT_LAB_SURROGATE_HOOK_NOTE).classes("text-caption text-grey q-mt-xs")
 
         ui.separator().classes("q-my-sm")
         ui.label("Continue on an existing certified path").classes("text-subtitle2")

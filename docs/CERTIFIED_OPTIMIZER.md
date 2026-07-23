@@ -126,6 +126,27 @@ Lock tests: `tests/test_nsga2_search_driver.py`.
 
 ---
 
+## Surrogate propose-only SearchDriver (Phase 4.1)
+
+Surrogate ranking is an **accelerator**, never a certifier:
+
+| Item | Detail |
+|------|--------|
+| Module | `src/optimization/surrogate_propose_search_driver.py` |
+| Driver id | `surrogate_propose` |
+| Accel | `src/extopt/surrogate_accel.py` (ridge acquisition pool) |
+| Overlay | `src/optimization/surrogates.py` (optional ridge predict — untrusted) |
+| API | `run_surrogate_propose_search(base, objective_contract, variables=..., seed=..., n_train=..., shortlist_k=...)` |
+| Output | `surrogate_propose_search_result.v1` shortlist + `to_ccfs_bundle()` + `stamp_ready()` |
+| Certification | **`lightly_certify_shortlist` → CCFS only** — surrogate scores never set `VERIFIED` |
+| Honesty | UI/docs: propose-only; “scores never set VERIFIED” |
+
+Training: seeded LHS + frozen `Evaluator` builds tabular rows when `training_records` is omitted. Acquisition ranks a candidate pool; shortlist knobs overlay the baseline `PointInputs`. Claims in the CCFS bundle stay `PROPOSED` with `surrogate_uncertified=true`.
+
+Lock tests: `tests/test_surrogate_propose_search_driver.py`.
+
+---
+
 ## Anti L0-opt guardrails (Phase 0.3)
 
 Hard gate: no optimizer / SearchDriver **import path** into frozen truth.
@@ -167,6 +188,7 @@ When reviewing Opt Lab / Systems Mode / extopt / solvers changes, confirm:
 | SLSQP SearchDriver (2.1–2.3) | `src/optimization/slsqp_search_driver.py` · `tests/test_slsqp_search_driver.py` · `tests/test_neighborhood_certify.py` · `tests/test_slsqp_determinism.py` |
 | NSGA-II SearchDriver (3.1–3.2) | `src/optimization/nsga2_search_driver.py` · `tests/test_nsga2_search_driver.py` |
 | Certified-front unify (3.3) | `ui_nicegui/lib/certified_front_viewer.py` · `src/optimization/extopt_contract_bridge.py` · `tests/test_opt_lab_pareto_unify.py` |
+| Surrogate propose (4.1) | `src/optimization/surrogate_propose_search_driver.py` · `src/extopt/surrogate_accel.py` · `src/optimization/surrogates.py` · `tests/test_surrogate_propose_search_driver.py` |
 | Anti L0-opt import guards | `src/optimization/l0_opt_guards.py` · `tests/test_l0_opt_import_guard.py` |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` · `docs/CITE_SHAMS_HANDOFF.md` |
 | Living roadmap | `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` |

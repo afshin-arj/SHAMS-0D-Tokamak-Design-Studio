@@ -99,6 +99,15 @@ OPT_LAB_CERTIFIED_FRONT_NOTE = (
     "summary with handoff — Proposed — SHAMS-certified, not an authoritative optimum."
 )
 
+# Phase 4.1 — surrogate propose-only SearchDriver (ranks only; CCFS certifies).
+OPT_LAB_SURROGATE_DRIVER_IDS: Tuple[str, ...] = ("surrogate_propose",)
+
+OPT_LAB_SURROGATE_HOOK_NOTE = (
+    "Surrogate SearchDriver ranks and proposes PointInputs only "
+    "(ridge acquisition via surrogate accel); every shortlist point re-evaluates "
+    "with frozen L0 / CCFS — surrogate scores never set VERIFIED."
+)
+
 # Phrases that must appear in the entry contract (honesty lock).
 OPT_LAB_REQUIRED_PHRASES: List[str] = list(REQUIRED_PHRASES) + [
     "propose",
@@ -123,6 +132,7 @@ def opt_lab_user_facing_texts() -> List[str]:
         OPT_LAB_SLSQP_HOOK_NOTE,
         OPT_LAB_NSGA2_HOOK_NOTE,
         OPT_LAB_CERTIFIED_FRONT_NOTE,
+        OPT_LAB_SURROGATE_HOOK_NOTE,
     ]
     texts.extend(OPT_LAB_STEPS)
     texts.extend(label for label, _, _ in OPT_LAB_ROUTES)
@@ -137,6 +147,11 @@ def opt_lab_slsqp_driver_ids() -> Tuple[str, ...]:
 def opt_lab_nsga2_driver_ids() -> Tuple[str, ...]:
     """Propose-only NSGA-II SearchDriver ids exposed to Opt Lab (Phase 3.1)."""
     return OPT_LAB_NSGA2_DRIVER_IDS
+
+
+def opt_lab_surrogate_driver_ids() -> Tuple[str, ...]:
+    """Propose-only surrogate SearchDriver ids exposed to Opt Lab (Phase 4.1)."""
+    return OPT_LAB_SURROGATE_DRIVER_IDS
 
 
 def apply_opt_lab_route_session(session: object, hook_id: str) -> None:

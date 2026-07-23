@@ -10,7 +10,7 @@ Living campaign document for **philosophy-safe optimization** inside SHAMS.
 | `/shams-process-independence` | Feasibility authority campaign (orthogonal; do not blur) |
 
 **SHAMS version at last refresh:** `v418.1.0` (see `VERSION`)  
-**Last analytical refresh:** 2026-07-23 (ticket 3.3 shipped; Phase 3 complete)
+**Last analytical refresh:** 2026-07-23 (ticket 4.1 shipped; Phase 4 in progress)
 
 ## Code review snapshot (2026-07-23)
 
@@ -22,11 +22,12 @@ Re-verified claimed DONE tickets against `main` sources + Opt Lab lock tests.
 | 3.1 NSGA-II SearchDriver | **Confirmed** — `nsga2_search_driver.py` + `tests/test_nsga2_search_driver.py`; `multi_objective_contract.v1`; CCFS/stamp hooks |
 | 3.2 Atlas-annotated dominatees | **DONE** — `atlas_dominatee_hook.v1` status=`shipped`; `annotate_atlas_dominatees` / `lightly_certify_shortlist`; hard-infeasible shortlist + CCFS REJECTED rows carry `no_solution_atlas.v1` |
 | 3.3 Pareto Lab ↔ Opt Lab unify | **DONE** — shared certified-front viewer + ExtOpt `objective_contract.v3` ↔ Opt Lab v1/multi bridge; `/pareto-frontier-check` gates green |
-| Phase 4–5 | **Still OPEN** — surrogate/cite/mirage exist as reusable pieces, not Opt Lab ticket-complete |
+| 4.1 Surrogate propose-only | **DONE** — `surrogate_propose_search_driver.py` + accel/overlay reuse; CCFS-only certify; Opt Lab honesty hook |
+| Phase 4.2–4.3 / Phase 5 | **Still OPEN** — PROCESS proposer bridge, orchestrator polish, cite/mirage/exit |
 
 **ExtOpt contract seam (3.3):** `ui_nicegui/lib/external_optimizer_helpers.py` builds bridged ExtOpt wire via `src/optimization/extopt_contract_bridge.py` — legacy `objective_contract.v3` for `OptimizerJob` **plus** embedded `opt_lab_contract` (`objective_contract.v1` / `multi_objective_contract.v1`) and honesty note. No silent dual-truth FoM.
 
-**Next ticket:** **4.1 — Surrogate propose-only path**.
+**Next ticket:** **4.2 — PROCESS-as-proposer bridge**.
 
 ## Post-upgrade ship gate (mandatory)
 
@@ -73,7 +74,7 @@ ObjectiveContract (hashed, outside L0)
 | 1 Opt Lab productization | **DONE** | 1.1–1.4 complete (entry + stamp + honesty + champion warm-start) |
 | 2 Single-objective certified solver | **DONE** | 2.1–2.3 complete (SLSQP + neighborhood CCFS + determinism locks) |
 | 3 Multi-objective certified front | **DONE** | 3.1–3.3 complete (NSGA + atlas dominatees + Pareto/Opt Lab unify) |
-| 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
+| 4 Accelerators & external proposers | **OPEN** | 4.1 DONE; PROCESS→CCFS + orchestrator polish remain |
 | 5 Cite, robust lanes, exit | **OPEN** | Handoff packs; mirage-safe UQ; campaign exit evidence |
 
 ## Non-negotiables
@@ -107,7 +108,7 @@ ObjectiveContract (hashed, outside L0)
 | NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1–3.2 DONE** — NSGA-II/fallback + atlas-annotated dominatees (`shipped`) |
 | Certified-front viewer | `ui_nicegui/lib/certified_front_viewer.py` · panel | **3.3 DONE** — Opt Lab ↔ Pareto shared front + handoff |
 | ExtOpt ↔ Opt Lab bridge | `src/optimization/extopt_contract_bridge.py` | **3.3 DONE** — v3 wire + embedded Opt Lab contract |
-| Surrogate accel | `src/extopt/surrogate_accel.py` · `src/optimization/surrogates.py` | Exists (propose-only intent) — **4.1 not closed** |
+| Surrogate accel | `src/extopt/surrogate_accel.py` · `src/optimization/surrogates.py` · `src/optimization/surrogate_propose_search_driver.py` | **4.1 DONE** — propose-only SearchDriver + CCFS certify |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Point cite unit exists — **5.1 opt-front extension not closed** |
 | Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Entry + certified-front unify live — **3.3 DONE** |
 
@@ -184,7 +185,7 @@ ObjectiveContract (hashed, outside L0)
 
 | # | Ticket | Done when |
 |---|--------|-----------|
-| 4.1 | Surrogate propose-only path | Surrogate may rank/propose; **every** shortlist point re-eval with frozen L0; never certify from surrogate |
+| 4.1 | Surrogate propose-only path | **DONE** (2026-07-23) — `src/optimization/surrogate_propose_search_driver.py`: driver id `surrogate_propose`; reuses `extopt.surrogate_accel.propose_candidates` + optional `optimization.surrogates` overlay; hashed `ObjectiveContract` + `opt_run_stamp.v1`; CCFS bundle claims stay `PROPOSED` / `surrogate_uncertified`; `lightly_certify_shortlist` is the sole VERIFIED path. Opt Lab honesty hook. Lock tests: `tests/test_surrogate_propose_search_driver.py`. L0 untouched. |
 | 4.2 | PROCESS-as-proposer bridge | Optional IN.DAT/MFILE → map `PointInputs` → CCFS; METHOD-ONLY honesty; no invented MFILE KPIs as truth |
 | 4.3 | Extopt orchestrator polish | Out-of-process driver + repo guard + evidence dossier linked to Opt Lab export |
 
@@ -212,9 +213,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **4.1** — Surrogate propose-only path  
-2. **4.2** — PROCESS-as-proposer bridge  
-3. **4.3** — Extopt orchestrator polish  
+1. **4.2** — PROCESS-as-proposer bridge  
+2. **4.3** — Extopt orchestrator polish  
+3. **5.1** — Cite-SHAMS opt handoff  
 
 ## Overclaim check
 

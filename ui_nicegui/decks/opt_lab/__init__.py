@@ -1,11 +1,11 @@
-"""Opt Lab deck — certified-search entry surface (Certified Optimizer 1.1–3.3).
+"""Opt Lab deck — certified-search entry surface (Certified Optimizer 1.1–4.1).
 
 Thin hub: three-step path + honesty copy + champion warm-start + shared
 certified-front viewer (Pareto Lab handoff) + routes into Systems Mode,
 Pareto Lab, and Control Room Certified Search. SearchDrivers propose only;
-SLSQP neighborhood and NSGA-II fronts re-certify via CCFS. Dominated /
-REJECTED multi-obj rows carry atlas mechanisms. This deck does not claim an
-authoritative optimum.
+SLSQP neighborhood, NSGA-II fronts, and surrogate shortlists re-certify via
+CCFS. Dominated / REJECTED multi-obj rows carry atlas mechanisms. This deck
+does not claim an authoritative optimum.
 """
 from __future__ import annotations
 
@@ -30,9 +30,11 @@ def render_opt_lab(session: DesignSession) -> None:
             "- **SLSQP / NSGA-II SearchDrivers** — propose-only (best + neighborhood / fronts "
             "always re-certified by CCFS); dominated / REJECTED rows carry "
             "`no_solution_atlas` dominant hard mechanism\n"
+            "- **Surrogate propose-only** — ranks candidates; every shortlist re-evals "
+            "frozen L0 / CCFS (scores never set VERIFIED)\n"
             "- **Certified-front viewer** — shared Opt Lab ↔ Pareto Lab summary "
             "(Proposed — SHAMS-certified; VERIFIED/REJECTED + atlas)\n"
-            "- **Next:** Phase 4.1 — surrogate propose-only path\n\n"
+            "- **Next:** Phase 4.2 — PROCESS-as-proposer bridge\n\n"
             "Champion warm-start, run stamps, honesty copy, ExtOpt→Opt Lab contract "
             "bridge, and route handoffs are live. Every path still proposes only and "
             "re-evaluates through frozen truth — Opt Lab does **not** claim an "
