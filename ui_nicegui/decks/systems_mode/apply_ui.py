@@ -206,7 +206,7 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         sel_now = _selected(cands, session.systems_selected_candidate_id)
         if not sel_now or not isinstance(sel_now.get("x"), dict):
             return
-        # build_compare_artifact snapshots/restores session.inputs — no silent PD mutation
+        # Scratch-merge only — live session.inputs never held during ui_evaluate.
         patch = dict(sel_now["x"])
         label = f"Systems ({sel_now.get('source')})"
         art = await run.io_bound(lambda: build_compare_artifact(session, patch, label=label))

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Callable, Optional
 
-from nicegui import ui
+from nicegui import run, ui
 
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.compare_helpers import open_compare_deck, send_row_to_compare_slot
@@ -137,13 +137,17 @@ def render_export_tab(
 
     ui.button("Queue for Systems Mode", icon="hub", on_click=_handoff_systems).props("flat outline")
 
-    def _send_compare(slot: str) -> None:
+    async def _send_compare(slot: str) -> None:
         i = int(idx.value or 0)
         if i < 0 or i >= len(pareto):
             ui.notify("Invalid row", type="warning")
             return
         try:
-            send_row_to_compare_slot(session, dict(pareto[i]), slot, label="Pareto Lab frontier")
+            await run.io_bound(
+                lambda: send_row_to_compare_slot(
+                    session, dict(pareto[i]), slot, label="Pareto Lab frontier"
+                )
+            )
             ui.notify(f"Sent frontier point to Compare slot {slot}", type="positive")
         except Exception as exc:
             ui.notify(f"Compare handoff failed: {exc}", type="negative")

@@ -80,7 +80,7 @@ def _render_core(session, art, out, ins, *, on_refresh=None) -> None:
             ("H98", "H98"),
             ("Pe_net [MW]", "P_e_net_MW"),
             ("q_div", "q_div_MW_m2"),
-            ("β_N", "beta_N"),
+            ("β_N (screening)", "beta_N"),
             ("q95 (cyl. proxy)", "q95_proxy"),
         ):
             with ui.card().classes("p-2"):

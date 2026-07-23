@@ -312,7 +312,9 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
     """Evaluate inputs_patch through frozen truth and return a compare artifact.
 
     Acquires the global run lock so handoffs cannot overlap other truth evals.
-    Mutates ``session.inputs`` only inside a try/finally restore window.
+    Builds PointInputs from a scratch merge and restores ``session.inputs``
+    *before* ``ui_evaluate`` so Helm/PD never paint candidate knobs beside
+    prior-machine KPIs mid-handoff (io_bound remount race).
     """
     from dataclasses import asdict
 
@@ -336,22 +338,29 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
     if not runlock_acquire(f"Compare handoff: {label}", "CompareHandoff"):
         raise RuntimeError("Could not acquire run lock — another evaluation is active.")
     lease = current_lease()
+    session.cmp_handoff_running = True
 
-    saved = dict(session.inputs)
     try:
-        for k, v in inputs_patch.items():
-            if k in session.inputs and v is not None:
+        # Scratch merge only — restore live inputs before any evaluate / Helm paint.
+        merged = dict(session.inputs)
+        for k, v in (inputs_patch or {}).items():
+            if k in merged and v is not None:
                 try:
-                    session.inputs[k] = float(v)
+                    merged[k] = float(v)
                 except (TypeError, ValueError):
                     pass
-        inp = session.build_point_inputs()
+        live = session.inputs
+        session.inputs = merged
+        try:
+            inp = session.build_point_inputs()
+        finally:
+            session.inputs = live
         out = ui_evaluate(inp, origin=f"NiceGUI:{label}")
         if not lease_valid(lease):
             raise RuntimeError("Run was force-cleared — discarding results.")
         return normalize_compare_artifact({"inputs": asdict(inp), "outputs": out, "label": label})
     finally:
-        session.inputs = saved
+        session.cmp_handoff_running = False
         if lease_valid(lease):
             runlock_release("CompareHandoff", lease)
 

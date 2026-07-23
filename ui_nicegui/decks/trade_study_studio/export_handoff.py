@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Callable, Optional
 
-from nicegui import ui
+from nicegui import run, ui
 
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.compare_helpers import open_compare_deck, send_row_to_compare_slot
@@ -102,7 +102,7 @@ def render_export_tab(
 
     ui.button("Promote to Point Designer", icon="upload", on_click=_promote).props("outline")
 
-    def _send_compare(slot: str) -> None:
+    async def _send_compare(slot: str) -> None:
         i = int(idx.value or 0)
         row = next((r for r in pareto if int(r.get("i", -1)) == i), None)
         if row is None and 0 <= i < len(pareto):
@@ -111,7 +111,11 @@ def render_export_tab(
             ui.notify("Invalid row", type="warning")
             return
         try:
-            send_row_to_compare_slot(session, dict(row), slot, label="Trade Study Pareto")
+            await run.io_bound(
+                lambda: send_row_to_compare_slot(
+                    session, dict(row), slot, label="Trade Study Pareto"
+                )
+            )
             ui.notify(f"Sent Pareto row to Compare slot {slot}", type="positive")
         except Exception as exc:
             ui.notify(f"Compare handoff failed: {exc}", type="negative")
