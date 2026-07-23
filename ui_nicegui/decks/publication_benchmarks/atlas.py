@@ -140,14 +140,15 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
             log_ui_event(session, PUB_RUNLOCK_OWNER, "AtlasEvaluateComplete", {"verdict": verdict})
             ui.notify(f"Verdict: {verdict}", type="positive" if verdict != "FAIL" else "warning")
             _render_atlas_detail.refresh()
-            if on_complete:
-                on_complete()
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Atlas evaluation failed: {exc}", type="negative")
         finally:
             release_pub_lock(session)
             _render_atlas_actions.refresh()
+            # Status remount after flags clear — avoid stuck "Running…".
+            if on_complete:
+                on_complete()
 
     async def _fragility() -> None:
         if session.pub_atlas_fragility_running:

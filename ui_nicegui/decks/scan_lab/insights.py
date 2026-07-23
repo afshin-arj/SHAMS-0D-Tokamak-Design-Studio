@@ -211,6 +211,10 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
             runlock_release("ScanLab")
             refresh_status()
             refresh_helm()
+            # Remount after clear so Setup Run buttons re-enable if remounted mid-job.
+            from ui_nicegui.lib.navigation import refresh_current_deck
+
+            refresh_current_deck()
 
     if insight == "Causality trace":
         ui.slider(
@@ -354,6 +358,10 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
             runlock_release("ScanLab")
             refresh_status()
             refresh_helm()
+            # Remount after clear so Setup Run buttons re-enable if remounted mid-job.
+            from ui_nicegui.lib.navigation import refresh_current_deck
+
+            refresh_current_deck()
 
     if pick == "Counterfactual lens":
         ui.label("Visualization only — does not change frozen physics.").classes(

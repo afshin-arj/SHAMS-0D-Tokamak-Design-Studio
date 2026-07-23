@@ -665,7 +665,7 @@ def render_suite_handoffs(session: DesignSession, point_out: dict) -> None:
         if not isinstance(point_out, dict) or not point_out:
             ui.notify("No evaluation loaded.", type="warning")
             return
-        switch_deck("Control Room")
+        switch_deck("Control Room", force=True)
         ui.notify("Opened Control Room — study uses pd_last_artifact.", type="info")
         log_ui_event(session, SUITE_RUNLOCK_OWNER, "HandoffControlRoom", {})
 

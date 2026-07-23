@@ -901,3 +901,89 @@ def test_studio_entry_opens_control_room_with_force() -> None:
 
     src = inspect.getsource(studio_entry_panel._open_doc_in_docs_library)
     assert 'switch_deck("Control Room", force=True)' in src
+
+
+def test_forge_systems_pub_remount_after_clearing_busy() -> None:
+    """Machine Finder / Systems solve-explore / Pub atlas-pack remount after clear."""
+    import inspect
+
+    from ui_nicegui.decks.reactor_design_forge import machine_finder
+    from ui_nicegui.decks.systems_mode import explore_ui, solve_ui
+    from ui_nicegui.decks.publication_benchmarks import atlas, benchmark_pack
+
+    for mod, flag in (
+        (machine_finder, "forge_mf_running = False"),
+        (solve_ui, "systems_solve_running = False"),
+        (explore_ui, "systems_fs_running = False"),
+    ):
+        src = inspect.getsource(mod)
+        finally_idx = src.rfind("finally:")
+        tail = src[finally_idx:]
+        assert flag in tail
+        assert "on_complete" in tail
+        assert tail.index(flag) < tail.index("if on_complete")
+
+    atlas_src = inspect.getsource(atlas)
+    assert "release_pub_lock(session)" in atlas_src
+    # Evaluate path: release then on_complete (status after clear).
+    assert (
+        "release_pub_lock(session)\n"
+        "            _render_atlas_actions.refresh()\n"
+        "            # Status remount after flags clear"
+    ) in atlas_src or (
+        atlas_src.index("release_pub_lock(session)")
+        < atlas_src.index("Status remount after flags clear")
+    )
+    pack_src = inspect.getsource(benchmark_pack)
+    finally_idx = pack_src.rfind("finally:")
+    tail = pack_src[finally_idx:]
+    assert "release_pub_lock" in tail
+    assert "on_complete" in tail
+    assert tail.index("release_pub_lock") < tail.index("if on_complete")
+
+
+def test_scan_lab_blocks_setup_remount_while_running() -> None:
+    from pathlib import Path
+
+    src = Path("ui_nicegui/decks/scan_lab/__init__.py").read_text(encoding="utf-8")
+    assert "_refresh_tab_body_if_idle" in src
+    assert "scan_running" in src
+    assert "wait until it finishes before changing Setup" in src
+
+
+def test_suite_pub_control_room_force() -> None:
+    import inspect
+
+    from ui_nicegui.lib import pub_helpers, suite_helpers
+
+    assert 'switch_deck("Control Room", force=True)' in inspect.getsource(suite_helpers)
+    assert 'switch_deck("Control Room", force=True)' in inspect.getsource(pub_helpers)
+
+
+def test_frontier_omits_infeasible_on_claim_axes() -> None:
+    from pathlib import Path
+
+    from ui_nicegui.lib.systems_target_banner import systems_target_rows
+    from ui_nicegui.session import DesignSession
+
+    src = Path("ui_nicegui/decks/systems_mode/frontier_ui.py").read_text(encoding="utf-8")
+    assert "allow_infeasible_scatter_point" in src
+    assert "format_claim_kpi_for_table" in src
+    assert 'y_disp = f"diag·' not in src
+
+    s = DesignSession()
+    s.systems_use_q = True
+    s.systems_q_target = 10.0
+    row = systems_target_rows(s, {"Q_DT_eqv": 12.0}, feasible=False)[0]
+    assert row["achieved"] == "— (diagnostic)"
+
+
+def test_apply_ui_notifies_infeasible_honestly() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import apply_ui
+
+    src = inspect.getsource(apply_ui)
+    assert "verdict_summary" in src
+    assert "INFEASIBLE (diagnostic KPIs only" in src
+    assert 'type="warning"' in src

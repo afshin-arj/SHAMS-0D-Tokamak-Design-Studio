@@ -154,6 +154,14 @@ def render_cartography_controls(
 
     _scan_progress_panel()
     _progress_timer = ui.timer(0.35, lambda: _scan_progress_panel.refresh(), active=False)
+    _run_btns: dict = {}
+
+    def _disable_run_btns() -> None:
+        for b in _run_btns.values():
+            try:
+                b.props("disable")
+            except Exception:
+                pass
 
     async def _run_quick() -> None:
         from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
@@ -182,6 +190,7 @@ def render_cartography_controls(
 
         refresh_status()
         refresh_helm()
+        _disable_run_btns()
         _progress_timer.activate()
         _scan_progress_panel.refresh()
         try:
@@ -246,6 +255,7 @@ def render_cartography_controls(
 
         refresh_status()
         refresh_helm()
+        _disable_run_btns()
         _progress_timer.activate()
         _scan_progress_panel.refresh()
         ui.notify("Cartography scan started", type="info")
@@ -303,8 +313,7 @@ def render_cartography_controls(
                 on_scan_complete()
 
     with ui.row().classes("gap-2 q-mt-sm"):
-        btn_q = ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")
-        btn = ui.button("Run cartography scan", icon="play_arrow", on_click=_run_scan).props("color=primary")
+        _run_btns["quick"] = ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")
+        _run_btns["run"] = ui.button("Run cartography scan", icon="play_arrow", on_click=_run_scan).props("color=primary")
     if session.scan_running:
-        btn_q.props("disable")
-        btn.props("disable")
+        _disable_run_btns()

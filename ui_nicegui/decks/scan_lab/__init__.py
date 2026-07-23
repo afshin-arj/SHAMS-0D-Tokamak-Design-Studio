@@ -36,6 +36,17 @@ from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 
+def _refresh_tab_body_if_idle(session: DesignSession) -> None:
+    """Avoid tearing down cartography progress timer while a Scan Lab job is live."""
+    if getattr(session, "scan_running", False):
+        ui.notify(
+            "Scan Lab job running — wait until it finishes before changing Setup / Guided / Expert.",
+            type="warning",
+        )
+        return
+    _render_tab_body.refresh()
+
+
 def _consume_scan_probe_focus(session: DesignSession) -> None:
     """Apply inbound Scan Lab focus from Pareto/Forge; land on a useful tab."""
     focus = getattr(session, "scan_probe_focus", None)
@@ -134,7 +145,7 @@ def render_scan_lab(session: DesignSession) -> None:
                 value=session.scan_teaching_mode,
                 on_change=lambda e: (
                     sync_deck_guided_to_helm(session, bool(e.value), deck_attr="scan_teaching_mode"),
-                    _render_tab_body.refresh(),
+                    _refresh_tab_body_if_idle(session),
                 ),
             )
             ui.switch(
@@ -142,7 +153,7 @@ def render_scan_lab(session: DesignSession) -> None:
                 value=session.scan_expert_view,
                 on_change=lambda e: (
                     sync_deck_expert_to_helm(session, bool(e.value), deck_attr="scan_expert_view"),
-                    _render_tab_body.refresh(),
+                    _refresh_tab_body_if_idle(session),
                 ),
             )
 
@@ -193,7 +204,7 @@ def _render_workflow_chrome(session: DesignSession) -> None:
         value=step,
         on_change=lambda e: (
             setattr(session, "scan_workflow_step", normalize_scan_tab(str(e.value))),
-            _render_tab_body.refresh(),
+            _refresh_tab_body_if_idle(session),
         ),
     ).classes("w-full")
     help_text = TAB_HELP.get(normalize_scan_tab(session.scan_workflow_step), "")
@@ -202,6 +213,12 @@ def _render_workflow_chrome(session: DesignSession) -> None:
 
 
 def _on_decision_scan(session: DesignSession, state: str) -> None:
+    if getattr(session, "scan_running", False):
+        ui.notify(
+            "Scan Lab job running — wait until it finishes before changing decision/Setup view.",
+            type="warning",
+        )
+        return
     session.scan_decision_state = state
     tab = DECISION_TO_TAB.get(state)
     if tab and session.scan_teaching_mode:
@@ -214,6 +231,12 @@ def _on_decision_scan(session: DesignSession, state: str) -> None:
 
 def _handle_quick_jump(session: DesignSession, cmd: str) -> None:
     if cmd not in QUICK_JUMP:
+        return
+    if getattr(session, "scan_running", False):
+        ui.notify(
+            "Scan Lab job running — wait until it finishes before quick-jumping tabs.",
+            type="warning",
+        )
         return
     tab, extra = QUICK_JUMP[cmd]
     session.scan_workflow_step = tab

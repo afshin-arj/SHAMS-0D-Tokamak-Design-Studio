@@ -6,6 +6,11 @@ import math
 
 from nicegui import ui
 
+from ui_nicegui.lib.plant_kpi_honesty_ui import (
+    allow_infeasible_scatter_point,
+    format_claim_kpi_for_table,
+    scatter_physkpi_caption,
+)
 from ui_nicegui.session import DesignSession
 
 _Y_OPTS = [
@@ -67,10 +72,13 @@ def _frontier_view(session: DesignSession, src: str, x_key: str, y_key: str) -> 
     n_feas = sum(1 for p in pts if p[2])
     n_infeas = len(pts) - n_feas
     ui.label(f"Points: {len(pts)} | feasible: {n_feas}").classes("text-caption q-mb-xs")
-    if y_key in _CLAIM_Y and n_infeas > 0:
+    cap = scatter_physkpi_caption(x_key, y_key, show_infeasible=n_infeas > 0)
+    if cap:
+        ui.label(cap).classes("text-caption text-orange q-mb-xs")
+    elif y_key in _CLAIM_Y and n_infeas > 0:
         ui.label(
             "PHYS-KPI-001: Q / H98 / P_net / Pfus on infeasible frontier points are "
-            "diagnostic residue — not design claims. Table Y shows diag· for those rows."
+            "— (diagnostic) — not design claims."
         ).classes("text-caption text-orange q-mb-xs")
     _render_plotly_scatter(pts, x_key, y_key)
 
@@ -78,8 +86,8 @@ def _frontier_view(session: DesignSession, src: str, x_key: str, y_key: str) -> 
     for p in pts[:100]:
         xv, yv, feas = p[0], p[1], p[2]
         y_disp: float | str = yv
-        if y_key in _CLAIM_Y and not feas and math.isfinite(yv):
-            y_disp = f"diag·{yv:.4g}"
+        if y_key in _CLAIM_Y and math.isfinite(yv):
+            y_disp = format_claim_kpi_for_table(y_key, yv, feasible=bool(feas))
         rows.append({"x": xv, "y": y_disp, "feasible": feas})
     with ui.expansion("Point table", icon="table_rows").classes("w-full"):
         ui.table(
@@ -101,7 +109,8 @@ def _render_plotly_scatter(pts: list[tuple[float, float, bool]], x_key: str, y_k
         return
 
     feas = [(p[0], p[1]) for p in pts if p[2]]
-    infeas = [(p[0], p[1]) for p in pts if not p[2]]
+    show_infeas = allow_infeasible_scatter_point(x_key=x_key, y_key=y_key)
+    infeas = [(p[0], p[1]) for p in pts if not p[2]] if show_infeas else []
     fig = go.Figure()
     if infeas:
         fig.add_trace(
@@ -109,7 +118,7 @@ def _render_plotly_scatter(pts: list[tuple[float, float, bool]], x_key: str, y_k
                 x=[p[0] for p in infeas],
                 y=[p[1] for p in infeas],
                 mode="markers",
-                name="Infeasible (diagnostic)" if y_key in _CLAIM_Y else "Infeasible",
+                name="Infeasible",
                 marker=dict(color="rgba(160,160,160,0.35)", size=5),
             )
         )
@@ -140,8 +149,8 @@ def _metric_from_outputs(outs: dict, y_key: str) -> float:
     aliases = {
         "q95_proxy": ("q95",),
         "q95": ("q95_proxy",),
-        "P_e_net_MW": ("Pe_net_MW", "P_net_MW"),
-        "Pfus_total_MW": ("P_fus_MW", "Pfus_MW"),
+        "P_e_net_MW": ("Pe_net_MW", "P_net_e_MW", "P_net_MW"),
+        "Pfus_total_MW": ("P_fus_MW", "Pfus_MW", "Pfus_DT_adj_MW"),
         "Pfus_DT_adj_MW": ("Pfus_total_MW",),
         "Q_DT_eqv": ("Q", "Q_DT"),
         "H98": ("H_IPB98y2", "H98y2"),

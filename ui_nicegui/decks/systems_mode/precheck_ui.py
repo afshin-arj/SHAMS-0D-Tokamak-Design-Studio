@@ -153,17 +153,17 @@ def render_precheck_panel(
                 type="positive" if _precheck_ok(report) else "warning",
             )
             _status.refresh()
-            if on_precheck_complete:
-                on_precheck_complete()
         except Exception as exc:
             session.last_precheck_report = {"ok": False, "reason": "precheck_exception", "error": str(exc)}
             ui.notify(f"Precheck failed: {exc}", type="negative")
         finally:
             session.systems_precheck_running = False
             runlock_release("SystemsMode")
+            if on_precheck_complete:
+                on_precheck_complete()
 
     btn = ui.button("Run precheck", icon="play_arrow", on_click=_run_precheck).props("color=primary")
-    if disabled:
+    if disabled or session.systems_precheck_running:
         btn.props("disable")
 
     _status(session)
