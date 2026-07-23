@@ -181,9 +181,9 @@ def promote_atlas_inputs_to_point_designer(session: DesignSession) -> int:
             session.inputs[k] = v
             n += 1
     if n:
-        from ui_nicegui.lib.session_store import clear_point_designer
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
 
-        clear_point_designer(session)
+        invalidate_point_designer_after_seed(session)
     return n
 
 

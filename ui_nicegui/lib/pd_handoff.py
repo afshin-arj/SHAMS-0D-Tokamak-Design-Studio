@@ -10,6 +10,18 @@ def prepare_point_designer_handoff(session: DesignSession) -> None:
     session.pd_workflow_tab = "1 · Configure"
 
 
+def invalidate_point_designer_after_seed(session: DesignSession) -> None:
+    """Clear PD KPI caches after an external seed mutates inputs (no auto-eval).
+
+    Prevents STALE-with-wrong-machine heroes when Compare / Pareto / Trade /
+    Scan / Atlas / recovery promote a different design into ``session.inputs``.
+    Paths that immediately re-evaluate (e.g. Systems Apply) should not call this.
+    """
+    from ui_nicegui.lib.session_store import clear_point_designer
+
+    clear_point_designer(session)
+
+
 def navigate_to_point_designer(session: DesignSession) -> None:
     """Promote path: show Truth Console and remount Point Designer."""
     prepare_point_designer_handoff(session)

@@ -243,7 +243,8 @@ def _render_inspector(
 
             navigate_to_point_designer(session)
             ui.notify(
-                "Opened Point Designer Configure with probed cell inputs — KPIs STALE until Evaluate Point.",
+                "Opened Point Designer Configure with probed cell inputs — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
                 type="warning",
             )
 

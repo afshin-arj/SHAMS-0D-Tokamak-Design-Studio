@@ -53,7 +53,7 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
     if not feas_a or not feas_b:
         ui.label(
             "One or both slots are INFEASIBLE — Apply is a diagnostic seed handoff; "
-            "KPIs will be STALE until Evaluate Point."
+            "prior KPIs are cleared; Evaluate Point to re-certify."
         ).classes("text-caption text-orange q-mb-xs")
 
     def _apply(slot_art: dict, label: str, *, feasible: bool) -> None:
@@ -69,13 +69,14 @@ def render_export_panel(session: DesignSession, art_a: dict, art_b: dict) -> Non
             navigate_to_point_designer(session)
             if feasible:
                 ui.notify(
-                    f"Applied {n} input fields from slot {label} — KPIs marked STALE until Evaluate Point.",
+                    f"Applied {n} input fields from slot {label} — "
+                    "prior KPIs cleared; Evaluate Point to re-certify.",
                     type="warning",
                 )
             else:
                 ui.notify(
                     f"Applied {n} diagnostic (INFEASIBLE) fields from slot {label} — "
-                    "KPIs STALE until Evaluate Point.",
+                    "prior KPIs cleared; Evaluate Point to re-certify.",
                     type="warning",
                 )
         else:

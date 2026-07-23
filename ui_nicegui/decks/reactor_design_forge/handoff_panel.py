@@ -54,16 +54,17 @@ def render_archive_handoffs(
 
     def _promote() -> None:
         try:
-            from ui_nicegui.lib.session_store import clear_point_designer
+            from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
 
-            clear_point_designer(session)
+            invalidate_point_designer_after_seed(session)
             session.inputs = promote_archive_row(session.inputs, run_rep, _ix())
             session.pd_pending_forge_eval = True
             session.studio_entry_dismissed = True
             navigate_to_point_designer(session)
             ui.notify(
-                "Opened Point Designer with archive row inputs — Evaluate Point to refresh KPIs.",
-                type="positive",
+                "Opened Point Designer with archive row inputs — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
+                type="warning",
             )
             if on_complete:
                 on_complete()
