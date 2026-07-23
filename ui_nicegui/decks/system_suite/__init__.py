@@ -29,6 +29,7 @@ from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
+from ui_nicegui.lib.deck_busy_guard import SUITE_RUNNING_ATTRS, refresh_tab_if_idle
 
 _SUITE_OVERLAYS: Optional[dict[str, Any]] = None
 
@@ -179,21 +180,33 @@ def render_system_suite(session: DesignSession) -> None:
         if session.suite_running:
             ui.badge("Suite job running", color="orange").props("outline")
         with ui.row().classes("gap-4"):
+            def _on_guided(e) -> None:
+                sync_deck_guided_to_helm(session, bool(e.value), deck_attr="suite_teaching_mode")
+                refresh_tab_if_idle(
+                    session,
+                    running_attrs=SUITE_RUNNING_ATTRS,
+                    refresh=_render_tab_content.refresh,
+                    job_label="System Suite",
+                )
+
+            def _on_expert(e) -> None:
+                sync_deck_expert_to_helm(session, bool(e.value), deck_attr="suite_expert_view")
+                refresh_tab_if_idle(
+                    session,
+                    running_attrs=SUITE_RUNNING_ATTRS,
+                    refresh=_render_tab_content.refresh,
+                    job_label="System Suite",
+                )
+
             ui.switch(
                 "Guided mode",
                 value=session.suite_teaching_mode,
-                on_change=lambda e: (
-                    sync_deck_guided_to_helm(session, bool(e.value), deck_attr="suite_teaching_mode"),
-                    _render_tab_content.refresh(),
-                ),
+                on_change=_on_guided,
             )
             ui.switch(
                 "Expert view",
                 value=session.suite_expert_view,
-                on_change=lambda e: (
-                    sync_deck_expert_to_helm(session, bool(e.value), deck_attr="suite_expert_view"),
-                    _render_tab_content.refresh(),
-                ),
+                on_change=_on_expert,
             )
 
     _render_header(session, point_out)
@@ -205,7 +218,12 @@ def render_system_suite(session: DesignSession) -> None:
         if tab and session.suite_teaching_mode:
             session.suite_workflow_step = tab
             _render_tab_help.refresh()
-            _render_tab_content.refresh()
+            refresh_tab_if_idle(
+                session,
+                running_attrs=SUITE_RUNNING_ATTRS,
+                refresh=_render_tab_content.refresh,
+                job_label="System Suite",
+            )
 
     ui.select(
         DECISION_STATES,
@@ -228,7 +246,12 @@ def render_system_suite(session: DesignSession) -> None:
         on_change=lambda e: (
             setattr(session, "suite_workflow_step", normalize_suite_tab(str(e.value))),
             _render_tab_help.refresh(),
-            _render_tab_content.refresh(),
+            refresh_tab_if_idle(
+                session,
+                running_attrs=SUITE_RUNNING_ATTRS,
+                refresh=_render_tab_content.refresh,
+                job_label="System Suite",
+            ),
         ),
     ).classes("w-full q-mb-xs")
     _render_tab_help(session)

@@ -124,6 +124,54 @@ def watermark_campaign_preview_rows(rows: List[dict]) -> List[dict]:
     return out
 
 
+def watermark_campaign_jsonl_bytes(data: bytes) -> bytes:
+    """PHYS-KPI-001: download-time watermark of campaign JSONL (session bytes stay raw).
+
+    Dict rows with ``feasible_hard`` False (or ``feasible`` False) have claim KPI
+    keys replaced via ``format_claim_kpi_for_table`` — same rule as
+    ``watermark_campaign_preview_rows``. Non-JSON lines are kept as-is.
+    """
+    import json
+
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
+    if not data:
+        return b""
+    raw = data.decode("utf-8", errors="replace")
+    out_lines: List[str] = []
+    for line in raw.splitlines(keepends=False):
+        stripped = line.strip()
+        if not stripped:
+            out_lines.append(line)
+            continue
+        try:
+            obj = json.loads(stripped)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            out_lines.append(line)
+            continue
+        if not isinstance(obj, dict):
+            out_lines.append(json.dumps(obj, default=str, ensure_ascii=False))
+            continue
+        if "feasible_hard" in obj:
+            infeasible = not bool(obj.get("feasible_hard"))
+        elif "feasible" in obj:
+            infeasible = not bool(obj.get("feasible"))
+        else:
+            infeasible = False
+        if infeasible:
+            rr = dict(obj)
+            for k, v in list(rr.items()):
+                if is_claim_kpi_key(str(k)):
+                    rr[k] = format_claim_kpi_for_table(str(k), v, feasible=False)
+            out_lines.append(json.dumps(rr, default=str, ensure_ascii=False))
+        else:
+            out_lines.append(json.dumps(obj, default=str, ensure_ascii=False))
+    body = "\n".join(out_lines)
+    if raw.endswith("\n") and body:
+        body += "\n"
+    return body.encode("utf-8")
+
+
 def list_parity_cases(suite: str) -> List[Tuple[str, Path]]:
     try:
         from src.parity_harness.case_io import discover_cases

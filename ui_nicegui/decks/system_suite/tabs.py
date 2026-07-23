@@ -917,10 +917,17 @@ def render_campaign_pack(ctx: SuiteContext) -> None:
                 ).classes("w-full")
         data = ctx.session.suite_campaign_jsonl_bytes
         if isinstance(data, (bytes, bytearray)):
+            from ui_nicegui.lib.suite_extended_helpers import watermark_campaign_jsonl_bytes
+
+            raw = bytes(data)
+
+            def _dl_results(payload: bytes = raw) -> None:
+                ui.download(watermark_campaign_jsonl_bytes(payload), "campaign_results.jsonl")
+
             ui.button(
                 "Download results.jsonl",
                 icon="download",
-                on_click=lambda: ui.download(bytes(data), "campaign_results.jsonl"),
+                on_click=_dl_results,
             ).props("flat outline")
 
     _camp_preview()

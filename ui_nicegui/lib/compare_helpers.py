@@ -37,9 +37,14 @@ def _pick_output(out: dict, key: str) -> Any:
         "P_fus_MW": ["Pfus_total_MW"],
         "Bpeak_TF_T": ["B_peak_T"],
         "B_peak_T": ["Bpeak_TF_T"],
-        "P_e_net_MW": ["P_net_e_MW", "Pnet_MWe"],
-        "P_net_e_MW": ["P_e_net_MW", "Pnet_MWe"],
-        "Pnet_MWe": ["P_e_net_MW", "P_net_e_MW"],
+        "P_e_net_MW": ["P_net_e_MW", "Pnet_MWe", "Pe_net_MW", "P_net_MW"],
+        "P_net_e_MW": ["P_e_net_MW", "Pnet_MWe", "Pe_net_MW", "P_net_MW"],
+        "Pnet_MWe": ["P_e_net_MW", "P_net_e_MW", "Pe_net_MW"],
+        "Pe_net_MW": ["P_e_net_MW", "P_net_e_MW", "P_net_MW"],
+        "H98": ["H_IPB98y2", "H98y2", "H_IPB98"],
+        "H_IPB98y2": ["H98", "H98y2", "H_IPB98"],
+        "tauE_eff_s": ["tau_E_s", "tauE_s"],
+        "tau_E_s": ["tauE_eff_s", "tauE_s"],
         "beta_N": ["betaN", "betaN_proxy"],
         "betaN": ["beta_N", "betaN_proxy"],
         "q95": ["q95_proxy"],
@@ -649,6 +654,8 @@ def structural_diff_report(art_a: dict, art_b: dict) -> dict | None:
 
 
 def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_scenario_delta_export
+
     summary = summarize_comparison(art_a, art_b)
     # Row builders already watermark claim KPI cells per-slot feasibility.
     key_metrics = metric_diff_rows(art_a, art_b)
@@ -660,6 +667,13 @@ def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
             "PHYS-KPI-001: claim KPI values in key_metrics / kpi_diff / all_output_deltas "
             "on INFEASIBLE slots are — (diagnostic) — not design claims."
         )
+    sd = embedded_scenario_delta(art_b)
+    if isinstance(sd, dict):
+        sd = watermark_scenario_delta_export(
+            sd,
+            feasible_base=bool(summary.get("feasible_a")),
+            feasible_scenario=bool(summary.get("feasible_b")),
+        )
     return {
         "summary": summary,
         "phys_kpi_note": note,
@@ -669,6 +683,6 @@ def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
         "subsystem_diff": subsystem_diff_rows(art_a, art_b),
         "input_changes": input_diff_rows(art_a, art_b),
         "kpi_diff": kpi_diff,
-        "scenario_delta": embedded_scenario_delta(art_b),
+        "scenario_delta": sd,
         "structural_diff": structural_diff_report(art_a, art_b),
     }

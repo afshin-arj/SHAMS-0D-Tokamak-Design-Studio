@@ -192,18 +192,26 @@ def test_systems_export_bytes_watermarks_run_cards_payload():
 
 
 def test_deck_busy_guard_pub_and_systems_atlas_attrs():
-    from ui_nicegui.lib.deck_busy_guard import PUB_RUNNING_ATTRS, SYSTEMS_RUNNING_ATTRS
+    from ui_nicegui.lib.deck_busy_guard import (
+        PUB_RUNNING_ATTRS,
+        SUITE_RUNNING_ATTRS,
+        SYSTEMS_RUNNING_ATTRS,
+    )
 
     assert "pub_running" in PUB_RUNNING_ATTRS
     assert "pub_atlas_running" in PUB_RUNNING_ATTRS
     assert "pub_atlas_fragility_running" in PUB_RUNNING_ATTRS
     assert "pub_bench_running" in PUB_RUNNING_ATTRS
     assert "systems_atlas_running" in SYSTEMS_RUNNING_ATTRS
+    assert "suite_running" in SUITE_RUNNING_ATTRS
     pub_src = Path("ui_nicegui/decks/publication_benchmarks/__init__.py").read_text(encoding="utf-8")
     assert "PUB_RUNNING_ATTRS" in pub_src
     assert "refresh_tab_if_idle" in pub_src
     sys_src = Path("ui_nicegui/decks/systems_mode/__init__.py").read_text(encoding="utf-8")
     assert "SYSTEMS_RUNNING_ATTRS" in sys_src
+    suite_src = Path("ui_nicegui/decks/system_suite/__init__.py").read_text(encoding="utf-8")
+    assert "SUITE_RUNNING_ATTRS" in suite_src
+    assert "refresh_tab_if_idle" in suite_src
 
 
 def test_cartography_activates_progress_timer_when_scan_running_on_remount():

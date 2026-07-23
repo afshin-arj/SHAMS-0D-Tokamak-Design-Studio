@@ -42,3 +42,5 @@ PUB_RUNNING_ATTRS = (
     "pub_atlas_fragility_running",
     "pub_bench_running",
 )
+
+SUITE_RUNNING_ATTRS = ("suite_running",)
