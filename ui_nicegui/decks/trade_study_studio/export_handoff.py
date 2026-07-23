@@ -94,7 +94,11 @@ def render_export_tab(
             return
         promote_row(session, row, bound_keys)
         navigate_to_point_designer(session)
-        ui.notify("Opened Point Designer Configure with study inputs.", type="positive")
+        ui.notify(
+            "Opened Point Designer Configure with study inputs — "
+            "prior KPIs cleared; Evaluate Point to re-certify.",
+            type="warning",
+        )
 
     ui.button("Promote to Point Designer", icon="upload", on_click=_promote).props("outline")
 

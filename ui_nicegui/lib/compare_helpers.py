@@ -286,7 +286,11 @@ def subsystem_diff_rows(art_a: dict, art_b: dict) -> List[Dict[str, Any]]:
 
 
 def apply_artifact_inputs(session, art: dict) -> int:
-    """Copy PointInputs from a compare artifact into session.inputs."""
+    """Copy PointInputs from a compare artifact into session.inputs.
+
+    Clears Point Designer eval caches when any fields are applied so prior-machine
+    KPIs cannot linger beside the new seed (parity with Atlas / Forge promote).
+    """
     inp = normalize_compare_artifact(art).get("inputs") or {}
     n = 0
     for k, v in inp.items():
@@ -297,6 +301,10 @@ def apply_artifact_inputs(session, art: dict) -> int:
             n += 1
         except (TypeError, ValueError):
             pass
+    if n:
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+        invalidate_point_designer_after_seed(session)
     return n
 
 

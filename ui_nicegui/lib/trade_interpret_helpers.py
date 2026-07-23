@@ -55,12 +55,18 @@ def restore_study_capsule(payload: dict) -> dict:
 
 
 def promote_row(session, row: dict, bound_keys: list[str]) -> None:
+    n = 0
     for k in bound_keys:
         if k in row and row[k] is not None:
             try:
                 session.inputs[k] = float(row[k])
+                n += 1
             except (TypeError, ValueError):
                 pass
+    if n:
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+        invalidate_point_designer_after_seed(session)
 
 
 def capsule_from_restore(payload: dict) -> dict:

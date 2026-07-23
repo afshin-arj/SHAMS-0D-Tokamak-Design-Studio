@@ -123,11 +123,16 @@ def _render_promote_handoff(session: DesignSession, pareto: list[dict], pareto_l
                         session.inputs[k] = float(row[k])
                     except (TypeError, ValueError):
                         pass
-            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+            from ui_nicegui.lib.pd_handoff import (
+                invalidate_point_designer_after_seed,
+                navigate_to_point_designer,
+            )
 
+            invalidate_point_designer_after_seed(session)
             navigate_to_point_designer(session)
             ui.notify(
-                "Opened Point Designer Configure with frontier inputs — KPIs STALE until Evaluate Point.",
+                "Opened Point Designer Configure with frontier inputs — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
                 type="warning",
             )
 

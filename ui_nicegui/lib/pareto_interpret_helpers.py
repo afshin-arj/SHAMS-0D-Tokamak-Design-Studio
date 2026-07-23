@@ -143,6 +143,9 @@ def promote_point_inputs(session, row: dict, bounds: dict) -> None:
             except (TypeError, ValueError):
                 pass
     session.inputs = {k: merged[k] for k in merged}
+    from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+    invalidate_point_designer_after_seed(session)
 
 
 def systems_mode_handoff(row: dict, bounds: dict) -> dict:

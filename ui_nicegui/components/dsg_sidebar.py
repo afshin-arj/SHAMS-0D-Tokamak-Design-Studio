@@ -117,10 +117,17 @@ def _dsg_body(session: DesignSession) -> None:
             ok = False
         if ok:
             log_ui_event(session, "UI", "DSGAdopt", {"node_id": sel})
-            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+            from ui_nicegui.lib.pd_handoff import (
+                invalidate_point_designer_after_seed,
+                navigate_to_point_designer,
+            )
 
+            invalidate_point_designer_after_seed(session)
             navigate_to_point_designer(session)
-            ui.notify("Adopted active node — opened Point Designer Configure.", type="positive")
+            ui.notify(
+                "Adopted active node — prior KPIs cleared; Evaluate Point to re-certify.",
+                type="warning",
+            )
         else:
             ui.notify("Could not adopt node (missing or incompatible inputs).", type="warning")
 

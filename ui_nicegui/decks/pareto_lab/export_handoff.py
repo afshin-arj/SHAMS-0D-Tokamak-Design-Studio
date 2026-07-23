@@ -86,7 +86,11 @@ def render_export_tab(
             return
         promote_point_inputs(session, pareto[i], bounds)
         navigate_to_point_designer(session)
-        ui.notify("Opened Point Designer Configure with frontier inputs.", type="positive")
+        ui.notify(
+            "Opened Point Designer Configure with frontier inputs — "
+            "prior KPIs cleared; Evaluate Point to re-certify.",
+            type="warning",
+        )
 
     ui.button("Promote to Point Designer", icon="upload", on_click=_promote_pd).props("outline")
 

@@ -520,9 +520,15 @@ def families_json_bytes(art: dict) -> bytes:
 
 def apply_probe_to_session(session, rep: dict, cell: dict) -> None:
     cand = probe_promote_inputs(rep, cell)
+    n = 0
     for k, v in cand.items():
         if k in session.inputs:
             try:
                 session.inputs[k] = float(v)
+                n += 1
             except (TypeError, ValueError):
                 pass
+    if n:
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+        invalidate_point_designer_after_seed(session)

@@ -211,20 +211,25 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             )
             return
         applied = apply_x_to_session(session, rep["best_point"])
-        from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+        from ui_nicegui.lib.pd_handoff import (
+            invalidate_point_designer_after_seed,
+            navigate_to_point_designer,
+        )
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
+        invalidate_point_designer_after_seed(session)
         refresh_helm()
         refresh_status()
         navigate_to_point_designer(session)
         if bool(rep.get("ok")):
             ui.notify(
-                f"Applied {len(applied)} variables — KPIs STALE until Evaluate Point.",
+                f"Applied {len(applied)} variables — prior KPIs cleared; Evaluate Point to re-certify.",
                 type="warning",
             )
         else:
             ui.notify(
-                f"Applied {len(applied)} diagnostic (INFEASIBLE) variables — KPIs STALE until Evaluate Point.",
+                f"Applied {len(applied)} diagnostic (INFEASIBLE) variables — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
                 type="warning",
             )
 
