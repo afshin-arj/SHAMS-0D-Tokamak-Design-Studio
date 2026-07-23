@@ -375,12 +375,12 @@ def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:
         "q_a": sa.get("q_label", "-") if bool(sa.get("feasible")) else "— (diagnostic)",
         "q_b": sb.get("q_label", "-") if bool(sb.get("feasible")) else "— (diagnostic)",
         "h98_a": (
-            _fmt_kpi((na.get("outputs") or {}).get("H98"))
+            _fmt_kpi(_pick_output(na.get("outputs") or {}, "H98"))
             if bool(sa.get("feasible"))
             else "— (diagnostic)"
         ),
         "h98_b": (
-            _fmt_kpi((nb.get("outputs") or {}).get("H98"))
+            _fmt_kpi(_pick_output(nb.get("outputs") or {}, "H98"))
             if bool(sb.get("feasible"))
             else "— (diagnostic)"
         ),

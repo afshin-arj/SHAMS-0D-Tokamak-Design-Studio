@@ -121,6 +121,30 @@ def test_pick_output_resolves_pe_net_and_h98_aliases():
     assert _pick_output({"tauE_s": 1.8}, "tauE_eff_s") == 1.8
 
 
+def test_summarize_comparison_h98_uses_pick_output_aliases():
+    from ui_nicegui.lib.compare_helpers import summarize_comparison
+
+    art = {
+        "outputs": {
+            "H_IPB98y2": 1.12,
+            "Pfus_total_MW": 400.0,
+            "hard_feasible": True,
+            "constraints_failed": [],
+        },
+        "constraints": [],
+    }
+    # If verdict treats empty constraints as infeasible, still assert _pick_output path in source.
+    src = Path("ui_nicegui/lib/compare_helpers.py").read_text(encoding="utf-8")
+    assert '_pick_output(na.get("outputs") or {}, "H98")' in src
+    assert '.get("H98")' not in src.split("def summarize_comparison")[1].split("def ")[0]
+
+    s = summarize_comparison(art, art)
+    # Feasible or diagnostic — alias path must not blank solely for missing canonical H98 key.
+    assert s.get("h98_a") not in (None,)
+    if s.get("feasible_a"):
+        assert "1.12" in str(s.get("h98_a"))
+
+
 def test_suite_busy_guard_wires_refresh_tab_if_idle():
     from ui_nicegui.lib.deck_busy_guard import SUITE_RUNNING_ATTRS
 

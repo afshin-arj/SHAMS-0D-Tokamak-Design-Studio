@@ -380,6 +380,7 @@ class DesignSession:
     forge_override_ip: float = 0.0
     forge_compiling: bool = False
     forge_auditing: bool = False
+    forge_instrument_running: bool = False
     # Forge Phase 14 — Machine Finder + Capsules
     forge_mf_intent_label: str = "Power Reactor (net-electric)"
     forge_mf_pack_name: str = ""

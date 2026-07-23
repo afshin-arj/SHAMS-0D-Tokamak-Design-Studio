@@ -8,6 +8,7 @@ from nicegui import run, ui
 
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.lib.deck_busy_guard import FORGE_RUNNING_ATTRS, refresh_tab_if_idle
 from ui_nicegui.lib.forge_instrument_data import ALL_INSTRUMENTS, INSTRUMENT_CAPTIONS, INSTRUMENT_GROUPS
 from ui_nicegui.lib.forge_instrument_engine import (
     ForgeContext,
@@ -69,17 +70,39 @@ def render_instruments_tab(
     ).classes("w-full q-mb-sm")
 
     def _sync_group(g: str) -> None:
+        if any(bool(getattr(session, a, False)) for a in FORGE_RUNNING_ATTRS):
+            ui.notify(
+                "Forge job running — wait until it finishes before changing instruments.",
+                type="warning",
+            )
+            return
         session.forge_instrument_group = g
         tlist = INSTRUMENT_GROUPS.get(g, [])
         session.forge_instrument_tool = tlist[0] if tlist else ""
         tool_sel.set_options(tlist, value=session.forge_instrument_tool)
-        _render_body.refresh()
+        refresh_tab_if_idle(
+            session,
+            running_attrs=FORGE_RUNNING_ATTRS,
+            refresh=_render_body.refresh,
+            job_label="Reactor Design Forge",
+        )
 
     grp_sel.on("update:model-value", lambda e: _sync_group(str(e.value)))
 
     def _sync_tool(t: str) -> None:
+        if any(bool(getattr(session, a, False)) for a in FORGE_RUNNING_ATTRS):
+            ui.notify(
+                "Forge job running — wait until it finishes before changing instruments.",
+                type="warning",
+            )
+            return
         session.forge_instrument_tool = t
-        _render_body.refresh()
+        refresh_tab_if_idle(
+            session,
+            running_attrs=FORGE_RUNNING_ATTRS,
+            refresh=_render_body.refresh,
+            job_label="Reactor Design Forge",
+        )
 
     tool_sel.on("update:model-value", lambda e: _sync_tool(str(e.value)))
 
@@ -138,6 +161,10 @@ def _render_body(session: DesignSession, *, review_mode: bool = False) -> None:
             render_json_blob(view.json_blob)
     if view.download:
         data, fname, mime = view.download
+        if str(fname).lower().endswith(".zip") and isinstance(data, (bytes, bytearray)):
+            from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+            data = watermark_extopt_zip_bytes(bytes(data))
         ui.download_button(f"Download {fname}", data=data, file_name=fname).props(f'mime-type="{mime}"')
 
     if tool == "Trace telemetry":
@@ -290,6 +317,7 @@ def _local_cartography_controls(session: DesignSession, ctx: ForgeContext, revie
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         lease = current_lease()
+        session.forge_instrument_running = True
         from ui_nicegui.lib.forge_instrument_engine import run_local_cartography
 
         try:
@@ -303,6 +331,7 @@ def _local_cartography_controls(session: DesignSession, ctx: ForgeContext, revie
         except Exception as exc:
             ui.notify(f"Cartography failed: {exc}", type="negative")
         finally:
+            session.forge_instrument_running = False
             if lease_valid(lease):
                 runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
@@ -341,6 +370,7 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         lease = current_lease()
+        session.forge_instrument_running = True
         from ui_nicegui.lib.forge_instrument_engine import run_robustness_mc
 
         try:
@@ -354,6 +384,7 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
         except Exception as exc:
             ui.notify(f"Monte Carlo failed: {exc}", type="negative")
         finally:
+            session.forge_instrument_running = False
             if lease_valid(lease):
                 runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
@@ -396,6 +427,7 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         lease = current_lease()
+        session.forge_instrument_running = True
         from ui_nicegui.lib.forge_machine_finder_helpers import run_machine_finder, compute_bounds, objectives_for_pack
 
         results = []
@@ -442,6 +474,7 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
             ui.notify("Casebook run complete", type="positive")
             _render_body.refresh()
         finally:
+            session.forge_instrument_running = False
             if lease_valid(lease):
                 runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
@@ -485,7 +518,9 @@ def _collaboration_controls(session: DesignSession, ctx: ForgeContext, review_mo
         try:
             from tools.sandbox.tier7 import ReviewSession, export_review_session_zip
 
-            blob = export_review_session_zip(ReviewSession.from_dict(rs))
+            from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+            blob = watermark_extopt_zip_bytes(export_review_session_zip(ReviewSession.from_dict(rs)))
             ui.download(blob, "review_session.zip")
         except Exception as exc:
             ui.notify(f"Export failed: {exc}", type="negative")

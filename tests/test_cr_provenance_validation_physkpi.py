@@ -62,6 +62,24 @@ def test_regression_soft_fail_not_new_failure():
     assert d["new_failures"] == []
 
 
+def test_regression_outputs_fallback_resolves_h98_tauE_pe_net_aliases():
+    from ui_nicegui.lib.cr_provenance_helpers import regression_artifact_diff
+
+    a = {
+        "outputs": {"H_IPB98y2": 1.1, "Pe_net_MW": 50.0, "tauE_s": 1.5, "Q": 8.0},
+        "constraints": [],
+    }
+    b = {
+        "outputs": {"H98y2": 1.2, "P_net_MW": 55.0, "tau_E_s": 1.6, "Q": 9.0},
+        "constraints": [],
+    }
+    d = regression_artifact_diff(a, b)
+    kpis = {r["kpi"] for r in d["kpi_rows"]}
+    assert "H98" in kpis
+    assert "tauE_eff_s" in kpis
+    assert "P_e_net_MW" in kpis
+
+
 def test_governance_q_label_diagnostic_on_infeasible():
     from ui_nicegui.lib.control_room_helpers import governance_summary
 

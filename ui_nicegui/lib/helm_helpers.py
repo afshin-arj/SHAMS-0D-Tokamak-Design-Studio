@@ -317,9 +317,12 @@ def force_clear_stuck_runs(session: "DesignSession") -> list[str]:
     from ui_nicegui.lib import run_lock
 
     cleared: list[str] = []
+    # Include Forge compile/audit flags that do not end in ``_running`` but still
+    # trip FORGE_RUNNING_ATTRS remount guards (Helm force-clear recovery).
+    _extra_busy = ("forge_compiling", "forge_auditing")
     for f in fields(session):
         name = f.name
-        if name != "evaluating" and not name.endswith("_running"):
+        if name != "evaluating" and not name.endswith("_running") and name not in _extra_busy:
             continue
         if bool(getattr(session, name, False)):
             setattr(session, name, False)

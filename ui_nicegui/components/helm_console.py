@@ -227,6 +227,9 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         or getattr(session, "phase_envelopes_running", False)
         or getattr(session, "uq_contract_running", False)
         or session.forge_mf_running
+        or getattr(session, "forge_compiling", False)
+        or getattr(session, "forge_auditing", False)
+        or getattr(session, "forge_instrument_running", False)
         or session.suite_running
         or session.pub_running
         or session.pub_atlas_running

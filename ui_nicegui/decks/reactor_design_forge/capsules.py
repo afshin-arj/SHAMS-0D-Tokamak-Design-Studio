@@ -200,11 +200,14 @@ def _render_export(session: DesignSession) -> None:
 def _audit_pack_btn(session: DesignSession) -> None:
     data = getattr(session, "forge_audit_pack_bytes", None)
     if isinstance(data, (bytes, bytearray)) and len(data) > 100:
+        from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+        wm = watermark_extopt_zip_bytes(bytes(data))
         ui.button(
             "Download Audit Pack",
             icon="download",
             on_click=lambda: ui.download(
-                bytes(data),
+                wm,
                 getattr(session, "forge_audit_pack_name", None) or "shams_forge_audit_pack.zip",
             ),
         ).props("color=primary flat q-mt-sm")
@@ -214,11 +217,14 @@ def _audit_pack_btn(session: DesignSession) -> None:
 def _export_btn(session: DesignSession) -> None:
     data = session.forge_capsule_zip_bytes
     if isinstance(data, (bytes, bytearray)) and len(data) > 100:
+        from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+        wm = watermark_extopt_zip_bytes(bytes(data))
         ui.button(
             "Download capsule zip",
             icon="download",
             on_click=lambda: ui.download(
-                bytes(data),
+                wm,
                 session.forge_capsule_zip_name or "opt_capsule.zip",
             ),
         ).props("color=primary flat q-mt-sm")
