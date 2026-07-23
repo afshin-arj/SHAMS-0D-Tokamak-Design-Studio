@@ -25,6 +25,9 @@ def consume_systems_mode_queue(session: Any) -> bool:
             except (TypeError, ValueError):
                 pass
     if applied:
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+        invalidate_point_designer_after_seed(session)
         session.systems_workflow_step = "1 · Targets"
         try:
             from ui_nicegui.lib.navigation import refresh_helm, refresh_status
@@ -34,7 +37,8 @@ def consume_systems_mode_queue(session: Any) -> bool:
         except Exception:
             pass
         ui.notify(
-            f"Pareto handoff applied ({applied} inputs) — KPIs STALE until re-evaluate.",
+            f"Pareto handoff applied ({applied} inputs) — prior KPIs cleared; "
+            "re-evaluate / Precheck before trusting Systems posture.",
             type="warning",
         )
         return True

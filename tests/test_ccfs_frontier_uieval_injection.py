@@ -56,12 +56,13 @@ def test_compare_helpers_watermark_claim_kpis():
     assert "PHYS-KPI-001" in inspect.getsource(ch.comparison_markdown)
 
 
-def test_systems_handoff_marks_stale_and_refreshes_helm():
+def test_systems_handoff_clears_pd_kpis_and_refreshes_helm():
     from ui_nicegui.lib import systems_handoff as sh
 
     src = inspect.getsource(sh.consume_systems_mode_queue)
-    assert "STALE" in src
+    assert "invalidate_point_designer_after_seed" in src
     assert "refresh_helm" in src
+    assert "prior KPIs cleared" in src
 
 
 def test_frontier_panel_distinguishes_best_effort():

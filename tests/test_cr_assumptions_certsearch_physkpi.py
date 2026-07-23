@@ -60,3 +60,37 @@ def test_certified_search_ui_wires_watermark():
     src = Path("ui_nicegui/decks/control_room/certified_search.py").read_text(encoding="utf-8")
     assert "watermark_certified_search_rows" in src
     assert "PHYS-KPI-001" in src
+    assert "promote_certified_search_x_to_point_designer" in src
+    assert "Promote best → Point Designer" in src
+
+
+def test_promote_certified_search_best_clears_pd():
+    from ui_nicegui.decks.control_room.certified_search import (
+        promote_certified_search_x_to_point_designer,
+    )
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.pd_last_outputs = {"Q_DT_eqv": 99.0}
+    s.pd_last_artifact = {"outputs": {"Q_DT_eqv": 99.0}}
+    s.pd_last_run_ts = 1.0
+    before = float(s.inputs.get("Ip_MA", 0) or 0)
+    n = promote_certified_search_x_to_point_designer(
+        s, {"stage": "s1", "score": 1.0, "x": {"Ip_MA": before + 1.5}}
+    )
+    assert n >= 1
+    assert float(s.inputs["Ip_MA"]) == before + 1.5
+    assert s.pd_last_outputs is None
+    assert s.pd_last_artifact is None
+
+
+def test_systems_base_and_queue_invalidate_wired():
+    assert "invalidate_point_designer_after_seed" in Path(
+        "ui_nicegui/lib/systems_handoff.py"
+    ).read_text(encoding="utf-8")
+    assert "invalidate_point_designer_after_seed" in Path(
+        "ui_nicegui/lib/systems_state_helpers.py"
+    ).read_text(encoding="utf-8")
+    assert "prior Point Designer KPIs cleared" in Path(
+        "ui_nicegui/decks/systems_mode/base_design_ui.py"
+    ).read_text(encoding="utf-8")

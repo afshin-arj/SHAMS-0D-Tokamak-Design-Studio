@@ -257,6 +257,36 @@ def watermark_certified_search_rows(rows: list) -> list[dict]:
     return out_rows
 
 
+def promote_certified_search_x_to_point_designer(session: DesignSession, best: dict) -> int:
+    """Seed ``best['x']`` (or flat knobs) into Point Designer and clear prior KPIs."""
+    if not isinstance(best, dict):
+        return 0
+    x = best.get("x") if isinstance(best.get("x"), dict) else None
+    if not x:
+        # Flattened table rows store knobs at top level.
+        x = {
+            k: v
+            for k, v in best.items()
+            if k in (session.inputs or {}) and v is not None and k not in (
+                "stage", "i", "verdict", "score", "x", "evidence"
+            )
+        }
+    n = 0
+    for k, v in (x or {}).items():
+        if k not in session.inputs:
+            continue
+        try:
+            session.inputs[k] = float(v)
+            n += 1
+        except (TypeError, ValueError):
+            pass
+    if n:
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+        invalidate_point_designer_after_seed(session)
+    return n
+
+
 @ui.refreshable
 def _results(session: DesignSession) -> None:
     art = session.v340_cert_search_last
@@ -296,7 +326,8 @@ def _results(session: DesignSession) -> None:
     if isinstance(best, dict):
         with ui.expansion(BEST_PROPOSED_LABEL, icon="star").classes("w-full"):
             bv = str(best.get("verdict") or "").upper()
-            if bv in ("PASS", "VERIFIED", "FEASIBLE", "OK"):
+            if bv in ("PASS", "VERIFIED", "FEASIBLE", "OK") or not bv:
+                # Single-objective best blob may omit verdict (PASS-only ranking).
                 render_json_blob(best)
             else:
                 wm = watermark_certified_search_rows([best])
@@ -304,6 +335,29 @@ def _results(session: DesignSession) -> None:
                 ui.label(
                     "PHYS-KPI-001: best blob claim FoMs watermarked — not VERIFIED design claims."
                 ).classes("text-caption text-orange")
+
+        def _promote_best() -> None:
+            n = promote_certified_search_x_to_point_designer(session, best)
+            if n <= 0:
+                ui.notify("Best candidate has no overlapping inputs to promote.", type="warning")
+                return
+            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+            refresh_helm()
+            refresh_status()
+            navigate_to_point_designer(session)
+            ui.notify(
+                f"Promoted {n} certified-search knobs → Point Designer — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
+                type="warning",
+            )
+
+        ui.button(
+            "Promote best → Point Designer",
+            icon="upload",
+            on_click=_promote_best,
+        ).props("outline color=primary q-mt-sm data-testid=cr-cert-promote-best")
 
     def _download_cert() -> None:
         export = dict(art)

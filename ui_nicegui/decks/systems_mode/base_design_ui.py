@@ -49,8 +49,8 @@ def render_base_design_editor(session: DesignSession) -> None:
         session.systems_base_overrides = overrides
         merge_base_overrides_into_session(session, overrides)
         ui.notify(
-            "Starting machine updated — Point Designer KPIs may be STALE until re-evaluate.",
-            type="positive",
+            "Starting machine updated — prior Point Designer KPIs cleared; Evaluate Point to re-certify.",
+            type="warning",
         )
     def _undo_base() -> None:
         hist = list(session.systems_base_history or [])
@@ -64,6 +64,9 @@ def render_base_design_editor(session: DesignSession) -> None:
         for k, v in prev.items():
             if k in session.inputs:
                 session.inputs[k] = float(v)
+        from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
+
+        invalidate_point_designer_after_seed(session)
         try:
             from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -71,7 +74,7 @@ def render_base_design_editor(session: DesignSession) -> None:
             refresh_status()
         except Exception:
             pass
-        ui.notify("Undid last base change — KPIs may be STALE until re-evaluate.", type="warning")
+        ui.notify("Undid last base change — prior KPIs cleared; Evaluate Point to re-certify.", type="warning")
 
     ui.button("Apply to session", icon="save", on_click=_capture).props("outline q-mt-sm")
     ui.button("Undo", icon="undo", on_click=_undo_base).props("flat q-ml-sm")
