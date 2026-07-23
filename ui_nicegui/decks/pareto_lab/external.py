@@ -29,6 +29,8 @@ from ui_nicegui.lib.external_optimizer_helpers import (
     run_optimizer_job,
     run_orchestrator_v385,
     run_robust_pareto_frontier,
+    watermark_concept_cockpit_export,
+    watermark_extopt_zip_bytes,
 )
 from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.session import DesignSession
@@ -417,10 +419,19 @@ def _render_extopt_workbench(session: DesignSession) -> None:
 def _wb_dl(session: DesignSession) -> None:
     p = session.extopt_workbench_last
     if isinstance(p, str) and Path(p).is_file():
+        ui.label(
+            "PHYS-KPI-001: claim FoMs on INFEASIBLE artifacts inside the ZIP are "
+            "watermarked as diagnostic on download."
+        ).classes("text-caption text-grey q-mb-xs")
+
+        def _dl() -> None:
+            raw = Path(p).read_bytes()
+            ui.download(watermark_extopt_zip_bytes(raw), Path(p).name)
+
         ui.button(
             "Download optimizer bundle ZIP",
             icon="download",
-            on_click=lambda: ui.download(Path(p).read_bytes(), Path(p).name),
+            on_click=_dl,
         ).props("flat outline")
 
 
@@ -489,10 +500,18 @@ def _suite_view(session: DesignSession) -> None:
     ])
     zpath = last.get("bundle_zip")
     if isinstance(zpath, str) and Path(zpath).is_file():
+        ui.label(
+            "PHYS-KPI-001: evidence bundle download watermarks INFEASIBLE claim FoMs."
+        ).classes("text-caption text-grey q-mb-xs")
+
+        def _dl_suite() -> None:
+            raw = Path(zpath).read_bytes()
+            ui.download(watermark_extopt_zip_bytes(raw), Path(zpath).name)
+
         ui.button(
             "Download evidence bundle ZIP",
             icon="download",
-            on_click=lambda: ui.download(Path(zpath).read_bytes(), Path(zpath).name),
+            on_click=_dl_suite,
         ).props("flat outline")
 
 
@@ -677,10 +696,16 @@ def _cockpit_view(session: DesignSession) -> None:
             ("N", str(summary.get("n_total", summary.get("n", "-")))),
             ("Feasible", str(summary.get("n_feasible", "-"))),
         ])
+        ui.label(
+            "PHYS-KPI-001: hard-infeasible claim FoMs are — (diagnostic) in the download."
+        ).classes("text-caption text-grey q-mb-xs")
         ui.button(
             "Download results JSON",
             icon="download",
-            on_click=lambda: ui.download(report_to_json_bytes(rep), "concept_cockpit_results.json"),
+            on_click=lambda: ui.download(
+                report_to_json_bytes(watermark_concept_cockpit_export(rep)),
+                "concept_cockpit_results.json",
+            ),
         ).props("flat outline")
 
 

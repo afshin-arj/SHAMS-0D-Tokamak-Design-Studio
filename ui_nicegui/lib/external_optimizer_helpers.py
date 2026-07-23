@@ -8,7 +8,7 @@ import sys
 import zipfile
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from ui_nicegui.bootstrap import repo_root
 from ui_nicegui.evaluate import ui_evaluate
@@ -358,6 +358,160 @@ def atlas_evidence_zip(atlas: dict) -> bytes:
             zf.writestr(path, content)
             zf.writestr(f"{base}/MANIFEST_SHA256.txt", f"{hashlib.sha256(content).hexdigest()}  {path}\n")
     return bio.getvalue()
+
+
+def _row_claim_infeasible(row: Mapping[str, Any]) -> bool:
+    """True when a candidate/row should have claim FoMs watermarked (PHYS-KPI-001)."""
+    if not isinstance(row, Mapping):
+        return False
+    if "feasible_hard" in row:
+        return not bool(row.get("feasible_hard"))
+    if "nominal_feasible" in row:
+        return not bool(row.get("nominal_feasible"))
+    if "feasible" in row:
+        return not bool(row.get("feasible"))
+    if "is_feasible" in row:
+        return not bool(row.get("is_feasible"))
+    verdict = str(row.get("verdict") or row.get("intent_verdict") or row.get("tier") or "").upper()
+    if verdict in ("INFEASIBLE", "FAIL", "REJECTED", "NO-SOLUTION", "NO_SOLUTION"):
+        return True
+    if verdict.startswith("FAIL") or verdict.startswith("INFEAS"):
+        return True
+    return False
+
+
+def watermark_extopt_json_obj(obj: Any) -> Any:
+    """PHYS-KPI-001: watermark claim FoMs inside ExtOpt JSON payloads (best-effort)."""
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        format_claim_kpi_for_table,
+        is_claim_kpi_key,
+        watermark_claim_kpi_map,
+        watermark_regime_atlas_export,
+        watermark_robust_pareto_export,
+    )
+
+    if isinstance(obj, list):
+        return [watermark_extopt_json_obj(x) for x in obj]
+    if not isinstance(obj, dict):
+        return obj
+
+    # Known high-level schemas first.
+    schema = str(obj.get("schema") or "")
+    if "regime" in schema.lower() or "pareto_sets" in obj:
+        return watermark_regime_atlas_export(obj)
+    if "robust" in schema.lower() or (
+        isinstance(obj.get("rows"), list) and any(
+            isinstance(r, dict) and ("nominal_feasible" in r or str(r.get("tier") or "").upper() == "FAIL")
+            for r in (obj.get("rows") or [])[:8]
+        )
+    ):
+        return watermark_robust_pareto_export(obj)
+    if isinstance(obj.get("outputs"), dict) or (
+        isinstance(obj.get("verdict"), str) and isinstance(obj.get("kpis"), dict)
+    ):
+        return watermark_run_artifact_export(obj)
+
+    out: Dict[str, Any] = {}
+    for k, v in obj.items():
+        key = str(k)
+        if key in ("results", "candidates", "records", "points", "rows") and isinstance(v, list):
+            rows_out = []
+            for r in v:
+                if not isinstance(r, dict):
+                    rows_out.append(watermark_extopt_json_obj(r))
+                    continue
+                rr = dict(r)
+                if _row_claim_infeasible(rr):
+                    for rk, rv in list(rr.items()):
+                        if is_claim_kpi_key(str(rk)):
+                            rr[rk] = format_claim_kpi_for_table(str(rk), rv, feasible=False)
+                        elif str(rk) in ("outputs", "kpis", "metrics", "headline", "nominal_outputs") and isinstance(
+                            rv, dict
+                        ):
+                            rr[rk] = watermark_claim_kpi_map(rv, feasible=False, point_out=rv)
+                        elif str(rk) == "artifact" and isinstance(rv, dict):
+                            rr[rk] = watermark_run_artifact_export(rv)
+                        else:
+                            rr[rk] = watermark_extopt_json_obj(rv)
+                else:
+                    rr = {rk: watermark_extopt_json_obj(rv) for rk, rv in rr.items()}
+                rows_out.append(rr)
+            out[key] = rows_out
+        elif key in ("outputs", "kpis", "metrics", "headline") and isinstance(v, dict):
+            # Only watermark if parent looks infeasible.
+            if _row_claim_infeasible(obj):
+                out[key] = watermark_claim_kpi_map(v, feasible=False, point_out=v)
+            else:
+                out[key] = watermark_extopt_json_obj(v)
+        elif key == "artifact" and isinstance(v, dict):
+            out[key] = watermark_run_artifact_export(v) if _row_claim_infeasible(obj) or _row_claim_infeasible(v) else watermark_extopt_json_obj(v)
+        else:
+            out[key] = watermark_extopt_json_obj(v)
+    if any(
+        isinstance(obj.get(k), list) and any(_row_claim_infeasible(r) for r in (obj.get(k) or []) if isinstance(r, dict))
+        for k in ("results", "candidates", "records", "points", "rows")
+    ):
+        out.setdefault(
+            "phys_kpi_note",
+            "PHYS-KPI-001: claim FoMs on INFEASIBLE / FAIL ExtOpt candidates are "
+            "— (diagnostic) — not design claims.",
+        )
+    return out
+
+
+def watermark_concept_cockpit_export(rep: Mapping[str, Any]) -> Dict[str, Any]:
+    """PHYS-KPI-001: download copy of concept-cockpit batch results."""
+    out = watermark_extopt_json_obj(dict(rep) if isinstance(rep, Mapping) else {})
+    if isinstance(out, dict):
+        out.setdefault(
+            "phys_kpi_note",
+            "PHYS-KPI-001: claim FoMs on hard-infeasible concept-cockpit rows are "
+            "— (diagnostic) — not design claims.",
+        )
+        return out
+    return dict(rep) if isinstance(rep, Mapping) else {}
+
+
+def watermark_extopt_zip_bytes(data: bytes) -> bytes:
+    """PHYS-KPI-001: rewrite ExtOpt/optimizer ZIP JSON members with claim FoMs watermarked.
+
+    Nested ZIPs (evidence packs) are processed recursively. Non-JSON members are
+    copied unchanged. On parse failure, original member bytes are kept.
+    """
+    if not data:
+        return data
+    try:
+        zin = zipfile.ZipFile(io.BytesIO(data), "r")
+    except zipfile.BadZipFile:
+        return data
+
+    out_buf = io.BytesIO()
+    with zin, zipfile.ZipFile(out_buf, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+        for info in sorted(zin.infolist(), key=lambda z: z.filename):
+            name = info.filename
+            raw = zin.read(info)
+            lower = name.lower()
+            try:
+                if lower.endswith(".zip"):
+                    zout.writestr(name, watermark_extopt_zip_bytes(raw))
+                elif lower.endswith(".jsonl"):
+                    from ui_nicegui.lib.suite_extended_helpers import watermark_campaign_jsonl_bytes
+
+                    # Reuse JSONL line watermark (feasible_hard / feasible).
+                    zout.writestr(name, watermark_campaign_jsonl_bytes(raw))
+                elif lower.endswith(".json"):
+                    obj = json.loads(raw.decode("utf-8"))
+                    wm = watermark_extopt_json_obj(obj)
+                    zout.writestr(
+                        name,
+                        json.dumps(wm, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                    )
+                else:
+                    zout.writestr(name, raw)
+            except Exception:
+                zout.writestr(name, raw)
+    return out_buf.getvalue()
 
 
 def build_design_families(session, *, source: str = "pareto") -> dict:
