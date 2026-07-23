@@ -8,11 +8,43 @@ rendering of:
  - reality gates
 
 No ranking. No recommendations.
+
+PHYS-KPI-001: on INFEASIBLE candidates, claim FoMs (Q / H98 / Pfus / P_net)
+are shown as diagnostic residue — never as design achievements.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List
+
+_CLAIM_OUT_KEYS = frozenset(
+    {
+        "Q_DT_eqv",
+        "Q",
+        "H98",
+        "P_fus_MW",
+        "Pfus_MW",
+        "Pfus_total_MW",
+        "Pfus_DT_adj_MW",
+        "P_e_net_MW",
+        "P_net_e_MW",
+        "Pe_net_MW",
+    }
+)
+_DIAGNOSTIC = "— (diagnostic)"
+
+
+def _candidate_feasible(c: Dict[str, Any]) -> bool:
+    if "feasible" in c:
+        return bool(c.get("feasible"))
+    state = str(c.get("feasibility_state") or "").strip().upper()
+    return state == "FEASIBLE"
+
+
+def _fmt_claim(key: str, value: Any, *, feasible: bool) -> str:
+    if (not feasible) and (str(key) in _CLAIM_OUT_KEYS or str(key) == "net_electric_MW"):
+        return _DIAGNOSTIC
+    return f"`{value}`"
 
 
 def build_design_card_md(candidate: Dict[str, Any]) -> str:
@@ -21,6 +53,7 @@ def build_design_card_md(candidate: Dict[str, Any]) -> str:
     feas = str(c.get("feasibility_state") or "")
     robust = str(c.get("robustness_class") or "")
     intent = str(c.get("design_intent") or c.get("intent") or "")
+    feasible = _candidate_feasible(c)
 
     inp = c.get("inputs") or {}
     outs = c.get("outputs") or {}
@@ -34,6 +67,16 @@ def build_design_card_md(candidate: Dict[str, Any]) -> str:
         lines.append(f"- Intent: **{intent}**")
     if feas:
         lines.append(f"- Feasibility: **{feas}** (robustness: **{robust or 'n/a'}**)")
+    elif "feasible" in c:
+        lines.append(
+            f"- Feasibility: **{'FEASIBLE' if feasible else 'INFEASIBLE'}** "
+            f"(robustness: **{robust or 'n/a'}**)"
+        )
+    if not feasible:
+        lines.append(
+            "- PHYS-KPI-001: claim FoMs (Q / H98 / Pfus / P_net) below are "
+            "**diagnostic residue** — not design claims."
+        )
 
     # Key inputs
     key_in = ["R0_m", "a_m", "kappa", "Bt_T", "Ip_MA", "fG"]
@@ -47,16 +90,24 @@ def build_design_card_md(candidate: Dict[str, Any]) -> str:
     key_out = ["Q_DT_eqv", "H98", "q95", "P_fus_MW", "P_e_net_MW"]
     present_out = [k for k in key_out if k in outs]
     if present_out:
-        lines.append("\n## Key Outputs (Truth)")
+        heading = "Key Outputs (Truth)" if feasible else "Key Outputs (diagnostic on INFEASIBLE)"
+        lines.append(f"\n## {heading}")
         for k in present_out:
-            lines.append(f"- {k}: `{outs[k]}`")
+            if (not feasible) and (k in _CLAIM_OUT_KEYS):
+                lines.append(f"- {k}: {_DIAGNOSTIC}")
+            else:
+                lines.append(f"- {k}: `{outs[k]}`")
 
     # Closure
     if closure:
         lines.append("\n## Electric Closure")
         lines.append(f"- Gross electric: `{closure.get('gross_electric_MW')}` MW")
         lines.append(f"- Recirc electric: `{closure.get('recirc_electric_MW')}` MW")
-        lines.append(f"- Net electric: `{closure.get('net_electric_MW')}` MW")
+        net_disp = _fmt_claim("net_electric_MW", closure.get("net_electric_MW"), feasible=feasible)
+        if feasible:
+            lines.append(f"- Net electric: {net_disp} MW")
+        else:
+            lines.append(f"- Net electric: {net_disp} (not a design claim)")
 
     # Tight constraints
     if isinstance(mb.get("tight_constraints"), list) and mb.get("tight_constraints"):

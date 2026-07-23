@@ -4,11 +4,23 @@ Produces a review-ready narrative from already-audited artifacts.
 
 Strict rule: this is summarization of truth + derived accounting only. No
 recommendations, no ranking, no hidden intent.
+
+PHYS-KPI-001: on INFEASIBLE candidates, net electric (and kin) are framed as
+diagnostic residue — never as achieved plant performance.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List
+
+_DIAGNOSTIC = "— (diagnostic)"
+
+
+def _candidate_feasible(c: Dict[str, Any]) -> bool:
+    if "feasible" in c:
+        return bool(c.get("feasible"))
+    state = str(c.get("feasibility_state") or "").strip().upper()
+    return state == "FEASIBLE"
 
 
 def build_narrative(candidate: Dict[str, Any]) -> Dict[str, Any]:
@@ -19,6 +31,7 @@ def build_narrative(candidate: Dict[str, Any]) -> Dict[str, Any]:
     intent = str(c.get("design_intent") or c.get("intent") or "")
     feas = str(c.get("feasibility_state") or "")
     robust = str(c.get("robustness_class") or "")
+    feasible = _candidate_feasible(c)
 
     closure = c.get("closure_bundle") or {}
     net_e = closure.get("net_electric_MW")
@@ -40,8 +53,27 @@ def build_narrative(candidate: Dict[str, Any]) -> Dict[str, Any]:
     bullets.append(f"Candidate **{cid or '(unlabeled)'}** — intent: **{intent or 'unknown'}**")
     if feas:
         bullets.append(f"Feasibility ladder: **{feas}** (robustness: **{robust or 'n/a'}**) ")
+    elif "feasible" in c:
+        bullets.append(
+            f"Feasibility ladder: **{'FEASIBLE' if feasible else 'INFEASIBLE'}** "
+            f"(robustness: **{robust or 'n/a'}**)"
+        )
+    if not feasible:
+        bullets.append(
+            "PHYS-KPI-001: claim FoMs (Q / H98 / Pfus / P_net) are diagnostic residue "
+            "on this INFEASIBLE candidate — not design claims."
+        )
     if any(v is not None for v in [gross, recirc, net_e]):
-        bullets.append(f"Electric closure: gross **{gross} MW**, recirc **{recirc} MW**, net **{net_e} MW**")
+        if feasible:
+            bullets.append(
+                f"Electric closure: gross **{gross} MW**, recirc **{recirc} MW**, "
+                f"net **{net_e} MW**"
+            )
+        else:
+            bullets.append(
+                f"Electric closure (diagnostic): gross **{gross} MW**, recirc **{recirc} MW**, "
+                f"net {_DIAGNOSTIC} (not a design claim)"
+            )
     if tight:
         bullets.append("Tight constraints (small headroom): " + ", ".join(tight))
     if gate_summary:
@@ -52,6 +84,7 @@ def build_narrative(candidate: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "schema": "shams.reactor_design_forge.narrative_pack.v1",
         "candidate_id": cid,
+        "feasible": feasible,
         "bullets": bullets,
         "markdown": md,
         "note": "Narrative is derived from audited artifacts only; not a recommendation.",

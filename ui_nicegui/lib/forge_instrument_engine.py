@@ -777,7 +777,10 @@ def _inst_design_narrative(ctx: ForgeContext) -> InstrumentView:
     try:
         from tools.sandbox.narrative_pack import build_narrative
 
-        nar = build_narrative(cand, intent=ctx.intent)
+        c = dict(cand)
+        if ctx.intent and not (c.get("design_intent") or c.get("intent")):
+            c["intent"] = str(ctx.intent)
+        nar = build_narrative(c)
         md = nar.get("markdown") if isinstance(nar, dict) else str(nar)
         return InstrumentView(markdown=str(md or ""), json_blob=nar if isinstance(nar, dict) else None)
     except Exception as exc:
@@ -798,9 +801,28 @@ def _inst_design_packet(ctx: ForgeContext) -> InstrumentView:
         return InstrumentView(error="No candidate selected.")
     try:
         from tools.sandbox.design_packet import build_design_packet_files
+        from tools.sandbox.narrative_pack import build_narrative
 
-        files = build_design_packet_files(cand, intent=ctx.intent)
-        return InstrumentView(json_blob={"files": list(files.keys()) if isinstance(files, dict) else files})
+        c = dict(cand)
+        if ctx.intent and not (c.get("design_intent") or c.get("intent")):
+            c["intent"] = str(ctx.intent)
+        card_md = design_card_markdown(c, ctx.intent)
+        nar = build_narrative(c)
+        narrative_md = str(nar.get("markdown") or "") if isinstance(nar, dict) else ""
+        files = build_design_packet_files(
+            title=f"Design Packet — {c.get('id') or c.get('candidate_id') or 'candidate'}",
+            card_md=card_md,
+            narrative_md=narrative_md,
+            candidate=c,
+        )
+        blob: Dict[str, Any] = {
+            "files": [k for k in ("markdown", "pdf_bytes", "schema", "ok", "note") if isinstance(files, dict) and k in files],
+            "schema": files.get("schema") if isinstance(files, dict) else None,
+            "ok": files.get("ok") if isinstance(files, dict) else False,
+            "note": files.get("note") if isinstance(files, dict) else None,
+        }
+        md = str(files.get("markdown") or "") if isinstance(files, dict) else ""
+        return InstrumentView(markdown=md or "(empty)", json_blob=blob)
     except Exception as exc:
         return InstrumentView(error=str(exc))
 
