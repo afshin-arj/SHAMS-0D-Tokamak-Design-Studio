@@ -38,7 +38,7 @@ from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 def _refresh_tab_body_if_idle(session: DesignSession) -> None:
     """Avoid tearing down cartography progress timer while a Scan Lab job is live."""
-    if getattr(session, "scan_running", False):
+    if getattr(session, "scan_running", False) or getattr(session, "scan_legacy_running", False):
         ui.notify(
             "Scan Lab job running — wait until it finishes before changing Setup / Guided / Expert.",
             type="warning",
@@ -213,7 +213,7 @@ def _render_workflow_chrome(session: DesignSession) -> None:
 
 
 def _on_decision_scan(session: DesignSession, state: str) -> None:
-    if getattr(session, "scan_running", False):
+    if getattr(session, "scan_running", False) or getattr(session, "scan_legacy_running", False):
         ui.notify(
             "Scan Lab job running — wait until it finishes before changing decision/Setup view.",
             type="warning",
@@ -232,7 +232,7 @@ def _on_decision_scan(session: DesignSession, state: str) -> None:
 def _handle_quick_jump(session: DesignSession, cmd: str) -> None:
     if cmd not in QUICK_JUMP:
         return
-    if getattr(session, "scan_running", False):
+    if getattr(session, "scan_running", False) or getattr(session, "scan_legacy_running", False):
         ui.notify(
             "Scan Lab job running — wait until it finishes before quick-jumping tabs.",
             type="warning",

@@ -98,8 +98,21 @@ def hero_kpi_cells(
     head = headline if isinstance(headline, dict) else {}
 
     q_raw = _sf(head.get("Q_DT_eqv", out.get("Q_DT_eqv", out.get("Q"))))
-    h98_raw = _sf(head.get("H98", out.get("H98")))
-    pnet_raw = _sf(head.get("P_e_net_MW", out.get("P_e_net_MW", out.get("P_net_e_MW"))))
+    h98_raw = _sf(
+        head.get(
+            "H98",
+            out.get("H98", out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98")))),
+        )
+    )
+    pnet_raw = _sf(
+        head.get(
+            "P_e_net_MW",
+            out.get(
+                "P_e_net_MW",
+                out.get("P_net_e_MW", out.get("Pe_net_MW", out.get("P_net_MW", out.get("Pnet_MWe")))),
+            ),
+        )
+    )
     pfus_raw = _sf(
         head.get(
             "Pfus_total_MW",

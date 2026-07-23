@@ -420,15 +420,28 @@ def _inst_machine_dossier(ctx: ForgeContext) -> InstrumentView:
 
     inp = cand.get("inputs") or {}
     out = cand.get("outputs") or {}
+    if not isinstance(out, dict):
+        out = {}
     feasible = bool(cand.get("feasible", False))
-    keys = ["Pfus_total_MW", "P_e_net_MW", "Q_DT_eqv", "q_div_MW_m2", "min_signed_margin"]
-    headline = {
-        k: format_claim_kpi_for_table(
-            k, out.get(k), feasible=feasible, point_out=out if isinstance(out, dict) else None
+    from ui_nicegui.lib.compare_helpers import _pick_output
+
+    dossier_keys = (
+        ("Pfus_total_MW", "Pfus_total_MW"),
+        ("P_e_net_MW", "P_e_net_MW"),
+        ("Q_DT_eqv", "Q_DT_eqv"),
+        ("q_div_MW_m2", "q_div_MW_m2"),
+        ("min_signed_margin", "min_signed_margin"),
+    )
+    headline = {}
+    for label, pick_key in dossier_keys:
+        raw = _pick_output(out, pick_key) if pick_key != "min_signed_margin" else out.get(pick_key)
+        if raw is None and pick_key == "min_signed_margin":
+            raw = cand.get("min_signed_margin")
+        if raw is None:
+            continue
+        headline[label] = format_claim_kpi_for_table(
+            label, raw, feasible=feasible, point_out=out
         )
-        for k in keys
-        if k in out
-    }
     md = (
         f"### Machine Dossier — candidate #{ctx.session.forge_inspect_idx}\n\n"
         f"**Regime:** {', '.join(regime_signature(cand)) or '-'}\n\n"
@@ -1282,16 +1295,29 @@ def _inst_epistemic_guarantees(ctx: ForgeContext) -> InstrumentView:
 def _inst_doi_export(ctx: ForgeContext) -> InstrumentView:
     try:
         from tools.sandbox.tier7 import export_doi_ready_pack, repo_fingerprint
+        from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
 
         root = Path(__file__).resolve().parents[2]
-        pack = export_doi_ready_pack(run=ctx.run, repo_root=root, evaluator_fp=repo_fingerprint(root))
-        if isinstance(pack, tuple):
-            blob, meta = pack[0], pack[1] if len(pack) > 1 else {}
-        else:
-            blob, meta = pack, {}
-        if isinstance(blob, bytes):
-            return InstrumentView(json_blob=meta, download=(blob, "shams_doi_pack.zip", "application/zip"))
-        return InstrumentView(json_blob=pack)
+        run_meta = {
+            "intent": ctx.intent,
+            "seed": ctx.run.get("seed"),
+            "evaluator_fp": repo_fingerprint(root),
+        }
+        for k in ("objectives", "bounds", "provenance", "var_specs", "pack_name"):
+            if k in (ctx.run or {}):
+                run_meta[k] = ctx.run.get(k)
+        blob = export_doi_ready_pack(
+            repo_root=root,
+            run_meta=run_meta,
+            archive_rows=list(ctx.archive or []),
+            trace_rows=list(ctx.trace or []),
+        )
+        blob = watermark_extopt_zip_bytes(blob)
+        return InstrumentView(
+            caption="DOI-ready pack (PHYS-KPI-001 watermarked on INFEASIBLE archive rows).",
+            json_blob={"n_archive": len(ctx.archive or []), "n_trace": len(ctx.trace or []), "run_meta_keys": sorted(run_meta)},
+            download=(blob, "shams_doi_pack.zip", "application/zip"),
+        )
     except Exception as exc:
         return InstrumentView(error=str(exc))
 

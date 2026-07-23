@@ -46,7 +46,7 @@ _CONSTRAINT_BRIDGE_FAILED: Dict[str, Any] = {
 def _physics_outputs_present(out: dict) -> bool:
     if not isinstance(out, dict):
         return False
-    for key in ("P_fus_MW", "Q_DT_eqv", "Q", "H98", "Ip_MA", "Pfus_DT_adj_MW"):
+    for key in ("P_fus_MW", "Pfus_total_MW", "Q_DT_eqv", "Q", "H98", "Ip_MA", "Pfus_DT_adj_MW"):
         if _finite(out.get(key)):
             return True
     return False
@@ -473,23 +473,33 @@ def build_cartography_report(
                         mh[nm] = float(m)
                 row["margins_hard"] = mh
             if include_outputs:
-                # keep it compact; avoid giant exports by default
+                # keep it compact; prefer L0 keys (+ legacy aliases if present)
                 keep = {
                     k: out.get(k)
                     for k in [
                         "Q",
                         "Q_DT_eqv",
                         "H98",
+                        "H_IPB98y2",
+                        "Pfus_total_MW",
                         "P_fus_MW",
+                        "Pfus_MW",
                         "Pfus_DT_adj_MW",
                         "P_e_net_MW",
+                        "P_net_e_MW",
+                        "Pe_net_MW",
                         "q_div_MW_m2",
                         "B_peak_T",
+                        "q95_proxy",
                         "q95",
+                        "beta_N",
+                        "betaN_proxy",
                         "betaN",
+                        "tauE_eff_s",
+                        "tauE_s",
                         "fG",
                     ]
-                    if k in out
+                    if k in out and out.get(k) is not None
                 }
                 row["outputs"] = keep
             pts.append(row)

@@ -86,17 +86,28 @@ def build_design_card_md(candidate: Dict[str, Any]) -> str:
         for k in present_in:
             lines.append(f"- {k}: `{inp[k]}`")
 
-    # Key outputs (best-effort)
-    key_out = ["Q_DT_eqv", "H98", "q95", "P_fus_MW", "P_e_net_MW"]
-    present_out = [k for k in key_out if k in outs]
+    # Key outputs (best-effort) — prefer L0 names; accept legacy aliases.
+    key_out_aliases = (
+        ("Q_DT_eqv", ("Q_DT_eqv", "Q")),
+        ("H98", ("H98", "H_IPB98y2", "H98y2", "H_IPB98")),
+        ("q95_proxy", ("q95_proxy", "q95")),
+        ("Pfus_total_MW", ("Pfus_total_MW", "P_fus_MW", "Pfus_MW")),
+        ("P_e_net_MW", ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW")),
+    )
+    present_out: list[tuple[str, Any]] = []
+    for label, aliases in key_out_aliases:
+        for k in aliases:
+            if k in outs and outs.get(k) is not None:
+                present_out.append((label, outs.get(k)))
+                break
     if present_out:
         heading = "Key Outputs (Truth)" if feasible else "Key Outputs (diagnostic on INFEASIBLE)"
         lines.append(f"\n## {heading}")
-        for k in present_out:
-            if (not feasible) and (k in _CLAIM_OUT_KEYS):
+        for k, val in present_out:
+            if (not feasible) and (k in _CLAIM_OUT_KEYS or k in ("Q_DT_eqv", "H98", "Pfus_total_MW", "P_e_net_MW", "P_fus_MW")):
                 lines.append(f"- {k}: {_DIAGNOSTIC}")
             else:
-                lines.append(f"- {k}: `{outs[k]}`")
+                lines.append(f"- {k}: `{val}`")
 
     # Closure
     if closure:

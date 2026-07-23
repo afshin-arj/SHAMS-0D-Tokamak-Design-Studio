@@ -1117,6 +1117,15 @@ def test_watermark_sensitivity_and_artifact_exports() -> None:
 
     assert watermark_claim_kpi_map({"Q_DT_eqv": 9.0}, feasible=False)["Q_DT_eqv"] == "— (diagnostic)"
 
+    # Top-level archive-row feasible stamp (Forge DOI / ExtOpt nests) must watermark outputs.
+    art_row = {
+        "feasible": False,
+        "outputs": {"Q_DT_eqv": 11.0, "H98": 1.2, "Ip_MA": 8.0},
+    }
+    wr = watermark_run_artifact_export(art_row)
+    assert "diagnostic" in str(wr["outputs"]["Q_DT_eqv"]).lower()
+    assert wr["outputs"]["Ip_MA"] == 8.0 or "8" in str(wr["outputs"]["Ip_MA"])
+
 
 def test_forge_intent_compiler_remount_after_clear() -> None:
     from pathlib import Path

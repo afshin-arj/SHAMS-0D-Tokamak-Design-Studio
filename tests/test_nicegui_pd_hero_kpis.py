@@ -95,6 +95,27 @@ def test_hero_shows_kpis_when_feasible() -> None:
     assert "n·T (pressure proxy)" in by_label
 
 
+def test_hero_kpi_cells_resolve_h98_and_pe_net_aliases() -> None:
+    out = {
+        "Q_DT_eqv": 2.5,
+        "H_IPB98y2": 1.08,
+        "Pe_net_MW": 95.0,
+        "Pfus_total_MW": 300.0,
+    }
+    summary = {
+        "loaded": True,
+        "feasible": True,
+        "verdict": "FEASIBLE",
+        "q_label": "Q=2.50",
+        "nt_label": "n·T≈1e21",
+        "subsystems": {},
+    }
+    cells = hero_kpi_cells(out, summary, design_intent="Power Reactor (net-electric)")
+    by_label = {c.label: c for c in cells}
+    assert "1.08" in by_label["H98(y,2)"].display
+    assert "95" in by_label["P_net,e"].display
+
+
 def test_confidence_preset_overwrites_knobs() -> None:
     s = DesignSession()
     s.knobs["q_div_max_MW_m2"] = 10.0

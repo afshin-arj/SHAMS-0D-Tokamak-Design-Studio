@@ -70,6 +70,11 @@ def test_enrich_passes_feasible_and_watermarks():
     eng = Path("ui_nicegui/lib/forge_instrument_engine.py").read_text(encoding="utf-8")
     assert "watermark_forge_closure_bundle" in eng
     assert "watermark_forge_report_pack" in eng
+    assert "export_doi_ready_pack(" in eng
+    assert "run_meta=" in eng
+    assert "archive_rows=" in eng
+    assert "watermark_extopt_zip_bytes" in eng
+    assert "run=ctx.run" not in eng
 
     wb = Path("ui_nicegui/decks/reactor_design_forge/workbench.py").read_text(encoding="utf-8")
     assert "PHYS-KPI-001: Closure / report claim FoMs" in wb
