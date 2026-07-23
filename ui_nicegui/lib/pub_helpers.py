@@ -192,7 +192,7 @@ def render_pub_handoffs(session: DesignSession) -> None:
         log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffSystemsMode", {})
 
     def _to_cr() -> None:
-        switch_deck("Control Room")
+        switch_deck("Control Room", force=True)
         ui.notify("Opened Control Room for study seal / evidence.", type="info")
 
     with ui.row().classes("gap-2 flex-wrap"):

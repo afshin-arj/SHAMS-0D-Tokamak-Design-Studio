@@ -333,8 +333,6 @@ def render_machine_finder(
                 {"n_archive": n, "intent": intent_local},
             )
             _notify_mf_complete(n, require_feasible_only=bool(session.forge_mf_require_feasible_only))
-            if on_complete:
-                on_complete()
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Machine Finder failed: {exc}", type="negative")
@@ -345,6 +343,9 @@ def render_machine_finder(
 
             refresh_status()
             refresh_helm()
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_complete:
+                on_complete()
 
     btn = ui.button("Run machine finder", icon="play_arrow", on_click=_run_finder).props("color=primary")
     if session.forge_mf_running:
@@ -392,8 +393,6 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
                 {"phase": name, "n_points": len(pts)},
             )
             ui.notify(f"{name.title()} phase complete", type="positive")
-            if on_complete:
-                on_complete()
         except Exception as exc:
             ui.notify(f"Phase failed: {exc}", type="negative")
         finally:
@@ -403,6 +402,8 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
 
             refresh_status()
             refresh_helm()
+            if on_complete:
+                on_complete()
 
     with ui.row().classes("gap-2 flex-wrap"):
         if not done.get("global"):

@@ -208,16 +208,17 @@ def render_solve_panel(
                     type="warning",
                 )
             _solve_result.refresh()
-            if on_complete:
-                on_complete()
         except Exception as exc:
             ui.notify(f"Target solve failed: {exc}", type="negative")
         finally:
             session.systems_solve_running = False
             runlock_release("SystemsMode")
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_complete:
+                on_complete()
 
     btn = ui.button("Run target solve", icon="bolt", on_click=_run_solve).props("color=primary q-mt-sm")
-    if disabled:
+    if disabled or session.systems_solve_running:
         btn.props("disable")
     _solve_result(session)
 

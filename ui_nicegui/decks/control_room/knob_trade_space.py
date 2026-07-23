@@ -164,5 +164,18 @@ def _grid_view(session: DesignSession) -> None:
     ui.button(
         "Download grid JSON",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(payload), "knob_trade_grid.json"),
+        on_click=lambda: ui.download(
+            report_to_json_bytes(
+                {
+                    "kx": kx,
+                    "ky": ky,
+                    "rows": watermark_knob_grid_rows(rows, kx=kx, ky=ky),
+                    "phys_kpi_note": (
+                        "PHYS-KPI-001: claim KPIs on infeasible cells are "
+                        "— (diagnostic) — not design claims."
+                    ),
+                }
+            ),
+            "knob_trade_grid.json",
+        ),
     ).props("flat outline")

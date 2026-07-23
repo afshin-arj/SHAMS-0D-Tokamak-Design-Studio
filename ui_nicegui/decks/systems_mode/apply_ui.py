@@ -133,7 +133,16 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
             # Apply is a PD re-eval, not a Systems target solve (provenance honesty).
             applied_art["source"] = "point_designer_apply"
             session.systems_last_solve_artifact = applied_art
-            ui.notify("Re-evaluated via Point Designer", type="positive")
+            from ui_nicegui.lib.verdict_core import verdict_summary
+
+            vs = verdict_summary(out if isinstance(out, dict) else {})
+            if vs.get("feasible"):
+                ui.notify("Re-evaluated via Point Designer — FEASIBLE.", type="positive")
+            else:
+                ui.notify(
+                    "Re-evaluated via Point Designer — INFEASIBLE (diagnostic KPIs only; not a design claim).",
+                    type="warning",
+                )
             if on_complete:
                 on_complete()
         except Exception as exc:

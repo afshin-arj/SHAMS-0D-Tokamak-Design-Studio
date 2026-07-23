@@ -361,6 +361,9 @@ def _render_freeze_qa(session: DesignSession) -> None:
                 runlock_release("ScanLab")
                 refresh_status()
                 refresh_helm()
+                from ui_nicegui.lib.navigation import refresh_current_deck
+
+                refresh_current_deck()
 
         ui.button("Run quick replay audit", icon="replay", on_click=_audit).props("outline")
         ui.label("Full gate: python scripts/run_scanlab_freeze_qa.py").classes("text-caption text-grey q-mt-sm")

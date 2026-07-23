@@ -253,9 +253,28 @@ def _results(session: DesignSession) -> None:
     best = art.get("best")
     if isinstance(best, dict):
         with ui.expansion(BEST_PROPOSED_LABEL, icon="star").classes("w-full"):
-            render_json_blob(best)
+            bv = str(best.get("verdict") or "").upper()
+            if bv in ("PASS", "VERIFIED", "FEASIBLE", "OK"):
+                render_json_blob(best)
+            else:
+                wm = watermark_certified_search_rows([best])
+                render_json_blob(wm[0] if wm else best)
+                ui.label(
+                    "PHYS-KPI-001: best blob claim FoMs watermarked — not VERIFIED design claims."
+                ).classes("text-caption text-orange")
+
+    def _download_cert() -> None:
+        export = dict(art)
+        raw_rows = flatten_certified_search_table_rows(art)
+        export["table_rows_watermarked"] = watermark_certified_search_rows(raw_rows)
+        export["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are "
+            "— (diagnostic) — not design claims."
+        )
+        ui.download(report_to_json_bytes(export), "certified_search.json")
+
     ui.button(
         "Download certified search JSON",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(art), "certified_search.json"),
+        on_click=_download_cert,
     ).props("flat outline")

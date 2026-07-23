@@ -197,15 +197,18 @@ def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
             )
             _results.refresh()
             _trace_plot.refresh()
-            if on_complete:
-                on_complete()
         except Exception as exc:
             ui.notify(f"Search failed: {exc}", type="negative")
         finally:
             session.systems_fs_running = False
             runlock_release("SystemsMode")
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_complete:
+                on_complete()
 
-    ui.button("Run feasible search", icon="travel_explore", on_click=_run).props("outline q-mb-sm")
+    fs_btn = ui.button("Run feasible search", icon="travel_explore", on_click=_run).props("outline q-mb-sm")
+    if session.systems_fs_running:
+        fs_btn.props("disable")
     _results(session)
     _trace_plot(session)
 

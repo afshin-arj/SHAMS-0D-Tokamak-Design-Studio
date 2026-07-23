@@ -105,6 +105,7 @@ def test_systems_target_rows_infeasible_never_ok() -> None:
     rows = systems_target_rows(s, {"Q_DT_eqv": 12.0}, feasible=False)
     assert rows
     assert rows[0]["status"] == "diag"
+    assert rows[0]["achieved"] == "— (diagnostic)"
     assert "ok" not in {r["status"] for r in rows}
 
 

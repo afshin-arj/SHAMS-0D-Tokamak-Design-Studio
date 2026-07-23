@@ -139,8 +139,6 @@ def render_benchmark_pack(
                 type="positive" if rc == 0 else "warning",
             )
             _pack_view.refresh()
-            if on_complete:
-                on_complete()
             refresh_helm()
         except Exception as exc:
             ui.notify(f"Benchmark run failed: {exc}", type="negative")
@@ -149,6 +147,9 @@ def render_benchmark_pack(
             release_pub_lock(session)
             session.pub_bench_progress = ""
             _pack_busy.refresh()
+            # Status remount after flags clear — avoid stuck "Running…".
+            if on_complete:
+                on_complete()
 
     @ui.refreshable
     def _pack_busy() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
 from ui_nicegui.lib.systems_state_helpers import resolve_systems_problem
 from ui_nicegui.session import DesignSession
 
@@ -25,6 +26,7 @@ def systems_target_rows(
 
     When ``feasible`` is False (intent-infeasible), target attainment is labeled
     ``diag`` — never ``ok`` — so experts do not read INFEASIBLE solves as PASS (PHYS-KPI-001).
+    Claim KPI magnitudes are watermarked as ``— (diagnostic)`` on infeasible solves.
     """
     _, targets, _ = resolve_systems_problem(session)
     if not targets:
@@ -40,9 +42,20 @@ def systems_target_rows(
         "P_e_net_MW": "P_e_net_MW",
         "Pfus_DT_adj_MW": "Pfus_DT_adj_MW",
     }
+    aliases = {
+        "P_e_net_MW": ("P_net_e_MW", "Pe_net_MW", "P_net_MW"),
+        "Pfus_DT_adj_MW": ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"),
+        "Q_DT_eqv": ("Q", "Q_DT"),
+        "H98": ("H_IPB98y2", "H98y2"),
+    }
     for tgt_key, val in targets.items():
         out_key = key_map.get(tgt_key, tgt_key)
         ach = out.get(out_key, out.get(tgt_key))
+        if ach is None:
+            for alt in aliases.get(tgt_key, ()):
+                if out.get(alt) is not None:
+                    ach = out.get(alt)
+                    break
         t = _sf(val)
         a = _sf(ach)
         sense = "min" if tgt_key in ("Q_DT_eqv", "H98", "P_e_net_MW", "Pfus_DT_adj_MW") else "eq"
@@ -69,10 +82,15 @@ def systems_target_rows(
             target_disp = f"{t:.4g}"
         else:
             target_disp = "—"
+        claim_key = "Pfus_total_MW" if tgt_key == "Pfus_DT_adj_MW" else tgt_key
+        if feasible is False and is_claim_kpi_key(claim_key):
+            achieved_disp = format_claim_kpi_for_table(claim_key, a, feasible=False)
+        else:
+            achieved_disp = f"{a:.4g}" if a == a else "n/a"
         rows.append({
             "quantity": label,
             "target": target_disp,
-            "achieved": f"{a:.4g}" if a == a else "n/a",
+            "achieved": achieved_disp,
             "status": flag,
         })
     return rows
