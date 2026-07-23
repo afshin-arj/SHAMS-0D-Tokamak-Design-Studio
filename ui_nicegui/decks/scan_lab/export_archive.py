@@ -141,7 +141,7 @@ def _render_downloads(session: DesignSession, rep: dict, intents: list) -> None:
                 icon="download",
                 on_click=lambda b=bnd: ui.download(b, "shams_scan_boundaries_segments.json"),
             ).props("outline")
-        fc = field_cube_json_bytes(rep)
+        fc = field_cube_json_bytes(wm_rep)
         if fc:
             ui.button(
                 "Field cube (JSON)",

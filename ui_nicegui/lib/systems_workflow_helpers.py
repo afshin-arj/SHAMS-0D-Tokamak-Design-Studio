@@ -526,6 +526,54 @@ def systems_run_payload(session: Any, artifact: Optional[dict] = None) -> dict:
     return art
 
 
+def _looks_like_run_artifact(d: Any) -> bool:
+    """True when a dict carries run-artifact outputs and/or a verdict field."""
+    if not isinstance(d, dict):
+        return False
+    return isinstance(d.get("outputs"), dict) or ("verdict" in d and d.get("verdict") is not None)
+
+
+def _watermark_systems_run_card(card: Any) -> Any:
+    """PHYS-KPI-001: watermark claim KPIs on infeasible run-card payloads."""
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
+    if not isinstance(card, dict):
+        return card
+    out = dict(card)
+    payload = out.get("payload")
+    if isinstance(payload, dict):
+        pp = dict(payload)
+        if _looks_like_run_artifact(pp):
+            pp = watermark_run_artifact_export(pp)
+        else:
+            nested = pp.get("artifact") or pp.get("run_artifact")
+            if isinstance(nested, dict) and _looks_like_run_artifact(nested):
+                key = "artifact" if "artifact" in pp else "run_artifact"
+                pp[key] = watermark_run_artifact_export(dict(nested))
+            for nest_key in ("outputs", "headline", "metrics"):
+                nest = pp.get(nest_key)
+                if not isinstance(nest, dict):
+                    continue
+                # Watermark claim maps when nest or card signals infeasible.
+                hard_ok = nest.get("hard_feasible", nest.get("feasible", nest.get("blocking_feasible")))
+                card_ok = out.get("outcome", {}) if isinstance(out.get("outcome"), dict) else {}
+                outcome_ok = card_ok.get("ok", card_ok.get("feasible"))
+                if hard_ok is False or outcome_ok is False:
+                    pp[nest_key] = watermark_claim_kpi_map(nest, feasible=False)
+                elif nest_key == "outputs" and _looks_like_run_artifact({"outputs": nest, "verdict": pp.get("verdict")}):
+                    # Prefer full artifact watermark when outputs present with verdict.
+                    if str(pp.get("verdict") or "").upper() in (
+                        "INFEASIBLE",
+                        "FAIL",
+                        "NO-SOLUTION",
+                        "NO_SOLUTION",
+                    ):
+                        pp[nest_key] = watermark_claim_kpi_map(nest, feasible=False)
+        out["payload"] = pp
+    return out
+
+
 def systems_export_bytes(session: Any) -> bytes:
     from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
     from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
@@ -554,6 +602,10 @@ def systems_export_bytes(session: Any) -> bytes:
                     cc["metrics"] = watermark_claim_kpi_map(cc["metrics"], feasible=False)
             cands.append(cc)
         fs["candidates"] = cands
+    cards = [
+        _watermark_systems_run_card(c)
+        for c in (getattr(session, "systems_run_cards", []) or [])
+    ]
     payload = {
         "exported_ts": time.time(),
         "design_intent": getattr(session, "design_intent", ""),
@@ -561,13 +613,13 @@ def systems_export_bytes(session: Any) -> bytes:
         "last_precheck_report": _serialize_report(getattr(session, "last_precheck_report", None)),
         "systems_recovery_last": rec,
         "systems_feasible_search_last": fs,
-        "systems_run_cards": list(getattr(session, "systems_run_cards", []) or []),
+        "systems_run_cards": cards,
         "systems_journal": list(getattr(session, "systems_journal", []) or []),
         "systems_bounds_overrides": getattr(session, "systems_bounds_overrides", None),
         "systems_targets_overrides": getattr(session, "systems_targets_overrides", None),
         "inputs": dict(getattr(session, "inputs", {}) or {}),
         "phys_kpi_note": (
-            "PHYS-KPI-001: claim KPIs on INFEASIBLE solve/recovery/search nests are "
+            "PHYS-KPI-001: claim KPIs on INFEASIBLE solve/recovery/search/run_card nests are "
             "— (diagnostic) — not design claims."
         ),
     }

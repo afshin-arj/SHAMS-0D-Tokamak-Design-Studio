@@ -288,11 +288,13 @@ def artifact_snapshot(art: dict) -> dict:
 
 def build_regulatory_reviewer_pack(session, *, repo: Optional[Path] = None) -> bytes:
     from tools.regulatory_pack import export_regulatory_evidence_pack_zip
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
 
     root = Path(repo or repo_root())
     art = pick_session_run_artifact(session)
     if not isinstance(art, dict) or not art:
         raise ValueError("No session run artifact — evaluate in Point Designer or Systems Mode first.")
+    art = watermark_run_artifact_export(art)
     extra: Dict[str, Any] = {}
     fam = getattr(session, "design_families_last", None)
     if isinstance(fam, dict) and fam:
@@ -328,11 +330,13 @@ def validate_regulatory_pack_bytes(data: bytes) -> dict:
 
 def build_licensing_tier2_pack(session, *, repo: Optional[Path] = None) -> bytes:
     from tools.licensing_pack_v355 import export_licensing_evidence_tier2_zip
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
 
     root = Path(repo or repo_root())
     art = pick_session_run_artifact(session)
     if not isinstance(art, dict) or not art:
         raise ValueError("No session run artifact — evaluate in Point Designer or Systems Mode first.")
+    art = watermark_run_artifact_export(art)
     extra: Dict[str, Any] = {}
     cert = getattr(session, "robust_pareto_last", None) or getattr(session, "v352_last_certification", None)
     if isinstance(cert, dict) and cert:
@@ -386,15 +390,38 @@ def build_evidence_pack_v387(
     notes: str = "",
 ) -> EvidencePackResult:
     """Deterministic evidence ZIP from cached session artifacts (export-only)."""
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        is_claim_kpi_key,
+        watermark_claim_kpi_map,
+        watermark_scan_cartography_export,
+    )
+
     out_zip = Path(out_zip)
     out_zip.parent.mkdir(parents=True, exist_ok=True)
 
     included: Dict[str, Any] = {}
+    any_watermark = False
     for key, flag in sorted(include.items()):
         if not flag:
             continue
         val = sources.get(key)
-        if isinstance(val, (dict, list)):
+        if isinstance(val, dict):
+            if isinstance(val.get("points"), list):
+                val = watermark_scan_cartography_export(val)
+                any_watermark = True
+            elif isinstance(val.get("outputs"), dict) or (
+                "verdict" in val and val.get("verdict") is not None
+            ):
+                val = watermark_run_artifact_export(val)
+                any_watermark = True
+            elif any(is_claim_kpi_key(str(k)) for k in val.keys()) and val.get(
+                "hard_feasible"
+            ) is False:
+                val = watermark_claim_kpi_map(val, feasible=False)
+                any_watermark = True
+            included[key] = val
+        elif isinstance(val, list):
             included[key] = val
 
     index = {
@@ -404,6 +431,11 @@ def build_evidence_pack_v387(
         "included_sources": sorted(included.keys()),
         "n_sources": len(included),
     }
+    if any_watermark:
+        index["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs on INFEASIBLE / blocking-infeasible sources are "
+            "— (diagnostic) — not design claims."
+        )
     provenance = {
         "schema": "evidence_pack_v387.provenance.v1",
         "generator": "NiceGUI",
@@ -416,6 +448,12 @@ def build_evidence_pack_v387(
     )
     if notes.strip():
         narrative += f"\n## Reviewer notes\n\n{notes.strip()}\n"
+    if any_watermark:
+        narrative += (
+            "\n## PHYS-KPI-001\n\n"
+            "Claim KPIs on infeasible sources are watermarked as diagnostic "
+            "in this pack — not design claims.\n"
+        )
 
     buf = io.BytesIO()
     manifest: Dict[str, str] = {}

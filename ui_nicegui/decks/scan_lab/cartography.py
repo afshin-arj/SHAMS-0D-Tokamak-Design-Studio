@@ -331,3 +331,5 @@ def render_cartography_controls(
         _run_btns["run"] = ui.button("Run cartography scan", icon="play_arrow", on_click=_run_scan).props("color=primary")
     if session.scan_running:
         _disable_run_btns()
+        _progress_timer.activate()
+        _scan_progress_panel.refresh()

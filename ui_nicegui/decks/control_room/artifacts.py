@@ -250,7 +250,7 @@ def _export_share(session: DesignSession) -> None:
                 from reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
             except ImportError:
                 from src.reports.cite_shams_handoff_pack import build_cite_shams_handoff_pack
-            pack = build_cite_shams_handoff_pack(art)
+            pack = build_cite_shams_handoff_pack(watermark_run_artifact_export(art))
             ui.download(
                 pack["zip_bytes"],
                 pack.get("suggested_filename") or "shams_cite_handoff.zip",
