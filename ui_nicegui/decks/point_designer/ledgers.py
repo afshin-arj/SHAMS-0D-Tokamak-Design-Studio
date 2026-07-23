@@ -15,10 +15,17 @@ def render_ledgers(session: DesignSession) -> None:
         return
 
     include_rad = bool(session.overlay.get("include_radiation", False))
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    feas = bool(verdict_summary(out).get("feasible"))
 
     ui.label("Power Ledger — Closure Table").classes("text-subtitle1")
     ui.label("Transparent Pin/Pout bookkeeping at this point (0-D proxies).").classes("text-caption")
-    rows = power_ledger_badged_rows(out, include_radiation=include_rad)
+    if not feas:
+        ui.label(
+            "PHYS-KPI-001: Pfus / P_net on an INFEASIBLE point are diagnostic residue — not design claims."
+        ).classes("text-caption text-orange q-mb-xs")
+    rows = power_ledger_badged_rows(out, include_radiation=include_rad, feasible=feas)
     if rows:
         ui.table(
             columns=[

@@ -453,7 +453,7 @@ def _render_mission_policy(session: DesignSession) -> None:
     with ui.grid(columns=2).classes("w-full gap-2"):
         ui.select(
             _POLICY_ENFORCEMENT,
-            label="q95 limit",
+            label="q95 (cyl. proxy) limit",
             value=q_prev if q_prev in _POLICY_ENFORCEMENT else "hard",
             on_change=_set_q95,
         ).props(helm_dark_props())
