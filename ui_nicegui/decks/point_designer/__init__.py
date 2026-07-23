@@ -107,9 +107,9 @@ def render_point_designer(session: DesignSession) -> None:
                 "text-caption text-positive"
             )
         elif getattr(session, "pd_pending_forge_eval", False):
-            ui.label("Forge inputs loaded — Evaluate Point to refresh KPIs (STALE until then)").classes(
-                "text-caption text-orange"
-            )
+            ui.label(
+                "Forge inputs loaded — prior KPIs cleared; Evaluate Point to re-certify."
+            ).classes("text-caption text-orange")
         else:
             ui.label("No evaluation yet — Configure then Evaluate Point").classes(
                 "text-caption text-grey"

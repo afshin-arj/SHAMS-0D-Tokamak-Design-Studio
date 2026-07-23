@@ -18,7 +18,7 @@ from ui_nicegui.decks.trade_study_studio import (
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
-from ui_nicegui.lib.deck_busy_guard import refresh_tab_if_idle
+from ui_nicegui.lib.deck_busy_guard import TRADE_RUNNING_ATTRS, refresh_tab_if_idle
 from ui_nicegui.lib.navigation import refresh_active_deck
 from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, STUDY_SETUP_DECK
 from ui_nicegui.lib.trade_study_labels import (
@@ -81,7 +81,7 @@ def render_trade_study_studio(session: DesignSession) -> None:
                     sync_deck_guided_to_helm(session, bool(e.value), deck_attr="trade_teaching_mode"),
                     refresh_tab_if_idle(
                         session,
-                        running_attrs=("trade_running",),
+                        running_attrs=TRADE_RUNNING_ATTRS,
                         refresh=_render_tab_body.refresh,
                         job_label="Trade Study",
                     ),
@@ -94,7 +94,7 @@ def render_trade_study_studio(session: DesignSession) -> None:
                     sync_deck_expert_to_helm(session, bool(e.value), deck_attr="trade_expert_view"),
                     refresh_tab_if_idle(
                         session,
-                        running_attrs=("trade_running",),
+                        running_attrs=TRADE_RUNNING_ATTRS,
                         refresh=_render_tab_body.refresh,
                         job_label="Trade Study",
                     ),
@@ -141,7 +141,7 @@ def render_trade_study_studio(session: DesignSession) -> None:
             setattr(session, "trade_workflow_step", normalize_trade_tab(str(e.value))),
             refresh_tab_if_idle(
                 session,
-                running_attrs=("trade_running",),
+                running_attrs=TRADE_RUNNING_ATTRS,
                 refresh=_render_tab_body.refresh,
                 job_label="Trade Study",
             ),
@@ -227,7 +227,7 @@ def _render_advanced_router(session: DesignSession) -> None:
         deck_sel.set_options(dlist, value=sess.trade_advanced_deck)
         refresh_tab_if_idle(
             sess,
-            running_attrs=("trade_running",),
+            running_attrs=TRADE_RUNNING_ATTRS,
             refresh=_deck_body.refresh,
             job_label="Trade Study",
         )
@@ -236,7 +236,7 @@ def _render_advanced_router(session: DesignSession) -> None:
         session.trade_advanced_deck = str(e.value)
         refresh_tab_if_idle(
             session,
-            running_attrs=("trade_running",),
+            running_attrs=TRADE_RUNNING_ATTRS,
             refresh=_deck_body.refresh,
             job_label="Trade Study",
         )

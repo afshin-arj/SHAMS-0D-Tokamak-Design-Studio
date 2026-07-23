@@ -38,7 +38,10 @@ from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 def _refresh_tab_body_if_idle(session: DesignSession) -> None:
     """Avoid tearing down cartography progress timer while a Scan Lab job is live."""
-    if getattr(session, "scan_running", False) or getattr(session, "scan_legacy_running", False):
+    from ui_nicegui.lib.deck_busy_guard import SCAN_RUNNING_ATTRS
+
+    busy = [a for a in SCAN_RUNNING_ATTRS if getattr(session, a, False)]
+    if busy:
         ui.notify(
             "Scan Lab job running — wait until it finishes before changing Setup / Guided / Expert.",
             type="warning",
