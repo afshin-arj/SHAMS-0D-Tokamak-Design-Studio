@@ -85,8 +85,13 @@ def test_power_ledger_net_electric_is_proxy() -> None:
 
     rows = {r["key"]: r for r in power_ledger_badged_rows({})}
     assert rows["P_e_net_MW"]["type"] == "Proxy"
-    filled = {r["key"]: r for r in power_ledger_badged_rows({"P_e_net_MW": 42.0})}
+    filled = {r["key"]: r for r in power_ledger_badged_rows({"P_e_net_MW": 42.0}, feasible=True)}
     assert filled["P_e_net_MW"]["MW"] != "n/a"
+    infeas = {r["key"]: r for r in power_ledger_badged_rows(
+        {"P_e_net_MW": 42.0, "Pfus_total_MW": 500.0}, feasible=False
+    )}
+    assert infeas["P_e_net_MW"]["MW"] == "— (diagnostic)"
+    assert infeas["Pfus_total_MW"]["MW"] == "— (diagnostic)"
 
 
 def test_point_summary_resolves_l0_keys() -> None:
@@ -581,9 +586,32 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
         feasible=False,
     )
     vals = {r["quantity"]: r["value"] for r in diag_rows}
-    assert "(diag)" in vals.get("Q [-]", "")
-    assert "(diag)" in vals.get("H98 [-]", "")
+    assert "— (diagnostic)" in vals.get("Q [-]", "")
+    assert "— (diagnostic)" in vals.get("H98 [-]", "")
     assert "(diag)" not in vals.get("Ip [MA]", "8")
+    assert "8" in vals.get("Ip [MA]", "")
+
+
+def test_baseline_delta_watermarks_infeasible_claims() -> None:
+    from unittest.mock import patch
+
+    from ui_nicegui.lib.pd_parity_helpers import baseline_delta_rows
+
+    base = {"outputs": {"Q_DT_eqv": 10.0, "H98": 1.2, "P_e_net_MW": 50.0, "q95_proxy": 3.0, "TBR": 1.1}}
+    cur = {"outputs": {"Q_DT_eqv": 12.0, "H98": 1.3, "P_e_net_MW": 55.0, "q95_proxy": 3.1, "TBR": 1.05}}
+    with patch(
+        "ui_nicegui.lib.verdict_core.verdict_summary",
+        return_value={"loaded": True, "feasible": False},
+    ):
+        rows = {r["KPI"]: r for r in baseline_delta_rows(base, cur)}
+    assert rows["Q_DT_eqv"]["baseline"] == "— (diagnostic)"
+    assert rows["Q_DT_eqv"]["current"] == "— (diagnostic)"
+    assert rows["Q_DT_eqv"]["delta"] == "— (diagnostic)"
+    assert rows["H98"]["baseline"] == "— (diagnostic)"
+    assert "q95 (cyl. proxy)" in rows
+    assert "TBR (proxy)" in rows
+    # Operational proxies stay numeric.
+    assert rows["q95 (cyl. proxy)"]["baseline"] != "— (diagnostic)"
 
 
 def test_systems_solve_does_not_overwrite_point_designer() -> None:

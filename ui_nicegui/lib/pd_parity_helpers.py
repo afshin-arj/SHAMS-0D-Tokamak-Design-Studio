@@ -276,7 +276,7 @@ def regime_compass_rows(
         ("fG", "fG", "–", "Authoritative"),
         ("nGW", "nGW", "×1e20 m⁻³", "Diagnostic"),
         ("βN", "beta_N", "–", "Proxy"),
-        ("q95", "q95_proxy", "–", "Proxy"),
+        ("q95 (cyl. proxy)", "q95_proxy", "–", "Proxy"),
         ("P_SOL/R", "P_SOL_over_R_MW_m", "MW/m", "Proxy"),
         ("Bootstrap f_bs", "f_bs_proxy", "–", "Proxy"),
         ("n̄e", "ne20", "×1e20 m⁻³", "Authoritative"),
@@ -285,7 +285,7 @@ def regime_compass_rows(
         ("q_div", "q_div_MW_m2", "MW/m²", "Proxy"),
         ("P_CD", "P_CD_MW", "MW", "Proxy"),
         ("η_CD", "eta_CD_A_W", "A/W", "Proxy"),
-        ("TBR", "TBR", "–", "Proxy"),
+        ("TBR (proxy)", "TBR", "–", "Proxy"),
         ("B_peak", "B_peak_T", "T", "Authoritative"),
     ]
     rows: List[Dict[str, Any]] = []
@@ -350,10 +350,21 @@ def build_coils_metrics(out: Dict[str, Any]) -> List[Tuple[str, str]]:
     return rows
 
 
-def fuel_cycle_metric_groups(out: Dict[str, Any]) -> List[List[Tuple[str, str]]]:
+def fuel_cycle_metric_groups(
+    out: Dict[str, Any],
+    *,
+    feasible: Optional[bool] = None,
+) -> List[List[Tuple[str, str]]]:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
+
     def _m(k: str, fmt: str = "{:.3g}", suffix: str = "") -> str:
         v = _safe_float(out.get(k, float("nan")))
         return (fmt.format(v) + suffix) if math.isfinite(v) else "n/a"
+
+    def _claim(k: str, fmt: str = "{:.3g}") -> str:
+        if feasible is False:
+            return format_claim_kpi_for_table(k, out.get(k), feasible=False, point_out=out)
+        return _m(k, fmt)
 
     groups: List[List[Tuple[str, str]]] = [
         [
@@ -364,7 +375,10 @@ def fuel_cycle_metric_groups(out: Dict[str, Any]) -> List[List[Tuple[str, str]]]
         ],
         [
             ("Availability", _m("availability_model", "{:.2f}")),
-            ("Annual net (MWh/y)", _m("annual_net_MWh", "{:.3g}")),
+            (
+                "Annual net (MWh/y)",
+                "— (diagnostic)" if feasible is False else _m("annual_net_MWh", "{:.3g}"),
+            ),
             ("FW interval (y)", _m("fw_replace_interval_y", "{:.2f}")),
             ("DIV interval (y)", _m("div_replace_interval_y", "{:.2f}")),
         ],
@@ -373,8 +387,11 @@ def fuel_cycle_metric_groups(out: Dict[str, Any]) -> List[List[Tuple[str, str]]]
     if math.isfinite(av359):
         groups.append([
             ("Availability (replacement ledger)", _m("availability_v359", "{:.2f}")),
-            ("Net MWh/y (replacement ledger)", _m("net_electric_MWh_per_year_v359", "{:.3g}")),
-            ("LCOE (replacement ledger) (USD/MWh)", _m("LCOE_proxy_v359_USD_per_MWh", "{:.2f}")),
+            (
+                "Net MWh/y (replacement ledger)",
+                "— (diagnostic)" if feasible is False else _m("net_electric_MWh_per_year_v359", "{:.3g}"),
+            ),
+            ("LCOE (replacement ledger) (USD/MWh)", _claim("LCOE_proxy_v359_USD_per_MWh", "{:.2f}")),
             ("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v359", "{:.2f}")),
         ])
     av368 = _safe_float(out.get("availability_v368", float("nan")))
@@ -382,7 +399,10 @@ def fuel_cycle_metric_groups(out: Dict[str, Any]) -> List[List[Tuple[str, str]]]
         groups.append([
             ("Availability (maintenance scheduling)", _m("availability_v368", "{:.2f}")),
             ("Outage total (maintenance scheduling)", _m("outage_total_frac_v368", "{:.2f}")),
-            ("Net MWh/y (maintenance scheduling)", _m("net_electric_MWh_per_year_v368", "{:.3g}")),
+            (
+                "Net MWh/y (maintenance scheduling)",
+                "— (diagnostic)" if feasible is False else _m("net_electric_MWh_per_year_v368", "{:.3g}"),
+            ),
             ("Repl. cost (MUSD/y)", _m("replacement_cost_MUSD_per_year_v368", "{:.2f}")),
         ])
     av391 = _safe_float(out.get("availability_cert_v391", float("nan")))
@@ -629,6 +649,7 @@ POWER_LEDGER_BADGED = [
     ("Aux heating", "Paux_MW", "Authoritative"),
     ("Ohmic", "Pohm_MW", "Proxy"),
     ("Fusion alpha (generated)", "Palpha_MW", "Authoritative"),
+    ("Fusion total", "Pfus_total_MW", "Proxy"),
     ("Core radiation", "Prad_core_MW", "Proxy"),
     ("SOL/Separatrix power", "P_SOL_MW", "Authoritative"),
     ("Total loss Ploss", "Ploss_MW", "Authoritative"),
@@ -638,6 +659,7 @@ POWER_LEDGER_BADGED = [
 _POWER_LEDGER_ALIASES = {
     "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
     "Palpha_MW": ("Palpha_MW",),
+    "Pfus_total_MW": ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"),
 }
 
 
@@ -645,8 +667,12 @@ def power_ledger_badged_rows(
     out: Dict[str, Any],
     *,
     include_radiation: bool = False,
+    feasible: Optional[bool] = None,
 ) -> List[Dict[str, str]]:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+
     rows: List[Dict[str, str]] = []
+    claim_blocked = feasible is False
     for lbl, key, badge in POWER_LEDGER_BADGED:
         v = None
         for kk in _POWER_LEDGER_ALIASES.get(key, (key,)):
@@ -658,11 +684,15 @@ def power_ledger_badged_rows(
         b = badge
         if key == "Prad_core_MW":
             b = "Proxy" if include_radiation else "Diagnostic"
-        try:
-            fv = float(v)
-            mw = fmt_num(fv) if fv == fv else "n/a"
-        except (TypeError, ValueError):
-            mw = "n/a"
+        if claim_blocked and is_claim_kpi_key(key):
+            b = "Diagnostic"
+            mw = format_claim_kpi_for_table(key, v, feasible=False, point_out=out)
+        else:
+            try:
+                fv = float(v)
+                mw = fmt_num(fv) if fv == fv else "n/a"
+            except (TypeError, ValueError):
+                mw = "n/a"
         rows.append({"item": lbl, "key": key, "MW": mw, "type": b})
     return rows
 
@@ -786,11 +816,11 @@ BASELINE_DELTA_KPIS = [
     ("Q_DT_eqv", "Q_DT_eqv", "–", ("Q_DT_eqv", "Q")),
     ("H98", "H98", "–", ("H98",)),
     ("P_net_e", "P_e_net_MW", "MW(e)", ("P_e_net_MW", "P_net_e_MW")),
-    ("q95", "q95_proxy", "–", ("q95_proxy", "q95")),
-    ("betaN", "beta_N", "–", ("beta_N", "betaN_proxy", "betaN")),
+    ("q95 (cyl. proxy)", "q95_proxy", "–", ("q95_proxy", "q95")),
+    ("βN (screening)", "beta_N", "–", ("beta_N", "betaN_proxy", "betaN")),
     ("q_div", "q_div_MW_m2", "MW/m²", ("q_div_MW_m2",)),
     ("P_SOL", "P_SOL_MW", "MW", ("P_SOL_MW",)),
-    ("TBR", "TBR", "–", ("TBR",)),
+    ("TBR (proxy)", "TBR", "–", ("TBR",)),
 ]
 
 
@@ -798,10 +828,15 @@ def baseline_delta_rows(
     baseline_art: Dict[str, Any],
     current_art: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
     bo = (baseline_art.get("outputs") or {}) if isinstance(baseline_art, dict) else {}
     co = (current_art.get("outputs") or {}) if isinstance(current_art, dict) else {}
+    feas_b = bool(verdict_summary(bo).get("feasible")) if bo else False
+    feas_c = bool(verdict_summary(co).get("feasible")) if co else False
     rows: List[Dict[str, Any]] = []
-    for label, _primary, unit, aliases in BASELINE_DELTA_KPIS:
+    for label, primary, unit, aliases in BASELINE_DELTA_KPIS:
         vb = float("nan")
         vc = float("nan")
         for kk in aliases:
@@ -813,11 +848,24 @@ def baseline_delta_rows(
                 vc = _safe_float(co.get(kk))
                 break
         dlt = vc - vb if math.isfinite(vb) and math.isfinite(vc) else float("nan")
+        claim = is_claim_kpi_key(primary)
+        if claim and not feas_b:
+            base_disp = format_claim_kpi_for_table(primary, vb, feasible=False, point_out=bo)
+        else:
+            base_disp = fmt_num(vb) if math.isfinite(vb) else "n/a"
+        if claim and not feas_c:
+            cur_disp = format_claim_kpi_for_table(primary, vc, feasible=False, point_out=co)
+        else:
+            cur_disp = fmt_num(vc) if math.isfinite(vc) else "n/a"
+        if claim and (not feas_b or not feas_c):
+            dlt_disp = "— (diagnostic)"
+        else:
+            dlt_disp = fmt_num(dlt) if math.isfinite(dlt) else "n/a"
         rows.append({
             "KPI": label,
-            "baseline": fmt_num(vb) if math.isfinite(vb) else "n/a",
-            "current": fmt_num(vc) if math.isfinite(vc) else "n/a",
-            "delta": fmt_num(dlt) if math.isfinite(dlt) else "n/a",
+            "baseline": base_disp,
+            "current": cur_disp,
+            "delta": dlt_disp,
             "unit": unit,
         })
     return rows
@@ -1157,7 +1205,7 @@ def point_summary_rows(
             val = str(raw)
         # PHYS-KPI-001: achievement KPIs on INFEASIBLE are diagnostic residue only.
         if feasible is False and label in _ACHIEVEMENT_SUMMARY_LABELS and val != "n/a":
-            val = f"{val} (diag)"
+            val = "— (diagnostic)"
         rows.append({"quantity": label, "value": val})
     return rows
 

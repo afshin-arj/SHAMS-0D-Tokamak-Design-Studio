@@ -152,7 +152,7 @@ def render_posture_strip(
         ("Pfus [MW]", pfus_disp),
         ("P_net [MW]", p_net_disp),
         ("q95 (cyl. proxy)", fmt(kpis.get("q95"))),
-        ("β_N", fmt(kpis.get("beta_N"))),
+        ("β_N (screening)", fmt(kpis.get("beta_N"))),
         ("f_G", fmt(kpis.get("f_G"))),
     ])
     for note in hero_diagnostic_notes(

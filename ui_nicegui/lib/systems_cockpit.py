@@ -104,8 +104,8 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
         [
             f"- P_fus [MW]: {pfus}",
             f"- P_net [MW]: {pnet}",
-            f"- Q_plasma: {qval}",
-            f"- β_N: {fmt(out.get('beta_N', out.get('betaN_proxy', out.get('betaN'))))}",
+            f"- Q_DT_eqv: {qval}",
+            f"- β_N (screening): {fmt(out.get('beta_N', out.get('betaN_proxy', out.get('betaN'))))}",
             f"- q95 (cyl. proxy): {fmt(out.get('q95_proxy', out.get('q95')))}",
             f"- n/n_GW: {fmt(out.get('fG', out.get('n_over_nGW')))}",
             "",

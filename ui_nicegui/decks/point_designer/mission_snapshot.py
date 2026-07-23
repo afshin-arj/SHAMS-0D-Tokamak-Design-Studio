@@ -115,7 +115,12 @@ def render_mission_snapshot(session: DesignSession) -> None:
         ui.label("Contracts are declarative metadata; they do not change physics.").classes("text-caption")
 
     with ui.expansion("Fuel Cycle · Lifetime · Availability", icon="battery_charging_full").classes("w-full"):
-        for group in fuel_cycle_metric_groups(out):
+        feas_fc = bool(verdict_summary(out).get("feasible"))
+        if not feas_fc:
+            ui.label(
+                "PHYS-KPI-001: LCOE / annual net-electric on INFEASIBLE are diagnostic — not plant claims."
+            ).classes("text-caption text-orange q-mb-xs")
+        for group in fuel_cycle_metric_groups(out, feasible=feas_fc):
             kpi_row(group)
         ui.label(fuel_cycle_caps_caption(out)).classes("text-caption q-mt-sm")
         led391 = out.get("availability_ledger_v391")
@@ -393,7 +398,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
         if not feas_rt:
             ui.label(
                 "PHYS-KPI-001: Q / H98 / Pfus / P_net shown as — (diagnostic) on INFEASIBLE — "
-                "open JSON export / Telemetry for raw closure values."
+                "raw closure values remain in JSON export / artifact only."
             ).classes("text-caption text-orange q-mb-xs")
         rt = raw_telemetry_rows(out, feasible=feas_rt)
         ui.table(

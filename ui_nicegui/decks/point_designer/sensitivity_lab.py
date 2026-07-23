@@ -234,6 +234,16 @@ def _delta_panel(session: DesignSession) -> None:
     base_art = session.pd_baseline_artifact
     cur_art = session.pd_last_artifact
     if isinstance(base_art, dict) and isinstance(cur_art, dict):
+        from ui_nicegui.lib.verdict_core import verdict_summary
+
+        bo = base_art.get("outputs") or {}
+        co = cur_art.get("outputs") or {}
+        feas_b = bool(verdict_summary(bo).get("feasible")) if isinstance(bo, dict) else False
+        feas_c = bool(verdict_summary(co).get("feasible")) if isinstance(co, dict) else False
+        if not feas_b or not feas_c:
+            ui.label(
+                "PHYS-KPI-001: Q / H98 / P_net deltas involving INFEASIBLE points are diagnostic — not design claims."
+            ).classes("text-caption text-orange q-mb-xs")
         rows = baseline_delta_rows(base_art, cur_art)
         ui.table(
             columns=[

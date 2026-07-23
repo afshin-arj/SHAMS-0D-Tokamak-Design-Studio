@@ -134,8 +134,8 @@ def plot_power_balance_bars(out: Dict[str, Any]) -> Optional[bytes]:
 def plot_stability_limits(out: Dict[str, Any]) -> Optional[bytes]:
     # L0 keys: q95_proxy, beta_N / betaN_proxy, fG (never bare q95/betaN/fGW).
     pairs = [
-        ("q95", _sf(out.get("q95_proxy", out.get("q95")))),
-        ("βN", _sf(out.get("beta_N", out.get("betaN_proxy", out.get("betaN"))))),
+        ("q95 (cyl. proxy)", _sf(out.get("q95_proxy", out.get("q95")))),
+        ("βN (screen)", _sf(out.get("beta_N", out.get("betaN_proxy", out.get("betaN"))))),
         ("fG", _sf(out.get("fG", out.get("greenwald_fraction", out.get("fGW"))))),
     ]
     labs, vals = [], []
