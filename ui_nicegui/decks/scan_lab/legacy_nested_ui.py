@@ -49,7 +49,13 @@ def render_legacy_nested_panel(session: DesignSession) -> None:
             ui.label("Grid is large — tighten steps before running.").classes("text-caption text-negative")
 
         async def _run() -> None:
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             if getattr(session, "scan_legacy_running", False):
                 ui.notify("Legacy scan running", type="warning")
@@ -64,6 +70,7 @@ def render_legacy_nested_panel(session: DesignSession) -> None:
             if not runlock_acquire("Scan Lab: Legacy nested", "ScanLab"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             session.scan_legacy_running = True
             ui.notify("Running legacy nested scan…", type="info")
 
@@ -77,15 +84,19 @@ def render_legacy_nested_panel(session: DesignSession) -> None:
                     base_inputs=session.build_point_inputs(),
                     progress_cb=_progress,
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.scan_legacy_last = {"rows": rows, "meta": meta}
                 ui.notify(f"Legacy scan: {len(rows)} feasible / {meta.get('n_total')} tried", type="positive")
                 _results.refresh()
             except Exception as exc:
                 ui.notify(f"Legacy scan failed: {exc}", type="negative")
             finally:
-                session.scan_legacy_running = False
-                session.scan_legacy_progress = 0.0
-                runlock_release("ScanLab")
+                if lease_valid(lease):
+                    session.scan_legacy_running = False
+                    session.scan_legacy_progress = 0.0
+                    runlock_release("ScanLab", lease)
 
         ui.button("Run legacy nested scan", icon="grid_on", on_click=_run).props("outline q-mb-sm")
         _results(session)

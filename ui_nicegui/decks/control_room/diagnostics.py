@@ -193,7 +193,13 @@ def _non_feasibility_guide(session: DesignSession) -> None:
     ui.label("Local forensics (current Point Designer inputs)").classes("text-subtitle2")
 
     async def _forensics() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         locked, task, is_owner = runlock_status("ControlRoom")
         if locked:
@@ -207,6 +213,7 @@ def _non_feasibility_guide(session: DesignSession) -> None:
         if not runlock_acquire("Control Room: Diagnostics forensics", "ControlRoom"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         try:
             from ui_nicegui.lib.cr_chronicle_helpers import run_local_forensics
 
@@ -215,13 +222,17 @@ def _non_feasibility_guide(session: DesignSession) -> None:
                 session.build_point_inputs(),
                 design_intent="Reactor",
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.cr_forensics_last = rep
             ui.notify("Forensics complete", type="positive")
             _nf_view.refresh()
         except Exception as exc:
             ui.notify(f"Forensics failed: {exc}", type="negative")
         finally:
-            runlock_release("ControlRoom")
+            if lease_valid(lease):
+                runlock_release("ControlRoom", lease)
 
     ui.button("Run forensics on current point", on_click=_forensics).props("outline")
     _nf_view(session)

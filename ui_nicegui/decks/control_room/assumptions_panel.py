@@ -43,7 +43,13 @@ def render_assumptions_panel(session: DesignSession) -> None:
     tite = ui.number("Ti/Te", value=float(getattr(base, "Ti_over_Te", 2.0)), step=0.1)
 
     async def _apply() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         locked, task, is_owner = runlock_status("ControlRoom")
         if locked and not is_owner:
@@ -52,6 +58,7 @@ def render_assumptions_panel(session: DesignSession) -> None:
         if not runlock_acquire("Control Room: Assumption toggles", "ControlRoom"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         try:
             base_pi = session.build_point_inputs()
             pi = replace(
@@ -62,6 +69,9 @@ def render_assumptions_panel(session: DesignSession) -> None:
                 Ti_over_Te=float(tite.value or 2.0),
             )
             out = await run.io_bound(ui_evaluate, pi, origin="control_room_assumptions")
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             set_point_evaluation(session, outputs=out, inputs=asdict(pi))
             vs = verdict_summary(out) if isinstance(out, dict) else {}
             if vs.get("feasible"):
@@ -82,7 +92,8 @@ def render_assumptions_panel(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Evaluate failed: {exc}", type="negative")
         finally:
-            runlock_release("ControlRoom")
+            if lease_valid(lease):
+                runlock_release("ControlRoom", lease)
 
     ui.button("Apply toggles and evaluate", on_click=_apply).props("color=primary outline")
     _result(session)

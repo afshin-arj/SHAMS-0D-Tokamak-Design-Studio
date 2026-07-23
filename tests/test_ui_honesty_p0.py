@@ -1140,12 +1140,43 @@ def test_write_fence_source_contracts_priority_decks() -> None:
         Path("ui_nicegui/decks/systems_mode/recover_ui.py"),
         Path("ui_nicegui/decks/systems_mode/explore_ui.py"),
         Path("ui_nicegui/decks/systems_mode/apply_ui.py"),
+        # Residual sweep (force-clear-safe secondary jobs)
+        Path("ui_nicegui/decks/point_designer/sensitivity_lab.py"),
+        Path("ui_nicegui/decks/point_designer/phase_envelopes.py"),
+        Path("ui_nicegui/decks/point_designer/uncertainty_contracts.py"),
+        Path("ui_nicegui/decks/scan_lab/insights.py"),
+        Path("ui_nicegui/decks/scan_lab/export_archive.py"),
+        Path("ui_nicegui/decks/control_room/chronicle.py"),
+        Path("ui_nicegui/decks/control_room/knob_trade_space.py"),
+        Path("ui_nicegui/decks/control_room/provenance.py"),
+        Path("ui_nicegui/decks/systems_mode/precheck_ui.py"),
+        Path("ui_nicegui/decks/systems_mode/diagnostics_ui.py"),
+        Path("ui_nicegui/decks/systems_mode/atlas_ui.py"),
+        Path("ui_nicegui/decks/reactor_design_forge/instruments.py"),
+        Path("ui_nicegui/components/helm_console.py"),
+        Path("ui_nicegui/lib/compare_helpers.py"),
     ]
     for p in paths:
         src = p.read_text(encoding="utf-8")
         assert "current_lease" in src, f"{p}: missing current_lease"
         assert "lease_valid" in src, f"{p}: missing lease_valid"
         assert "force-cleared" in src or "discarding" in src.lower(), f"{p}: missing discard notify"
+
+
+def test_no_ungated_runlock_release_calls() -> None:
+    """Every runlock_release in ui_nicegui must pass a lease argument."""
+    from pathlib import Path
+    import re
+
+    root = Path("ui_nicegui")
+    bad: list[str] = []
+    # Matches runlock_release("Owner") or runlock_release(CONST) with no second arg.
+    pat = re.compile(r"runlock_release\(\s*(?:[\"'][^\"']+[\"']|[A-Za-z_][A-Za-z0-9_]*)\s*\)")
+    for p in root.rglob("*.py"):
+        text = p.read_text(encoding="utf-8")
+        for m in pat.finditer(text):
+            bad.append(f"{p.as_posix()}:{text[: m.start()].count(chr(10)) + 1}: {m.group(0)}")
+    assert not bad, "ungated runlock_release sites:\n" + "\n".join(bad)
 
 
 def test_point_designer_export_watermarks_infeasible() -> None:

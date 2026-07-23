@@ -70,7 +70,13 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
     phases_area.on("update:model-value", lambda: _sync_json())
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         _sync_json()
         if getattr(session, "phase_envelopes_running", False):
@@ -83,6 +89,7 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
         if not runlock_acquire("Point Designer: Phase envelopes", "PointDesigner"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         session.phase_envelopes_running = True
         ui.notify("Running phase envelope…", type="info")
         try:
@@ -98,14 +105,18 @@ def render_phase_envelopes(session: DesignSession, *, ui_key_prefix: str = "pd_p
                 label_prefix=prefix,
                 evaluator=ev,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.phase_envelopes_last = env
             ui.notify("Phase envelope complete.", type="positive")
             _results.refresh()
         except Exception as exc:
             ui.notify(f"Phase envelope failed: {exc}", type="negative")
         finally:
-            session.phase_envelopes_running = False
-            runlock_release("PointDesigner")
+            if lease_valid(lease):
+                session.phase_envelopes_running = False
+                runlock_release("PointDesigner", lease)
 
     with ui.row().classes("w-full gap-4 items-end q-mt-sm"):
         ui.input(

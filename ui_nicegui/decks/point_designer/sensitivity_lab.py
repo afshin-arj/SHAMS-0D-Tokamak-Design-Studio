@@ -50,7 +50,13 @@ def render_sensitivity_lab(session: DesignSession) -> None:
         fd_area = ui.column().classes("w-full")
 
         async def _run_fd() -> None:
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             locked, task, is_owner = runlock_status("PointDesigner")
             if locked and not is_owner:
@@ -59,6 +65,7 @@ def render_sensitivity_lab(session: DesignSession) -> None:
             if not runlock_acquire("Point Designer: Local FD", "PointDesigner"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             ui.notify("Computing local sensitivities…", type="info")
             try:
                 base = session.build_point_inputs()
@@ -67,6 +74,9 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                     return ui_evaluate(pi, origin="NiceGUI:LocalFD", Paux_for_Q_MW=session.paux_for_q)
 
                 rows = await run.io_bound(local_fd_sensitivity_rows, base, _eval)
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 from ui_nicegui.lib.sensitivity_honesty import fd_parity_rows_watermark
                 from ui_nicegui.lib.verdict_core import verdict_summary
 
@@ -94,7 +104,8 @@ def render_sensitivity_lab(session: DesignSession) -> None:
             except Exception as exc:
                 ui.notify(f"Sensitivity failed: {exc}", type="negative")
             finally:
-                runlock_release("PointDesigner")
+                if lease_valid(lease):
+                    runlock_release("PointDesigner", lease)
 
         ui.button("Compute local FD sensitivities", on_click=_run_fd).classes("q-mt-sm")
 
@@ -105,7 +116,13 @@ def render_sensitivity_lab(session: DesignSession) -> None:
         scan_area = ui.column().classes("w-full")
 
         async def _scan() -> None:
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             locked, task, is_owner = runlock_status("PointDesigner")
             if locked and not is_owner:
@@ -114,6 +131,7 @@ def render_sensitivity_lab(session: DesignSession) -> None:
             if not runlock_acquire("Point Designer: Perturbation scan", "PointDesigner"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             ui.notify("Running perturbation scan…", type="info")
             try:
                 base = session.build_point_inputs()
@@ -122,6 +140,9 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                     return ui_evaluate(pi, origin="NiceGUI:PertScan", Paux_for_Q_MW=session.paux_for_q)
 
                 rows = await run.io_bound(run_perturbation_scan, base, _eval)
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.pd_pert_scan_rows = rows
                 scan_area.clear()
                 with scan_area:
@@ -143,7 +164,8 @@ def render_sensitivity_lab(session: DesignSession) -> None:
             except Exception as exc:
                 ui.notify(f"Scan failed: {exc}", type="negative")
             finally:
-                runlock_release("PointDesigner")
+                if lease_valid(lease):
+                    runlock_release("PointDesigner", lease)
 
         ui.button("Run ±10% perturbation scan", on_click=_scan).classes("q-mt-sm")
         if session.pd_pert_scan_rows:
@@ -168,7 +190,13 @@ def render_sensitivity_lab(session: DesignSession) -> None:
         async def _probe() -> None:
             from dataclasses import asdict, replace
 
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             locked, task, is_owner = runlock_status("PointDesigner")
             if locked and not is_owner:
@@ -177,17 +205,20 @@ def render_sensitivity_lab(session: DesignSession) -> None:
             if not runlock_acquire("Point Designer: Perturbation probe", "PointDesigner"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             base = session.build_point_inputs()
             base_dict = asdict(base) if hasattr(base, "__dataclass_fields__") else base.to_dict()
             k = str(knob.value)
             if k not in base_dict:
-                runlock_release("PointDesigner")
+                if lease_valid(lease):
+                    runlock_release("PointDesigner", lease)
                 ui.notify(f"Knob {k} not in baseline.", type="warning")
                 return
             try:
                 x0 = float(base_dict[k])
             except (TypeError, ValueError):
-                runlock_release("PointDesigner")
+                if lease_valid(lease):
+                    runlock_release("PointDesigner", lease)
                 ui.notify("Invalid baseline value.", type="negative")
                 return
             try:
@@ -197,6 +228,9 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                     yo = await run.io_bound(
                         ui_evaluate, pi, origin="NiceGUI:PerturbationProbe", Paux_for_Q_MW=session.paux_for_q
                     )
+                    if not lease_valid(lease):
+                        ui.notify("Run was force-cleared — discarding results.", type="warning")
+                        return
                     q = yo.get("Q_DT_eqv", yo.get("Q"))
                     from ui_nicegui.lib.verdict_core import verdict_summary
 
@@ -221,7 +255,8 @@ def render_sensitivity_lab(session: DesignSession) -> None:
                         row_key="step",
                     ).classes("w-full")
             finally:
-                runlock_release("PointDesigner")
+                if lease_valid(lease):
+                    runlock_release("PointDesigner", lease)
 
         ui.button("Run ±10% probe", on_click=_probe).classes("q-mt-sm")
 

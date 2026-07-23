@@ -74,7 +74,13 @@ def render_chronicle_export(session: DesignSession) -> None:
             ).classes("text-caption q-mb-sm")
 
             async def _search() -> None:
-                from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+                from ui_nicegui.lib.run_lock import (
+                    acquire as runlock_acquire,
+                    release as runlock_release,
+                    status as runlock_status,
+                    current_lease,
+                    lease_valid,
+                )
 
                 locked, task, is_owner = runlock_status("PointDesigner")
                 if locked:
@@ -88,9 +94,13 @@ def render_chronicle_export(session: DesignSession) -> None:
                 if not runlock_acquire("Point Designer: Nearest feasible", "PointDesigner"):
                     ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                     return
+                lease = current_lease()
                 ui.notify("Searching nearest feasible…", type="info")
                 try:
                     rep = await run.io_bound(search_nearest_feasible, session)
+                    if not lease_valid(lease):
+                        ui.notify("Run was force-cleared — discarding results.", type="warning")
+                        return
                     if rep.get("status") == "error":
                         ui.notify(str(rep.get("message", "frontier error")), type="negative")
                     else:
@@ -99,7 +109,8 @@ def render_chronicle_export(session: DesignSession) -> None:
                 except Exception as exc:
                     ui.notify(f"Frontier search failed: {exc}", type="negative")
                 finally:
-                    runlock_release("PointDesigner")
+                    if lease_valid(lease):
+                        runlock_release("PointDesigner", lease)
 
             ui.button("Search nearest feasible within bounds", on_click=_search).classes("q-mb-sm")
             _frontier_panel(session)

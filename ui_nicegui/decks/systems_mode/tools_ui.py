@@ -56,7 +56,13 @@ def render_tools_panel(session: DesignSession) -> None:
         step_h = ui.number("Step h", value=0.05, min=1e-6, step=0.01).classes("w-24")
 
         async def _sens() -> None:
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             locked, task, is_owner = runlock_status("SystemsMode")
             if locked:
@@ -70,6 +76,7 @@ def render_tools_panel(session: DesignSession) -> None:
             if not runlock_acquire("Systems Mode: Local sensitivities", "SystemsMode"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             base, _, _ = resolve_systems_problem(session)
             k_list = list(knobs.value or [])
             o_list = list(outputs.value or [])
@@ -89,13 +96,17 @@ def render_tools_panel(session: DesignSession) -> None:
 
             try:
                 rep = await run.io_bound(_run)
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.systems_sensitivities_last = rep
                 ui.notify("Sensitivities computed", type="positive")
                 _sens_view.refresh()
             except Exception as exc:
                 ui.notify(f"Sensitivity failed: {exc}", type="negative")
             finally:
-                runlock_release("SystemsMode")
+                if lease_valid(lease):
+                    runlock_release("SystemsMode", lease)
 
         ui.button("Compute sensitivities", on_click=_sens).props("outline dense q-mb-sm")
         _sens_view(session)
@@ -105,7 +116,13 @@ def render_tools_panel(session: DesignSession) -> None:
 
         async def _qa() -> None:
             from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             locked, task, is_owner = runlock_status("SystemsMode")
             if locked:
@@ -119,6 +136,7 @@ def render_tools_panel(session: DesignSession) -> None:
             if not runlock_acquire("Systems Mode: QA smoke", "SystemsMode"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             refresh_status()
             refresh_helm()
 
@@ -131,14 +149,18 @@ def render_tools_panel(session: DesignSession) -> None:
 
             try:
                 result = await run.io_bound(_run)
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 if result == 0:
                     ui.notify("SYSTEMS_QA: PASS", type="positive")
                 else:
                     ui.notify(f"SYSTEMS_QA: FAIL ({result})", type="negative")
             finally:
-                runlock_release("SystemsMode")
-                refresh_status()
-                refresh_helm()
+                if lease_valid(lease):
+                    runlock_release("SystemsMode", lease)
+                    refresh_status()
+                    refresh_helm()
 
         ui.button("Run Systems QA smoke", on_click=_qa).props("flat dense")
 
