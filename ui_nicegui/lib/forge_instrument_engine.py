@@ -467,50 +467,15 @@ def _inst_review_trinity(ctx: ForgeContext) -> InstrumentView:
     try:
         from tools.sandbox.review_room import build_review_trinity
 
-        from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
-
         sg = scan_grounding(cand, ctx.scan_artifact, intent=ctx.intent) if ctx.scan_artifact else {}
         tri = build_review_trinity(candidate=cand, scan_grounding=sg if isinstance(sg, dict) else {})
-        feasible = bool(cand.get("feasible"))
-        if not feasible:
-            # PHYS-KPI-001: watermark claim KPIs in stress/closure for display.
-            stress = tri.get("stress_story") if isinstance(tri.get("stress_story"), dict) else {}
-            closure = stress.get("closure") if isinstance(stress.get("closure"), dict) else {}
-            outs = cand.get("outputs") if isinstance(cand.get("outputs"), dict) else {}
-            for k in list(closure.keys()):
-                if is_claim_kpi_key(str(k)):
-                    closure[k] = format_claim_kpi_for_table(
-                        str(k), closure.get(k), feasible=False, point_out=outs
-                    )
-            md_lines = [
-                "# SHAMS Review Trinity (v1)",
-                "",
-                "**Non-prescriptive review brief. No rankings. No recommendations.**",
-                "",
-                "PHYS-KPI-001: claim KPIs below are diagnostic residue on an INFEASIBLE candidate — not design claims.",
-                "",
-                "## 1) Existence Proof",
-                "",
-                f"- Feasible: `{feasible}`",
-                f"- First failure (if any): `{(tri.get('existence_proof') or {}).get('first_failure') or '—'}`",
-                f"- Min signed margin: `{(tri.get('existence_proof') or {}).get('min_signed_margin')}`",
-                "",
-                "## 2) Stress Story",
-                "",
-                f"- Dominant resistance: `{(stress.get('margins') or {}).get('dominant_constraint') or '—'}`",
-            ]
-            if closure:
-                md_lines.append("- Closure (selected, watermarked):")
-                for k, v in closure.items():
-                    md_lines.append(f"  - `{k}`: `{v}`")
-            md_lines.append("")
-            md = "\n".join(md_lines) + "\n"
-        else:
-            md = tri.get("markdown") or ""
+        # Source builder already applies PHYS-KPI-001; surface markdown + honest JSON download.
+        md = str(tri.get("markdown") or "")
         blob = json.dumps(tri, indent=2, sort_keys=True, default=str).encode("utf-8")
         return InstrumentView(
             markdown=md,
             download=(blob, "review_trinity.json", "application/json"),
+            json_blob=tri,
         )
     except Exception as exc:
         return InstrumentView(error=str(exc))

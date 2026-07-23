@@ -12,6 +12,8 @@ Hard rules (epistemic)
 - Never rank, recommend, or claim a "best" design.
 - Never modify physics or constraint truth.
 - Always point to artifacts/evidence fields inside the candidate.
+- PHYS-KPI-001: on INFEASIBLE, claim FoMs (Q / H98 / Pfus / P_net) are
+  diagnostic residue in human-facing briefs — never design achievements.
 
 The UI may export these briefs as Markdown/JSON. The Markdown is a narrative
 rendering of the JSON and should be treated as derived.
@@ -19,6 +21,33 @@ rendering of the JSON and should be treated as derived.
 
 import json
 from typing import Any, Dict, List, Optional
+
+_DIAGNOSTIC = "— (diagnostic)"
+_CLAIM_CLOSURE_KEYS = frozenset(
+    {
+        "P_e_net_MW",
+        "P_net_e_MW",
+        "Pe_net_MW",
+        "net_electric_MW",
+        "Q",
+        "Q_DT_eqv",
+        "H98",
+        "P_fus_MW",
+        "Pfus_MW",
+        "Pfus_total_MW",
+        "Pfus_DT_adj_MW",
+    }
+)
+_CLOSURE_PICK = [
+    "gross_electric_MW",
+    "recirc_electric_MW",
+    "net_electric_MW",
+    "P_e_gross_MW",
+    "P_recirc_MW",
+    "P_e_net_MW",
+    "eta_thermal",
+    "eta_electric",
+]
 
 
 def _j(obj: Any) -> str:
@@ -30,6 +59,22 @@ def _pick(d: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
     for k in keys:
         if k in d:
             out[k] = d[k]
+    return out
+
+
+def _candidate_feasible(c: Dict[str, Any]) -> bool:
+    if "feasible" in c:
+        return bool(c.get("feasible"))
+    state = str(c.get("feasibility_state") or "").strip().upper()
+    return state == "FEASIBLE"
+
+
+def _watermark_closure(closure: Dict[str, Any], *, feasible: bool) -> Dict[str, Any]:
+    if feasible or not closure:
+        return dict(closure)
+    out: Dict[str, Any] = {}
+    for k, v in closure.items():
+        out[k] = _DIAGNOSTIC if str(k) in _CLAIM_CLOSURE_KEYS else v
     return out
 
 
@@ -47,9 +92,10 @@ def build_review_trinity(
     inputs = c.get("inputs") or {}
     outputs = c.get("outputs") or {}
     cons = c.get("constraints") or []
+    feasible = _candidate_feasible(c)
 
     existence = {
-        "feasible": bool(c.get("feasible")),
+        "feasible": feasible,
         "first_failure": c.get("first_failure") or c.get("failure_mode"),
         "min_signed_margin": c.get("min_signed_margin"),
         "fingerprint": c.get("fingerprint") or c.get("_id"),
@@ -60,20 +106,25 @@ def build_review_trinity(
         },
     }
 
-    closure = c.get("closure_bundle") or {}
+    closure_raw = c.get("closure_bundle") or {}
+    if not isinstance(closure_raw, dict):
+        closure_raw = {}
+    # Prefer explicit closure_bundle; fall back to evaluator outputs for legacy keys.
+    closure_src = dict(closure_raw)
+    if isinstance(outputs, dict):
+        for k in _CLOSURE_PICK:
+            if k not in closure_src and k in outputs:
+                closure_src[k] = outputs[k]
+    closure_picked = _pick(closure_src, _CLOSURE_PICK)
+    closure_display = _watermark_closure(closure_picked, feasible=feasible)
+
     stress = {
         "margins": {
             "min_signed_margin": c.get("min_signed_margin"),
             "dominant_constraint": c.get("first_failure") or c.get("failure_mode"),
         },
         "reality_gates": c.get("reality_gates") or {},
-        "closure": _pick(closure, [
-            "P_e_gross_MW",
-            "P_recirc_MW",
-            "P_e_net_MW",
-            "eta_thermal",
-            "eta_electric",
-        ]),
+        "closure": closure_display,
         "confidence": c.get("confidence_sweep") or {},
     }
 
@@ -93,13 +144,23 @@ def build_review_trinity(
         "scan_grounding": scan_grounding or {},
         "pareto_context": pareto_context or {},
     }
+    if not feasible:
+        out["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim FoMs in stress_story.closure are diagnostic on "
+            "INFEASIBLE — not design claims."
+        )
 
     md = []
     md.append("# SHAMS Review Trinity (v1)\n")
     md.append("**Non-prescriptive review brief. No rankings. No recommendations.**\n")
+    if not feasible:
+        md.append(
+            "PHYS-KPI-001: claim FoMs (Q / H98 / Pfus / P_net) below are "
+            "**diagnostic residue** on an INFEASIBLE candidate — not design claims.\n"
+        )
 
     md.append("## 1) Existence Proof\n")
-    md.append(f"- Feasible: `{bool(existence['feasible'])}`")
+    md.append(f"- Feasible: `{feasible}`")
     md.append(f"- First failure (if any): `{existence.get('first_failure') or '—'}`")
     md.append(f"- Min signed margin: `{existence.get('min_signed_margin')}`")
     md.append(f"- Fingerprint: `{existence.get('fingerprint')}`\n")
@@ -108,7 +169,8 @@ def build_review_trinity(
     md.append(f"- Dominant resistance: `{stress['margins'].get('dominant_constraint') or '—'}`")
     md.append(f"- Min signed margin: `{stress['margins'].get('min_signed_margin')}`")
     if stress.get("closure"):
-        md.append("- Closure (selected):")
+        label = "Closure (selected, diagnostic)" if not feasible else "Closure (selected)"
+        md.append(f"- {label}:")
         for k, v in stress["closure"].items():
             md.append(f"  - `{k}`: `{v}`")
     if stress.get("reality_gates"):
