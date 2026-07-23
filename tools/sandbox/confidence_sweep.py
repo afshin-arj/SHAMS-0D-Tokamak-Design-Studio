@@ -127,12 +127,50 @@ def _proxy_scale(closure_bundle: Dict[str, Any], econ_scale: float, recirc_scale
     return cb
 
 
+_DIAGNOSTIC = "— (diagnostic)"
+_CLAIM_HEADLINE_KEYS = frozenset(
+    {
+        "net_electric_MW",
+        "P_e_net_MW",
+        "nominal_LCOE_proxy",
+        "LCOE_proxy",
+    }
+)
+
+
+def _candidate_feasible(flag: Optional[bool]) -> bool:
+    return bool(flag) if flag is not None else True
+
+
+def _watermark_proxy_headlines(
+    headlines: List[Dict[str, Any]],
+    *,
+    feasible: bool,
+) -> List[Dict[str, Any]]:
+    """PHYS-KPI-001: claim FoMs in proxy headlines are diagnostic on INFEASIBLE."""
+    if feasible:
+        return headlines
+    out: List[Dict[str, Any]] = []
+    for row in headlines:
+        if not isinstance(row, dict):
+            out.append(row)
+            continue
+        r = dict(row)
+        for k in list(r.keys()):
+            if str(k) in _CLAIM_HEADLINE_KEYS:
+                r[k] = _DIAGNOSTIC
+        out.append(r)
+    return out
+
+
 def confidence_sweep(
     records: List[Dict[str, Any]],
     closure_bundle: Optional[Dict[str, Any]] = None,
     knobs: Optional[Sequence[SweepKnob]] = None,
     pass_frac_warn: float = 0.95,
     pass_frac_fail: float = 0.80,
+    *,
+    feasible: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Run the v1 Confidence Sweep.
 
@@ -145,9 +183,13 @@ def confidence_sweep(
     - PASS if min(pass_fraction) >= pass_frac_warn
     - WARN if min(pass_fraction) >= pass_frac_fail
     - FAIL otherwise
+
+    PHYS-KPI-001: when ``feasible`` is False, claim FoMs in ``proxy_headlines``
+    (net electric / LCOE) are watermarked as diagnostic residue.
     """
 
     knobs = list(knobs or DEFAULT_KNOBS)
+    claim_ok = _candidate_feasible(feasible)
 
     if not records:
         return {
@@ -222,20 +264,29 @@ def confidence_sweep(
             )
 
     mm = _min_margin(records)
+    proxy_headlines = _watermark_proxy_headlines(proxy_headlines, feasible=claim_ok)
+
+    notes = {
+        "margin_note": margin_knob.note if margin_knob else "",
+        "proxy_note": "Proxy scaling is descriptive only; it does not modify frozen truth.",
+    }
+    if not claim_ok:
+        notes["phys_kpi_note"] = (
+            "PHYS-KPI-001: proxy_headlines net electric / LCOE are diagnostic on "
+            "INFEASIBLE — not design claims."
+        )
 
     return {
         "schema": "shams.reactor_design_forge.confidence_sweep.v1",
         "ok": True,
         "reason": None,
         "verdict": verdict,
+        "feasible": claim_ok,
         "pass_fraction": pass_fracs,
         "margin_perturbations": deltas,
         "first_kill_tally": first_kill,
         "min_signed_margin": float(mm[1]) if mm else None,
         "min_margin_constraint": mm[0] if mm else None,
         "proxy_headlines": proxy_headlines,
-        "notes": {
-            "margin_note": margin_knob.note if margin_knob else "",
-            "proxy_note": "Proxy scaling is descriptive only; it does not modify frozen truth.",
-        },
+        "notes": notes,
     }

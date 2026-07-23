@@ -978,7 +978,21 @@ def _inst_confidence_sweep(ctx: ForgeContext) -> InstrumentView:
     try:
         from tools.sandbox.confidence_sweep import confidence_sweep
 
-        return InstrumentView(json_blob=confidence_sweep(cand, archive=ctx.archive))
+        cons = cand.get("constraints") if isinstance(cand.get("constraints"), list) else []
+        closure = cand.get("closure_bundle") if isinstance(cand.get("closure_bundle"), dict) else {}
+        feasible = bool(cand.get("feasible", False))
+        sweep = confidence_sweep(
+            cons,
+            closure_bundle=closure,
+            feasible=feasible,
+        )
+        caption = (
+            "PHYS-KPI-001: proxy_headlines net electric / LCOE are diagnostic on "
+            "INFEASIBLE — not design claims."
+            if not feasible
+            else "Margin + proxy uncertainty sweep (descriptive; frozen truth unchanged)."
+        )
+        return InstrumentView(caption=caption, json_blob=sweep)
     except Exception as exc:
         return InstrumentView(error=str(exc))
 
