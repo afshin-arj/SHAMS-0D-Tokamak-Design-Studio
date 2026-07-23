@@ -50,7 +50,21 @@ def render_pareto_lab(session: DesignSession) -> None:
     )
 
     render_certified_opt_honesty_banner("pareto_lab")
+    from ui_nicegui.components.certified_front_viewer_panel import (
+        render_certified_front_viewer,
+    )
     from ui_nicegui.components.opt_lab_warm_start_panel import render_champion_warm_start
+    from ui_nicegui.lib.certified_front_viewer import sync_certified_front_from_session
+
+    # Keep shared Opt Lab ↔ Pareto certified-front handoff fresh when a run exists.
+    sync_certified_front_from_session(session)
+    render_certified_front_viewer(
+        session,
+        compact=True,
+        show_handoff_to_pareto=False,
+        show_handoff_to_opt_lab=True,
+        default_open=bool(getattr(session, "certified_front_handoff", None)),
+    )
 
     with ui.expansion("Champion warm-start (search seed)", icon="bolt", value=False).classes(
         "w-full q-mb-sm"

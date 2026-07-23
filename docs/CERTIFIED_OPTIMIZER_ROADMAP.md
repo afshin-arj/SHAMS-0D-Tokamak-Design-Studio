@@ -10,7 +10,7 @@ Living campaign document for **philosophy-safe optimization** inside SHAMS.
 | `/shams-process-independence` | Feasibility authority campaign (orthogonal; do not blur) |
 
 **SHAMS version at last refresh:** `v418.1.0` (see `VERSION`)  
-**Last analytical refresh:** 2026-07-23 (ticket 3.2 shipped)
+**Last analytical refresh:** 2026-07-23 (ticket 3.3 shipped; Phase 3 complete)
 
 ## Code review snapshot (2026-07-23)
 
@@ -21,12 +21,12 @@ Re-verified claimed DONE tickets against `main` sources + Opt Lab lock tests.
 | Phase 0–2 complete | **Confirmed** — modules + lock tests present (`objective_contract`, `l0_opt_guards`, Opt Lab entry/stamp/honesty/warm-start, SLSQP + neighborhood + determinism) |
 | 3.1 NSGA-II SearchDriver | **Confirmed** — `nsga2_search_driver.py` + `tests/test_nsga2_search_driver.py`; `multi_objective_contract.v1`; CCFS/stamp hooks |
 | 3.2 Atlas-annotated dominatees | **DONE** — `atlas_dominatee_hook.v1` status=`shipped`; `annotate_atlas_dominatees` / `lightly_certify_shortlist`; hard-infeasible shortlist + CCFS REJECTED rows carry `no_solution_atlas.v1` |
-| 3.3 Pareto Lab ↔ Opt Lab unify | **Still OPEN** — Opt Lab routes into Pareto/Systems/CR; no single certified-front viewer yet |
+| 3.3 Pareto Lab ↔ Opt Lab unify | **DONE** — shared certified-front viewer + ExtOpt `objective_contract.v3` ↔ Opt Lab v1/multi bridge; `/pareto-frontier-check` gates green |
 | Phase 4–5 | **Still OPEN** — surrogate/cite/mirage exist as reusable pieces, not Opt Lab ticket-complete |
 
-**Known seam (not a ticket close):** `ui_nicegui/lib/external_optimizer_helpers.py` still builds a legacy `objective_contract.v3` job payload for External Optimizer — distinct from Opt Lab `objective_contract.v1` / `multi_objective_contract.v1`. Address under **3.3** (unify) or **4.3** (orchestrator polish); do not treat as 0.1 regression.
+**ExtOpt contract seam (3.3):** `ui_nicegui/lib/external_optimizer_helpers.py` builds bridged ExtOpt wire via `src/optimization/extopt_contract_bridge.py` — legacy `objective_contract.v3` for `OptimizerJob` **plus** embedded `opt_lab_contract` (`objective_contract.v1` / `multi_objective_contract.v1`) and honesty note. No silent dual-truth FoM.
 
-**Next ticket:** **3.3 — Pareto Lab ↔ Opt Lab unify**.
+**Next ticket:** **4.1 — Surrogate propose-only path**.
 
 ## Post-upgrade ship gate (mandatory)
 
@@ -72,7 +72,7 @@ ObjectiveContract (hashed, outside L0)
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
 | 1 Opt Lab productization | **DONE** | 1.1–1.4 complete (entry + stamp + honesty + champion warm-start) |
 | 2 Single-objective certified solver | **DONE** | 2.1–2.3 complete (SLSQP + neighborhood CCFS + determinism locks) |
-| 3 Multi-objective certified front | **OPEN** | 3.1–3.2 DONE; next 3.3 Pareto Lab ↔ Opt Lab unify |
+| 3 Multi-objective certified front | **DONE** | 3.1–3.3 complete (NSGA + atlas dominatees + Pareto/Opt Lab unify) |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
 | 5 Cite, robust lanes, exit | **OPEN** | Handoff packs; mirage-safe UQ; campaign exit evidence |
 
@@ -105,10 +105,11 @@ ObjectiveContract (hashed, outside L0)
 | Champion warm-start | `ui_nicegui/lib/opt_lab_warm_start.py` | **1.4 DONE** — propose-only search seed |
 | SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1–2.3 DONE** — SLSQP/fallback + neighborhood CCFS + determinism |
 | NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1–3.2 DONE** — NSGA-II/fallback + atlas-annotated dominatees (`shipped`) |
+| Certified-front viewer | `ui_nicegui/lib/certified_front_viewer.py` · panel | **3.3 DONE** — Opt Lab ↔ Pareto shared front + handoff |
+| ExtOpt ↔ Opt Lab bridge | `src/optimization/extopt_contract_bridge.py` | **3.3 DONE** — v3 wire + embedded Opt Lab contract |
 | Surrogate accel | `src/extopt/surrogate_accel.py` · `src/optimization/surrogates.py` | Exists (propose-only intent) — **4.1 not closed** |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Point cite unit exists — **5.1 opt-front extension not closed** |
-| Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Entry routes live — **3.3 unify not closed** |
-| Legacy ExtOpt contract | `ui_nicegui/lib/external_optimizer_helpers.py` | `objective_contract.v3` job schema — seam for 3.3/4.3 |
+| Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Entry + certified-front unify live — **3.3 DONE** |
 
 ---
 
@@ -169,11 +170,11 @@ ObjectiveContract (hashed, outside L0)
 |---|--------|-----------|
 | 3.1 | NSGA-class / MOEA SearchDriver | **DONE** (2026-07-19) — `src/optimization/nsga2_search_driver.py`: propose-only NSGA-II (`nsga2` via optional pymoo; `nsga2_fallback` pure-Python). Feasible-first constrained domination; reuses `solvers.optimize.dominates` / `pareto_front`. `multi_objective_contract.v1` (hashed FoM list outside L0). Stamp-ready + `to_ccfs_bundle` / `to_frontier_candidate_rows`. Atlas dominatee hook reserved for 3.2. Minimal Opt Lab honesty note. Zero new required deps. Lock tests: `tests/test_nsga2_search_driver.py`. L0 untouched. |
 | 3.2 | Atlas-annotated dominatees | **DONE** (2026-07-23) — `atlas_dominatee_hook.v1` status=`shipped` (was `pending_phase_3_2`). Hard-infeasible NSGA shortlist rows stamp `no_solution_atlas.v1` via `diagnostics.no_solution_atlas`; `annotate_atlas_dominatees` + `lightly_certify_shortlist` ensure CCFS REJECTED rows carry dominant hard mechanism + `is_dominatee` flags; meta `atlas_dominatee_annotation.v1`. Opt Lab honesty note updated. Lock tests extended in `tests/test_nsga2_search_driver.py`. L0 untouched. |
-| 3.3 | Pareto Lab ↔ Opt Lab unify | One certified-front viewer; `/pareto-frontier-check` gates green |
+| 3.3 | Pareto Lab ↔ Opt Lab unify | **DONE** (2026-07-23) — Shared `certified_front_viewer.v1` summary + NiceGUI panel on Opt Lab and Pareto Lab (handoff without duplicating decks); ExtOpt bridge `extopt_contract_bridge.py` attaches Opt Lab v1/multi beside legacy `objective_contract.v3` wire; Streamlit cheap parity; `/pareto-frontier-check` module gates (`frontier_intake_v406`) green. Honesty: Proposed — SHAMS-certified; VERIFIED/REJECTED + atlas; no `vNNN`; no true minimum. Lock tests: `tests/test_opt_lab_pareto_unify.py`. L0 untouched. |
 
 **Delegates:** `/developer`, `/architect`, `/nicegui-specialist`, skill `/pareto-frontier-check`
 
-**Exit:** Lab can publish a certified multi-objective front with failure mechanisms.
+**Exit:** Lab can publish a certified multi-objective front with failure mechanisms. **Phase 3 complete.**
 
 ---
 
@@ -211,9 +212,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **3.3** — Pareto Lab ↔ Opt Lab unify *(includes legacy `objective_contract.v3` ExtOpt seam)*  
-2. **4.1** — Surrogate propose-only path  
-3. **4.2** — PROCESS-as-proposer bridge
+1. **4.1** — Surrogate propose-only path  
+2. **4.2** — PROCESS-as-proposer bridge  
+3. **4.3** — Extopt orchestrator polish  
 
 ## Overclaim check
 

@@ -165,7 +165,8 @@ When reviewing Opt Lab / Systems Mode / extopt / solvers changes, confirm:
 | Frontier intake | `src/extopt/frontier_intake_v406.py` |
 | Lightweight propose helpers | `src/solvers/optimize.py` |
 | SLSQP SearchDriver (2.1–2.3) | `src/optimization/slsqp_search_driver.py` · `tests/test_slsqp_search_driver.py` · `tests/test_neighborhood_certify.py` · `tests/test_slsqp_determinism.py` |
-| NSGA-II SearchDriver (3.1) | `src/optimization/nsga2_search_driver.py` · `tests/test_nsga2_search_driver.py` |
+| NSGA-II SearchDriver (3.1–3.2) | `src/optimization/nsga2_search_driver.py` · `tests/test_nsga2_search_driver.py` |
+| Certified-front unify (3.3) | `ui_nicegui/lib/certified_front_viewer.py` · `src/optimization/extopt_contract_bridge.py` · `tests/test_opt_lab_pareto_unify.py` |
 | Anti L0-opt import guards | `src/optimization/l0_opt_guards.py` · `tests/test_l0_opt_import_guard.py` |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` · `docs/CITE_SHAMS_HANDOFF.md` |
 | Living roadmap | `docs/CERTIFIED_OPTIMIZER_ROADMAP.md` |
@@ -187,10 +188,11 @@ PROCESS may appear in Opt Lab only as an **optional proposer** → CCFS. This st
 
 ## Studio entry
 
-- **Opt Lab** deck — three-step certified-search entry (propose→CCFS); routes into Systems Mode / Pareto Lab / Control Room Certified Search
+- **Opt Lab** deck — three-step certified-search entry (propose→CCFS); shared **certified-front viewer** with Pareto Lab handoff (Phase 3.3)
 - Launchpad path: “Start a certified search (Opt Lab)”
 - Control Room → Constitution → **Docs Library** → `CERTIFIED_OPTIMIZER.md`
 - Launchpad path: “Read certified optimizer stance”
 - Point Designer studio entry card → onboarding doc link (version-tag-free label)
+- ExtOpt wire: legacy `objective_contract.v3` for `OptimizerJob` **bridged** to Opt Lab `objective_contract.v1` / `multi_objective_contract.v1` via `src/optimization/extopt_contract_bridge.py` (no silent dual-truth FoM)
 
-Lock tests: `tests/test_certified_optimizer_stance.py` · `tests/test_l0_opt_import_guard.py` · `tests/test_opt_lab_entry.py`.
+Lock tests: `tests/test_certified_optimizer_stance.py` · `tests/test_l0_opt_import_guard.py` · `tests/test_opt_lab_entry.py` · `tests/test_opt_lab_pareto_unify.py`.

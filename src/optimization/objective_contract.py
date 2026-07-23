@@ -8,7 +8,10 @@ Pipeline role (propose-only):
     ObjectiveContract → SearchDriver → CandidateBatch → CCFS / Evaluator
 
 This schema is the Opt Lab foundation. Extopt orchestrator still uses legacy
-``objective_contract.v2`` / ``.v3`` JSON shapes; those remain unchanged.
+``objective_contract.v2`` / ``.v3`` JSON shapes on the OptimizerJob wire; Phase 3.3
+bridges those via ``src.optimization.extopt_contract_bridge`` so Opt Lab / Pareto
+always see ``objective_contract.v1`` / ``multi_objective_contract.v1`` (no silent
+dual-truth FoM).
 """
 
 from __future__ import annotations

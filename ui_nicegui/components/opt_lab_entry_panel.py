@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.components.certified_front_viewer_panel import render_certified_front_viewer
 from ui_nicegui.components.opt_lab_warm_start_panel import render_champion_warm_start
 from ui_nicegui.lib.opt_lab_entry import (
+    OPT_LAB_CERTIFIED_FRONT_NOTE,
     OPT_LAB_HONESTY_LINE,
     OPT_LAB_NSGA2_HOOK_NOTE,
     OPT_LAB_PITCH,
@@ -58,12 +60,20 @@ def render_opt_lab_entry(session: DesignSession) -> None:
 
         render_champion_warm_start(session)
 
+        render_certified_front_viewer(
+            session,
+            compact=False,
+            show_handoff_to_pareto=True,
+            show_handoff_to_opt_lab=False,
+        )
+
         ui.label("Three steps to a certified search").classes("text-subtitle2")
         for idx, step in enumerate(OPT_LAB_STEPS, start=1):
             ui.label(f"{idx}. {step}").classes("text-caption")
 
         ui.label(OPT_LAB_SLSQP_HOOK_NOTE).classes("text-caption text-grey q-mt-sm")
         ui.label(OPT_LAB_NSGA2_HOOK_NOTE).classes("text-caption text-grey q-mt-xs")
+        ui.label(OPT_LAB_CERTIFIED_FRONT_NOTE).classes("text-caption text-grey q-mt-xs")
 
         ui.separator().classes("q-my-sm")
         ui.label("Continue on an existing certified path").classes("text-subtitle2")

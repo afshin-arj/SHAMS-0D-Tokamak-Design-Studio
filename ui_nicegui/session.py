@@ -219,6 +219,10 @@ class DesignSession:
     scan_promote_note: str = "Probed scan cell"
     scan_iso_constraint: str = ""
     scan_deep_viz_intent: str = "Reactor"
+    # Opt Lab / Certified Optimizer (Phase 1.2 + 3.3 unify)
+    opt_lab_last_run_stamp: Optional[dict[str, Any]] = None
+    opt_lab_show_certified_front: bool = False
+    certified_front_handoff: Optional[dict[str, Any]] = None
     # Pareto Lab
     pareto_deck: str = "Internal Pareto Frontier"
     pareto_last: Optional[dict[str, Any]] = None

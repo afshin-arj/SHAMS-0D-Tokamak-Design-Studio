@@ -60,6 +60,21 @@ def render_opt_lab(st_module: Any) -> None:
     st.caption(OPT_LAB_SLSQP_HOOK_NOTE)
     st.caption(OPT_LAB_NSGA2_HOOK_NOTE)
 
+    from ui_nicegui.lib.certified_front_viewer import (
+        CERTIFIED_FRONT_EMPTY,
+        CERTIFIED_FRONT_HONESTY,
+        CERTIFIED_FRONT_TAGLINE,
+        CERTIFIED_FRONT_TITLE,
+    )
+
+    st.subheader(CERTIFIED_FRONT_TITLE)
+    st.caption(CERTIFIED_FRONT_TAGLINE)
+    st.warning(CERTIFIED_FRONT_HONESTY)
+    st.info(
+        CERTIFIED_FRONT_EMPTY
+        + " Interactive handoff lives on NiceGUI Opt Lab / Pareto Lab."
+    )
+
     st.subheader("Certified paths (NiceGUI)")
     st.markdown(
         "Opt Lab unifies entry — open **NiceGUI** (`run_ui_nicegui.cmd`) for interactive "

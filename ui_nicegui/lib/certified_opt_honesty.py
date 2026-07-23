@@ -88,7 +88,9 @@ BAN_MARKERS: tuple[str, ...] = (
 HONESTY_SCAN_RELPATHS: List[str] = [
     "ui_nicegui/lib/certified_opt_honesty.py",
     "ui_nicegui/lib/opt_lab_entry.py",
+    "ui_nicegui/lib/certified_front_viewer.py",
     "ui_nicegui/components/opt_lab_entry_panel.py",
+    "ui_nicegui/components/certified_front_viewer_panel.py",
     "ui_nicegui/components/certified_opt_honesty_banner.py",
     "ui_nicegui/decks/opt_lab/__init__.py",
     "ui_nicegui/decks/systems_mode/__init__.py",

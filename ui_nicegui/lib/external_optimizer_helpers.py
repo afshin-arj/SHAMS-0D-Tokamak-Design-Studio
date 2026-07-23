@@ -458,14 +458,25 @@ def read_run_json(run_dir: Path, name: str) -> Optional[dict]:
 
 def run_optimizer_job(*, kit: str, seed: int, n: int, objectives: List[str], senses: dict, bounds: dict, base) -> dict:
     from src.extopt.orchestrator import OptimizerJob, run_optimizer_job as _run_job
+    from src.optimization.extopt_contract_bridge import (
+        EXTOPT_LEGACY_HONESTY,
+        build_bridged_extopt_job_contract,
+    )
     from ui_nicegui.evaluate import ui_evaluator
 
     objs = list(objectives)
     sense_map = {str(o): str(senses.get(o, "min")) for o in objs}
-    objective_contract = {
-        "schema": "objective_contract.v3",
-        "objectives": [{"key": o, "sense": sense_map[o]} for o in objs],
-    }
+    # Phase 3.3: ExtOpt wire stays objective_contract.v3 for OptimizerJob, but
+    # always attaches Opt Lab objective_contract.v1 / multi_objective_contract.v1
+    # so Pareto / Opt Lab never see a silent dual-truth FoM schema.
+    objective_contract = build_bridged_extopt_job_contract(
+        objectives=objs,
+        senses=sense_map,
+        seed=int(seed),
+    )
+    assert objective_contract.get("schema") == "objective_contract.v3"
+    assert "opt_lab_contract" in objective_contract
+    _ = EXTOPT_LEGACY_HONESTY  # honesty embedded on wire payload
     # Bounds values may be tuples from knob sets — normalize to [lo, hi] lists.
     norm_bounds: Dict[str, List[float]] = {}
     for k, v in (bounds or {}).items():

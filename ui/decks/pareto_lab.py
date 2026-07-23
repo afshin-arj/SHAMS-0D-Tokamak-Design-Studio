@@ -24,6 +24,15 @@ def render_pareto_lab(_app_module) -> None:
     from ui_nicegui.lib.certified_opt_honesty import PARETO_LAB_HONESTY
 
     st.warning(PARETO_LAB_HONESTY)
+    from ui_nicegui.lib.certified_front_viewer import (
+        CERTIFIED_FRONT_HONESTY,
+        CERTIFIED_FRONT_TITLE,
+    )
+
+    st.caption(
+        f"{CERTIFIED_FRONT_TITLE} (NiceGUI): shared Opt Lab ↔ Pareto handoff — "
+        f"{CERTIFIED_FRONT_HONESTY}"
+    )
     render_mode_scope("pareto")
     # --- Pareto freeze (read-only semantics) ---
     st.info(PARETO_LOCK_LINE)

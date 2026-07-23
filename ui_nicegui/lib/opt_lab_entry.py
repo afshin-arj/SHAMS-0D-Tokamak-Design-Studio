@@ -93,6 +93,12 @@ OPT_LAB_NSGA2_HOOK_NOTE = (
     "dominated / REJECTED rows carry no_solution_atlas dominant hard mechanism."
 )
 
+# Phase 3.3 — shared Opt Lab ↔ Pareto certified-front viewer (no deck duplication).
+OPT_LAB_CERTIFIED_FRONT_NOTE = (
+    "Certified-front viewer unifies Opt Lab and Pareto Lab: one VERIFIED/REJECTED + atlas "
+    "summary with handoff — Proposed — SHAMS-certified, not an authoritative optimum."
+)
+
 # Phrases that must appear in the entry contract (honesty lock).
 OPT_LAB_REQUIRED_PHRASES: List[str] = list(REQUIRED_PHRASES) + [
     "propose",
@@ -116,6 +122,7 @@ def opt_lab_user_facing_texts() -> List[str]:
         OPT_LAB_STANCE_DOC[0],
         OPT_LAB_SLSQP_HOOK_NOTE,
         OPT_LAB_NSGA2_HOOK_NOTE,
+        OPT_LAB_CERTIFIED_FRONT_NOTE,
     ]
     texts.extend(OPT_LAB_STEPS)
     texts.extend(label for label, _, _ in OPT_LAB_ROUTES)
