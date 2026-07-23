@@ -73,6 +73,7 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
     pfus = diag if not feas else fmt(out.get("Pfus_total_MW", out.get("P_fus_MW")))
     pnet = diag if not feas else fmt(out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("Pnet_MWe"))))
     qval = diag if not feas else fmt(out.get("Q_DT_eqv", out.get("Q")))
+    h98 = diag if not feas else fmt(out.get("H98", out.get("H_IPB98y2", out.get("H98y2"))))
 
     src = str(art.get("source") or "") or "unknown"
     lines = [
@@ -99,12 +100,15 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
         ]
     )
     if not feas:
-        lines.append("- PHYS-KPI-001: Q / Pfus / P_net shown as diagnostic on INFEASIBLE — not design claims.")
+        lines.append(
+            "- PHYS-KPI-001: Q / H98 / Pfus / P_net shown as diagnostic on INFEASIBLE — not design claims."
+        )
     lines.extend(
         [
             f"- P_fus [MW]: {pfus}",
             f"- P_net [MW]: {pnet}",
             f"- Q_DT_eqv: {qval}",
+            f"- H98: {h98}",
             f"- β_N (screening): {fmt(out.get('beta_N', out.get('betaN_proxy', out.get('betaN'))))}",
             f"- q95 (cyl. proxy): {fmt(out.get('q95_proxy', out.get('q95')))}",
             f"- n/n_GW: {fmt(out.get('fG', out.get('n_over_nGW')))}",

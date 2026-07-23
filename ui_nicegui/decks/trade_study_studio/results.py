@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_trade_study_table_rows
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_trade_study_export, watermark_trade_study_table_rows
 from ui_nicegui.lib.trade_study_helpers import report_to_json_bytes
 from ui_nicegui.session import DesignSession
 
@@ -50,14 +50,14 @@ def render_study_results(session: DesignSession, rep: dict) -> None:
         _render_promote(session, pareto, rep)
 
     ui.separator()
-    data = report_to_json_bytes(rep)
+    data = report_to_json_bytes(watermark_trade_study_export(rep))
     ui.button(
         "Download study report (JSON)",
         icon="download",
         on_click=lambda: ui.download(data, "shams_trade_study.json"),
     ).props("outline")
     if session.active_study_capsule:
-        cap = report_to_json_bytes(session.active_study_capsule)
+        cap = report_to_json_bytes(watermark_trade_study_export(session.active_study_capsule))
         ui.button(
             "Download study capsule (JSON)",
             icon="download",

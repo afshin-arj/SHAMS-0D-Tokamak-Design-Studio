@@ -335,6 +335,30 @@ def watermark_trade_study_table_rows(
     return out_rows
 
 
+def watermark_trade_study_export(rep: Mapping[str, Any]) -> Dict[str, Any]:
+    """PHYS-KPI-001: download copy of a trade study with claim FoMs watermarked on INFEASIBLE."""
+    out: Dict[str, Any] = dict(rep) if isinstance(rep, Mapping) else {}
+    objs = list(((out.get("meta") or {}) if isinstance(out.get("meta"), Mapping) else {}).get("objectives") or [])
+    claimish = list(objs) + [
+        "max_Q",
+        "max_H98",
+        "max_Pnet",
+        "Q_DT_eqv",
+        "H98",
+        "P_e_net_MW",
+        "Pfus_total_MW",
+    ]
+    for key in ("records", "feasible", "pareto"):
+        rows = out.get(key)
+        if isinstance(rows, list) and rows:
+            cols = list(dict.fromkeys([*claimish, *list(rows[0].keys())[:24]])) if isinstance(rows[0], Mapping) else claimish
+            out[key] = watermark_trade_study_table_rows(rows, cols)
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim FoMs on infeasible samples are — (diagnostic) — not design claims."
+    )
+    return out
+
+
 def _robust_pareto_row_feasible(row: Mapping[str, Any]) -> bool:
     """Nominal hard-feasibility for Robust Pareto ExtOpt rows (PHYS-KPI-001)."""
     if "nominal_feasible" in row:

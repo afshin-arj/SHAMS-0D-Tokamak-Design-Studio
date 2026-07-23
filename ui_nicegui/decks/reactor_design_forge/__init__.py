@@ -18,6 +18,7 @@ from ui_nicegui.decks.reactor_design_forge import (
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
+from ui_nicegui.lib.deck_busy_guard import refresh_tab_if_idle
 from ui_nicegui.lib.forge_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -93,7 +94,12 @@ def render_reactor_design_forge(session: DesignSession) -> None:
                 value=session.forge_teaching_mode,
                 on_change=lambda e: (
                     sync_deck_guided_to_helm(session, bool(e.value), deck_attr="forge_teaching_mode"),
-                    _render_tab_body.refresh(),
+                    refresh_tab_if_idle(
+                        session,
+                        running_attrs=("forge_mf_running",),
+                        refresh=_render_tab_body.refresh,
+                        job_label="Reactor Design Forge",
+                    ),
                 ),
             )
             ui.switch(
@@ -101,7 +107,12 @@ def render_reactor_design_forge(session: DesignSession) -> None:
                 value=session.forge_expert_view,
                 on_change=lambda e: (
                     sync_deck_expert_to_helm(session, bool(e.value), deck_attr="forge_expert_view"),
-                    _render_tab_body.refresh(),
+                    refresh_tab_if_idle(
+                        session,
+                        running_attrs=("forge_mf_running",),
+                        refresh=_render_tab_body.refresh,
+                        job_label="Reactor Design Forge",
+                    ),
                 ),
             )
             ui.switch(
@@ -123,6 +134,12 @@ def render_reactor_design_forge(session: DesignSession) -> None:
 
     _render_dashboard(session)
     def _on_decision(e) -> None:
+        if getattr(session, "forge_mf_running", False):
+            ui.notify(
+                "Forge Machine Finder running — wait until it finishes before changing decision/Setup view.",
+                type="warning",
+            )
+            return
         state = str(e.value)
         session.forge_decision_state = state
         tab = DECISION_TO_TAB.get(state)
@@ -153,7 +170,12 @@ def render_reactor_design_forge(session: DesignSession) -> None:
         on_change=lambda e: (
             setattr(session, "forge_workflow_step", normalize_forge_tab(str(e.value))),
             _sync_legacy_deck(session, normalize_forge_tab(str(e.value))),
-            _render_tab_body.refresh(),
+            refresh_tab_if_idle(
+                session,
+                running_attrs=("forge_mf_running",),
+                refresh=_render_tab_body.refresh,
+                job_label="Reactor Design Forge",
+            ),
         ),
     ).classes("w-full")
 

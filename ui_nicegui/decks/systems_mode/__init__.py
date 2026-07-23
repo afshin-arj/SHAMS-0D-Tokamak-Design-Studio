@@ -28,6 +28,7 @@ from ui_nicegui.decks.systems_mode import (
     verdict,
 )
 from ui_nicegui.lib.pd_intent_policy import policy_caption
+from ui_nicegui.lib.deck_busy_guard import SYSTEMS_RUNNING_ATTRS, refresh_tab_if_idle
 from ui_nicegui.lib.systems_artifact import fetch_systems_artifact
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 from ui_nicegui.lib.helm_helpers import log_ui_event
@@ -88,7 +89,12 @@ def render_systems_mode(session: DesignSession) -> None:
             value=session.systems_expert_view,
             on_change=lambda e: (
                 sync_deck_expert_to_helm(session, bool(e.value), deck_attr="systems_expert_view"),
-                _render_tab_content.refresh(),
+                refresh_tab_if_idle(
+                    session,
+                    running_attrs=SYSTEMS_RUNNING_ATTRS,
+                    refresh=_render_tab_content.refresh,
+                    job_label="Systems Mode",
+                ),
             ),
         )
 
@@ -121,6 +127,12 @@ def render_systems_mode(session: DesignSession) -> None:
         ).classes("text-caption text-orange q-mb-sm")
 
     def _on_decision(e) -> None:
+        if any(getattr(session, a, False) for a in SYSTEMS_RUNNING_ATTRS):
+            ui.notify(
+                "Systems Mode job running — wait until it finishes before changing decision/Setup view.",
+                type="warning",
+            )
+            return
         state = str(e.value)
         session.systems_decision_state = state
         tab = DECISION_TO_TAB.get(state)
@@ -144,7 +156,12 @@ def render_systems_mode(session: DesignSession) -> None:
             value=session.systems_teaching_mode,
             on_change=lambda e: (
                 sync_deck_guided_to_helm(session, bool(e.value), deck_attr="systems_teaching_mode"),
-                _render_posture.refresh(),
+                refresh_tab_if_idle(
+                    session,
+                    running_attrs=SYSTEMS_RUNNING_ATTRS,
+                    refresh=_render_posture.refresh,
+                    job_label="Systems Mode",
+                ),
             ),
         )
     banner = teaching_banner(session)
@@ -165,7 +182,12 @@ def _render_workflow_tabs(session: DesignSession) -> None:
         value=step,
         on_change=lambda e: (
             setattr(session, "systems_workflow_step", normalize_systems_tab(str(e.value))),
-            _render_tab_content.refresh(),
+            refresh_tab_if_idle(
+                session,
+                running_attrs=SYSTEMS_RUNNING_ATTRS,
+                refresh=_render_tab_content.refresh,
+                job_label="Systems Mode",
+            ),
         ),
     ).classes("w-full q-mb-xs")
     ui.label(TAB_HELP.get(step, "")).classes("text-caption text-grey q-mb-md")

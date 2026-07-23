@@ -48,8 +48,6 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
             _attach_forensics_to_artifact(session, ff)
             ui.notify("Forensics complete.", type="positive")
             _panel.refresh()
-            if on_complete:
-                on_complete()
         except Exception as exc:
             session.pd_last_forensics = {"status": "error", "message": str(exc)}
             ui.notify(f"Forensics failed: {exc}", type="negative")
@@ -57,8 +55,12 @@ def render_forensics(session: DesignSession, *, on_complete=None) -> None:
         finally:
             session.pd_forensics_running = False
             runlock_release("PointDesigner")
+            if on_complete:
+                on_complete()
 
-    ui.button("Compute forensics", icon="analytics", on_click=_compute).props("outline q-mb-sm")
+    btn = ui.button("Compute forensics", icon="analytics", on_click=_compute).props("outline q-mb-sm")
+    if session.pd_forensics_running:
+        btn.props("disable")
     _panel(session)
 
 
