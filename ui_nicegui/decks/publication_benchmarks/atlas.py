@@ -177,7 +177,7 @@ def _render_atlas_actions(session: DesignSession, *, on_complete: Optional[Calla
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)
-            ui.notify(f"Promoted {n} inputs → Point Designer — re-evaluate there.", type="positive")
+            ui.notify(f"Promoted {n} inputs → Point Designer — KPIs STALE until Evaluate Point.", type="warning")
         except Exception as exc:
             ui.notify(str(exc), type="warning")
 

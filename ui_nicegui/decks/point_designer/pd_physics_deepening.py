@@ -322,9 +322,13 @@ def render_physics_deepening(out: Dict[str, Any], *, base: Optional[Any] = None)
                 if isinstance(tbr_val, str) and tbr_val.strip():
                     tbr_disp = tbr_val.strip()
                 else:
-                    # Legacy numeric flag (0=OK, 1=out-of-range) if present.
+                    # Legacy numeric plot flag from materials authority: 0.0=proxy, 1.0=out_of_range.
+                    # Never map 0.0 → "OK" — that reads as neutronics-validated, not screening proxy.
                     tv = _sf(out, "TBR_validity")
-                    tbr_disp = "OK" if tv == tv and tv < 0.5 else ("out-of-range" if tv == tv else "—")
+                    if tv == tv:  # finite
+                        tbr_disp = "proxy" if tv < 0.5 else "out_of_range"
+                    else:
+                        tbr_disp = "—"
                 kpi_row([
                     ("FW material", str(out.get("fw_material", "-"))),
                     ("Blanket material", str(out.get("blanket_material", "-"))),

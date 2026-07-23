@@ -41,8 +41,9 @@ def render_audit_panel(session: DesignSession) -> None:
             if feas:
                 q_disp, p_disp = q_raw, p_raw
             else:
-                q_disp = f"{q_raw} (diag)" if q_raw is not None else "— (infeasible)"
-                p_disp = f"{p_raw} (diag)" if p_raw is not None else "— (infeasible)"
+                # PHYS-KPI-001: never leave numeric claim KPIs visible on INFEASIBLE rows.
+                q_disp = "— (diagnostic)"
+                p_disp = "— (diagnostic)"
             rows.append({
                 "rank": i + 1,
                 "source": c.get("source"),

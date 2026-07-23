@@ -284,6 +284,12 @@ def render_machine_finder(
             return
 
         session.forge_mf_running = True
+        # HELM-BUSY-001: runlock.acquire paints chrome; re-paint after session flag so
+        # orphan recovery labels stay consistent if the lock is force-cleared mid-run.
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         ui.notify("Machine Finder started…", type="info")
         log_ui_event(
             session,
@@ -366,6 +372,10 @@ def _render_staged_phases(session: DesignSession, *, on_complete=None) -> None:
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
         session.forge_mf_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         log_ui_event(session, FORGE_RUNLOCK_OWNER, "MachineFinderPhaseStart", {"phase": name})
         try:
             pts, tr = await run.io_bound(fn, *args)

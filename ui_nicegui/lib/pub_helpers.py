@@ -42,6 +42,12 @@ def try_acquire_pub_lock(session: DesignSession, task: str) -> bool:
         ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
         return False
     session.pub_running = True
+    # runlock_acquire already paints Helm; re-paint after session flag so orphan
+    # recovery labels (pub_*) match busy chrome if the lock is later force-cleared.
+    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+    refresh_status()
+    refresh_helm()
     return True
 
 
@@ -51,6 +57,10 @@ def release_pub_lock(session: DesignSession) -> None:
     session.pub_atlas_running = False
     session.pub_atlas_fragility_running = False
     session.pub_bench_running = False
+    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+    refresh_status()
+    refresh_helm()
 
 
 def pack_summary_from_outdir(outdir: Optional[str]) -> Dict[str, Any]:
@@ -168,7 +178,10 @@ def render_pub_handoffs(session: DesignSession) -> None:
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)
-            ui.notify(f"Promoted {n} atlas inputs → Point Designer (re-evaluate there).", type="positive")
+            ui.notify(
+                f"Promoted {n} atlas inputs → Point Designer — KPIs STALE until Evaluate Point.",
+                type="warning",
+            )
             log_ui_event(session, PUB_RUNLOCK_OWNER, "HandoffPointDesigner", {"n": n})
         except Exception as exc:
             ui.notify(f"Promote failed: {exc}", type="negative")

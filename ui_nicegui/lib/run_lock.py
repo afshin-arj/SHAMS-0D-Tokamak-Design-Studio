@@ -2,6 +2,11 @@
 
 Non-reentrant: the same owner cannot acquire twice. A successful acquire must be
 paired with ``release(owner)`` from that owner (or ``force_clear`` for orphan recovery).
+
+HELM-BUSY-001: every successful acquire / release / force_clear paints Helm status
++ run-lock banner immediately so the header never stays "Ready" while a shot is
+in progress (Forge / Scan / Systems / Pareto / Pub previously refreshed only in
+``finally``, leaving Ready visible for the whole run).
 """
 from __future__ import annotations
 
@@ -13,6 +18,18 @@ _holder: Optional[str] = None
 _task: Optional[str] = None
 
 
+def _paint_busy_chrome() -> None:
+    """Best-effort Helm busy/ready refresh (no-op when UI hooks are unregistered)."""
+    try:
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
+    except Exception:
+        # Headless tests / pre-UI import paths must never fail lock bookkeeping.
+        pass
+
+
 def acquire(task: str, owner: str) -> bool:
     """Acquire the global run lock. Fails if any holder exists (including same owner)."""
     global _holder, _task
@@ -21,15 +38,20 @@ def acquire(task: str, owner: str) -> bool:
             return False
         _holder = owner
         _task = task
-        return True
+    _paint_busy_chrome()
+    return True
 
 
 def release(owner: str) -> None:
     global _holder, _task
+    painted = False
     with _lock:
         if _holder == owner:
             _holder = None
             _task = None
+            painted = True
+    if painted:
+        _paint_busy_chrome()
 
 
 def status(owner: str) -> Tuple[bool, Optional[str], bool]:
@@ -59,4 +81,6 @@ def force_clear() -> Optional[str]:
         prev = _holder
         _holder = None
         _task = None
-        return prev
+    if prev is not None:
+        _paint_busy_chrome()
+    return prev

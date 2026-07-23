@@ -207,8 +207,11 @@ def run_feasible_search(
         return {
             "Q": out.get("Q_DT_eqv", out.get("Q")),
             "H98": out.get("H98"),
-            "P_net": out.get("P_e_net_MW", out.get("P_net_MW")),
-            "Pfus": out.get("Pfus_DT_adj_MW"),
+            "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("P_net_MW"))),
+            "Pfus": out.get(
+                "Pfus_total_MW",
+                out.get("Pfus_DT_adj_MW", out.get("P_fus_MW", out.get("Pfus_MW"))),
+            ),
         }
 
     def _metrics(out: dict) -> dict:
