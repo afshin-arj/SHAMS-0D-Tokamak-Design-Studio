@@ -263,11 +263,21 @@ def _render_external_router(session: DesignSession) -> None:
         tlist = EXTERNAL_GROUPS.get(g, [])
         sess.pareto_external_tool = tlist[0] if tlist else ""
         tool.set_options(tlist, value=sess.pareto_external_tool)
-        _deck_body.refresh()
+        refresh_tab_if_idle(
+            sess,
+            running_attrs=("pareto_running",),
+            refresh=_deck_body.refresh,
+            job_label="Pareto Lab",
+        )
 
     def _on_tool_change(e) -> None:
         session.pareto_external_tool = str(e.value)
-        _deck_body.refresh()
+        refresh_tab_if_idle(
+            session,
+            running_attrs=("pareto_running",),
+            refresh=_deck_body.refresh,
+            job_label="Pareto Lab",
+        )
 
     ui.select(
         groups,

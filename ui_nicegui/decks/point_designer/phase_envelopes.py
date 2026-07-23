@@ -234,7 +234,9 @@ def _results(session: DesignSession) -> None:
             out_dir.mkdir(parents=True, exist_ok=True)
             out_zip = out_dir / "phase_envelopes.zip"
             await run.io_bound(export_phase_envelope_zip, env, out_zip)
-            data = out_zip.read_bytes()
+            from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+            data = watermark_extopt_zip_bytes(out_zip.read_bytes())
             ui.download(data, out_zip.name)
             ui.notify("Phase envelope ZIP ready.", type="positive")
         except Exception as exc:

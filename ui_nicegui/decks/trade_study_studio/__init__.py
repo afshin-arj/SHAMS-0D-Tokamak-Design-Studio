@@ -225,11 +225,21 @@ def _render_advanced_router(session: DesignSession) -> None:
         dlist = ADVANCED_GROUPS.get(g, [])
         sess.trade_advanced_deck = dlist[0] if dlist else ""
         deck_sel.set_options(dlist, value=sess.trade_advanced_deck)
-        _deck_body.refresh()
+        refresh_tab_if_idle(
+            sess,
+            running_attrs=("trade_running",),
+            refresh=_deck_body.refresh,
+            job_label="Trade Study",
+        )
 
     def _on_deck_change(e) -> None:
         session.trade_advanced_deck = str(e.value)
-        _deck_body.refresh()
+        refresh_tab_if_idle(
+            session,
+            running_attrs=("trade_running",),
+            refresh=_deck_body.refresh,
+            job_label="Trade Study",
+        )
 
     ui.select(
         groups,

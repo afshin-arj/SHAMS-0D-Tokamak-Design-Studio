@@ -216,7 +216,9 @@ def _results(session: DesignSession) -> None:
             out_dir.mkdir(parents=True, exist_ok=True)
             out_zip = out_dir / "uncertainty_contracts.zip"
             await run.io_bound(export_uncertainty_contract_zip, con, out_zip)
-            ui.download(out_zip.read_bytes(), out_zip.name)
+            from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+            ui.download(watermark_extopt_zip_bytes(out_zip.read_bytes()), out_zip.name)
             ui.notify("Uncertainty contract ZIP ready.", type="positive")
         except Exception as exc:
             ui.notify(f"Export failed: {exc}", type="negative")

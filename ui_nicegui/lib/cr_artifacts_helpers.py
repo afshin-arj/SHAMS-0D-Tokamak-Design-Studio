@@ -142,4 +142,33 @@ def watermark_run_artifact_export(art: Mapping[str, Any]) -> Dict[str, Any]:
         out["phys_kpi_note"] = (
             "PHYS-KPI-001: claim KPIs on INFEASIBLE artifacts are — (diagnostic) — not design claims."
         )
+    # Nested scenario_delta can still carry raw changed_kpis claim FoMs.
+    sd = out.get("scenario_delta")
+    if isinstance(sd, Mapping):
+        from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_scenario_delta_export
+        from ui_nicegui.lib.verdict_core import verdict_summary as _vs
+
+        base_outs = sd.get("baseline_outputs") if isinstance(sd.get("baseline_outputs"), Mapping) else {}
+        scen_outs = sd.get("scenario_outputs") if isinstance(sd.get("scenario_outputs"), Mapping) else {}
+        vs_base = _vs(dict(base_outs)) if base_outs else {}
+        vs_scen = _vs(dict(scen_outs)) if scen_outs else {}
+        feas_base = bool(vs_base.get("feasible")) if vs_base.get("loaded") else feasible
+        feas_scen = bool(vs_scen.get("feasible")) if vs_scen.get("loaded") else feasible
+        # Sparse nests often lack a constraint ledger; verdict_summary can spuriously
+        # report FEASIBLE from Q alone. Under an INFEASIBLE parent, stamp both sides
+        # unless the nest explicitly asserts hard feasibility.
+        if not feasible:
+            if not (
+                isinstance(base_outs, Mapping)
+                and (base_outs.get("hard_feasible") is True or base_outs.get("feasible") is True)
+            ):
+                feas_base = False
+            if not (
+                isinstance(scen_outs, Mapping)
+                and (scen_outs.get("hard_feasible") is True or scen_outs.get("feasible") is True)
+            ):
+                feas_scen = False
+        out["scenario_delta"] = watermark_scenario_delta_export(
+            sd, feasible_base=feas_base, feasible_scenario=feas_scen
+        )
     return out
