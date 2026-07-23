@@ -237,6 +237,7 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         or session.pub_bench_running
         or getattr(session, "helm_verify_running", False)
         or getattr(session, "pd_forensics_running", False)
+        or getattr(session, "cmp_handoff_running", False)
         or locked
     )
     if task:
@@ -245,6 +246,8 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         return busy, "Helm: Gatecheck / verification", holder
     if getattr(session, "pd_forensics_running", False):
         return busy, "Point Designer: Forensics", holder
+    if getattr(session, "cmp_handoff_running", False):
+        return busy, "Compare: slot handoff evaluate", holder
     if session.scan_running:
         return busy, "Scan Lab cartography", holder
     if getattr(session, "scan_legacy_running", False):
@@ -436,7 +439,13 @@ def _render_posture(session: DesignSession) -> None:
         q_cell = by_label.get("Performance")
         h98_cell = by_label.get("H98(y,2)")
         pfus_cell = by_label.get("Pfus")
-        q_bit = q_cell.display if q_cell is not None else summary.get("q_label", "-")
+        # PHYS-KPI-001: never fall back to raw verdict_core q_label on INFEASIBLE.
+        if q_cell is not None:
+            q_bit = q_cell.display
+        elif not summary.get("feasible"):
+            q_bit = "— (diagnostic)"
+        else:
+            q_bit = summary.get("q_label", "-")
         detail = f"{summary.get('verdict', '-')} · {q_bit} · Dom {summary.get('dominant', '-')}"
         if stale:
             detail = "STALE · " + detail

@@ -275,7 +275,7 @@ def regime_compass_rows(
         ("H98", "H98", "–", "Authoritative"),
         ("fG", "fG", "–", "Authoritative"),
         ("nGW", "nGW", "×1e20 m⁻³", "Diagnostic"),
-        ("βN", "beta_N", "–", "Proxy"),
+        ("βN (screening)", "beta_N", "–", "Proxy"),
         ("q95 (cyl. proxy)", "q95_proxy", "–", "Proxy"),
         ("P_SOL/R", "P_SOL_over_R_MW_m", "MW/m", "Proxy"),
         ("Bootstrap f_bs", "f_bs_proxy", "–", "Proxy"),
@@ -292,8 +292,11 @@ def regime_compass_rows(
     claim_blocked = feasible is False
     for label, key, unit, badge_type in spec:
         raw = out.get(key)
-        if raw is None and key == "beta_N":
-            raw = out.get("betaN_proxy", out.get("betaN"))
+        if key == "beta_N":
+            raw = out.get("beta_N", out.get("betaN_proxy", out.get("betaN")))
+        elif key == "TBR":
+            # Prefer binding v403 proxy when present; L0 still emits TBR.
+            raw = out.get("tbr_proxy_v403", out.get("TBR", out.get("tbr_proxy")))
         v = _safe_float(raw if raw is not None else float("nan"))
         lo, hi = _REGIME_TYPICAL.get(key, (float("nan"), float("nan")))
         flag = ""
@@ -1174,7 +1177,7 @@ _POINT_SUMMARY_KEYS = [
     ("Pfus [MW]", ("Pfus_total_MW", "Pfus_MW", "P_fus_MW")),
     ("P_net,e [MW]", ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe")),
     ("B_peak [T]", ("B_peak_T", "Bpeak_T")),
-    ("TBR (proxy) [-]", ("TBR",)),
+    ("TBR (proxy) [-]", ("tbr_proxy_v403", "TBR", "tbr_proxy")),
     ("q95 (cyl. proxy) [-]", ("q95_proxy", "q95")),
     ("βN (screening) [-]", ("beta_N", "betaN_proxy", "betaN")),
 ]

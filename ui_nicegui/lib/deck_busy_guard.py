@@ -34,6 +34,7 @@ SYSTEMS_RUNNING_ATTRS = (
     "systems_recovery_running",
     "systems_fs_running",
     "systems_atlas_running",
+    "cmp_handoff_running",
 )
 
 PUB_RUNNING_ATTRS = (
@@ -43,7 +44,7 @@ PUB_RUNNING_ATTRS = (
     "pub_bench_running",
 )
 
-SUITE_RUNNING_ATTRS = ("suite_running",)
+SUITE_RUNNING_ATTRS = ("suite_running", "cmp_handoff_running")
 
 PD_RUNNING_ATTRS = (
     "evaluating",
@@ -57,10 +58,13 @@ FORGE_RUNNING_ATTRS = (
     "forge_auditing",
     "forge_compiling",
     "forge_instrument_running",
+    "cmp_handoff_running",
 )
 
-PARETO_RUNNING_ATTRS = ("pareto_running",)
+PARETO_RUNNING_ATTRS = ("pareto_running", "cmp_handoff_running")
 
-TRADE_RUNNING_ATTRS = ("trade_running",)
+TRADE_RUNNING_ATTRS = ("trade_running", "cmp_handoff_running")
 
 SCAN_RUNNING_ATTRS = ("scan_running", "scan_legacy_running")
+
+COMPARE_RUNNING_ATTRS = ("cmp_handoff_running",)

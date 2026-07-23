@@ -456,6 +456,7 @@ class DesignSession:
     cmp_expert_view: bool = False
     cmp_decision_state: str = "Load baseline vs variant"
     cmp_show_all_outputs: bool = False
+    cmp_handoff_running: bool = False
     # Publication Benchmarks
     pub_bench_tab: str = "Tokamak Constitutional Atlas"
     pub_atlas_bucket: str = ""

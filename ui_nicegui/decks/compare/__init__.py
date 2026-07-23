@@ -24,6 +24,7 @@ from ui_nicegui.lib.compare_labels import (
     normalize_compare_tab,
     teaching_banner,
 )
+from ui_nicegui.lib.deck_busy_guard import COMPARE_RUNNING_ATTRS, refresh_tab_if_idle
 from ui_nicegui.session import DesignSession
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
@@ -76,8 +77,12 @@ def render_compare(session: DesignSession) -> None:
                 value=session.cmp_teaching_mode,
                 on_change=lambda e: (
                     sync_deck_guided_to_helm(session, bool(e.value), deck_attr="cmp_teaching_mode"),
-                    _render_workflow.refresh(),
-                    _render_tab_body.refresh(),
+                    refresh_tab_if_idle(
+                        session,
+                        running_attrs=COMPARE_RUNNING_ATTRS,
+                        refresh=lambda: (_render_workflow.refresh(), _render_tab_body.refresh()),
+                        job_label="Compare handoff",
+                    ),
                 ),
             )
             ui.switch(
@@ -85,7 +90,12 @@ def render_compare(session: DesignSession) -> None:
                 value=session.cmp_expert_view,
                 on_change=lambda e: (
                     sync_deck_expert_to_helm(session, bool(e.value), deck_attr="cmp_expert_view"),
-                    _render_tab_body.refresh(),
+                    refresh_tab_if_idle(
+                        session,
+                        running_attrs=COMPARE_RUNNING_ATTRS,
+                        refresh=_render_tab_body.refresh,
+                        job_label="Compare handoff",
+                    ),
                 ),
             )
 
@@ -124,7 +134,12 @@ def _render_workflow(session: DesignSession) -> None:
         value=session.cmp_workflow_step,
         on_change=lambda e: (
             setattr(session, "cmp_workflow_step", normalize_compare_tab(str(e.value))),
-            _render_tab_body.refresh(),
+            refresh_tab_if_idle(
+                session,
+                running_attrs=COMPARE_RUNNING_ATTRS,
+                refresh=_render_tab_body.refresh,
+                job_label="Compare handoff",
+            ),
         ),
     ).classes("w-full")
     help_text = TAB_HELP.get(normalize_compare_tab(session.cmp_workflow_step), "")
