@@ -80,7 +80,7 @@ def render_solve_panel(
     ui.label("Step ② — Target solve (Newton)").classes("text-subtitle1")
     ui.label("Adjust declared variables to hit targets. Uses frozen Evaluator.").classes("text-caption q-mb-sm")
     try:
-        from ui_nicegui.lib.session_store import inputs_stale
+        from ui_nicegui.lib.pd_solver_helpers import inputs_stale
 
         if inputs_stale(session):
             ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")

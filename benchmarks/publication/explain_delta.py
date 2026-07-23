@@ -71,7 +71,21 @@ def main() -> int:
     lines.append(f"Baseline: {bdir}\n")
     lines.append(f"Candidate: {cdir}\n")
 
-    channels = ["H98","Q_DT_eqv","P_fus_MW","P_e_net_MW","q95","fG","betaN","q_div_MW_m2","TBR","CAPEX_$","recirc_frac","worst_hard_margin"]
+    channels = [
+        "H98",
+        "Q_DT_eqv",
+        "P_fus_MW",
+        "P_e_net_MW",
+        "q95_proxy",
+        "q95",
+        "fG",
+        "betaN",
+        "q_div_MW_m2",
+        "TBR",
+        "CAPEX_$",
+        "recirc_frac",
+        "worst_hard_margin",
+    ]
     claim_channels = {"H98", "Q_DT_eqv", "P_fus_MW", "P_e_net_MW"}
 
     changed = 0

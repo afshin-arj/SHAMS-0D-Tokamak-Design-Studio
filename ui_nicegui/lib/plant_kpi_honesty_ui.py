@@ -150,6 +150,7 @@ _CLAIM_KPI_KEYS = frozenset(
         "Pfus_MW",
         "P_fus_MW",
         "Pfus_DT_adj_MW",
+        "Pfus_DT_MW",
     }
 )
 _DIAGNOSTIC = "— (diagnostic)"
@@ -561,14 +562,19 @@ def watermark_scan_families_export(art: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def _pareto_row_claim_feasible(row: Mapping[str, Any]) -> bool:
-    """Hard-feasibility for Pareto Lab export rows (PHYS-KPI-001)."""
+    """Hard-feasibility for Pareto Lab export rows (PHYS-KPI-001).
+
+    Missing feasibility flags default to *infeasible* so ExtOpt/REJECTED-shaped
+    rows cannot ship claim FoMs as design achievements.
+    """
     for key in ("feasible", "is_feasible", "hard_feasible"):
         if key in row:
             return bool(row.get(key))
     verdict = str(row.get("verdict") or "").strip().upper()
     if verdict:
         return verdict in ("PASS", "FEASIBLE", "VERIFIED", "OK")
-    return True
+    # No explicit feasibility → do not treat as claim-safe.
+    return False
 
 
 def watermark_pareto_artifact_export(artifact: Mapping[str, Any]) -> Dict[str, Any]:

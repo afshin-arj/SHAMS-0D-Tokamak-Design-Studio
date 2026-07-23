@@ -18,6 +18,7 @@ from ui_nicegui.session import DesignSession
 
 from ui_nicegui.lib.control_room_helpers import CR_SECTIONS, read_version
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
+from ui_nicegui.lib.run_lock import status as runlock_status
 from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
 # Legacy section names ported from Streamlit (see test_nicegui_phase18).
@@ -48,6 +49,22 @@ def _sync_section(session: DesignSession, tab: str) -> None:
     session.cr_section = _WORKFLOW_TO_LEGACY.get(session.cr_workflow_step, "Orientation")
 
 
+def _cr_busy() -> bool:
+    locked, _task, _holder = runlock_status("ControlRoom")
+    return bool(locked)
+
+
+def _on_cr_tab_change(session: DesignSession, raw: str) -> None:
+    if _cr_busy():
+        ui.notify(
+            "Control Room job running — wait until it finishes before changing sections.",
+            type="warning",
+        )
+        return
+    _sync_section(session, raw)
+    _render_section.refresh()
+
+
 def render_control_room(session: DesignSession) -> None:
     ui.label("Control Room").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
@@ -71,10 +88,7 @@ def render_control_room(session: DesignSession) -> None:
     ui.toggle(
         CR_WORKFLOW_TABS,
         value=session.cr_workflow_step,
-        on_change=lambda e: (
-            _sync_section(session, str(e.value)),
-            _render_section.refresh(),
-        ),
+        on_change=lambda e: _on_cr_tab_change(session, str(e.value)),
     ).classes("w-full")
 
     help_text = TAB_HELP.get(session.cr_workflow_step, "")
@@ -89,11 +103,23 @@ def _render_mode_switches(session: DesignSession) -> None:
     """Guided and Expert are independent (parity with Point Designer / Scan / Forge)."""
 
     def _on_guided(e) -> None:
+        if _cr_busy():
+            ui.notify(
+                "Control Room job running — wait until it finishes before changing Guided / Expert.",
+                type="warning",
+            )
+            return
         sync_deck_guided_to_helm(session, bool(e.value), deck_attr="cr_teaching_mode")
         _render_decision_chrome.refresh()
         _render_section.refresh()
 
     def _on_expert(e) -> None:
+        if _cr_busy():
+            ui.notify(
+                "Control Room job running — wait until it finishes before changing Guided / Expert.",
+                type="warning",
+            )
+            return
         sync_deck_expert_to_helm(session, bool(e.value), deck_attr="cr_expert_view")
         _render_decision_chrome.refresh()
         _render_section.refresh()

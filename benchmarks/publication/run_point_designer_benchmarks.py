@@ -289,13 +289,17 @@ def run_one(case_id: str, inp: PointInputs, *, design_intent: str) -> Dict[str, 
         "Ti_keV": _safe_float(out.get("Ti_keV")),
         "H98": _safe_float(out.get("H98")),
         "Q_DT_eqv": _safe_float(out.get("Q_DT_eqv")),
-        "P_fus_MW": _safe_float(out.get("P_fus_MW", out.get("Pfus_DT_MW"))),
-        "P_e_net_MW": _safe_float(out.get("P_e_net_MW", out.get("P_net_e_MW"))),
-        "q95": _safe_float(out.get("q95", out.get("q95_proxy"))),
+        "P_fus_MW": _safe_float(
+            out.get("Pfus_total_MW", out.get("P_fus_MW", out.get("Pfus_MW", out.get("Pfus_DT_MW"))))
+        ),
+        "P_e_net_MW": _safe_float(out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("Pe_net_MW")))),
+        # Cylindrical safety-factor proxy (L0 key q95_proxy) — not equilibrium q95.
+        "q95_proxy": _safe_float(out.get("q95_proxy", out.get("q95"))),
+        "q95": _safe_float(out.get("q95_proxy", out.get("q95"))),  # legacy CSV column alias
         # Non-authoritative cross-check (PROCESS-style relation)
         "Ip_from_q95_PROCESS_MA": _safe_float(out.get("Ip_from_q95_PROCESS_MA")),
         "Ip_vs_PROCESS_ratio": _safe_float(out.get("Ip_vs_PROCESS_ratio")),
-        "betaN": _safe_float(out.get("betaN", out.get("betaN_proxy"))),
+        "betaN": _safe_float(out.get("beta_N", out.get("betaN", out.get("betaN_proxy")))),
         "q_div_MW_m2": _safe_float(out.get("q_div_MW_m2")),
         "sigma_vm_MPa": _safe_float(out.get("sigma_vm_MPa", out.get("sigma_hoop_MPa"))),
         "B_peak_T": _safe_float(out.get("B_peak_T")),

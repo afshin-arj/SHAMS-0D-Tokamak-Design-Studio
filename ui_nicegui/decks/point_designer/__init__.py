@@ -120,7 +120,7 @@ def render_point_designer(session: DesignSession) -> None:
                 value=session.pd_teaching_mode,
                 on_change=lambda e: (
                     sync_deck_guided_to_helm(session, bool(e.value), deck_attr="pd_teaching_mode"),
-                    _render_workflow.refresh(),
+                    _refresh_pd_chrome_if_idle(session, refresh=_render_workflow.refresh),
                 ),
             )
             ui.switch(
@@ -128,7 +128,7 @@ def render_point_designer(session: DesignSession) -> None:
                 value=session.pd_expert_view,
                 on_change=lambda e: (
                     sync_deck_expert_to_helm(session, bool(e.value), deck_attr="pd_expert_view"),
-                    _render_tab_body.refresh(),
+                    _refresh_pd_chrome_if_idle(session, refresh=_render_tab_body.refresh),
                 ),
             )
 
@@ -293,7 +293,26 @@ def _render_tab_body(session: DesignSession, *, on_evaluate) -> None:
 
 
 def _set_subdeck(session: DesignSession, value: str) -> None:
+    from ui_nicegui.lib.deck_busy_guard import PD_RUNNING_ATTRS
+
+    if any(bool(getattr(session, a, False)) for a in PD_RUNNING_ATTRS):
+        ui.notify(
+            "Point Designer job running — wait until it finishes before switching Studio / deep tools.",
+            type="warning",
+        )
+        return
     session.pd_subdeck = str(value)
     from ui_nicegui.lib.navigation import refresh_active_deck
 
     refresh_active_deck()
+
+
+def _refresh_pd_chrome_if_idle(session: DesignSession, *, refresh) -> None:
+    from ui_nicegui.lib.deck_busy_guard import PD_RUNNING_ATTRS, refresh_tab_if_idle
+
+    refresh_tab_if_idle(
+        session,
+        running_attrs=PD_RUNNING_ATTRS,
+        refresh=refresh,
+        job_label="Point Designer",
+    )
