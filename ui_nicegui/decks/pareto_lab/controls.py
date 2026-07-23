@@ -149,14 +149,15 @@ def render_pareto_controls(
                 type="positive",
             )
             _post_run_verdict.refresh()
-            if on_complete:
-                on_complete()
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Pareto study failed: {exc}", type="negative")
         finally:
             session.pareto_running = False
             runlock_release("ParetoLab")
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_complete:
+                on_complete()
 
     btn = ui.button("Run Pareto (feasible-only)", icon="play_arrow", on_click=_run).props("color=primary")
     if session.pareto_running or len(session.pareto_sel_objs) < 2:

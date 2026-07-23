@@ -202,8 +202,6 @@ def render_cartography_controls(
             )
             session.scan_cartography_report = rep
             ui.notify("Quick probe complete — review Map & Probe or run full grid.", type="positive")
-            if on_scan_complete:
-                on_scan_complete()
         except Exception as exc:
             ui.notify(f"Quick probe failed: {exc}", type="negative")
         finally:
@@ -213,6 +211,9 @@ def render_cartography_controls(
             _progress_timer.deactivate()
             _scan_progress_panel.refresh()
             runlock_release("ScanLab")
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_scan_complete:
+                on_scan_complete()
 
     async def _run_scan() -> None:
         from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
@@ -287,8 +288,6 @@ def render_cartography_controls(
             if isinstance(artifact, dict):
                 session.scan_cartography_artifact = artifact
             ui.notify(f"Scan complete: {rep.get('n_points')} points", type="positive")
-            if on_scan_complete:
-                on_scan_complete()
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Scan failed: {exc}", type="negative")
@@ -299,6 +298,9 @@ def render_cartography_controls(
             _progress_timer.deactivate()
             _scan_progress_panel.refresh()
             runlock_release("ScanLab")
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_scan_complete:
+                on_scan_complete()
 
     with ui.row().classes("gap-2 q-mt-sm"):
         btn_q = ui.button("Quick probe (11×11)", icon="speed", on_click=_run_quick).props("outline")

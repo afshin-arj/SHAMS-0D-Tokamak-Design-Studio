@@ -818,3 +818,86 @@ def test_scan_pareto_trade_paint_busy_after_session_flags() -> None:
         src = inspect.getsource(mod)
         assert "refresh_status()" in src
         assert "refresh_helm()" in src
+
+
+def test_scan_pareto_trade_remount_after_clearing_busy() -> None:
+    """Busy flag must clear before on_complete remount so Run is not stuck disabled."""
+    import inspect
+    import re
+
+    from ui_nicegui.decks.scan_lab import cartography
+    from ui_nicegui.decks.pareto_lab import controls as pctrl
+    from ui_nicegui.decks.trade_study_studio import controls as tctrl
+
+    # Cartography: on_scan_complete only in finally after scan_running = False
+    cart_src = inspect.getsource(cartography)
+    for m in re.finditer(
+        r"finally:\s*(.*?)\s*(?:async def |def |with ui\.|btn)",
+        cart_src,
+        re.DOTALL,
+    ):
+        block = m.group(1)
+        if "on_scan_complete" in block:
+            assert "scan_running = False" in block
+            assert block.index("scan_running = False") < block.index("on_scan_complete")
+
+    for mod, flag, cb in (
+        (pctrl, "pareto_running = False", "on_complete"),
+        (tctrl, "trade_running = False", "on_complete"),
+    ):
+        src = inspect.getsource(mod)
+        assert "finally:" in src
+        finally_idx = src.rfind("finally:")
+        tail = src[finally_idx:]
+        assert flag in tail
+        assert cb in tail
+        assert tail.index(flag) < tail.index(f"if {cb}")
+
+
+def test_recovery_candidate_headline_from_artifact_outputs() -> None:
+    from types import SimpleNamespace
+
+    from ui_nicegui.lib.systems_workflow_helpers import (
+        collect_candidates,
+        kpi_headline_from_outputs,
+    )
+
+    h = kpi_headline_from_outputs(
+        {"Q_DT_eqv": 4.2, "H98": 1.1, "P_e_net_MW": 50.0, "Pfus_total_MW": 200.0}
+    )
+    assert h["Q"] == 4.2
+    assert h["P_net"] == 50.0
+    assert h["Pfus"] == 200.0
+
+    session = SimpleNamespace(
+        systems_last_solve_result=None,
+        systems_recovery_last={
+            "ok": True,
+            "reason": "seed_feasible",
+            "best_point": {"Ip_MA": 10.0},
+            # legacy: no headline on recovery report
+        },
+        systems_feasible_search_last=None,
+        systems_last_solve_artifact={
+            "source": "systems_recovery",
+            "outputs": {
+                "Q_DT_eqv": 3.5,
+                "H98": 0.9,
+                "P_e_net_MW": 40.0,
+                "Pfus_total_MW": 180.0,
+            },
+        },
+    )
+    cands = collect_candidates(session)
+    rec = next(c for c in cands if c["id"] == "recovery")
+    assert rec["headline"]["Q"] == 3.5
+    assert rec["headline"]["P_net"] == 40.0
+
+
+def test_studio_entry_opens_control_room_with_force() -> None:
+    import inspect
+
+    from ui_nicegui.components import studio_entry_panel
+
+    src = inspect.getsource(studio_entry_panel._open_doc_in_docs_library)
+    assert 'switch_deck("Control Room", force=True)' in src

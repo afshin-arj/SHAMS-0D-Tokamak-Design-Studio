@@ -17,6 +17,7 @@ from ui_nicegui.lib.systems_workflow_helpers import (
     append_run_card,
     apply_x_to_session,
     artifact_from_recovery as build_solve_artifact,
+    kpi_headline_from_outputs,
     run_seeded_recovery,
     systems_run_payload,
 )
@@ -154,6 +155,13 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             session.systems_recovery_last = rep
             art = build_solve_artifact(rep, design_intent=session.design_intent, base=b)
             session.systems_last_solve_artifact = art
+            # Attach KPI headline so Apply/Audit do not show blank Q/P_net for recovery.
+            if isinstance(rep, dict) and isinstance(art, dict):
+                out = art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+                if out:
+                    rep = dict(rep)
+                    rep["headline"] = kpi_headline_from_outputs(out)
+                    session.systems_recovery_last = rep
             append_run_card(
                 session,
                 kind="SeededRecovery",
@@ -172,13 +180,13 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
             )
             _apply_ctas.refresh()
             _results.refresh()
-            if on_complete:
-                on_complete()
         except Exception as exc:
             ui.notify(f"Recovery failed: {exc}", type="negative")
         finally:
             session.systems_recovery_running = False
             runlock_release("SystemsMode")
+            if on_complete:
+                on_complete()
 
     def _apply_best_to_inputs(*, diagnostic: bool = False) -> None:
         rep = session.systems_recovery_last

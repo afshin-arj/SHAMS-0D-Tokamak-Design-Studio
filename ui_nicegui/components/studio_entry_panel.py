@@ -33,7 +33,8 @@ def _open_doc_in_docs_library(session: DesignSession, doc_rel_path: str) -> None
     session.cr_section = "Constitution"
     session.cr_const_tab = "Docs Library"
     session.cr_docs_sel = doc_name
-    switch_deck("Control Room")
+    # force=True: session CR tabs mutated above — remount even if already on Control Room.
+    switch_deck("Control Room", force=True)
     ui.notify(f"Opened Docs Library: {doc_name}", type="info")
 
 
