@@ -43,6 +43,8 @@ class DesignSession:
     # Studio default entry (Independence 3.4): landing card shown until first
     # evaluation or explicit dismiss (per-session, never persisted).
     studio_entry_dismissed: bool = False
+    # Set when Forge promote/Apply clears PD eval and pushes candidate inputs.
+    pd_pending_forge_eval: bool = False
     last_eval: Optional[dict[str, Any]] = None
     pd_last_outputs: Optional[dict[str, Any]] = None
     pd_last_artifact: Optional[dict[str, Any]] = None

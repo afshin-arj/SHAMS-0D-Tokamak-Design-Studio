@@ -145,6 +145,33 @@ def _watermark_report_pack_for_export(rp: Dict[str, Any], *, feasible: bool, poi
     out["phys_kpi_note"] = (
         "PHYS-KPI-001: claim FoMs watermarked as diagnostic on INFEASIBLE Forge candidate."
     )
+    # Rebuild CSV from watermarked JSON so report_pack.csv cannot leak raw claim FoMs.
+    try:
+        from tools.sandbox.report_pack import _flatten
+
+        flat: Dict[str, Any] = {}
+        _flatten("", out.get("json") or {}, flat)
+        csv_lines = ["key,value"]
+        for k in sorted(flat.keys()):
+            v = flat[k]
+            csv_lines.append(f"{k},{str(v).replace(',', ';')}")
+        out["csv"] = "\n".join(csv_lines) + "\n"
+    except Exception:
+        # Fall back: redact claim keys already present in the raw CSV text.
+        csv = str(out.get("csv") or "")
+        if csv:
+            redacted = []
+            for line in csv.splitlines():
+                if "," not in line:
+                    redacted.append(line)
+                    continue
+                key, _, rest = line.partition(",")
+                leaf = key.rsplit(".", 1)[-1]
+                if leaf in claim or key in claim:
+                    redacted.append(f"{key},{diag}")
+                else:
+                    redacted.append(line)
+            out["csv"] = "\n".join(redacted) + ("\n" if csv.endswith("\n") else "")
     return out
 
 
@@ -208,7 +235,36 @@ def build_reviewer_packet_zip(
 
     # --- Candidate snapshot ---
     if options.include_candidate_snapshot:
-        add_bytes("candidate.json", _canonical_json_bytes(candidate))
+        snap = dict(candidate)
+        if not bool(candidate.get("feasible", False)):
+            outs = snap.get("outputs") if isinstance(snap.get("outputs"), dict) else None
+            if isinstance(outs, dict):
+                diag = "— (diagnostic)"
+                claim = frozenset(
+                    {
+                        "Q",
+                        "Q_DT_eqv",
+                        "H98",
+                        "H_IPB98y2",
+                        "H98y2",
+                        "P_fus_MW",
+                        "Pfus_MW",
+                        "Pfus_total_MW",
+                        "Pfus_DT_adj_MW",
+                        "P_e_net_MW",
+                        "P_net_e_MW",
+                        "Pe_net_MW",
+                        "P_net_MW",
+                        "net_electric_MW",
+                        "LCOE_proxy_USD_per_MWh",
+                        "COE_proxy_USD_per_MWh",
+                    }
+                )
+                snap["outputs"] = {k: (diag if str(k) in claim else v) for k, v in outs.items()}
+                snap["phys_kpi_note"] = (
+                    "PHYS-KPI-001: claim FoMs watermarked as diagnostic on INFEASIBLE — not design claims."
+                )
+        add_bytes("candidate.json", _canonical_json_bytes(snap))
 
     # --- Report pack ---
     if options.include_report_pack:

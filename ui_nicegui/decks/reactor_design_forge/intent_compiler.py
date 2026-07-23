@@ -161,6 +161,8 @@ def render_intent_compiler(
 
             clear_point_designer(session)
             session.inputs = merge_candidate_to_session_inputs(session.inputs, cand)
+            session.pd_pending_forge_eval = True
+            session.studio_entry_dismissed = True
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)

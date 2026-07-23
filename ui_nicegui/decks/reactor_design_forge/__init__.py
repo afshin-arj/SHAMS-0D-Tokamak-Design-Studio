@@ -50,6 +50,12 @@ def _refresh_all() -> None:
 
 
 def _set_forge_review_mode(session: DesignSession, value: bool) -> None:
+    if any(bool(getattr(session, a, False)) for a in FORGE_RUNNING_ATTRS):
+        ui.notify(
+            "Reactor Design Forge running — wait until it finishes before toggling Review Mode.",
+            type="warning",
+        )
+        return
     session.forge_review_mode = bool(value)
     from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
@@ -76,16 +82,50 @@ def _on_forge_tab_change(session: DesignSession, raw: str) -> None:
     _render_tab_body.refresh()
 
 
+def _has_forge_workbench(session: DesignSession) -> bool:
+    run = getattr(session, "forge_workbench_run", None)
+    return isinstance(run, dict) and run.get("archive") is not None
+
+
 def render_reactor_design_forge(session: DesignSession) -> None:
     ui.label("Reactor Design Forge").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("forge", default_open=False)
 
     art, _, point_out = get_point_artifact_triple(session)
-    if not isinstance(point_out, dict):
+    has_wb = _has_forge_workbench(session)
+    # Promote/Apply clears PD eval — do not hide a live Machine Finder archive behind the gate.
+    if not isinstance(point_out, dict) and not has_wb:
         pd_prerequisite_gate(
             "Run **Point Designer → Evaluate Point** first — Forge uses that baseline.",
         )
+        return
+    if not isinstance(point_out, dict) and has_wb:
+        ui.badge("BASELINE CLEARED", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Point Designer evaluation was cleared (promote/Apply). "
+            "Workbench archive is still available — open Point Designer and **Evaluate Point** "
+            "to restore the baseline KPI strip, or continue Instruments / Capsules."
+        ).classes("text-caption text-orange q-mb-sm")
+        # Soft gate: still allow workflow chrome + tabs without KPI hero.
+        from ui_nicegui.lib.pd_intent_policy import policy_caption
+
+        ui.label(policy_caption(session.design_intent)).classes("text-caption q-mb-xs")
+        with ui.card().classes("w-full q-mb-sm q-pa-sm bg-blue-grey-1"):
+            ui.markdown(f"**Do now:** {next_action_hint(session)}").classes("text-body2")
+        if session.forge_review_mode:
+            ui.label("Review Mode: search/compile controls locked; inspect archives and export only.").classes(
+                "text-orange q-mb-sm"
+            )
+        _render_dashboard(session)
+        session.forge_workflow_step = normalize_forge_tab(session.forge_workflow_step)
+        _sync_legacy_deck(session, session.forge_workflow_step)
+        ui.toggle(
+            FORGE_TABS,
+            value=session.forge_workflow_step,
+            on_change=lambda e: _on_forge_tab_change(session, str(e.value)),
+        ).classes("w-full")
+        _render_tab_body(session)
         return
 
     from ui_nicegui.lib.session_store import get_cached_verdict_summary
