@@ -106,11 +106,39 @@ def watermark_run_artifact_export(art: Mapping[str, Any]) -> Dict[str, Any]:
         "VERIFIED",
         "OK",
     )
+    # Honor explicit infeasibility stamps (sparse fixtures / export nests may not
+    # rebuild a full constraint ledger via verdict_summary).
+    if outs.get("hard_feasible") is False or outs.get("feasible") is False:
+        feasible = False
+    verdict_u = str(out.get("verdict") or outs.get("verdict") or "").strip().upper()
+    if verdict_u in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NO_SOLUTION", "REJECTED"):
+        feasible = False
+    failed = outs.get("constraints_failed") or outs.get("failed_hard") or outs.get("failed_blocking")
+    if isinstance(failed, (list, tuple)) and len(failed) > 0:
+        feasible = False
     if outs and not feasible:
         out["outputs"] = watermark_claim_kpi_map(outs, feasible=False, point_out=outs)
         kpis = out.get("kpis")
         if isinstance(kpis, Mapping):
             out["kpis"] = watermark_claim_kpi_map(kpis, feasible=False, point_out=outs)
+        # Mirror case_deck_panel: watermark tables.v1 plasma / power_balance claim cells.
+        tables = out.get("tables")
+        if isinstance(tables, Mapping):
+            t2 = dict(tables)
+            v1 = tables.get("v1") or tables
+            if isinstance(v1, Mapping):
+                v1d = dict(v1)
+                for section in ("plasma", "power_balance"):
+                    block = v1.get(section)
+                    if isinstance(block, Mapping):
+                        v1d[section] = watermark_claim_kpi_map(
+                            block, feasible=False, point_out=outs
+                        )
+                if "v1" in tables:
+                    t2["v1"] = v1d
+                else:
+                    t2.update(v1d)
+            out["tables"] = t2
         out["phys_kpi_note"] = (
             "PHYS-KPI-001: claim KPIs on INFEASIBLE artifacts are — (diagnostic) — not design claims."
         )

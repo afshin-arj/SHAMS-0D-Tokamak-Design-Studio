@@ -306,6 +306,8 @@ def watermark_scan_cartography_export(rep: Mapping[str, Any]) -> Dict[str, Any]:
 
     Infeasible cells (no intent with ``blocking_feasible``) get claim FoMs
     replaced by — (diagnostic). Feasible cells keep raw claim values.
+    Also blanks ``field_cube.vars`` claim-key grids on blocking-infeasible cells
+    (NaN), mirroring contour blanking.
     """
     out: Dict[str, Any] = dict(rep) if isinstance(rep, Mapping) else {}
     pts_out: List[Dict[str, Any]] = []
@@ -356,11 +358,123 @@ def watermark_scan_cartography_export(rep: Mapping[str, Any]) -> Dict[str, Any]:
                     out[nest_key]["outputs"] = watermark_claim_kpi_map(
                         nested_outs, feasible=False, point_out=nested_outs
                     )
+    fc = out.get("field_cube")
+    if isinstance(fc, Mapping):
+        out["field_cube"] = _watermark_field_cube_vars(fc, points=pts_out or out.get("points") or [])
     out["phys_kpi_note"] = (
         "PHYS-KPI-001: claim KPIs (Q / H98 / Pfus / P_net / LCOE) on blocking-infeasible "
         "Scan Lab cells are — (diagnostic) — not design claims."
     )
     return out
+
+
+def _field_cube_cell_claim_feasible(
+    *,
+    i: int,
+    j: int,
+    intent_vars: Mapping[str, Any],
+    points: Sequence[Any],
+) -> bool:
+    """Whether cell (i,j) may keep claim KPI values (any intent blocking_feasible)."""
+    if isinstance(intent_vars, Mapping) and intent_vars:
+        saw = False
+        for iv in intent_vars.values():
+            if not isinstance(iv, Mapping):
+                continue
+            ok_grid = iv.get("blocking_feasible")
+            if not isinstance(ok_grid, list):
+                continue
+            try:
+                saw = True
+                if bool(ok_grid[j][i]):
+                    return True
+            except (IndexError, TypeError):
+                continue
+        if saw:
+            return False
+    # Fall back to points intent map when field_cube.intent_vars is opaque/missing.
+    for p in points or []:
+        if not isinstance(p, Mapping):
+            continue
+        try:
+            if int(p.get("i")) == i and int(p.get("j")) == j:
+                return _scan_point_claim_feasible(p)
+        except (TypeError, ValueError):
+            continue
+    return True
+
+
+def _watermark_field_cube_vars(
+    fc: Mapping[str, Any],
+    *,
+    points: Sequence[Any],
+) -> Dict[str, Any]:
+    """Blank claim-key grids on blocking-infeasible cells (PHYS-KPI-001).
+
+    Mirrors contour blanking: infeasible claim cells → NaN (JSON null after dump)
+    or the diagnostic string when the cell is already non-numeric.
+    """
+    out_fc: Dict[str, Any] = dict(fc)
+    vars_map = fc.get("vars")
+    if not isinstance(vars_map, Mapping) or not vars_map:
+        out_fc["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs on blocking-infeasible field_cube cells "
+            "are blanked (NaN / diagnostic) when vars present."
+        )
+        return out_fc
+    intent_vars = fc.get("intent_vars") if isinstance(fc.get("intent_vars"), Mapping) else {}
+    dims = fc.get("dims") if isinstance(fc.get("dims"), Mapping) else {}
+    try:
+        nx = int(dims.get("x") or 0)
+        ny = int(dims.get("y") or 0)
+    except (TypeError, ValueError):
+        nx = ny = 0
+    if nx <= 0 or ny <= 0:
+        # Infer from first var grid
+        for arr in vars_map.values():
+            if isinstance(arr, list) and arr and isinstance(arr[0], list):
+                ny = len(arr)
+                nx = len(arr[0]) if arr[0] else 0
+                break
+    new_vars: Dict[str, Any] = {}
+    any_blanked = False
+    for key, arr in vars_map.items():
+        if not is_claim_kpi_key(str(key)) or not isinstance(arr, list):
+            new_vars[str(key)] = arr
+            continue
+        masked: List[List[Any]] = []
+        for j, row in enumerate(arr):
+            if not isinstance(row, list):
+                masked.append(row)
+                continue
+            new_row: List[Any] = []
+            for i, val in enumerate(row):
+                feas = _field_cube_cell_claim_feasible(
+                    i=i, j=j, intent_vars=intent_vars, points=points
+                )
+                if feas:
+                    new_row.append(val)
+                else:
+                    any_blanked = True
+                    if isinstance(val, (int, float)) or val is None:
+                        new_row.append(float("nan"))
+                    else:
+                        try:
+                            float(val)
+                            new_row.append(float("nan"))
+                        except (TypeError, ValueError):
+                            new_row.append(
+                                format_claim_kpi_for_table(str(key), val, feasible=False)
+                            )
+            masked.append(new_row)
+        new_vars[str(key)] = masked
+    out_fc["vars"] = new_vars
+    if any_blanked or any(is_claim_kpi_key(str(k)) for k in vars_map.keys()):
+        out_fc["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPI grids on blocking-infeasible cells are NaN "
+            "/ — (diagnostic) — not design claims."
+        )
+    return out_fc
 
 
 def watermark_scan_families_export(art: Mapping[str, Any]) -> Dict[str, Any]:

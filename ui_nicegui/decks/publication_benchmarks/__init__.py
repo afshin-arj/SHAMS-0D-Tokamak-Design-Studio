@@ -28,6 +28,7 @@ from ui_nicegui.lib.pub_helpers import (
     render_pub_suite_handoff_shortcut,
 )
 from ui_nicegui.session import DesignSession
+from ui_nicegui.lib.deck_busy_guard import PUB_RUNNING_ATTRS, refresh_tab_if_idle
 from ui_nicegui.lib.expert_mode import sync_deck_expert_to_helm
 from ui_nicegui.lib.teaching_mode import sync_deck_guided_to_helm
 
@@ -112,7 +113,12 @@ def render_publication_benchmarks(session: DesignSession) -> None:
             setattr(session, "pub_bench_tab", normalize_pub_tab(str(e.value))),
             _render_deck_verdict.refresh(),
             _render_deck_status.refresh(),
-            _render_tab_body.refresh(),
+            refresh_tab_if_idle(
+                session,
+                running_attrs=PUB_RUNNING_ATTRS,
+                refresh=_render_tab_body.refresh,
+                job_label="Publication Benchmarks",
+            ),
         ),
     ).classes("w-full")
     help_text = TAB_HELP.get(normalize_pub_tab(session.pub_workflow_step), "")
@@ -140,14 +146,24 @@ def _render_mode_switches(session: DesignSession) -> None:
     def _on_guided(e) -> None:
         sync_deck_guided_to_helm(session, bool(e.value), deck_attr="pub_teaching_mode")
         _render_decision_chrome.refresh()
-        _render_tab_body.refresh()
         _render_deck_status.refresh()
+        refresh_tab_if_idle(
+            session,
+            running_attrs=PUB_RUNNING_ATTRS,
+            refresh=_render_tab_body.refresh,
+            job_label="Publication Benchmarks",
+        )
 
     def _on_expert(e) -> None:
         sync_deck_expert_to_helm(session, bool(e.value), deck_attr="pub_expert_view")
         _render_decision_chrome.refresh()
-        _render_tab_body.refresh()
         _render_deck_status.refresh()
+        refresh_tab_if_idle(
+            session,
+            running_attrs=PUB_RUNNING_ATTRS,
+            refresh=_render_tab_body.refresh,
+            job_label="Publication Benchmarks",
+        )
 
     with ui.row().classes("gap-4"):
         ui.switch("Guided mode", value=bool(session.pub_teaching_mode), on_change=_on_guided)
@@ -163,9 +179,14 @@ def _render_decision_chrome(session: DesignSession) -> None:
         if tab and session.pub_teaching_mode:
             session.pub_workflow_step = tab
             session.pub_bench_tab = tab
-            _render_tab_body.refresh()
             _render_deck_verdict.refresh()
             _render_deck_status.refresh()
+            refresh_tab_if_idle(
+                session,
+                running_attrs=PUB_RUNNING_ATTRS,
+                refresh=_render_tab_body.refresh,
+                job_label="Publication Benchmarks",
+            )
 
     if session.pub_teaching_mode or not session.pub_expert_view:
         ui.select(

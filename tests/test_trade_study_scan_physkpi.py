@@ -146,3 +146,153 @@ def test_systems_export_ui_wires_watermark_run_artifact_for_pdfs():
     assert "build_decision_report_pdf_bytes" in src
     assert "build_executive_summary_pdf_bytes" in src
     assert "PHYS-KPI-001" in src
+
+
+def test_control_room_cite_pack_uses_watermark_run_artifact():
+    src = Path("ui_nicegui/decks/control_room/artifacts.py").read_text(encoding="utf-8")
+    assert "build_cite_shams_handoff_pack(watermark_run_artifact_export(art))" in src
+
+
+def test_systems_export_bytes_watermarks_run_cards_payload():
+    import json
+
+    from ui_nicegui.lib.systems_workflow_helpers import systems_export_bytes
+    from ui_nicegui.session import DesignSession
+
+    s = DesignSession()
+    s.systems_run_cards = [
+        {
+            "id": "c1",
+            "kind": "solve",
+            "outcome": {"ok": False},
+            "payload": {
+                "verdict": "INFEASIBLE",
+                "outputs": {
+                    "Q_DT_eqv": 12.0,
+                    "hard_feasible": False,
+                    "constraints_failed": ["greenwald"],
+                },
+            },
+        },
+        {
+            "id": "c2",
+            "kind": "search",
+            "outcome": {"ok": False, "feasible": False},
+            "payload": {"headline": {"Q_DT_eqv": 9.0, "R0_m": 6.0}, "metrics": {"H98": 1.2}},
+        },
+    ]
+    data = json.loads(systems_export_bytes(s).decode("utf-8"))
+    cards = data["systems_run_cards"]
+    outs = cards[0]["payload"]["outputs"]
+    assert "diagnostic" in str(outs.get("Q_DT_eqv")).lower()
+    assert "diagnostic" in str(cards[1]["payload"]["headline"].get("Q_DT_eqv")).lower()
+    assert cards[1]["payload"]["headline"]["R0_m"] == 6.0
+    assert "diagnostic" in str(cards[1]["payload"]["metrics"].get("H98")).lower()
+    assert "PHYS-KPI-001" in str(data.get("phys_kpi_note") or "")
+
+
+def test_deck_busy_guard_pub_and_systems_atlas_attrs():
+    from ui_nicegui.lib.deck_busy_guard import PUB_RUNNING_ATTRS, SYSTEMS_RUNNING_ATTRS
+
+    assert "pub_running" in PUB_RUNNING_ATTRS
+    assert "pub_atlas_running" in PUB_RUNNING_ATTRS
+    assert "pub_atlas_fragility_running" in PUB_RUNNING_ATTRS
+    assert "pub_bench_running" in PUB_RUNNING_ATTRS
+    assert "systems_atlas_running" in SYSTEMS_RUNNING_ATTRS
+    pub_src = Path("ui_nicegui/decks/publication_benchmarks/__init__.py").read_text(encoding="utf-8")
+    assert "PUB_RUNNING_ATTRS" in pub_src
+    assert "refresh_tab_if_idle" in pub_src
+    sys_src = Path("ui_nicegui/decks/systems_mode/__init__.py").read_text(encoding="utf-8")
+    assert "SYSTEMS_RUNNING_ATTRS" in sys_src
+
+
+def test_cartography_activates_progress_timer_when_scan_running_on_remount():
+    src = Path("ui_nicegui/decks/scan_lab/cartography.py").read_text(encoding="utf-8")
+    # After remount mid-scan: disable btns AND re-activate progress timer + refresh panel.
+    assert "if session.scan_running:" in src
+    block = src.split("if session.scan_running:")[-1]
+    assert "_progress_timer.activate()" in block
+    assert "_scan_progress_panel.refresh()" in block
+
+
+def test_field_cube_download_uses_wm_rep():
+    src = Path("ui_nicegui/decks/scan_lab/export_archive.py").read_text(encoding="utf-8")
+    assert "wm_rep = watermark_scan_cartography_export(rep)" in src
+    assert "field_cube_json_bytes(wm_rep)" in src
+    assert "field_cube_json_bytes(rep)" not in src
+
+
+def test_watermark_scan_cartography_blanks_field_cube_claim_vars():
+    import math
+
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_scan_cartography_export
+
+    rep = {
+        "points": [
+            {
+                "i": 0,
+                "j": 0,
+                "outputs": {"Q_DT_eqv": 10.0},
+                "intent": {"Reactor": {"blocking_feasible": False}},
+            },
+            {
+                "i": 1,
+                "j": 0,
+                "outputs": {"Q_DT_eqv": 2.0},
+                "intent": {"Reactor": {"blocking_feasible": True}},
+            },
+        ],
+        "field_cube": {
+            "schema": "shams_field_cube.v1",
+            "dims": {"x": 2, "y": 1},
+            "intent_vars": {
+                "Reactor": {"blocking_feasible": [[False, True]]},
+            },
+            "vars": {
+                "Q_DT_eqv": [[10.0, 2.0]],
+                "R0_m": [[5.0, 6.0]],
+            },
+        },
+    }
+    out = watermark_scan_cartography_export(rep)
+    q = out["field_cube"]["vars"]["Q_DT_eqv"]
+    assert math.isnan(float(q[0][0]))
+    assert float(q[0][1]) == 2.0
+    assert out["field_cube"]["vars"]["R0_m"][0][0] == 5.0
+    assert "PHYS-KPI-001" in str(out["field_cube"].get("phys_kpi_note") or "")
+
+
+def test_watermark_run_artifact_export_tables_plasma_power_balance():
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
+    art = {
+        "verdict": "INFEASIBLE",
+        "outputs": {
+            "Q_DT_eqv": 9.0,
+            "hard_feasible": False,
+            "constraints_failed": ["x"],
+        },
+        "tables": {
+            "v1": {
+                "plasma": {"Q_DT_eqv": 9.0, "Ip_MA": 8.0},
+                "power_balance": {"H98": 1.1, "R0_m": 5.0},
+            }
+        },
+    }
+    wa = watermark_run_artifact_export(art)
+    plasma = wa["tables"]["v1"]["plasma"]
+    pb = wa["tables"]["v1"]["power_balance"]
+    assert "diagnostic" in str(plasma["Q_DT_eqv"]).lower()
+    assert plasma["Ip_MA"] == 8.0 or "8" in str(plasma["Ip_MA"])
+    assert "diagnostic" in str(pb["H98"]).lower()
+    assert pb["R0_m"] == 5.0
+
+
+def test_pub_licensing_regulatory_evidence_wire_watermark():
+    ext = Path("ui_nicegui/lib/pub_benchmark_extended_helpers.py").read_text(encoding="utf-8")
+    assert "watermark_run_artifact_export" in ext
+    # licensing + regulatory stamp before pack
+    assert ext.count("art = watermark_run_artifact_export(art)") >= 2
+    assert "watermark_scan_cartography_export" in ext
+    assert "phys_kpi_note" in ext
+    assert "build_evidence_pack_v387" in ext

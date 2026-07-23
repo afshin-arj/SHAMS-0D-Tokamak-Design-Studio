@@ -33,4 +33,12 @@ SYSTEMS_RUNNING_ATTRS = (
     "systems_solve_running",
     "systems_recovery_running",
     "systems_fs_running",
+    "systems_atlas_running",
+)
+
+PUB_RUNNING_ATTRS = (
+    "pub_running",
+    "pub_atlas_running",
+    "pub_atlas_fragility_running",
+    "pub_bench_running",
 )
