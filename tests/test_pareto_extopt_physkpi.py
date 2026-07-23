@@ -83,8 +83,34 @@ def test_atlas_evidence_zip_uses_regime_watermark():
     assert "PHYS-KPI-001" in str(payload.get("phys_kpi_note") or "")
 
 
-def test_external_py_wires_extopt_download_watermarks():
-    src = Path("ui_nicegui/decks/pareto_lab/external.py").read_text(encoding="utf-8")
-    assert "watermark_extopt_zip_bytes" in src
-    assert "watermark_concept_cockpit_export" in src
-    assert "PHYS-KPI-001" in src
+def test_watermark_run_artifact_export_nests_scenario_delta():
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
+    art = {
+        "verdict": "INFEASIBLE",
+        "outputs": {"Q_DT_eqv": 9.0, "hard_feasible": False, "constraints_failed": ["x"]},
+        "scenario_delta": {
+            "changed_kpis": {"Q": {"base": 8.0, "scenario": 9.0}},
+            "baseline_outputs": {"Q": 8.0},
+            "scenario_outputs": {"Q": 9.0},
+        },
+    }
+    out = watermark_run_artifact_export(art)
+    sd = out["scenario_delta"]
+    assert "diagnostic" in str(sd["changed_kpis"]["Q"]["scenario"]).lower()
+    assert "PHYS-KPI-001" in str(sd.get("phys_kpi_note") or "")
+
+
+def test_trade_pareto_advanced_router_busy_guard():
+    from pathlib import Path
+
+    trade = Path("ui_nicegui/decks/trade_study_studio/__init__.py").read_text(encoding="utf-8")
+    adv = trade.split("def _render_advanced_router")[1]
+    assert "refresh_tab_if_idle" in adv
+    assert "trade_running" in adv
+    pareto = Path("ui_nicegui/decks/pareto_lab/__init__.py").read_text(encoding="utf-8")
+    assert "def _on_tool_change" in pareto
+    # External tool switch must not remount mid-run.
+    tool_fn = pareto.split("def _on_tool_change")[1].split("ui.select")[0]
+    assert "refresh_tab_if_idle" in tool_fn
+    assert "pareto_running" in tool_fn

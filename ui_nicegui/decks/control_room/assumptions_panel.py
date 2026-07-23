@@ -137,6 +137,10 @@ def _result(session: DesignSession) -> None:
                 "tauE_eff_s": ("tauE_s", "tau_E_s"),
                 "beta_N": ("betaN_proxy", "betaN"),
                 "q95_proxy": ("q95",),
+                "P_e_net_MW": ("P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe"),
+                "Pfus_total_MW": ("P_fus_MW", "Pfus_MW", "P_fus_total_MW"),
+                "Q_DT_eqv": ("Q",),
+                "H98": ("H_IPB98y2", "H98y2", "H_IPB98"),
             }
             for alt in alts.get(k, ()):
                 if alt in outs:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -125,14 +126,33 @@ def pack_summary_from_outdir(outdir: Optional[str]) -> Dict[str, Any]:
 
 
 def zip_pack_outdir(outdir: str) -> bytes:
+    """Zip publication pack outdir; watermark JSON run artifacts (PHYS-KPI-001)."""
+    from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_json_obj
+
     root = Path(outdir)
     if not root.is_dir():
         raise FileNotFoundError(f"Pack outdir missing: {outdir}")
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for p in sorted(root.rglob("*")):
-            if p.is_file():
-                zf.write(p, arcname=str(p.relative_to(root)).replace("\\", "/"))
+            if not p.is_file():
+                continue
+            arc = str(p.relative_to(root)).replace("\\", "/")
+            lower = arc.lower()
+            if lower.endswith(".json") and (
+                "artifact" in lower or lower.startswith("artifacts/") or "/artifacts/" in lower
+            ):
+                try:
+                    obj = json.loads(p.read_text(encoding="utf-8"))
+                    wm = watermark_extopt_json_obj(obj)
+                    zf.writestr(
+                        arc,
+                        json.dumps(wm, indent=2, sort_keys=True, default=str).encode("utf-8"),
+                    )
+                    continue
+                except Exception:
+                    pass
+            zf.write(p, arcname=arc)
     return buf.getvalue()
 
 
