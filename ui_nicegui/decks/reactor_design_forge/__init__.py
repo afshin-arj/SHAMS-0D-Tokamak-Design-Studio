@@ -18,7 +18,7 @@ from ui_nicegui.decks.reactor_design_forge import (
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
-from ui_nicegui.lib.deck_busy_guard import refresh_tab_if_idle
+from ui_nicegui.lib.deck_busy_guard import FORGE_RUNNING_ATTRS, refresh_tab_if_idle
 from ui_nicegui.lib.forge_labels import (
     DECISION_STATES,
     DECISION_TO_TAB,
@@ -62,6 +62,20 @@ def _sync_legacy_deck(session: DesignSession, tab: str) -> None:
     session.forge_deck = _LEGACY_FROM_TAB.get(tab, "Intent Compiler")
 
 
+def _on_forge_tab_change(session: DesignSession, raw: str) -> None:
+    """Advance workflow tab only when no Forge long-job is live (avoid chrome/body desync)."""
+    if any(bool(getattr(session, a, False)) for a in FORGE_RUNNING_ATTRS):
+        ui.notify(
+            "Reactor Design Forge running — wait until it finishes before changing Guided / Expert / tabs.",
+            type="warning",
+        )
+        return
+    tab = normalize_forge_tab(raw)
+    session.forge_workflow_step = tab
+    _sync_legacy_deck(session, tab)
+    _render_tab_body.refresh()
+
+
 def render_reactor_design_forge(session: DesignSession) -> None:
     ui.label("Reactor Design Forge").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
@@ -96,7 +110,7 @@ def render_reactor_design_forge(session: DesignSession) -> None:
                     sync_deck_guided_to_helm(session, bool(e.value), deck_attr="forge_teaching_mode"),
                     refresh_tab_if_idle(
                         session,
-                        running_attrs=("forge_mf_running",),
+                        running_attrs=FORGE_RUNNING_ATTRS,
                         refresh=_render_tab_body.refresh,
                         job_label="Reactor Design Forge",
                     ),
@@ -109,7 +123,7 @@ def render_reactor_design_forge(session: DesignSession) -> None:
                     sync_deck_expert_to_helm(session, bool(e.value), deck_attr="forge_expert_view"),
                     refresh_tab_if_idle(
                         session,
-                        running_attrs=("forge_mf_running",),
+                        running_attrs=FORGE_RUNNING_ATTRS,
                         refresh=_render_tab_body.refresh,
                         job_label="Reactor Design Forge",
                     ),
@@ -134,9 +148,9 @@ def render_reactor_design_forge(session: DesignSession) -> None:
 
     _render_dashboard(session)
     def _on_decision(e) -> None:
-        if getattr(session, "forge_mf_running", False):
+        if any(bool(getattr(session, a, False)) for a in FORGE_RUNNING_ATTRS):
             ui.notify(
-                "Forge Machine Finder running — wait until it finishes before changing decision/Setup view.",
+                "Forge job running — wait until it finishes before changing decision/Setup view.",
                 type="warning",
             )
             return
@@ -167,16 +181,7 @@ def render_reactor_design_forge(session: DesignSession) -> None:
     ui.toggle(
         FORGE_TABS,
         value=session.forge_workflow_step,
-        on_change=lambda e: (
-            setattr(session, "forge_workflow_step", normalize_forge_tab(str(e.value))),
-            _sync_legacy_deck(session, normalize_forge_tab(str(e.value))),
-            refresh_tab_if_idle(
-                session,
-                running_attrs=("forge_mf_running",),
-                refresh=_render_tab_body.refresh,
-                job_label="Reactor Design Forge",
-            ),
-        ),
+        on_change=lambda e: _on_forge_tab_change(session, str(e.value)),
     ).classes("w-full")
 
     help_text = TAB_HELP.get(normalize_forge_tab(session.forge_workflow_step), "")

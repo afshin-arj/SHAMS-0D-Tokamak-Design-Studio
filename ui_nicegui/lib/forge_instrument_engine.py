@@ -561,7 +561,7 @@ def _inst_closure_certificate(ctx: ForgeContext) -> InstrumentView:
         )
         cert_disp = (wrapped.get("json") or {}).get("closure_certificate") or cert
         blob = json.dumps(cert_disp, indent=2, sort_keys=True, default=str).encode("utf-8")
-        caption = None
+        caption = ""
         if not feasible:
             caption = (
                 "PHYS-KPI-001: key_numbers claim FoMs are diagnostic on INFEASIBLE — not design claims."
@@ -725,7 +725,7 @@ def _inst_report_pack(ctx: ForgeContext) -> InstrumentView:
     md = rp.get("markdown") or "(no report)"
     return InstrumentView(
         caption=(
-            None
+            ""
             if feasible
             else "PHYS-KPI-001: report pack claim FoMs are diagnostic on INFEASIBLE — not design claims."
         ),

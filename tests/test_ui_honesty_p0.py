@@ -114,6 +114,16 @@ def test_point_summary_resolves_l0_keys() -> None:
     assert rows["βN (screening) [-]"] == "2.2"
     assert rows["P_net,e [MW]"] == "120"
 
+    alias_rows = {r["quantity"]: r["value"] for r in point_summary_rows({
+        "H_IPB98y2": 1.15,
+        "Pe_net_MW": 88.0,
+        "tauE_s": 2.4,
+        "Ip_MA": 7.0,
+    })}
+    assert alias_rows["H98 [-]"] == "1.15"
+    assert alias_rows["P_net,e [MW]"] == "88"
+    assert alias_rows["τE,eff [s]"] == "2.4"
+
 
 def test_format_claim_kpi_suppresses_on_infeasible() -> None:
     from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table
@@ -1122,6 +1132,48 @@ def test_forge_intent_compiler_remount_after_clear() -> None:
     assert "forge_auditing = False" in audit_finally
     assert audit_finally.index("forge_auditing = False") < audit_finally.index("if on_complete")
     assert "current_lease" in audit_finally and "lease_valid" in audit_finally
+
+
+def test_forge_instrument_busy_and_zip_watermark_contracts() -> None:
+    """Forge instruments arm busy flag; capsule/review ZIP downloads are PHYS-KPI watermarked."""
+    from pathlib import Path
+
+    from ui_nicegui.lib.deck_busy_guard import FORGE_RUNNING_ATTRS
+    from ui_nicegui.lib.helm_helpers import force_clear_stuck_runs
+    from ui_nicegui.session import DesignSession
+
+    assert "forge_instrument_running" in FORGE_RUNNING_ATTRS
+    assert "forge_compiling" in FORGE_RUNNING_ATTRS
+    assert "forge_auditing" in FORGE_RUNNING_ATTRS
+
+    inst = Path("ui_nicegui/decks/reactor_design_forge/instruments.py").read_text(encoding="utf-8")
+    assert "forge_instrument_running = True" in inst
+    assert "forge_instrument_running = False" in inst
+    assert "watermark_extopt_zip_bytes" in inst
+    assert "FORGE_RUNNING_ATTRS" in inst
+
+    caps = Path("ui_nicegui/decks/reactor_design_forge/capsules.py").read_text(encoding="utf-8")
+    assert caps.count("watermark_extopt_zip_bytes") >= 2
+
+    forge_init = Path("ui_nicegui/decks/reactor_design_forge/__init__.py").read_text(encoding="utf-8")
+    assert "_on_forge_tab_change" in forge_init
+    assert "FORGE_RUNNING_ATTRS" in forge_init
+
+    helm = Path("ui_nicegui/components/helm_console.py").read_text(encoding="utf-8")
+    assert "forge_instrument_running" in helm
+    assert "forge_compiling" in helm
+
+    s = DesignSession()
+    s.forge_compiling = True
+    s.forge_auditing = True
+    s.forge_instrument_running = True
+    cleared = force_clear_stuck_runs(s)
+    assert "forge_compiling" in cleared
+    assert "forge_auditing" in cleared
+    assert "forge_instrument_running" in cleared
+    assert s.forge_compiling is False
+    assert s.forge_auditing is False
+    assert s.forge_instrument_running is False
 
 
 def test_write_fence_source_contracts_priority_decks() -> None:

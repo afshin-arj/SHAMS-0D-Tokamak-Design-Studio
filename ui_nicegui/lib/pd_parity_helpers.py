@@ -1168,10 +1168,11 @@ _POINT_SUMMARY_KEYS = [
     # (display_label, lookup_keys…) — first present L0/alias wins.
     ("Ip [MA]", ("Ip_MA",)),
     ("fG [-]", ("fG",)),
-    ("H98 [-]", ("H98",)),
+    ("H98 [-]", ("H98", "H_IPB98y2", "H98y2", "H_IPB98")),
+    ("τE,eff [s]", ("tauE_eff_s", "tau_E_s", "tauE_s")),
     ("Q [-]", ("Q_DT_eqv", "Q")),
     ("Pfus [MW]", ("Pfus_total_MW", "Pfus_MW", "P_fus_MW")),
-    ("P_net,e [MW]", ("P_e_net_MW", "P_net_e_MW")),
+    ("P_net,e [MW]", ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe")),
     ("B_peak [T]", ("B_peak_T", "Bpeak_T")),
     ("TBR (proxy) [-]", ("TBR",)),
     ("q95 (cyl. proxy) [-]", ("q95_proxy", "q95")),
