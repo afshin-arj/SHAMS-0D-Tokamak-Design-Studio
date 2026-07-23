@@ -750,10 +750,17 @@ def render_export_bar(session: DesignSession) -> None:
     with ui.row().classes("gap-2 flex-wrap q-mb-sm"):
         data = session.suite_campaign_jsonl_bytes
         if isinstance(data, (bytes, bytearray)):
+            from ui_nicegui.lib.suite_extended_helpers import watermark_campaign_jsonl_bytes
+
+            raw = bytes(data)
+
+            def _dl_campaign(payload: bytes = raw) -> None:
+                ui.download(watermark_campaign_jsonl_bytes(payload), "campaign_results.jsonl")
+
             ui.button(
                 "Download campaign results.jsonl",
                 icon="download",
-                on_click=lambda: ui.download(bytes(data), "campaign_results.jsonl"),
+                on_click=_dl_campaign,
             ).props("color=primary outline")
         else:
             ui.button("Download campaign results.jsonl", icon="download").props("disable outline")

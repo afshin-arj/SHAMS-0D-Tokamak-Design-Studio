@@ -31,6 +31,27 @@ from ui_nicegui.lib.trade_study_helpers import ADVANCED_DECKS, objectives_catalo
 from ui_nicegui.session import DesignSession
 
 
+def _physkpi_atlas_download_payload(payload: dict) -> dict:
+    """PHYS-KPI-001: watermark frontier / regime / trade-study shaped atlas downloads."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import (
+        watermark_regime_atlas_export,
+        watermark_trade_study_export,
+    )
+
+    if not isinstance(payload, dict):
+        return payload
+    if isinstance(payload.get("pareto_sets"), list):
+        return watermark_regime_atlas_export(payload)
+    if any(k in payload for k in ("records", "feasible", "pareto")):
+        return watermark_trade_study_export(payload)
+    out = dict(payload)
+    out.setdefault(
+        "phys_kpi_note",
+        "PHYS-KPI-001: claim FoMs on infeasible samples are — (diagnostic) — not design claims.",
+    )
+    return out
+
+
 def _trade_busy_guard(session: DesignSession, task: str) -> Optional[int]:
     """Acquire TradeStudy runlock + trade_running. Returns lease or None if blocked."""
     from ui_nicegui.lib.run_lock import (
@@ -248,10 +269,17 @@ def _v351_view(session: DesignSession) -> None:
     payload = dict(atlas)
     if isinstance(session.v351_empty_region, dict):
         payload["empty_region"] = session.v351_empty_region
+
+    def _dl_frontier(pl: dict = payload) -> None:
+        ui.download(
+            report_to_json_bytes(_physkpi_atlas_download_payload(pl)),
+            "shams_frontier_atlas.json",
+        )
+
     ui.button(
         "Download frontier atlas JSON",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(payload), "shams_frontier_atlas.json"),
+        on_click=_dl_frontier,
     ).props("flat outline")
 
 
@@ -645,7 +673,10 @@ def _v324_view(session: DesignSession) -> None:
     ui.button(
         "Download regime_maps_report.json",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(rpt), "regime_maps_report.json"),
+        on_click=lambda r=rpt: ui.download(
+            report_to_json_bytes(_physkpi_atlas_download_payload(r if isinstance(r, dict) else {})),
+            "regime_maps_report.json",
+        ),
     ).props("flat outline")
 
 

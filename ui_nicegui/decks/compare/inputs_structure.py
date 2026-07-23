@@ -11,7 +11,9 @@ from ui_nicegui.lib.compare_helpers import (
     embedded_scenario_delta,
     input_diff_rows,
     structural_diff_report,
+    summarize_comparison,
 )
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_scenario_delta_export
 
 
 def render_inputs_structure_panel(art_a: dict, art_b: dict) -> None:
@@ -30,9 +32,18 @@ def render_inputs_structure_panel(art_a: dict, art_b: dict) -> None:
     else:
         empty_state("No input differences detected.", kind="info")
 
+    summary = summarize_comparison(art_a, art_b)
     sd = embedded_scenario_delta(art_b)
+    if isinstance(sd, dict):
+        sd = watermark_scenario_delta_export(
+            sd,
+            feasible_base=bool(summary.get("feasible_a")),
+            feasible_scenario=bool(summary.get("feasible_b")),
+        )
     ui.label("Embedded scenario_delta (artifact B)").classes("text-subtitle2 q-mt-md")
     if sd:
+        if isinstance(sd, dict) and sd.get("phys_kpi_note"):
+            ui.label(str(sd["phys_kpi_note"])).classes("text-caption text-orange q-mb-xs")
         render_json_blob(sd)
     else:
         ui.label(

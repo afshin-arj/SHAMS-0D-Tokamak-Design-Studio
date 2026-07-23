@@ -213,6 +213,52 @@ def changed_kpis_table_rows(
     return rows
 
 
+def watermark_scenario_delta_export(
+    sd: Mapping[str, Any],
+    *,
+    feasible_base: bool,
+    feasible_scenario: bool,
+) -> Dict[str, Any]:
+    """PHYS-KPI-001: download / display copy of scenario_delta with claim KPIs watermarked.
+
+    Replaces ``changed_kpis`` with the same per-side watermarking as
+    ``changed_kpis_table_rows``, mapped back to ``{kpi: {base, scenario, delta}}``.
+    Nested outputs / kpis maps are watermarked by side when present.
+    """
+    out: Dict[str, Any] = dict(sd) if isinstance(sd, Mapping) else {}
+    changed = out.get("changed_kpis")
+    if isinstance(changed, Mapping) and changed:
+        rows = changed_kpis_table_rows(
+            changed, feasible_base=feasible_base, feasible_scenario=feasible_scenario
+        )
+        out["changed_kpis"] = {
+            str(r["kpi"]): {
+                "base": r.get("baseline"),
+                "scenario": r.get("scenario"),
+                "delta": r.get("delta"),
+            }
+            for r in rows
+        }
+    # Nested KPI / output maps (baseline vs scenario sides).
+    for key, feas in (
+        ("baseline_outputs", feasible_base),
+        ("baseline_kpis", feasible_base),
+        ("scenario_outputs", feasible_scenario),
+        ("scenario_kpis", feasible_scenario),
+        ("outputs", feasible_scenario),
+        ("kpis", feasible_scenario),
+    ):
+        nest = out.get(key)
+        if isinstance(nest, Mapping):
+            out[key] = watermark_claim_kpi_map(nest, feasible=feas, point_out=nest)
+    if not feasible_base or not feasible_scenario:
+        out["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs (Q / H98 / Pfus / P_net / LCOE) on INFEASIBLE "
+            "baseline or scenario sides are — (diagnostic) — not design claims."
+        )
+    return out
+
+
 def claim_key_for_objective_column(column: str) -> Optional[str]:
     """Map Trade Study / Opt FoM column names to PHYS-KPI claim keys.
 
@@ -787,6 +833,7 @@ __all__ = [
     "format_claim_kpi_for_table",
     "watermark_claim_kpi_map",
     "changed_kpis_table_rows",
+    "watermark_scenario_delta_export",
     "claim_key_for_objective_column",
     "is_claim_scatter_axis",
     "allow_infeasible_scatter_point",
