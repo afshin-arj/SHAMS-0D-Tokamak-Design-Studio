@@ -103,7 +103,8 @@ Full tables live in `docs/CERTIFIED_OPTIMIZER_ROADMAP.md`.
 | 4 Accel | 4.1 surrogate propose · 4.2 PROCESS→CCFS · 4.3 orchestrator polish | Fast + pedigree; SHAMS certifies |
 | 5 Exit | 5.1 cite handoff · 5.2 robust/mirage · 5.3 exit evidence | Citeable Opt Lab; no overclaim |
 
-**Default first ticket if all open:** **0.1 ObjectiveContract schema + hash**
+**Default first ticket if all open:** **0.1 ObjectiveContract schema + hash**  
+**Current next (after Phase 0–2 + 3.1 on `main`):** **3.2 — Atlas-annotated dominatees**
 
 ---
 

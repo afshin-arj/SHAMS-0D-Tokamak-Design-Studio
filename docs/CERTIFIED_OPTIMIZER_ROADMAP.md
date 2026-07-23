@@ -9,8 +9,24 @@ Living campaign document for **philosophy-safe optimization** inside SHAMS.
 | `/architect` | Opt Lab seams; propose-only boundary |
 | `/shams-process-independence` | Feasibility authority campaign (orthogonal; do not blur) |
 
-**SHAMS version at last refresh:** see `VERSION`  
-**Last analytical refresh:** 2026-07-20
+**SHAMS version at last refresh:** `v418.1.0` (see `VERSION`)  
+**Last analytical refresh:** 2026-07-23 (code review vs roadmap)
+
+## Code review snapshot (2026-07-23)
+
+Re-verified claimed DONE tickets against `main` sources + Opt Lab lock tests (all **PASS**).
+
+| Claim | Code verdict |
+|-------|----------------|
+| Phase 0–2 complete | **Confirmed** — modules + lock tests present (`objective_contract`, `l0_opt_guards`, Opt Lab entry/stamp/honesty/warm-start, SLSQP + neighborhood + determinism) |
+| 3.1 NSGA-II SearchDriver | **Confirmed** — `nsga2_search_driver.py` + `tests/test_nsga2_search_driver.py`; `multi_objective_contract.v1`; CCFS/stamp hooks |
+| 3.2 Atlas-annotated dominatees | **Still OPEN** — only `atlas_dominatee_hook.v1` with `status: pending_phase_3_2` (no mechanism annotation yet) |
+| 3.3 Pareto Lab ↔ Opt Lab unify | **Still OPEN** — Opt Lab routes into Pareto/Systems/CR; no single certified-front viewer yet |
+| Phase 4–5 | **Still OPEN** — surrogate/cite/mirage exist as reusable pieces, not Opt Lab ticket-complete |
+
+**Known seam (not a ticket close):** `ui_nicegui/lib/external_optimizer_helpers.py` still builds a legacy `objective_contract.v3` job payload for External Optimizer — distinct from Opt Lab `objective_contract.v1` / `multi_objective_contract.v1`. Address under **3.3** (unify) or **4.3** (orchestrator polish); do not treat as 0.1 regression.
+
+**Next ticket unchanged:** **3.2 — Atlas-annotated dominatees**.
 
 ## Post-upgrade ship gate (mandatory)
 
@@ -23,6 +39,7 @@ After **every** ticket upgrade, the super-agent must:
 5. **GitHub ship** — `shams/optlab-<slug>-YYYYMMDD` → commit → merge → **`git push origin main`** (skip only if user said `no-push`)
 
 Do not report a ticket complete with `main pushed: no` unless `no-push` was requested.
+
 ## Stance (do not blur)
 
 | | PROCESS | SHAMS Certified Optimizer |
@@ -79,16 +96,19 @@ ObjectiveContract (hashed, outside L0)
 | Frontier intake | `src/extopt/frontier_intake_v406.py` | Feasible-first / mirage |
 | Lightweight opt | `src/solvers/optimize.py` | LHS / random / Pareto helpers |
 | Objectives registry | `src/optimization/objectives.py` | FoM names (bridge via `from_registry_name`) |
-| ObjectiveContract | `src/optimization/objective_contract.py` | **0.1 DONE** — `objective_contract.v1` + SHA-256 stamp |
+| ObjectiveContract | `src/optimization/objective_contract.py` | **0.1 DONE** — `objective_contract.v1` + `multi_objective_contract.v1` + SHA-256 |
+| Stance docs | `docs/CERTIFIED_OPTIMIZER.md` | **0.2 DONE** — propose→CCFS honesty |
+| Anti L0-opt guards | `src/optimization/l0_opt_guards.py` | **0.3 DONE** — AST forbidden-import scan |
 | Opt Lab entry | `ui_nicegui/lib/opt_lab_entry.py` · decks | **1.1 DONE** — three-step entry + routes |
-| Opt-run stamp | `src/optimization/opt_run_stamp.py` | **1.2 DONE** — `opt_run_stamp.v1` (VERSION, contract hash, driver, counts, stamp SHA); CCFS attaches by default |
-| UI honesty copy | `ui_nicegui/lib/certified_opt_honesty.py` | **1.3 DONE** — shared honesty phrases + deck banners; lock tests |
-| Anti L0-opt guards | `src/optimization/l0_opt_guards.py` | **0.3 DONE** — AST forbidden-import scan; lock tests |
-| SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1–2.3 DONE** — SLSQP / fallback; neighborhood CCFS; determinism locks (`tests/test_slsqp_determinism.py`; float policy: lock `force_fallback` + neighborhood + stamp) |
-| NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1 DONE** — NSGA-II / fallback; `multi_objective_contract.v1`; feasible-first; CCFS bundle + stamp; atlas dominatee hook for 3.2 |
-| Surrogate accel | `src/extopt/surrogate_accel.py` | Propose-only acceleration |
-| Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Citation unit for verified set |
-| Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Surfaces to unify into Opt Lab |
+| Opt-run stamp | `src/optimization/opt_run_stamp.py` | **1.2 DONE** — `opt_run_stamp.v1`; CCFS attaches by default |
+| UI honesty copy | `ui_nicegui/lib/certified_opt_honesty.py` | **1.3 DONE** — shared honesty + deck banners |
+| Champion warm-start | `ui_nicegui/lib/opt_lab_warm_start.py` | **1.4 DONE** — propose-only search seed |
+| SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1–2.3 DONE** — SLSQP/fallback + neighborhood CCFS + determinism |
+| NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1 DONE** — NSGA-II/fallback; atlas hook **pending 3.2** |
+| Surrogate accel | `src/extopt/surrogate_accel.py` · `src/optimization/surrogates.py` | Exists (propose-only intent) — **4.1 not closed** |
+| Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Point cite unit exists — **5.1 opt-front extension not closed** |
+| Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Entry routes live — **3.3 unify not closed** |
+| Legacy ExtOpt contract | `ui_nicegui/lib/external_optimizer_helpers.py` | `objective_contract.v3` job schema — seam for 3.3/4.3 |
 
 ---
 
@@ -148,7 +168,7 @@ ObjectiveContract (hashed, outside L0)
 | # | Ticket | Done when |
 |---|--------|-----------|
 | 3.1 | NSGA-class / MOEA SearchDriver | **DONE** (2026-07-19) — `src/optimization/nsga2_search_driver.py`: propose-only NSGA-II (`nsga2` via optional pymoo; `nsga2_fallback` pure-Python). Feasible-first constrained domination; reuses `solvers.optimize.dominates` / `pareto_front`. `multi_objective_contract.v1` (hashed FoM list outside L0). Stamp-ready + `to_ccfs_bundle` / `to_frontier_candidate_rows`. Atlas dominatee hook reserved for 3.2. Minimal Opt Lab honesty note. Zero new required deps. Lock tests: `tests/test_nsga2_search_driver.py`. L0 untouched. |
-| 3.2 | Atlas-annotated dominatees | Rejected / dominated rows carry dominant hard mechanism from `no_solution_atlas.v1` |
+| 3.2 | Atlas-annotated dominatees | **OPEN** — hook only (`atlas_dominatee_hook.v1` / `pending_phase_3_2` in `nsga2_search_driver.py`). Done when dominated / REJECTED NSGA rows carry dominant hard mechanism from `no_solution_atlas.v1` |
 | 3.3 | Pareto Lab ↔ Opt Lab unify | One certified-front viewer; `/pareto-frontier-check` gates green |
 
 **Delegates:** `/developer`, `/architect`, `/nicegui-specialist`, skill `/pareto-frontier-check`
@@ -191,8 +211,8 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **3.2** — Atlas-annotated dominatees  
-2. **3.3** — Pareto Lab ↔ Opt Lab unify  
+1. **3.2** — Atlas-annotated dominatees *(confirmed next after 2026-07-23 code review)*  
+2. **3.3** — Pareto Lab ↔ Opt Lab unify *(includes legacy `objective_contract.v3` ExtOpt seam)*  
 3. **4.1** — Surrogate propose-only path
 
 ## Overclaim check

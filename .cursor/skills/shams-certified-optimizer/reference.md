@@ -42,6 +42,8 @@ A Roadmap → B Implement
 | 4 | Accelerators | Surrogate propose; PROCESS→CCFS |
 | 5 | Cite & exit | Handoff + robust lanes + exit evidence |
 
+**Current next ticket:** **3.2 — Atlas-annotated dominatees** (Phase 0–2 + 3.1 DONE on `main`)
+
 ## Key paths
 
 | Artifact | Path |
