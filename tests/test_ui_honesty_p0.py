@@ -987,3 +987,59 @@ def test_apply_ui_notifies_infeasible_honestly() -> None:
     assert "verdict_summary" in src
     assert "INFEASIBLE (diagnostic KPIs only" in src
     assert 'type="warning"' in src
+
+
+def test_pareto_trade_forge_systems_block_remount_while_running() -> None:
+    from pathlib import Path
+
+    for rel in (
+        "ui_nicegui/decks/pareto_lab/__init__.py",
+        "ui_nicegui/decks/trade_study_studio/__init__.py",
+        "ui_nicegui/decks/reactor_design_forge/__init__.py",
+        "ui_nicegui/decks/systems_mode/__init__.py",
+    ):
+        src = Path(rel).read_text(encoding="utf-8")
+        assert "refresh_tab_if_idle" in src
+
+
+def test_pd_forensics_remount_after_clear() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import forensics
+
+    src = inspect.getsource(forensics)
+    finally_idx = src.rfind("finally:")
+    tail = src[finally_idx:]
+    assert "pd_forensics_running = False" in tail
+    assert "on_complete" in tail
+    assert tail.index("pd_forensics_running = False") < tail.index("if on_complete")
+
+
+def test_systems_cockpit_includes_h98_watermark() -> None:
+    from types import SimpleNamespace
+
+    from ui_nicegui.lib.systems_cockpit import build_compact_cockpit_markdown
+
+    md = build_compact_cockpit_markdown(
+        SimpleNamespace(systems_decision_state="2 · Check & Solve"),
+        {"verdict": "INFEASIBLE", "outputs": {}},
+    )
+    assert "H98:" in md
+    assert "— (diagnostic)" in md
+    assert "Q / H98 / Pfus / P_net" in md
+
+
+def test_trade_study_export_watermarks_infeasible_claims() -> None:
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_trade_study_export
+
+    rep = {
+        "meta": {"objectives": ["max_Q", "max_H98"]},
+        "records": [
+            {"is_feasible": False, "max_Q": 20.0, "max_H98": 2.0},
+            {"is_feasible": True, "max_Q": 5.0, "max_H98": 1.0},
+        ],
+    }
+    out = watermark_trade_study_export(rep)
+    assert out["records"][0]["max_Q"] == "— (diagnostic)"
+    assert out["records"][1]["max_Q"] == 5.0
+    assert "phys_kpi_note" in out

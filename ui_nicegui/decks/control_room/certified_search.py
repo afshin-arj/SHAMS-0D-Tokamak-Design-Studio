@@ -267,6 +267,12 @@ def _results(session: DesignSession) -> None:
         export = dict(art)
         raw_rows = flatten_certified_search_table_rows(art)
         export["table_rows_watermarked"] = watermark_certified_search_rows(raw_rows)
+        best = export.get("best")
+        if isinstance(best, dict):
+            bv = str(best.get("verdict") or "").upper()
+            if bv not in ("PASS", "VERIFIED", "FEASIBLE", "OK"):
+                wm = watermark_certified_search_rows([best])
+                export["best"] = wm[0] if wm else best
         export["phys_kpi_note"] = (
             "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are "
             "— (diagnostic) — not design claims."

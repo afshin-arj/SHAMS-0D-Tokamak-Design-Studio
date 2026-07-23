@@ -241,7 +241,9 @@ def render_recover_panel(session: DesignSession, *, on_complete=None) -> None:
                 on_click=lambda: _apply_best_to_inputs(diagnostic=True),
             ).props("outline color=orange q-ml-sm q-mt-sm")
 
-    ui.button("Run seeded recovery", icon="healing", on_click=_run).props("outline q-mt-sm")
+    rec_btn = ui.button("Run seeded recovery", icon="healing", on_click=_run).props("outline q-mt-sm")
+    if session.systems_recovery_running:
+        rec_btn.props("disable")
     _apply_ctas()
     _results(session)
 

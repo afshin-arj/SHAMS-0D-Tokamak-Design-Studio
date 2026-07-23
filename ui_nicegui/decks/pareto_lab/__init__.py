@@ -18,6 +18,7 @@ from ui_nicegui.decks.pareto_lab import (
 )
 from ui_nicegui.lib.artifact_access import get_point_artifact_triple
 from ui_nicegui.lib.baseline_kpi_caption import baseline_kpi_caption, baseline_kpi_classes
+from ui_nicegui.lib.deck_busy_guard import refresh_tab_if_idle
 from ui_nicegui.lib.navigation import refresh_active_deck
 from ui_nicegui.lib.pareto_labels import (
     ALL_EXTERNAL as EXTERNAL_DECKS,
@@ -107,7 +108,12 @@ def render_pareto_lab(session: DesignSession) -> None:
             value=session.pareto_teaching_mode,
             on_change=lambda e: (
                 sync_deck_guided_to_helm(session, bool(e.value), deck_attr="pareto_teaching_mode"),
-                _render_tab_body.refresh(),
+                refresh_tab_if_idle(
+                    session,
+                    running_attrs=("pareto_running",),
+                    refresh=_render_tab_body.refresh,
+                    job_label="Pareto Lab",
+                ),
             ),
         )
         ui.switch(
@@ -115,7 +121,12 @@ def render_pareto_lab(session: DesignSession) -> None:
             value=session.pareto_expert_view,
             on_change=lambda e: (
                 sync_deck_expert_to_helm(session, bool(e.value), deck_attr="pareto_expert_view"),
-                _render_tab_body.refresh(),
+                refresh_tab_if_idle(
+                    session,
+                    running_attrs=("pareto_running",),
+                    refresh=_render_tab_body.refresh,
+                    job_label="Pareto Lab",
+                ),
             ),
         )
 
@@ -125,6 +136,12 @@ def render_pareto_lab(session: DesignSession) -> None:
     _render_dashboard(session)
 
     def _on_decision(e) -> None:
+        if getattr(session, "pareto_running", False):
+            ui.notify(
+                "Pareto Lab running — wait until it finishes before changing decision/Setup view.",
+                type="warning",
+            )
+            return
         state = str(e.value)
         session.pareto_decision_state = state
         tab = DECISION_TO_TAB.get(state)
@@ -151,7 +168,12 @@ def render_pareto_lab(session: DesignSession) -> None:
         value=session.pareto_workflow_step,
         on_change=lambda e: (
             setattr(session, "pareto_workflow_step", normalize_pareto_tab(str(e.value))),
-            _render_tab_body.refresh(),
+            refresh_tab_if_idle(
+                session,
+                running_attrs=("pareto_running",),
+                refresh=_render_tab_body.refresh,
+                job_label="Pareto Lab",
+            ),
         ),
     ).classes("w-full")
     help_text = TAB_HELP.get(normalize_pareto_tab(session.pareto_workflow_step), "")

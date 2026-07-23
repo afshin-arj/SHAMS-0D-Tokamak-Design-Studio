@@ -17,6 +17,7 @@ from ui_nicegui.lib.trade_interpret_helpers import (
     study_narrative,
 )
 from ui_nicegui.lib.trade_study_helpers import report_to_json_bytes
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_trade_study_export
 from ui_nicegui.session import DesignSession
 
 
@@ -52,14 +53,17 @@ def render_export_tab(
     ui.button(
         "Download study report (JSON)",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(rep), "shams_trade_study.json"),
+        on_click=lambda: ui.download(
+            report_to_json_bytes(watermark_trade_study_export(rep)),
+            "shams_trade_study.json",
+        ),
     ).props("outline")
     if session.active_study_capsule:
         ui.button(
             "Download study capsule (JSON)",
             icon="download",
             on_click=lambda: ui.download(
-                report_to_json_bytes(session.active_study_capsule),
+                report_to_json_bytes(watermark_trade_study_export(session.active_study_capsule)),
                 "shams_study_capsule.json",
             ),
         ).props("outline flat")
