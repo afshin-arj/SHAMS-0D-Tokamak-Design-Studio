@@ -276,6 +276,184 @@ def scatter_physkpi_caption(x_key: str, y_key: str, *, show_infeasible: bool) ->
     )
 
 
+def _scan_point_claim_feasible(pt: Mapping[str, Any]) -> bool:
+    """Feasibility for Scan cartography cells (PHYS-KPI-001 export watermark).
+
+    Prefer intent-map ``blocking_feasible``: any True → feasible for the cell;
+    intent map present with none True → infeasible. Otherwise fall back to
+    top-level ``feasible`` / ``blocking_feasible`` / ``hard_feasible``.
+    """
+    intent_map = pt.get("intent")
+    if not isinstance(intent_map, Mapping):
+        intent_map = pt.get("intents")
+    if isinstance(intent_map, Mapping) and intent_map:
+        saw_intent_state = False
+        for v in intent_map.values():
+            if isinstance(v, Mapping):
+                saw_intent_state = True
+                if bool(v.get("blocking_feasible")):
+                    return True
+        if saw_intent_state:
+            return False
+    for key in ("feasible", "blocking_feasible", "hard_feasible"):
+        if key in pt:
+            return bool(pt.get(key))
+    return True
+
+
+def watermark_scan_cartography_export(rep: Mapping[str, Any]) -> Dict[str, Any]:
+    """PHYS-KPI-001: download copy of Scan Lab cartography with claim KPIs watermarked.
+
+    Infeasible cells (no intent with ``blocking_feasible``) get claim FoMs
+    replaced by — (diagnostic). Feasible cells keep raw claim values.
+    """
+    out: Dict[str, Any] = dict(rep) if isinstance(rep, Mapping) else {}
+    pts_out: List[Dict[str, Any]] = []
+    for p in out.get("points") or []:
+        if not isinstance(p, Mapping):
+            continue
+        pp = dict(p)
+        feas = _scan_point_claim_feasible(pp)
+        outs = pp.get("outputs")
+        if isinstance(outs, Mapping) and not feas:
+            pp["outputs"] = watermark_claim_kpi_map(outs, feasible=False, point_out=outs)
+        for nest_key in ("best", "champion", "headline"):
+            if nest_key in pp and isinstance(pp.get(nest_key), Mapping):
+                nest = pp[nest_key]
+                nest_feas = feas
+                if any(k in nest for k in ("feasible", "blocking_feasible", "hard_feasible")):
+                    nest_feas = bool(
+                        nest.get("feasible", nest.get("blocking_feasible", nest.get("hard_feasible")))
+                    )
+                if not nest_feas:
+                    pp[nest_key] = watermark_claim_kpi_map(nest, feasible=False)
+        pts_out.append(pp)
+    if "points" in out:
+        out["points"] = pts_out
+    for nest_key in ("best", "champion", "headline"):
+        nest = out.get(nest_key)
+        if isinstance(nest, Mapping):
+            nest_feas = True
+            if any(k in nest for k in ("feasible", "blocking_feasible", "hard_feasible", "is_feasible")):
+                nest_feas = bool(
+                    nest.get(
+                        "feasible",
+                        nest.get(
+                            "blocking_feasible",
+                            nest.get("hard_feasible", nest.get("is_feasible", True)),
+                        ),
+                    )
+                )
+            elif isinstance(nest.get("outputs"), Mapping):
+                # Nested champion without explicit flag — watermark if any claim key present
+                # only when report-level signal says infeasible (conservative: keep if unknown).
+                nest_feas = True
+            if not nest_feas:
+                out[nest_key] = watermark_claim_kpi_map(nest, feasible=False)
+                nested_outs = nest.get("outputs")
+                if isinstance(nested_outs, Mapping):
+                    out[nest_key] = dict(out[nest_key])
+                    out[nest_key]["outputs"] = watermark_claim_kpi_map(
+                        nested_outs, feasible=False, point_out=nested_outs
+                    )
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim KPIs (Q / H98 / Pfus / P_net / LCOE) on blocking-infeasible "
+        "Scan Lab cells are — (diagnostic) — not design claims."
+    )
+    return out
+
+
+def watermark_scan_families_export(art: Mapping[str, Any]) -> Dict[str, Any]:
+    """PHYS-KPI-001: watermark claim FoMs on infeasible design-family rows."""
+    out: Dict[str, Any] = dict(art) if isinstance(art, Mapping) else {}
+    fams_out: List[Dict[str, Any]] = []
+    for f in out.get("families") or []:
+        if not isinstance(f, Mapping):
+            continue
+        ff = dict(f)
+        infeas = False
+        if "feasible" in ff and ff.get("feasible") is False:
+            infeas = True
+        else:
+            frac = ff.get("feasible_frac", ff.get("feasible_fraction"))
+            try:
+                if frac is not None and float(frac) <= 0.0:
+                    infeas = True
+            except (TypeError, ValueError):
+                pass
+        if infeas:
+            for k, v in list(ff.items()):
+                if is_claim_kpi_key(str(k)):
+                    ff[k] = format_claim_kpi_for_table(str(k), v, feasible=False)
+                elif isinstance(v, Mapping):
+                    # Nested performance / champion blobs
+                    has_claim = any(is_claim_kpi_key(str(nk)) for nk in v.keys())
+                    if has_claim:
+                        ff[k] = watermark_claim_kpi_map(v, feasible=False)
+        fams_out.append(ff)
+    if "families" in out:
+        out["families"] = fams_out
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim KPIs on infeasible design families are "
+        "— (diagnostic) — not design claims."
+    )
+    return out
+
+
+def _pareto_row_claim_feasible(row: Mapping[str, Any]) -> bool:
+    """Hard-feasibility for Pareto Lab export rows (PHYS-KPI-001)."""
+    for key in ("feasible", "is_feasible", "hard_feasible"):
+        if key in row:
+            return bool(row.get(key))
+    verdict = str(row.get("verdict") or "").strip().upper()
+    if verdict:
+        return verdict in ("PASS", "FEASIBLE", "VERIFIED", "OK")
+    return True
+
+
+def watermark_pareto_artifact_export(artifact: Mapping[str, Any]) -> Dict[str, Any]:
+    """PHYS-KPI-001: download copy of Pareto artifact with infeasible claim KPIs watermarked."""
+    out: Dict[str, Any] = dict(artifact) if isinstance(artifact, Mapping) else {}
+    rows_out: List[Dict[str, Any]] = []
+    for r in out.get("pareto") or []:
+        if not isinstance(r, Mapping):
+            continue
+        rr = dict(r)
+        feas = _pareto_row_claim_feasible(rr)
+        if not feas:
+            for k, v in list(rr.items()):
+                if is_claim_kpi_key(str(k)):
+                    rr[k] = format_claim_kpi_for_table(str(k), v, feasible=False)
+            outs = rr.get("outputs")
+            if isinstance(outs, Mapping):
+                rr["outputs"] = watermark_claim_kpi_map(outs, feasible=False, point_out=outs)
+        rows_out.append(rr)
+    if "pareto" in out:
+        out["pareto"] = rows_out
+    # Also watermark feasible-list rows that slipped through as infeasible
+    feas_out: List[Dict[str, Any]] = []
+    for r in out.get("feasible") or []:
+        if not isinstance(r, Mapping):
+            continue
+        rr = dict(r)
+        feas = _pareto_row_claim_feasible(rr)
+        if not feas:
+            for k, v in list(rr.items()):
+                if is_claim_kpi_key(str(k)):
+                    rr[k] = format_claim_kpi_for_table(str(k), v, feasible=False)
+            outs = rr.get("outputs")
+            if isinstance(outs, Mapping):
+                rr["outputs"] = watermark_claim_kpi_map(outs, feasible=False, point_out=outs)
+        feas_out.append(rr)
+    if "feasible" in out:
+        out["feasible"] = feas_out
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim KPIs on infeasible Pareto rows are "
+        "— (diagnostic) — not design claims."
+    )
+    return out
+
+
 def watermark_regime_atlas_export(atlas: Mapping[str, Any]) -> Dict[str, Any]:
     """Copy Regime Atlas artifact for download with PHYS-KPI-001 claim hygiene.
 
@@ -500,8 +678,12 @@ __all__ = [
     "allow_infeasible_scatter_point",
     "scatter_physkpi_caption",
     "watermark_trade_study_table_rows",
+    "watermark_trade_study_export",
     "watermark_robust_pareto_rows",
     "watermark_robust_pareto_export",
     "watermark_regime_atlas_export",
+    "watermark_scan_cartography_export",
+    "watermark_scan_families_export",
+    "watermark_pareto_artifact_export",
     "honest_performance_caption",
 ]

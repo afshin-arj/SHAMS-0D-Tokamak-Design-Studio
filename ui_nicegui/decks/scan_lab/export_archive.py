@@ -6,6 +6,10 @@ from typing import Callable, Optional
 
 from nicegui import run, ui
 
+from ui_nicegui.lib.plant_kpi_honesty_ui import (
+    watermark_scan_cartography_export,
+    watermark_scan_families_export,
+)
 from ui_nicegui.lib.scan_archive_helpers import (
     append_scan_library_entry,
     artifact_json_bytes,
@@ -27,6 +31,23 @@ from ui_nicegui.lib.scan_workbench_helpers import (
     families_json_bytes,
 )
 from ui_nicegui.session import DesignSession
+
+
+def _export_scan_artifact_bytes(art: dict) -> bytes:
+    """PHYS-KPI-001: watermark nested report / points before scan artifact download."""
+    payload = dict(art) if isinstance(art, dict) else {}
+    nested = payload.get("report")
+    if isinstance(nested, dict) and (
+        isinstance(nested.get("points"), list) or isinstance(nested.get("outputs"), dict)
+    ):
+        payload["report"] = watermark_scan_cartography_export(nested)
+    elif isinstance(payload.get("points"), list):
+        payload = watermark_scan_cartography_export(payload)
+    elif isinstance(payload.get("outputs"), dict):
+        from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
+        payload = watermark_run_artifact_export(payload)
+    return artifact_json_bytes(payload)
 
 
 def render_export_tab(
@@ -92,18 +113,26 @@ def _render_downloads(session: DesignSession, rep: dict, intents: list) -> None:
         f"- report_id: **{rep.get('id', '-')}**\n"
         f"- shams_version: **{rep.get('shams_version', '-')}**"
     ).classes("text-body2 q-mb-sm")
+    wm_rep = watermark_scan_cartography_export(rep)
+    ui.label(
+        "PHYS-KPI-001: claim KPIs on blocking-infeasible cells are — (diagnostic) in downloads."
+    ).classes("text-caption text-grey q-mb-sm")
     with ui.row().classes("gap-2 flex-wrap"):
         ui.button(
             "Cartography report (JSON)",
             icon="download",
-            on_click=lambda: ui.download(report_to_json_bytes(rep), "shams_cartography_report.json"),
+            on_click=lambda: ui.download(
+                report_to_json_bytes(wm_rep), "shams_cartography_report.json"
+            ),
         ).props("outline")
         art = session.scan_cartography_artifact
         if isinstance(art, dict):
             ui.button(
                 "Scan artifact v1 (JSON)",
                 icon="download",
-                on_click=lambda a=art: ui.download(artifact_json_bytes(a), "shams_scan_artifact_v1.json"),
+                on_click=lambda a=art: ui.download(
+                    _export_scan_artifact_bytes(a), "shams_scan_artifact_v1.json"
+                ),
             ).props("outline")
         bnd = boundaries_json_bytes(rep)
         if bnd:
@@ -123,7 +152,7 @@ def _render_downloads(session: DesignSession, rep: dict, intents: list) -> None:
             ui.button(
                 f"Summary PDF — {it}",
                 icon="picture_as_pdf",
-                on_click=lambda r=rep, intent=it: _dl_summary(r, intent),
+                on_click=lambda r=wm_rep, intent=it: _dl_summary(r, intent),
             ).props("flat outline")
 
 
@@ -288,7 +317,10 @@ def _fam_table(session: DesignSession) -> None:
     ui.button(
         "Download families JSON",
         icon="download",
-        on_click=lambda: ui.download(families_json_bytes(art), "shams_scan_design_families.json"),
+        on_click=lambda: ui.download(
+            families_json_bytes(watermark_scan_families_export(art)),
+            "shams_scan_design_families.json",
+        ),
     ).props("outline flat q-mt-sm")
 
 

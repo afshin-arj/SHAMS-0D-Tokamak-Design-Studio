@@ -18,6 +18,7 @@ from ui_nicegui.lib.pareto_interpret_helpers import (
     systems_mode_handoff,
     trade_narrative,
 )
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_pareto_artifact_export
 from ui_nicegui.session import DesignSession
 
 
@@ -48,12 +49,14 @@ def render_export_tab(
     pareto = pareto_last.get("pareto") or []
     bounds = pareto_last.get("bounds") or {}
     narrative = trade_narrative(pareto_last)
+    wm_art = watermark_pareto_artifact_export(build_pareto_artifact(pareto_last))
+    wm_last = watermark_pareto_artifact_export(pareto_last)
 
     ui.button(
         "Download Pareto artifact (JSON)",
         icon="download",
         on_click=lambda: ui.download(
-            artifact_to_json_bytes(build_pareto_artifact(pareto_last)),
+            artifact_to_json_bytes(wm_art),
             "shams_pareto_artifact.json",
         ),
     ).props("outline")
@@ -61,10 +64,13 @@ def render_export_tab(
         "Download publication pack (ZIP)",
         icon="folder_zip",
         on_click=lambda: ui.download(
-            publication_pack_bytes(pareto_last, narrative=narrative),
+            publication_pack_bytes(wm_last, narrative=narrative),
             "SHAMS_Pareto_PublicationPack.zip",
         ),
     ).props("outline")
+    ui.label(
+        "PHYS-KPI-001: claim KPIs on infeasible Pareto rows are — (diagnostic) in downloads."
+    ).classes("text-caption text-grey q-mt-xs")
 
     if not pareto:
         return

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any, Dict, List, Mapping, Optional
 
 from nicegui import run, ui
 
@@ -12,11 +13,37 @@ from ui_nicegui.lib.systems_workflow_helpers import collect_candidates, systems_
 from ui_nicegui.session import DesignSession
 
 
+def _watermark_candidate_row(c: Any) -> Any:
+    """PHYS-KPI-001: watermark headline/metrics on infeasible candidates."""
+    if not isinstance(c, Mapping):
+        return c
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
+    cc: Dict[str, Any] = dict(c)
+    feas = bool(cc.get("feasible", cc.get("is_feasible", cc.get("hard_feasible", True))))
+    if str(cc.get("verdict") or "").upper() in ("FAIL", "INFEASIBLE", "REJECTED"):
+        feas = False
+    if feas:
+        return cc
+    if isinstance(cc.get("headline"), Mapping):
+        cc["headline"] = watermark_claim_kpi_map(cc["headline"], feasible=False)
+    if isinstance(cc.get("metrics"), Mapping):
+        cc["metrics"] = watermark_claim_kpi_map(cc["metrics"], feasible=False)
+    return cc
+
+
+def _watermark_candidates(cands: Optional[List[Any]]) -> List[Any]:
+    return [_watermark_candidate_row(c) for c in (cands or [])]
+
+
 def render_export_panel(session: DesignSession) -> None:
     ui.label("Export").classes("text-subtitle1")
     ui.label(
         "Download Systems workflow bundle, solve artifact, decision journal, and audit PDFs."
     ).classes("text-caption q-mb-sm")
+    ui.label(
+        "PHYS-KPI-001: claim KPIs on INFEASIBLE solve / candidates are — (diagnostic) in PDF/JSON exports."
+    ).classes("text-caption text-grey q-mb-sm")
 
     n_cards = len(session.systems_run_cards or [])
     ui.label(f"Run cards recorded: {n_cards}").classes("text-caption")
@@ -50,15 +77,23 @@ def render_export_panel(session: DesignSession) -> None:
         except ImportError:
             ui.notify("Decision report module unavailable", type="negative")
             return
+        from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
         art = fetch_systems_artifact(session)
+        if isinstance(art, dict):
+            art = watermark_run_artifact_export(art)
+        pd_art = session.pd_last_artifact
+        if isinstance(pd_art, dict):
+            pd_art = watermark_run_artifact_export(pd_art)
         cands = rank_candidates(collect_candidates(session), session.systems_ranking_profile)
+        top = _watermark_candidates(rank_candidates(cands, session.systems_ranking_profile)[:10])
 
         def _build():
             return build_decision_report_pdf_bytes(
                 systems_artifact=art if isinstance(art, dict) else None,
-                point_artifact=session.pd_last_artifact,
+                point_artifact=pd_art if isinstance(pd_art, dict) else None,
                 journal=list(session.systems_journal or []),
-                top_candidates=rank_candidates(cands, session.systems_ranking_profile)[:10],
+                top_candidates=top,
             )
 
         pdf = await run.io_bound(_build)
@@ -70,14 +105,22 @@ def render_export_panel(session: DesignSession) -> None:
         except ImportError:
             ui.notify("Executive summary module unavailable", type="negative")
             return
+        from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
         art = fetch_systems_artifact(session)
+        if isinstance(art, dict):
+            art = watermark_run_artifact_export(art)
+        pd_art = session.pd_last_artifact
+        if isinstance(pd_art, dict):
+            pd_art = watermark_run_artifact_export(pd_art)
         ranked = rank_candidates(collect_candidates(session), session.systems_ranking_profile)
+        top = _watermark_candidate_row(ranked[0]) if ranked else None
 
         def _build():
             return build_executive_summary_pdf_bytes(
                 systems_artifact=art if isinstance(art, dict) else None,
-                point_artifact=session.pd_last_artifact,
-                top_candidate=ranked[0] if ranked else None,
+                point_artifact=pd_art if isinstance(pd_art, dict) else None,
+                top_candidate=top,
             )
 
         pdf = await run.io_bound(_build)

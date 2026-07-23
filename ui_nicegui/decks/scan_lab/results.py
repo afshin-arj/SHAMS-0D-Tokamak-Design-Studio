@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_scan_cartography_export
 from ui_nicegui.lib.scan_helpers import dominance_table_rows, report_to_json_bytes, summarize_scan_report
 from ui_nicegui.lib.scan_v396_display import extract_v396_transport, format_v396_caption
 
@@ -68,7 +69,7 @@ def render_scan_results(session, rep: dict) -> None:
                 row_key="constraint",
             ).classes("w-full")
 
-    data = report_to_json_bytes(rep)
+    data = report_to_json_bytes(watermark_scan_cartography_export(rep))
     ui.button(
         "Download scan report JSON",
         icon="download",
