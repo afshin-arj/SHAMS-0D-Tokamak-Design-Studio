@@ -12,6 +12,21 @@ from ui_nicegui.lib.systems_state_helpers import apply_input_overrides
 from ui_nicegui.lib.verdict_core import verdict_summary
 
 
+def kpi_headline_from_outputs(out: Optional[dict]) -> Dict[str, Any]:
+    """L0-aware KPI headline for Systems candidates (Q / H98 / P_net / Pfus)."""
+    if not isinstance(out, dict):
+        return {}
+    return {
+        "Q": out.get("Q_DT_eqv", out.get("Q")),
+        "H98": out.get("H98"),
+        "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("P_net_MW"))),
+        "Pfus": out.get(
+            "Pfus_total_MW",
+            out.get("Pfus_DT_adj_MW", out.get("P_fus_MW", out.get("Pfus_MW"))),
+        ),
+    }
+
+
 def tuple_bounds_to_dict(
     variables: Dict[str, Tuple[float, float, float]],
 ) -> Dict[str, Dict[str, float]]:
@@ -204,15 +219,7 @@ def run_feasible_search(
             return v
 
     def _headline(out: dict) -> dict:
-        return {
-            "Q": out.get("Q_DT_eqv", out.get("Q")),
-            "H98": out.get("H98"),
-            "P_net": out.get("P_e_net_MW", out.get("P_net_e_MW", out.get("P_net_MW"))),
-            "Pfus": out.get(
-                "Pfus_total_MW",
-                out.get("Pfus_DT_adj_MW", out.get("P_fus_MW", out.get("Pfus_MW"))),
-            ),
-        }
+        return kpi_headline_from_outputs(out)
 
     def _metrics(out: dict) -> dict:
         return {k: out.get(k) for k in FS_METRIC_KEYS}
@@ -390,15 +397,7 @@ def collect_candidates(session: Any) -> List[dict]:
                 except (TypeError, ValueError):
                     pass
         sout = sol.get("out") if isinstance(sol.get("out"), dict) else {}
-        headline = {
-            "Q": sout.get("Q_DT_eqv", sout.get("Q")),
-            "P_net": sout.get("P_e_net_MW", sout.get("P_net_e_MW", sout.get("P_net_MW"))),
-            "H98": sout.get("H98"),
-            "Pfus": sout.get(
-                "Pfus_total_MW",
-                sout.get("Pfus_DT_adj_MW", sout.get("P_fus_MW", sout.get("Pfus_MW"))),
-            ),
-        }
+        headline = kpi_headline_from_outputs(sout)
         out.append(
             {
                 "id": "target_solve",
@@ -412,6 +411,13 @@ def collect_candidates(session: Any) -> List[dict]:
         )
     rec = getattr(session, "systems_recovery_last", None)
     if isinstance(rec, dict) and isinstance(rec.get("best_point"), dict):
+        headline = rec.get("headline") if isinstance(rec.get("headline"), dict) else {}
+        if not headline:
+            art = getattr(session, "systems_last_solve_artifact", None)
+            if isinstance(art, dict) and str(art.get("source", "")) == "systems_recovery":
+                headline = kpi_headline_from_outputs(
+                    art.get("outputs") if isinstance(art.get("outputs"), dict) else {}
+                )
         out.append(
             {
                 "id": "recovery",
@@ -419,7 +425,7 @@ def collect_candidates(session: Any) -> List[dict]:
                 "x": dict(rec["best_point"]),
                 "feasible": bool(rec.get("ok")),
                 "reason": str(rec.get("reason", "")),
-                "headline": rec.get("headline") or {},
+                "headline": headline or {},
             }
         )
     fs = getattr(session, "systems_feasible_search_last", None)

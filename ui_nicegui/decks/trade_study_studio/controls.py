@@ -147,14 +147,15 @@ def render_study_controls(
                 f"{summary.get('n_pareto', 0)} Pareto points",
                 type="positive",
             )
-            if on_complete:
-                on_complete()
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Trade study failed: {exc}", type="negative")
         finally:
             session.trade_running = False
             runlock_release("TradeStudy")
+            # Remount after clearing busy so Run re-enables (not stuck disabled mid-flag).
+            if on_complete:
+                on_complete()
 
     btn = ui.button("Run trade study", icon="play_arrow", on_click=_run).props("color=primary")
     if session.trade_running or not session.trade_objectives:
