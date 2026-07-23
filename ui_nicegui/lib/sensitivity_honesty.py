@@ -172,3 +172,37 @@ def fd_parity_rows_watermark(
                         rr[col] = f"diag·{raw}"
         out.append(rr)
     return out
+
+
+def watermark_sensitivity_pack_export(
+    pack: Mapping[str, Any],
+    *,
+    feasible: bool,
+) -> Dict[str, Any]:
+    """PHYS-KPI-001: download copy of a sensitivity pack with claim FoMs watermarked."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
+    out: Dict[str, Any] = dict(pack) if isinstance(pack, Mapping) else {}
+    base = out.get("base_outputs")
+    if isinstance(base, Mapping):
+        out["base_outputs"] = watermark_claim_kpi_map(base, feasible=feasible, point_out=base)
+    jac = out.get("jacobian")
+    if isinstance(jac, Mapping) and not feasible:
+        wm_jac: Dict[str, Any] = {}
+        for ok, knobs in jac.items():
+            if not isinstance(knobs, Mapping):
+                wm_jac[str(ok)] = knobs
+                continue
+            if is_claim_kpi_key(str(ok)):
+                wm_jac[str(ok)] = {
+                    str(p): format_sens_value(str(ok), v, feasible=False) for p, v in knobs.items()
+                }
+            else:
+                wm_jac[str(ok)] = dict(knobs)
+        out["jacobian"] = wm_jac
+    if not feasible:
+        out["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim FoMs / claim jacobians on INFEASIBLE baseline are "
+            "— (diagnostic) / diag· — not design claims."
+        )
+    return out

@@ -28,13 +28,18 @@ def render_export_panel(session: DesignSession) -> None:
     ).props("outline")
 
     if isinstance(session.systems_last_solve_artifact, dict):
+        from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
         ui.button(
             "Download last solve artifact JSON",
             icon="download",
             on_click=lambda: ui.download(
-                json.dumps(session.systems_last_solve_artifact, indent=2, sort_keys=True, default=str).encode(
-                    "utf-8"
-                ),
+                json.dumps(
+                    watermark_run_artifact_export(session.systems_last_solve_artifact),
+                    indent=2,
+                    sort_keys=True,
+                    default=str,
+                ).encode("utf-8"),
                 "shams_systems_solve_artifact.json",
             ),
         ).props("flat q-mt-xs")

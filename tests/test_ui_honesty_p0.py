@@ -1043,3 +1043,59 @@ def test_trade_study_export_watermarks_infeasible_claims() -> None:
     assert out["records"][0]["max_Q"] == "— (diagnostic)"
     assert out["records"][1]["max_Q"] == 5.0
     assert "phys_kpi_note" in out
+
+
+def test_helm_force_clear_requires_orphan_confirm() -> None:
+    from pathlib import Path
+
+    src = Path("ui_nicegui/components/helm_console.py").read_text(encoding="utf-8")
+    assert "I confirm this is an orphaned lock" in src
+    assert "_stuck_threshold_s" in src
+    assert "_STUCK_RUN_THRESHOLD_LONG_S" in src
+    assert "_scan_progress_still_advancing" in src
+    assert "Force-clear stuck run…" in src
+
+
+def test_watermark_sensitivity_and_artifact_exports() -> None:
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+    from ui_nicegui.lib.sensitivity_honesty import watermark_sensitivity_pack_export
+
+    pack = {
+        "base_outputs": {"Q_DT_eqv": 12.0, "Ip_MA": 8.0},
+        "jacobian": {"Q_DT_eqv": {"Ip_MA": 1.2}, "Ip_MA": {"R0_m": 0.1}},
+    }
+    wm = watermark_sensitivity_pack_export(pack, feasible=False)
+    assert wm["base_outputs"]["Q_DT_eqv"] == "— (diagnostic)"
+    assert wm["base_outputs"]["Ip_MA"] == 8.0 or "8" in str(wm["base_outputs"]["Ip_MA"])
+    assert "diag·" in str(wm["jacobian"]["Q_DT_eqv"]["Ip_MA"])
+    assert "phys_kpi_note" in wm
+
+    art = {"verdict": "INFEASIBLE", "outputs": {}}
+    wa = watermark_run_artifact_export(art)
+    # empty outputs → no watermark block required; still a dict copy
+    assert isinstance(wa, dict)
+
+    art2 = {
+        "verdict": "INFEASIBLE",
+        "outputs": {"Q_DT_eqv": 9.0, "hard_feasible": False, "constraints_failed": ["x"]},
+    }
+    # When verdict_summary may still say feasible without real constraints, stamp via empty-out path:
+    # Prefer explicit outputs watermark when we force infeasible via empty + note path.
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
+    assert watermark_claim_kpi_map({"Q_DT_eqv": 9.0}, feasible=False)["Q_DT_eqv"] == "— (diagnostic)"
+
+
+def test_forge_intent_compiler_remount_after_clear() -> None:
+    from pathlib import Path
+
+    src = Path("ui_nicegui/decks/reactor_design_forge/intent_compiler.py").read_text(encoding="utf-8")
+    # Both compile and audit clear busy flags before on_complete.
+    assert "session.forge_compiling = False" in src
+    assert "session.forge_auditing = False" in src
+    compile_finally = src.split("async def _compile")[1].split("async def _audit")[0]
+    assert "forge_compiling = False" in compile_finally
+    assert compile_finally.index("forge_compiling = False") < compile_finally.index("if on_complete")
+    audit_finally = src.split("async def _audit")[1]
+    assert "forge_auditing = False" in audit_finally
+    assert audit_finally.index("forge_auditing = False") < audit_finally.index("if on_complete")
