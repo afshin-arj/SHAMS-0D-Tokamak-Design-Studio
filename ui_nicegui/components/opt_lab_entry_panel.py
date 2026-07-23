@@ -91,7 +91,40 @@ def render_opt_lab_entry(session: DesignSession) -> None:
                     on_click=lambda d=deck, h=hook_id: _goto_route(session, d, h),
                 ).props("outline color=primary")
 
-        with ui.row().classes("w-full gap-2 q-mt-sm"):
+        ui.separator().classes("q-my-sm")
+        ui.label("Promote certified best → Point Designer").classes("text-subtitle2")
+        ui.label(
+            "Seeds Point Designer from this session's Certified Search best (preferred) "
+            "or Pareto front #0 — prior KPIs cleared; Evaluate Point to re-certify."
+        ).classes("text-caption text-grey q-mb-xs")
+
+        def _promote_best() -> None:
+            from ui_nicegui.lib.opt_lab_promote import promote_opt_lab_best_to_point_designer
+            from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+            from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+            n, src = promote_opt_lab_best_to_point_designer(session)
+            if n <= 0:
+                ui.notify(
+                    "No Certified Search best or Pareto front yet — run a search path first.",
+                    type="warning",
+                )
+                return
+            refresh_helm()
+            refresh_status()
+            navigate_to_point_designer(session)
+            ui.notify(
+                f"Promoted {n} fields from {src} → Point Designer — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
+                type="warning",
+            )
+
+        with ui.row().classes("w-full gap-2 q-mt-xs flex-wrap"):
+            ui.button(
+                "Promote certified best → Point Designer",
+                icon="upload",
+                on_click=_promote_best,
+            ).props("outline color=primary data-testid=opt-lab-promote-best")
             ui.button(
                 OPT_LAB_STANCE_DOC[0],
                 icon="menu_book",
@@ -101,6 +134,6 @@ def render_opt_lab_entry(session: DesignSession) -> None:
                 "Open Point Designer",
                 icon="design_services",
                 on_click=lambda: __import__(
-                    "ui_nicegui.lib.navigation", fromlist=["switch_deck"]
-                ).switch_deck("Point Designer"),
+                    "ui_nicegui.lib.pd_handoff", fromlist=["navigate_to_point_designer"]
+                ).navigate_to_point_designer(session),
             ).props("flat dense")

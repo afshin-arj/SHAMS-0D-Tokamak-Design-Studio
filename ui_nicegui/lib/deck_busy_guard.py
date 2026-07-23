@@ -58,3 +58,7 @@ FORGE_RUNNING_ATTRS = (
     "forge_compiling",
     "forge_instrument_running",
 )
+
+PARETO_RUNNING_ATTRS = ("pareto_running",)
+
+TRADE_RUNNING_ATTRS = ("trade_running",)

@@ -69,8 +69,8 @@ def render_champion_warm_start(
                 ui.notify(
                     f"Search seed loaded: {meta.get('label')} "
                     f"({meta.get('override_count')} inputs). "
-                    "Propose-only — Evaluate / Certify / Run still required.",
-                    type="positive",
+                    "Prior KPIs cleared — propose-only; Evaluate / Certify / Run still required.",
+                    type="warning",
                 )
                 if on_loaded:
                     on_loaded()
