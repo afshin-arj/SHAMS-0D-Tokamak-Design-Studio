@@ -7,6 +7,7 @@ import io
 from nicegui import ui
 
 from ui_nicegui.lib.pareto_helpers import OBJ_CATALOG, artifact_to_json_bytes, build_pareto_artifact
+from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_pareto_artifact_export
 from ui_nicegui.session import DesignSession
 
 
@@ -134,7 +135,7 @@ def _render_promote_handoff(session: DesignSession, pareto: list[dict], pareto_l
 
 
 def _render_exports(pareto_last: dict) -> None:
-    artifact = build_pareto_artifact(pareto_last)
+    artifact = watermark_pareto_artifact_export(build_pareto_artifact(pareto_last))
     json_bytes = artifact_to_json_bytes(artifact)
     ui.button(
         "Download Pareto artifact (JSON)",
@@ -142,7 +143,9 @@ def _render_exports(pareto_last: dict) -> None:
         on_click=lambda: ui.download(json_bytes, "shams_pareto_artifact.json"),
     ).props("outline")
 
-    pareto = pareto_last.get("pareto") or []
+    pareto = (artifact.get("pareto") if isinstance(artifact, dict) else None) or (
+        pareto_last.get("pareto") or []
+    )
     if pareto:
         csv_bytes = _pareto_csv_bytes(pareto)
         ui.button(

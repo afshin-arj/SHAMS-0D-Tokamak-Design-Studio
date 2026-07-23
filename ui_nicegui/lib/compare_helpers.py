@@ -650,21 +650,25 @@ def structural_diff_report(art_a: dict, art_b: dict) -> dict | None:
 
 def comparison_json_bundle(art_a: dict, art_b: dict) -> dict:
     summary = summarize_comparison(art_a, art_b)
+    # Row builders already watermark claim KPI cells per-slot feasibility.
+    key_metrics = metric_diff_rows(art_a, art_b)
+    kpi_diff = kpi_diff_rows(art_a, art_b)
+    all_deltas = numeric_output_diff_rows(art_a, art_b, limit=200)
     note = None
     if not summary.get("feasible_a") or not summary.get("feasible_b"):
         note = (
-            "PHYS-KPI-001: key_metrics / kpi_diff / all_output_deltas may include raw "
-            "performance residues on INFEASIBLE slots — use summary.* diagnostic labels for claims."
+            "PHYS-KPI-001: claim KPI values in key_metrics / kpi_diff / all_output_deltas "
+            "on INFEASIBLE slots are — (diagnostic) — not design claims."
         )
     return {
         "summary": summary,
         "phys_kpi_note": note,
-        "key_metrics": metric_diff_rows(art_a, art_b),
-        "all_output_deltas": numeric_output_diff_rows(art_a, art_b, limit=200),
+        "key_metrics": key_metrics,
+        "all_output_deltas": all_deltas,
         "constraint_margins": constraint_margin_diff_rows(art_a, art_b),
         "subsystem_diff": subsystem_diff_rows(art_a, art_b),
         "input_changes": input_diff_rows(art_a, art_b),
-        "kpi_diff": kpi_diff_rows(art_a, art_b),
+        "kpi_diff": kpi_diff,
         "scenario_delta": embedded_scenario_delta(art_b),
         "structural_diff": structural_diff_report(art_a, art_b),
     }
