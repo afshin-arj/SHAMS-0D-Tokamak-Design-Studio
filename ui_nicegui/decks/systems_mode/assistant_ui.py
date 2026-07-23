@@ -43,7 +43,13 @@ def render_assistant_panel(
 
         async def _load_proposals() -> None:
             from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             locked, task, is_owner = runlock_status("SystemsMode")
             if locked:
@@ -57,6 +63,7 @@ def render_assistant_panel(
             if not runlock_acquire("Systems Mode: Assistant proposals", "SystemsMode"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             refresh_status()
             refresh_helm()
             try:
@@ -66,15 +73,19 @@ def render_assistant_panel(
                     n_random=session.systems_precheck_n_random,
                     seed=session.systems_precheck_seed,
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.systems_assistant_proposals = props
                 _proposal_list.refresh()
                 ui.notify(f"Generated {len(props or [])} proposal(s)", type="positive")
             except Exception as exc:
                 ui.notify(f"Proposal generation failed: {exc}", type="negative")
             finally:
-                runlock_release("SystemsMode")
-                refresh_status()
-                refresh_helm()
+                if lease_valid(lease):
+                    runlock_release("SystemsMode", lease)
+                    refresh_status()
+                    refresh_helm()
 
         async def _undo() -> None:
             if pop_assistant_undo(session):
@@ -107,7 +118,13 @@ def _proposal_list(session: DesignSession, *, on_change=None) -> None:
             )
 
             async def _apply(p=pr) -> None:
-                from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+                from ui_nicegui.lib.run_lock import (
+                    acquire as runlock_acquire,
+                    release as runlock_release,
+                    status as runlock_status,
+                    current_lease,
+                    lease_valid,
+                )
 
                 locked, task, is_owner = runlock_status("SystemsMode")
                 if locked and not is_owner:
@@ -116,6 +133,7 @@ def _proposal_list(session: DesignSession, *, on_change=None) -> None:
                 if not runlock_acquire("Systems Mode: Assistant apply", "SystemsMode"):
                     ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                     return
+                lease = current_lease()
                 try:
                     push_assistant_undo(session, targets=targets, variables=variables)
                     apply_proposal_to_session(session, p)
@@ -129,11 +147,15 @@ def _proposal_list(session: DesignSession, *, on_change=None) -> None:
                         seed=session.systems_precheck_seed,
                         design_intent=session.design_intent,
                     )
+                    if not lease_valid(lease):
+                        ui.notify("Run was force-cleared — discarding results.", type="warning")
+                        return
                     session.last_precheck_report = report
                     ui.notify("Applied — precheck re-run", type="positive")
                     if on_change:
                         on_change()
                 finally:
-                    runlock_release("SystemsMode")
+                    if lease_valid(lease):
+                        runlock_release("SystemsMode", lease)
 
             ui.button("Apply", on_click=_apply).props("dense outline")

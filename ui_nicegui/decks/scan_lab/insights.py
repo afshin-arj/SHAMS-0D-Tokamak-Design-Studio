@@ -136,7 +136,13 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
 
     async def _run_local() -> None:
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if session.scan_running:
             ui.notify("Scan Lab already running.", type="warning")
@@ -148,6 +154,7 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
         if not runlock_acquire(f"Scan Lab: Local insight ({insight})", "ScanLab"):
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
+        lease = current_lease()
         session.scan_running = True
         refresh_status()
         refresh_helm()
@@ -163,6 +170,9 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
                     j=j,
                     rel_step=float(session.scan_causality_rel_step),
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.scan_causality_last = tr
             elif insight == "Time-to-failure along knob":
                 knob = str(rep.get("x_key") or "Ip_MA")
@@ -176,6 +186,9 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
                     knob,
                     float(session.scan_causality_rel_step),
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.scan_causality_last = tr
             elif insight == "Uncertainty stress-test":
                 tr = await run.io_bound(
@@ -186,6 +199,9 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
                     i,
                     j,
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.scan_causality_last = tr
             elif insight == "Null direction (2D)":
                 tr = await run.io_bound(
@@ -197,6 +213,9 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
                     j=j,
                     rel_step=float(session.scan_causality_rel_step),
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.scan_causality_last = null_direction_from_trace(
                     tr,
                     x_key=str(rep.get("x_key") or ""),
@@ -207,14 +226,15 @@ def _render_local_insights(session: DesignSession, rep: dict, intents: list) -> 
         except Exception as exc:
             ui.notify(f"Insight failed: {exc}", type="negative")
         finally:
-            session.scan_running = False
-            runlock_release("ScanLab")
-            refresh_status()
-            refresh_helm()
-            # Remount after clear so Setup Run buttons re-enable if remounted mid-job.
-            from ui_nicegui.lib.navigation import refresh_current_deck
+            if lease_valid(lease):
+                session.scan_running = False
+                runlock_release("ScanLab", lease)
+                refresh_status()
+                refresh_helm()
+                # Remount after clear so Setup Run buttons re-enable if remounted mid-job.
+                from ui_nicegui.lib.navigation import refresh_current_deck
 
-            refresh_current_deck()
+                refresh_current_deck()
 
     if insight == "Causality trace":
         ui.slider(
@@ -281,7 +301,13 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
 
     async def _run_tier() -> None:
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if pick == "Guided walkthrough":
             steps = guided_walkthrough()
@@ -300,6 +326,7 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
         if not runlock_acquire(f"Scan Lab: Insight ({pick})", "ScanLab"):
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
+        lease = current_lease()
         session.scan_running = True
         refresh_status()
         refresh_helm()
@@ -343,7 +370,13 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
                     target_output="q95_proxy",
                     intent=it,
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.scan_path_follow_last = out
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.scan_causality_last = out if isinstance(out, dict) else {"result": out}
             _tier_results.refresh()
             if isinstance(out, dict) and out.get("ok") is False:
@@ -354,14 +387,15 @@ def _render_next_tier(session: DesignSession, rep: dict, intents: list) -> None:
         except Exception as exc:
             ui.notify(f"Tool failed: {exc}", type="negative")
         finally:
-            session.scan_running = False
-            runlock_release("ScanLab")
-            refresh_status()
-            refresh_helm()
-            # Remount after clear so Setup Run buttons re-enable if remounted mid-job.
-            from ui_nicegui.lib.navigation import refresh_current_deck
+            if lease_valid(lease):
+                session.scan_running = False
+                runlock_release("ScanLab", lease)
+                refresh_status()
+                refresh_helm()
+                # Remount after clear so Setup Run buttons re-enable if remounted mid-job.
+                from ui_nicegui.lib.navigation import refresh_current_deck
 
-            refresh_current_deck()
+                refresh_current_deck()
 
     if pick == "Counterfactual lens":
         ui.label("Visualization only — does not change frozen physics.").classes(

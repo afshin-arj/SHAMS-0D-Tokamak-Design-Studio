@@ -73,7 +73,13 @@ def render_knob_trade_space(session: DesignSession) -> None:
     ny = ui.number("Y grid points", value=7, min=3, max=15, step=1)
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         locked, task, is_owner = runlock_status("ControlRoom")
         if locked and not is_owner:
@@ -82,6 +88,7 @@ def render_knob_trade_space(session: DesignSession) -> None:
         if not runlock_acquire("Control Room: Knob trade grid", "ControlRoom"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         try:
             patch = {
                 "R0_m": float(r0.value),
@@ -111,13 +118,17 @@ def render_knob_trade_space(session: DesignSession) -> None:
                 ny=int(ny.value or 7),
                 patch=patch,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.cr_knob_grid_last = {"rows": rows, "kx": str(kx.value), "ky": str(ky.value)}
             ui.notify(f"Grid evaluated ({len(rows)} points)", type="positive")
             _grid_view.refresh()
         except Exception as exc:
             ui.notify(f"Grid failed: {exc}", type="negative")
         finally:
-            runlock_release("ControlRoom")
+            if lease_valid(lease):
+                runlock_release("ControlRoom", lease)
 
     ui.button("Evaluate grid", icon="grid_on", on_click=_run).props("color=primary outline")
     _grid_view(session)

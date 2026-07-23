@@ -57,7 +57,13 @@ def render_atlas_panel(session: DesignSession) -> None:
             ).classes("w-36")
 
         async def _compute() -> None:
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             if session.systems_atlas_var_x == session.systems_atlas_var_y:
                 ui.notify("Pick two different variables", type="warning")
@@ -72,6 +78,7 @@ def render_atlas_panel(session: DesignSession) -> None:
             if not runlock_acquire("Systems Mode: Feasibility map", "SystemsMode"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
+            lease = current_lease()
             session.systems_atlas_running = True
             ui.notify("Computing feasibility map…", type="info")
             try:
@@ -92,13 +99,17 @@ def render_atlas_panel(session: DesignSession) -> None:
                     )
 
                 atlas = await run.io_bound(_run)
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 session.systems_last_micro_atlas = atlas
                 _atlas_view.refresh()
             except Exception as exc:
                 ui.notify(f"Feasibility map failed: {exc}", type="negative")
             finally:
-                session.systems_atlas_running = False
-                runlock_release("SystemsMode")
+                if lease_valid(lease):
+                    session.systems_atlas_running = False
+                    runlock_release("SystemsMode", lease)
 
         ui.button("Compute map", icon="map", on_click=_compute).props("outline q-mb-sm")
         _atlas_view(session)

@@ -325,7 +325,13 @@ def _render_freeze_qa(session: DesignSession) -> None:
 
         async def _audit() -> None:
             from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-            from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+            from ui_nicegui.lib.run_lock import (
+                acquire as runlock_acquire,
+                release as runlock_release,
+                status as runlock_status,
+                current_lease,
+                lease_valid,
+            )
 
             if session.scan_running:
                 ui.notify("Scan Lab already running.", type="warning")
@@ -337,6 +343,7 @@ def _render_freeze_qa(session: DesignSession) -> None:
             if not runlock_acquire("Scan Lab: Replay audit", "ScanLab"):
                 ui.notify("Run lock busy (another deck is evaluating).", type="warning")
                 return
+            lease = current_lease()
             session.scan_running = True
             refresh_status()
             refresh_helm()
@@ -349,6 +356,9 @@ def _render_freeze_qa(session: DesignSession) -> None:
                     y_key=session.scan_cart_y_key,
                     intents=list(session.scan_cart_intents or ["Reactor"]),
                 )
+                if not lease_valid(lease):
+                    ui.notify("Run was force-cleared — discarding results.", type="warning")
+                    return
                 if result.get("pass"):
                     ui.notify("Replay determinism audit: PASS", type="positive")
                 else:
@@ -357,13 +367,14 @@ def _render_freeze_qa(session: DesignSession) -> None:
             except Exception as exc:
                 ui.notify(str(exc), type="negative")
             finally:
-                session.scan_running = False
-                runlock_release("ScanLab")
-                refresh_status()
-                refresh_helm()
-                from ui_nicegui.lib.navigation import refresh_current_deck
+                if lease_valid(lease):
+                    session.scan_running = False
+                    runlock_release("ScanLab", lease)
+                    refresh_status()
+                    refresh_helm()
+                    from ui_nicegui.lib.navigation import refresh_current_deck
 
-                refresh_current_deck()
+                    refresh_current_deck()
 
         ui.button("Run quick replay audit", icon="replay", on_click=_audit).props("outline")
         ui.label("Full gate: python scripts/run_scanlab_freeze_qa.py").classes("text-caption text-grey q-mt-sm")

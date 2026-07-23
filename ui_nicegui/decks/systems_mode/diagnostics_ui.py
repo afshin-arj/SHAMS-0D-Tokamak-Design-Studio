@@ -205,7 +205,13 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
 
     async def _run():
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         locked, task, is_owner = runlock_status("SystemsMode")
         if locked:
@@ -219,6 +225,7 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
         if not runlock_acquire("Systems Mode: Corner diagnostics", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         refresh_status()
         refresh_helm()
 
@@ -238,6 +245,9 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
 
         try:
             rows = await run.io_bound(_corners)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             if isinstance(rows, list) and rows:
                 display_rows = []
                 for r in rows:
@@ -268,8 +278,9 @@ def _render_corner_table_sync(session: DesignSession, art: dict, out: dict) -> N
         except Exception as exc:
             ui.label(f"Corner table unavailable: {exc}").classes("text-caption")
         finally:
-            runlock_release("SystemsMode")
-            refresh_status()
-            refresh_helm()
+            if lease_valid(lease):
+                runlock_release("SystemsMode", lease)
+                refresh_status()
+                refresh_helm()
 
     ui.button("Compute corner table", on_click=_run).props("flat dense")

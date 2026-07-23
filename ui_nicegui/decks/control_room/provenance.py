@@ -212,7 +212,13 @@ def _render_repro_lock(session: DesignSession) -> None:
             ui.notify("Create or upload a lock first", type="warning")
             return
         from ui_nicegui.lib.navigation import refresh_helm, refresh_status
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         locked, task, is_owner = runlock_status("ControlRoom")
         if locked and not is_owner:
@@ -221,10 +227,14 @@ def _render_repro_lock(session: DesignSession) -> None:
         if not runlock_acquire("Control Room: Repro replay", "ControlRoom"):
             ui.notify("Run lock busy (another deck is evaluating).", type="warning")
             return
+        lease = current_lease()
         refresh_status()
         refresh_helm()
         try:
             rep = await run.io_bound(replay_check, lock, {})
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.cr_replay_report_last = rep
             payload = rep.get("payload") if isinstance(rep, dict) else {}
             ok = bool((payload or {}).get("ok"))
@@ -242,9 +252,10 @@ def _render_repro_lock(session: DesignSession) -> None:
         except Exception as exc:
             ui.notify(f"Replay failed: {exc}", type="negative")
         finally:
-            runlock_release("ControlRoom")
-            refresh_status()
-            refresh_helm()
+            if lease_valid(lease):
+                runlock_release("ControlRoom", lease)
+                refresh_status()
+                refresh_helm()
 
     ui.button("Run replay check", icon="replay", on_click=_replay).props("outline flat")
     _lock_dl(session)
@@ -463,7 +474,13 @@ def _render_regression_viewer(session: DesignSession) -> None:
     ui.button("Compare artifacts", icon="compare", on_click=_diff).props("outline")
 
     async def _repo_regress() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         locked, task, is_owner = runlock_status("ControlRoom")
         if locked:
@@ -477,16 +494,21 @@ def _render_regression_viewer(session: DesignSession) -> None:
         if not runlock_acquire("Control Room: Repo regression", "ControlRoom"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         ui.notify("Running repo regression suite…", type="info")
         try:
             rep = await run.io_bound(run_repo_regression)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.cr_repo_regression_last = rep
             ui.notify("Regression suite complete", type="positive")
             _repo_reg.refresh()
         except Exception as exc:
             ui.notify(f"Regression suite failed: {exc}", type="negative")
         finally:
-            runlock_release("ControlRoom")
+            if lease_valid(lease):
+                runlock_release("ControlRoom", lease)
 
     ui.button("Run repo regression suite", icon="science", on_click=_repo_regress).props("flat outline")
     _reg_diff(session)

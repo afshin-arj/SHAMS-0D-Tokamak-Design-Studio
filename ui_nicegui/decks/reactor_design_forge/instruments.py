@@ -271,7 +271,13 @@ def _local_cartography_controls(session: DesignSession, ctx: ForgeContext, revie
 
     async def _run_local() -> None:
         from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if review_mode:
             ui.notify("Review Mode: cartography disabled", type="warning")
@@ -283,17 +289,22 @@ def _local_cartography_controls(session: DesignSession, ctx: ForgeContext, revie
         if not runlock_acquire("Reactor Design Forge: Local cartography", FORGE_RUNLOCK_OWNER):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         from ui_nicegui.lib.forge_instrument_engine import run_local_cartography
 
         try:
             df = await run.io_bound(run_local_cartography, ctx, session)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.forge_localcart_df = df
             ui.notify("Local cartography complete", type="positive")
             _render_body.refresh()
         except Exception as exc:
             ui.notify(f"Cartography failed: {exc}", type="negative")
         finally:
-            runlock_release(FORGE_RUNLOCK_OWNER)
+            if lease_valid(lease):
+                runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
     ui.button("Run local cartography", icon="grid_on", on_click=_run_local).props("outline q-mb-sm")
 
@@ -311,7 +322,13 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
 
     async def _run_uq() -> None:
         from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if review_mode:
             ui.notify("Review Mode: UQ disabled", type="warning")
@@ -323,16 +340,22 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
         if not runlock_acquire("Reactor Design Forge: Robustness MC", FORGE_RUNLOCK_OWNER):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         from ui_nicegui.lib.forge_instrument_engine import run_robustness_mc
 
         try:
-            session.forge_uq_result = await run.io_bound(run_robustness_mc, ctx, session)
+            uq = await run.io_bound(run_robustness_mc, ctx, session)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
+            session.forge_uq_result = uq
             ui.notify("Monte Carlo complete", type="positive")
             _render_body.refresh()
         except Exception as exc:
             ui.notify(f"Monte Carlo failed: {exc}", type="negative")
         finally:
-            runlock_release(FORGE_RUNLOCK_OWNER)
+            if lease_valid(lease):
+                runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
     ui.button("Run robustness Monte Carlo", icon="casino", on_click=_run_uq).props("outline q-mb-sm")
 
@@ -350,7 +373,13 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
 
     async def _run_casebook() -> None:
         from ui_nicegui.lib.forge_helpers import FORGE_RUNLOCK_OWNER
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if review_mode:
             ui.notify("Review Mode: casebook run disabled", type="warning")
@@ -366,6 +395,7 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
         if not runlock_acquire("Reactor Design Forge: Casebook", FORGE_RUNLOCK_OWNER):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         from ui_nicegui.lib.forge_machine_finder_helpers import run_machine_finder, compute_bounds, objectives_for_pack
 
         results = []
@@ -393,6 +423,9 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
                         require_feasible_only=True,
                         seed=int(case.get("seed", 1)),
                     )
+                    if not lease_valid(lease):
+                        ui.notify("Run was force-cleared — discarding results.", type="warning")
+                        return
                     tr = rep.get("trace") or []
                     results.append({
                         "case": case.get("name"),
@@ -402,11 +435,15 @@ def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: b
                     })
                 except Exception as exc:
                     results.append({"case": case.get("name"), "lens": case.get("lens"), "n_eval": 0, "n_feasible": 0, "error": str(exc)})
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.forge_casebook_results = results
             ui.notify("Casebook run complete", type="positive")
             _render_body.refresh()
         finally:
-            runlock_release(FORGE_RUNLOCK_OWNER)
+            if lease_valid(lease):
+                runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
     with ui.row().classes("gap-2"):
         ui.button("Add case", icon="add", on_click=_add_case).props("outline")

@@ -304,7 +304,13 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
     from dataclasses import asdict
 
     from ui_nicegui.evaluate import ui_evaluate
-    from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+    from ui_nicegui.lib.run_lock import (
+        acquire as runlock_acquire,
+        release as runlock_release,
+        status as runlock_status,
+        current_lease,
+        lease_valid,
+    )
 
     locked, task, is_owner = runlock_status("CompareHandoff")
     if locked:
@@ -316,6 +322,7 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
         )
     if not runlock_acquire(f"Compare handoff: {label}", "CompareHandoff"):
         raise RuntimeError("Could not acquire run lock — another evaluation is active.")
+    lease = current_lease()
 
     saved = dict(session.inputs)
     try:
@@ -327,10 +334,13 @@ def build_compare_artifact(session, inputs_patch: dict, *, label: str) -> dict:
                     pass
         inp = session.build_point_inputs()
         out = ui_evaluate(inp, origin=f"NiceGUI:{label}")
+        if not lease_valid(lease):
+            raise RuntimeError("Run was force-cleared — discarding results.")
         return normalize_compare_artifact({"inputs": asdict(inp), "outputs": out, "label": label})
     finally:
         session.inputs = saved
-        runlock_release("CompareHandoff")
+        if lease_valid(lease):
+            runlock_release("CompareHandoff", lease)
 
 
 def summarize_comparison(art_a: dict, art_b: dict) -> Dict[str, Any]:

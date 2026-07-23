@@ -755,7 +755,13 @@ def _render_integrity_gate(session: DesignSession) -> None:
             ui.label(f"{row['Check']}: {row['Status']}").classes("text-caption")
 
     async def _run_gatecheck() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if session.helm_verify_running:
             ui.notify("Gatecheck already running", type="warning")
@@ -772,10 +778,14 @@ def _render_integrity_gate(session: DesignSession) -> None:
         if not runlock_acquire("Helm: Gatecheck / verification", "HelmIntegrity"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         session.helm_verify_running = True
         _helm_settings_section.refresh()
         try:
             ok, out, err, dt = await run.io_bound(run_verification_capture)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.helm_verify_ok = ok
             session.helm_verify_out = out
             session.helm_verify_err = err
@@ -783,9 +793,10 @@ def _render_integrity_gate(session: DesignSession) -> None:
             log_ui_event(session, "UI", "GatecheckRun", {"ok": ok, "seconds": dt})
             ui.notify(f"Gatecheck {'PASS' if ok else 'FAIL'} ({dt:.1f}s)", type="positive" if ok else "negative")
         finally:
-            session.helm_verify_running = False
-            runlock_release("HelmIntegrity")
-            _helm_settings_section.refresh()
+            if lease_valid(lease):
+                session.helm_verify_running = False
+                runlock_release("HelmIntegrity", lease)
+                _helm_settings_section.refresh()
 
     with ui.row().classes("w-full gap-2"):
         gate_btn = ui.button("Run gatecheck", on_click=_run_gatecheck).classes("flex-1")

@@ -131,7 +131,13 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
     _abs_bounds_panel()
 
     async def _run() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         if getattr(session, "uq_contract_running", False):
             ui.notify("Uncertainty contract already running", type="warning")
@@ -143,6 +149,7 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
         if not runlock_acquire("Point Designer: Uncertainty contract", "PointDesigner"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         session.uq_contract_running = True
         ui.notify("Running uncertainty contract…", type="info")
         try:
@@ -168,14 +175,18 @@ def render_uncertainty_contracts(session: DesignSession, *, ui_key_prefix: str =
                 max_dims=int(session.uq_contract_max_dims),
                 evaluator=ev,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.uq_contract_last = con
             ui.notify("Uncertainty contract complete.", type="positive")
             _results.refresh()
         except Exception as exc:
             ui.notify(f"Uncertainty contract failed: {exc}", type="negative")
         finally:
-            session.uq_contract_running = False
-            runlock_release("PointDesigner")
+            if lease_valid(lease):
+                session.uq_contract_running = False
+                runlock_release("PointDesigner", lease)
 
     ui.button("Run Uncertainty Contract", icon="play_arrow", on_click=_run).props("color=primary q-mt-sm")
 

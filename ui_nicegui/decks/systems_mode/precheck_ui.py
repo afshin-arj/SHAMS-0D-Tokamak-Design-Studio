@@ -89,7 +89,13 @@ def render_precheck_panel(
         ).classes("w-32")
 
     async def _run_precheck() -> None:
-        from ui_nicegui.lib.run_lock import acquire as runlock_acquire, release as runlock_release, status as runlock_status
+        from ui_nicegui.lib.run_lock import (
+            acquire as runlock_acquire,
+            release as runlock_release,
+            status as runlock_status,
+            current_lease,
+            lease_valid,
+        )
 
         blocked, block_msg = assumption_lock_ui.assumption_lock_blocks(session)
         if blocked:
@@ -105,11 +111,13 @@ def render_precheck_panel(
         if not runlock_acquire("Systems Mode: Precheck", "SystemsMode"):
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
+        lease = current_lease()
         t0 = time.perf_counter()
         base_now, targets_now, variables_now = resolve_systems_problem(session)
         ok_prob, prob_msg = validate_systems_problem(targets_now, variables_now)
         if not ok_prob:
-            runlock_release("SystemsMode")
+            if lease_valid(lease):
+                runlock_release("SystemsMode", lease)
             ui.notify(prob_msg, type="warning")
             return
         try:
@@ -139,6 +147,9 @@ def render_precheck_panel(
                 design_intent=session.design_intent,
                 paux_for_q_mw=session.paux_for_q,
             )
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.last_precheck_report = report
             session.systems_precheck_seconds = time.perf_counter() - t0
             append_journal(session, "Precheck", {"ok": _precheck_ok(report)})
@@ -154,13 +165,15 @@ def render_precheck_panel(
             )
             _status.refresh()
         except Exception as exc:
-            session.last_precheck_report = {"ok": False, "reason": "precheck_exception", "error": str(exc)}
+            if lease_valid(lease):
+                session.last_precheck_report = {"ok": False, "reason": "precheck_exception", "error": str(exc)}
             ui.notify(f"Precheck failed: {exc}", type="negative")
         finally:
-            session.systems_precheck_running = False
-            runlock_release("SystemsMode")
-            if on_precheck_complete:
-                on_precheck_complete()
+            if lease_valid(lease):
+                session.systems_precheck_running = False
+                runlock_release("SystemsMode", lease)
+                if on_precheck_complete:
+                    on_precheck_complete()
 
     btn = ui.button("Run precheck", icon="play_arrow", on_click=_run_precheck).props("color=primary")
     if disabled or session.systems_precheck_running:
