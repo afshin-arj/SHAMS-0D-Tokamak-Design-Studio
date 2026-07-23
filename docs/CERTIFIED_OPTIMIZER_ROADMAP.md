@@ -10,23 +10,23 @@ Living campaign document for **philosophy-safe optimization** inside SHAMS.
 | `/shams-process-independence` | Feasibility authority campaign (orthogonal; do not blur) |
 
 **SHAMS version at last refresh:** `v418.1.0` (see `VERSION`)  
-**Last analytical refresh:** 2026-07-23 (code review vs roadmap)
+**Last analytical refresh:** 2026-07-23 (ticket 3.2 shipped)
 
 ## Code review snapshot (2026-07-23)
 
-Re-verified claimed DONE tickets against `main` sources + Opt Lab lock tests (all **PASS**).
+Re-verified claimed DONE tickets against `main` sources + Opt Lab lock tests.
 
 | Claim | Code verdict |
 |-------|----------------|
 | Phase 0–2 complete | **Confirmed** — modules + lock tests present (`objective_contract`, `l0_opt_guards`, Opt Lab entry/stamp/honesty/warm-start, SLSQP + neighborhood + determinism) |
 | 3.1 NSGA-II SearchDriver | **Confirmed** — `nsga2_search_driver.py` + `tests/test_nsga2_search_driver.py`; `multi_objective_contract.v1`; CCFS/stamp hooks |
-| 3.2 Atlas-annotated dominatees | **Still OPEN** — only `atlas_dominatee_hook.v1` with `status: pending_phase_3_2` (no mechanism annotation yet) |
+| 3.2 Atlas-annotated dominatees | **DONE** — `atlas_dominatee_hook.v1` status=`shipped`; `annotate_atlas_dominatees` / `lightly_certify_shortlist`; hard-infeasible shortlist + CCFS REJECTED rows carry `no_solution_atlas.v1` |
 | 3.3 Pareto Lab ↔ Opt Lab unify | **Still OPEN** — Opt Lab routes into Pareto/Systems/CR; no single certified-front viewer yet |
 | Phase 4–5 | **Still OPEN** — surrogate/cite/mirage exist as reusable pieces, not Opt Lab ticket-complete |
 
 **Known seam (not a ticket close):** `ui_nicegui/lib/external_optimizer_helpers.py` still builds a legacy `objective_contract.v3` job payload for External Optimizer — distinct from Opt Lab `objective_contract.v1` / `multi_objective_contract.v1`. Address under **3.3** (unify) or **4.3** (orchestrator polish); do not treat as 0.1 regression.
 
-**Next ticket unchanged:** **3.2 — Atlas-annotated dominatees**.
+**Next ticket:** **3.3 — Pareto Lab ↔ Opt Lab unify**.
 
 ## Post-upgrade ship gate (mandatory)
 
@@ -72,7 +72,7 @@ ObjectiveContract (hashed, outside L0)
 | 0 Stance & contract | **DONE** | 0.1–0.3 complete (ObjectiveContract + stance + anti L0-opt guards) |
 | 1 Opt Lab productization | **DONE** | 1.1–1.4 complete (entry + stamp + honesty + champion warm-start) |
 | 2 Single-objective certified solver | **DONE** | 2.1–2.3 complete (SLSQP + neighborhood CCFS + determinism locks) |
-| 3 Multi-objective certified front | **OPEN** | 3.1 DONE; next 3.2 atlas-annotated dominatees |
+| 3 Multi-objective certified front | **OPEN** | 3.1–3.2 DONE; next 3.3 Pareto Lab ↔ Opt Lab unify |
 | 4 Accelerators & external proposers | **OPEN** | Surrogate propose-only; PROCESS→CCFS bridge |
 | 5 Cite, robust lanes, exit | **OPEN** | Handoff packs; mirage-safe UQ; campaign exit evidence |
 
@@ -104,7 +104,7 @@ ObjectiveContract (hashed, outside L0)
 | UI honesty copy | `ui_nicegui/lib/certified_opt_honesty.py` | **1.3 DONE** — shared honesty + deck banners |
 | Champion warm-start | `ui_nicegui/lib/opt_lab_warm_start.py` | **1.4 DONE** — propose-only search seed |
 | SLSQP SearchDriver | `src/optimization/slsqp_search_driver.py` | **2.1–2.3 DONE** — SLSQP/fallback + neighborhood CCFS + determinism |
-| NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1 DONE** — NSGA-II/fallback; atlas hook **pending 3.2** |
+| NSGA-II SearchDriver | `src/optimization/nsga2_search_driver.py` | **3.1–3.2 DONE** — NSGA-II/fallback + atlas-annotated dominatees (`shipped`) |
 | Surrogate accel | `src/extopt/surrogate_accel.py` · `src/optimization/surrogates.py` | Exists (propose-only intent) — **4.1 not closed** |
 | Cite handoff | `src/reports/cite_shams_handoff_pack.py` | Point cite unit exists — **5.1 opt-front extension not closed** |
 | Systems Mode / Pareto UI | `ui_nicegui/` + Streamlit | Entry routes live — **3.3 unify not closed** |
@@ -168,7 +168,7 @@ ObjectiveContract (hashed, outside L0)
 | # | Ticket | Done when |
 |---|--------|-----------|
 | 3.1 | NSGA-class / MOEA SearchDriver | **DONE** (2026-07-19) — `src/optimization/nsga2_search_driver.py`: propose-only NSGA-II (`nsga2` via optional pymoo; `nsga2_fallback` pure-Python). Feasible-first constrained domination; reuses `solvers.optimize.dominates` / `pareto_front`. `multi_objective_contract.v1` (hashed FoM list outside L0). Stamp-ready + `to_ccfs_bundle` / `to_frontier_candidate_rows`. Atlas dominatee hook reserved for 3.2. Minimal Opt Lab honesty note. Zero new required deps. Lock tests: `tests/test_nsga2_search_driver.py`. L0 untouched. |
-| 3.2 | Atlas-annotated dominatees | **OPEN** — hook only (`atlas_dominatee_hook.v1` / `pending_phase_3_2` in `nsga2_search_driver.py`). Done when dominated / REJECTED NSGA rows carry dominant hard mechanism from `no_solution_atlas.v1` |
+| 3.2 | Atlas-annotated dominatees | **DONE** (2026-07-23) — `atlas_dominatee_hook.v1` status=`shipped` (was `pending_phase_3_2`). Hard-infeasible NSGA shortlist rows stamp `no_solution_atlas.v1` via `diagnostics.no_solution_atlas`; `annotate_atlas_dominatees` + `lightly_certify_shortlist` ensure CCFS REJECTED rows carry dominant hard mechanism + `is_dominatee` flags; meta `atlas_dominatee_annotation.v1`. Opt Lab honesty note updated. Lock tests extended in `tests/test_nsga2_search_driver.py`. L0 untouched. |
 | 3.3 | Pareto Lab ↔ Opt Lab unify | One certified-front viewer; `/pareto-frontier-check` gates green |
 
 **Delegates:** `/developer`, `/architect`, `/nicegui-specialist`, skill `/pareto-frontier-check`
@@ -211,9 +211,9 @@ ObjectiveContract (hashed, outside L0)
 
 ## Ranked next tickets (Top 3)
 
-1. **3.2** — Atlas-annotated dominatees *(confirmed next after 2026-07-23 code review)*  
-2. **3.3** — Pareto Lab ↔ Opt Lab unify *(includes legacy `objective_contract.v3` ExtOpt seam)*  
-3. **4.1** — Surrogate propose-only path
+1. **3.3** — Pareto Lab ↔ Opt Lab unify *(includes legacy `objective_contract.v3` ExtOpt seam)*  
+2. **4.1** — Surrogate propose-only path  
+3. **4.2** — PROCESS-as-proposer bridge
 
 ## Overclaim check
 

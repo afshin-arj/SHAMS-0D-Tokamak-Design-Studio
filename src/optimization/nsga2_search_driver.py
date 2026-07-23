@@ -1,4 +1,4 @@
-"""NSGA-II / MOEA SearchDriver — Certified Optimizer Phase 3.1.
+"""NSGA-II / MOEA SearchDriver — Certified Optimizer Phase 3.1–3.2.
 
 Propose-only multi-objective search **outside** L0. The driver:
 
@@ -11,8 +11,8 @@ Propose-only multi-objective search **outside** L0. The driver:
   backend as ``nsga2`` when installed (not a required dependency).
 * Reuses ``solvers.optimize.dominates`` / ``pareto_front`` for nondominated
   filtering — does not reinvent Pareto algebra.
-* Emits stamp-ready shortlist + CCFS hooks; atlas-on-dominatees is Phase 3.2
-  (hook reserved below).
+* Emits stamp-ready shortlist + CCFS hooks; dominated / REJECTED rows carry
+  ``no_solution_atlas.v1`` dominant hard mechanism (Phase 3.2).
 
 Driver ids: ``nsga2`` | ``nsga2_fallback``.
 """
@@ -41,15 +41,18 @@ from src.optimization.opt_run_stamp import (
 
 SCHEMA = "nsga2_search_result.v1"
 ATLAS_DOMINATEE_HOOK_SCHEMA = "atlas_dominatee_hook.v1"
+ATLAS_DOMINATEE_ANNOTATION_SCHEMA = "atlas_dominatee_annotation.v1"
 
-# Phase 3.2 will annotate dominated / REJECTED rows with atlas mechanisms.
+# Phase 3.2 — dominated / REJECTED rows carry no_solution_atlas.v1 mechanisms.
 ATLAS_DOMINATEE_HOOK: Dict[str, Any] = {
     "schema": ATLAS_DOMINATEE_HOOK_SCHEMA,
-    "status": "pending_phase_3_2",
+    "status": "shipped",
     "note": (
-        "Dominated / REJECTED candidates will carry no_solution_atlas.v1 "
-        "dominant hard mechanism in ticket 3.2 — not shipped in 3.1."
+        "Dominated / REJECTED multi-obj shortlist rows carry "
+        "no_solution_atlas.v1 dominant hard mechanism (reuse CCFS atlas paths; "
+        "no parallel attribution)."
     ),
+    "atlas_schema": "no_solution_atlas.v1",
 }
 
 DEFAULT_VARIABLE_BOUNDS: Dict[str, Tuple[float, float]] = {
@@ -190,6 +193,35 @@ def _hard_feasible(out: Mapping[str, Any]) -> bool:
     return bool(getattr(bundle, "governance_feasible", False))
 
 
+def _atlas_for_outputs(
+    out: Mapping[str, Any],
+    *,
+    design_intent: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build ``no_solution_atlas.v1`` via the shared diagnostics module (no parallel taxonomy)."""
+    try:
+        try:
+            from diagnostics.no_solution_atlas import build_no_solution_atlas  # type: ignore
+        except ImportError:
+            from src.diagnostics.no_solution_atlas import build_no_solution_atlas  # type: ignore
+        return build_no_solution_atlas(
+            dict(out),
+            design_intent=design_intent,
+        )
+    except Exception:
+        return {
+            "schema": "no_solution_atlas.v1",
+            "verdict": "UNKNOWN",
+            "dominant_constraint": "",
+            "dominant_mechanism": "GENERAL",
+            "mechanism_map": {},
+            "hard_failures": [],
+            "n_hard_failures": 0,
+            "parity_aligned": True,
+            "atlas_build_error": True,
+        }
+
+
 def _metric_vector(
     out: Mapping[str, Any],
     multi: MultiObjectiveContract,
@@ -286,9 +318,11 @@ class ProposedCandidate:
     rank: int
     crowding_distance: float
     front_rank: int
+    no_solution_atlas: Optional[Dict[str, Any]] = None
+    is_dominatee: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d: Dict[str, Any] = {
             "id": self.id,
             "inputs": dict(self.inputs),
             "proposed_metrics": dict(self.proposed_metrics),
@@ -296,8 +330,15 @@ class ProposedCandidate:
             "rank": int(self.rank),
             "crowding_distance": float(self.crowding_distance),
             "front_rank": int(self.front_rank),
+            "is_dominatee": bool(self.is_dominatee),
             "certification": "propose_only",
         }
+        if isinstance(self.no_solution_atlas, dict):
+            d["no_solution_atlas"] = dict(self.no_solution_atlas)
+            d["dominant_mechanism"] = str(
+                self.no_solution_atlas.get("dominant_mechanism") or "GENERAL"
+            )
+        return d
 
 
 @dataclass(frozen=True)
@@ -352,11 +393,25 @@ class Nsga2SearchResult:
                         "proposed_metrics": dict(c.proposed_metrics),
                         "hard_feasible_filter": c.hard_feasible_filter,
                         "front_rank": c.front_rank,
+                        "is_dominatee": bool(c.is_dominatee),
                         "search_driver_id": self.search_driver_id,
                         "status": "PROPOSED",
                     },
                 }
             )
+            if isinstance(c.no_solution_atlas, dict):
+                cands[-1]["claims"]["propose_only_atlas"] = {
+                    "schema": str(c.no_solution_atlas.get("schema") or "no_solution_atlas.v1"),
+                    "dominant_mechanism": str(
+                        c.no_solution_atlas.get("dominant_mechanism") or "GENERAL"
+                    ),
+                    "dominant_constraint": str(
+                        c.no_solution_atlas.get("dominant_constraint") or ""
+                    ),
+                    "verdict": str(c.no_solution_atlas.get("verdict") or ""),
+                    # Claims never certify — CCFS re-builds atlas on REJECTED.
+                    "certification": "propose_only",
+                }
         return {
             "schema_version": "ccfs_bundle.v1",
             "candidates": cands,
@@ -397,11 +452,17 @@ class Nsga2SearchResult:
                 "inputs": dict(c.inputs),
                 "feasible": bool(c.hard_feasible_filter),
                 "in_proposed_front": c.id in {p.id for p in self.proposed_front},
+                "is_dominatee": bool(c.is_dominatee),
                 "front_rank": int(c.front_rank),
                 "certification": "propose_only",
             }
             for k, v in c.proposed_metrics.items():
                 row[k] = v
+            if isinstance(c.no_solution_atlas, dict):
+                row["no_solution_atlas"] = dict(c.no_solution_atlas)
+                row["dominant_mechanism"] = str(
+                    c.no_solution_atlas.get("dominant_mechanism") or "GENERAL"
+                )
             rows.append(row)
         return rows
 
@@ -563,7 +624,7 @@ def _eval_individual(
     feas = _hard_feasible(out)
     metrics = _metric_vector(out, multi)
     viol = 0.0 if feas else _constraint_violation(out)
-    return {
+    row: Dict[str, Any] = {
         "x": list(xc),
         "inputs": _point_to_dict(inp),
         "metrics": metrics,
@@ -572,6 +633,14 @@ def _eval_individual(
         "front_rank": 10**9,
         "crowding_distance": 0.0,
     }
+    # Phase 3.2: hard-infeasible search individuals carry atlas (propose-only stamp).
+    if not feas:
+        intent = getattr(inp, "design_intent", None)
+        row["no_solution_atlas"] = _atlas_for_outputs(
+            out,
+            design_intent=str(intent) if intent else None,
+        )
+    return row
 
 
 def _select_next_generation(
@@ -943,14 +1012,23 @@ def run_nsga2_search(
             k: (None if not math.isfinite(float(v)) else float(v))
             for k, v in metrics_raw.items()
         }
+        atlas_raw = row.get("no_solution_atlas")
+        atlas = dict(atlas_raw) if isinstance(atlas_raw, Mapping) else None
+        # Dominatee = shortlisted but not on the proposed nondominated front.
+        is_dom = i not in front_idxs
+        feas = bool(row.get("feasible"))
+        # Hard-infeasible shortlist rows always carry atlas; feasible dominatees do not.
+        stamped_atlas = atlas if (atlas is not None and not feas) else None
         cand = ProposedCandidate(
             id=f"nsga2_{i:04d}",
             inputs=dict(row["inputs"]),
             proposed_metrics=proposed_metrics,
-            hard_feasible_filter=bool(row.get("feasible")),
+            hard_feasible_filter=feas,
             rank=i,
             crowding_distance=float(row.get("crowding_distance", 0.0)),
             front_rank=int(row.get("front_rank", 10**9)),
+            no_solution_atlas=stamped_atlas,
+            is_dominatee=bool(is_dom),
         )
         candidates.append(cand)
         if i in front_idxs:
@@ -961,7 +1039,7 @@ def run_nsga2_search(
         "Propose-only NSGA-II / MOEA SearchDriver. Metric vectors are uncertified; "
         "run CCFS / frozen Evaluator for VERIFIED vs REJECTED. "
         "Hard constraints used as SHAMS-evaluated feasible-first filters only. "
-        "Atlas-annotated dominatees deferred to Phase 3.2."
+        "Dominated / REJECTED rows carry no_solution_atlas.v1 dominant hard mechanism."
     )
     return Nsga2SearchResult(
         search_driver_id=driver_id,
@@ -979,12 +1057,101 @@ def run_nsga2_search(
     )
 
 
+def _atlas_schema_ok(atlas: Any) -> bool:
+    return (
+        isinstance(atlas, Mapping)
+        and str(atlas.get("schema", "")).startswith("no_solution_atlas")
+        and "dominant_mechanism" in atlas
+    )
+
+
+def annotate_atlas_dominatees(
+    verified: Mapping[str, Any],
+    result: Nsga2SearchResult,
+) -> Dict[str, Any]:
+    """Attach dominatee + atlas metadata on CCFS-verified multi-obj rows (Phase 3.2).
+
+    Reuses CCFS ``no_solution_atlas.v1`` on REJECTED rows — does not invent a
+    second mechanism taxonomy. Propose-only shortlist atlas is advisory only.
+    """
+    out = dict(verified)
+    front_ids = {p.id for p in result.proposed_front}
+    propose_by_id = {c.id: c for c in result.candidates}
+    rows = list(out.get("verified") or [])
+    annotated: List[Dict[str, Any]] = []
+    n_rejected_with_atlas = 0
+    n_dominatees = 0
+    mechanisms: List[str] = []
+
+    for row in rows:
+        if not isinstance(row, dict):
+            annotated.append(row)  # type: ignore[arg-type]
+            continue
+        r = dict(row)
+        cid = str(r.get("id", ""))
+        is_dom = cid not in front_ids
+        r["is_dominatee"] = bool(is_dom)
+        if is_dom:
+            n_dominatees += 1
+        status = str(r.get("status") or "")
+        atlas = r.get("no_solution_atlas")
+        # Prefer CCFS atlas; fall back to propose-only atlas for hard-infeasible shortlist.
+        if not _atlas_schema_ok(atlas) and status == "REJECTED":
+            prop = propose_by_id.get(cid)
+            if prop is not None and isinstance(prop.no_solution_atlas, dict):
+                atlas = dict(prop.no_solution_atlas)
+                atlas["atlas_source"] = "propose_only_fallback"
+                r["no_solution_atlas"] = atlas
+        if status == "REJECTED" and _atlas_schema_ok(r.get("no_solution_atlas")):
+            n_rejected_with_atlas += 1
+            mech = str((r.get("no_solution_atlas") or {}).get("dominant_mechanism") or "GENERAL")
+            r["dominant_mechanism"] = mech
+            mechanisms.append(mech)
+        elif is_dom:
+            prop = propose_by_id.get(cid)
+            if (
+                prop is not None
+                and not prop.hard_feasible_filter
+                and _atlas_schema_ok(prop.no_solution_atlas)
+                and not _atlas_schema_ok(r.get("no_solution_atlas"))
+            ):
+                r["no_solution_atlas"] = dict(prop.no_solution_atlas)  # type: ignore[arg-type]
+                mech = str(prop.no_solution_atlas.get("dominant_mechanism") or "GENERAL")  # type: ignore[union-attr]
+                r["dominant_mechanism"] = mech
+                mechanisms.append(mech)
+        annotated.append(r)
+
+    n_rej = int(out.get("n_status_rejected") or sum(
+        1 for r in annotated if isinstance(r, dict) and r.get("status") == "REJECTED"
+    ))
+    atlas_on_all_rejects = (
+        n_rej == 0
+        or n_rejected_with_atlas >= n_rej
+    )
+    out["verified"] = annotated
+    out["atlas_dominatee"] = {
+        "schema": ATLAS_DOMINATEE_ANNOTATION_SCHEMA,
+        "hook": dict(ATLAS_DOMINATEE_HOOK),
+        "n_rows": len(annotated),
+        "n_dominatees": int(n_dominatees),
+        "n_rejected": int(n_rej),
+        "n_rejected_with_atlas": int(n_rejected_with_atlas),
+        "atlas_on_all_rejects": bool(atlas_on_all_rejects),
+        "dominant_mechanisms": sorted(set(mechanisms)),
+        "propose_only_search": True,
+        "certifier": "CCFS",
+        "atlas_module": "diagnostics.no_solution_atlas",
+    }
+    return out
+
+
 def lightly_certify_shortlist(
     result: Nsga2SearchResult,
     *,
     attach_opt_run_stamp: bool = True,
+    annotate_dominatees: bool = True,
 ) -> Dict[str, Any]:
-    """Light CCFS pass on the proposal shortlist (no atlas dominatee expand yet)."""
+    """Light CCFS pass on the proposal shortlist; annotate atlas dominatees (3.2)."""
     bundle = result.to_ccfs_bundle()
     if not bundle.get("candidates"):
         raise Nsga2SearchDriverError("no candidates to certify")
@@ -993,11 +1160,14 @@ def lightly_certify_shortlist(
     except ImportError:
         from src.extopt.certified_solve import verify_ccfs_bundle  # type: ignore
 
-    return verify_ccfs_bundle(
+    verified = verify_ccfs_bundle(
         bundle,
         opt_run=bundle.get("opt_run"),
         attach_opt_run_stamp=attach_opt_run_stamp,
     )
+    if annotate_dominatees:
+        return annotate_atlas_dominatees(verified, result)
+    return verified
 
 
 def multi_contract_from_registry(

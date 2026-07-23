@@ -116,7 +116,7 @@ Propose-only multi-objective search **outside** L0:
 | Output | `nsga2_search_result.v1` shortlist + proposed front + `to_ccfs_bundle()` + `stamp_ready()` |
 | Hard constraints | Feasible-first constrained domination — **no soft negotiation** |
 | Pareto algebra | Reuses `solvers.optimize.dominates` / `pareto_front` |
-| Atlas dominatees | Hook reserved (`atlas_dominatee_hook.v1`); full ship is Phase 3.2 |
+| Atlas dominatees | **Shipped** (`atlas_dominatee_hook.v1` status=`shipped`); REJECTED / dominated hard-infeasible rows carry `no_solution_atlas.v1` |
 
 **Deps:** pure-Python path needs no new packages. `pymoo` is optional; not added to `requirements.txt`.
 

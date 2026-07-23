@@ -24,9 +24,11 @@ from src.optimization.opt_run_stamp import (
     SCHEMA as STAMP_SCHEMA,
 )
 from src.optimization.nsga2_search_driver import (
+    ATLAS_DOMINATEE_ANNOTATION_SCHEMA,
     ATLAS_DOMINATEE_HOOK,
     ATLAS_DOMINATEE_HOOK_SCHEMA,
     SCHEMA,
+    annotate_atlas_dominatees,
     lightly_certify_shortlist,
     multi_contract_from_registry,
     pymoo_available,
@@ -115,7 +117,9 @@ def test_force_fallback_runs_stamps_and_ccfs_bundle() -> None:
     assert result.candidates[0].to_dict()["certification"] == "propose_only"
     assert "Ip_MA" in result.candidates[0].inputs
     assert result.atlas_dominatee_hook["schema"] == ATLAS_DOMINATEE_HOOK_SCHEMA
+    assert result.atlas_dominatee_hook["status"] == "shipped"
     assert result.atlas_dominatee_hook["status"] == ATLAS_DOMINATEE_HOOK["status"]
+    assert ATLAS_DOMINATEE_HOOK["status"] != "pending_phase_3_2"
 
     stamp = result.stamp_ready()
     assert stamp["schema"] == STAMP_SCHEMA
@@ -200,6 +204,100 @@ def test_light_ccfs_on_shortlist_does_not_trust_claims() -> None:
         claims = (row.get("claims") or {}) if isinstance(row.get("claims"), dict) else {}
         if claims:
             assert claims.get("status") != "VERIFIED" or row.get("status") == "VERIFIED"
+        assert "is_dominatee" in row
+    meta = verified.get("atlas_dominatee") or {}
+    assert meta.get("schema") == ATLAS_DOMINATEE_ANNOTATION_SCHEMA
+    assert meta.get("hook", {}).get("status") == "shipped"
+    assert meta.get("atlas_on_all_rejects") is True
+    assert meta.get("certifier") == "CCFS"
+
+
+def test_hard_infeasible_shortlist_carries_atlas_mechanism() -> None:
+    """Phase 3.2: hard-infeasible / dominatee proposals stamp no_solution_atlas.v1."""
+    result = run_nsga2_search(
+        _base_inputs(),
+        _multi(seed=21),
+        variables={"Ip_MA": (6.0, 10.0), "fG": (0.5, 1.05)},
+        seed=21,
+        pop_size=8,
+        n_generations=2,
+        shortlist_k=6,
+        force_fallback=True,
+    )
+    assert result.atlas_dominatee_hook["status"] == "shipped"
+    infeas = [c for c in result.candidates if not c.hard_feasible_filter]
+    # Feasible-first search may yield all-feasible shortlists; if any hard fail, atlas required.
+    for c in infeas:
+        assert isinstance(c.no_solution_atlas, dict)
+        assert c.no_solution_atlas.get("schema") == "no_solution_atlas.v1"
+        assert "dominant_mechanism" in c.no_solution_atlas
+        d = c.to_dict()
+        assert d.get("dominant_mechanism") == c.no_solution_atlas["dominant_mechanism"]
+
+    rows = result.to_frontier_candidate_rows()
+    for r, c in zip(rows, result.candidates):
+        assert r["is_dominatee"] == c.is_dominatee
+        if not c.hard_feasible_filter:
+            assert r.get("no_solution_atlas", {}).get("schema") == "no_solution_atlas.v1"
+
+    # Dominatee flags: anyone not on proposed_front.
+    front_ids = {p.id for p in result.proposed_front}
+    for c in result.candidates:
+        assert c.is_dominatee == (c.id not in front_ids)
+
+
+def test_atlas_dominatee_annotation_deterministic() -> None:
+    kwargs: Dict[str, Any] = dict(
+        variables={"Ip_MA": (6.5, 9.5), "fG": (0.7, 0.95)},
+        seed=33,
+        pop_size=6,
+        n_generations=2,
+        shortlist_k=4,
+        force_fallback=True,
+    )
+    a = run_nsga2_search(_base_inputs(), _multi(33), **kwargs)
+    b = run_nsga2_search(_base_inputs(), _multi(33), **kwargs)
+    assert [c.id for c in a.candidates] == [c.id for c in b.candidates]
+    for ca, cb in zip(a.candidates, b.candidates):
+        assert ca.is_dominatee == cb.is_dominatee
+        assert ca.hard_feasible_filter == cb.hard_feasible_filter
+        if ca.no_solution_atlas is None:
+            assert cb.no_solution_atlas is None
+        else:
+            assert ca.no_solution_atlas["dominant_mechanism"] == cb.no_solution_atlas[
+                "dominant_mechanism"
+            ]
+            assert ca.no_solution_atlas["dominant_constraint"] == cb.no_solution_atlas[
+                "dominant_constraint"
+            ]
+
+
+@pytest.mark.slow
+def test_ccfs_rejects_annotated_with_atlas_dominatees() -> None:
+    result = run_nsga2_search(
+        _base_inputs(),
+        _multi(17),
+        variables={"Ip_MA": (6.0, 10.0), "fG": (0.55, 1.05)},
+        seed=17,
+        pop_size=6,
+        n_generations=2,
+        shortlist_k=4,
+        force_fallback=True,
+    )
+    verified = lightly_certify_shortlist(result)
+    meta = verified["atlas_dominatee"]
+    assert meta["schema"] == ATLAS_DOMINATEE_ANNOTATION_SCHEMA
+    assert meta["hook"]["status"] == "shipped"
+    assert meta["atlas_on_all_rejects"] is True
+    # Re-annotate is idempotent on dominatee flags.
+    again = annotate_atlas_dominatees(verified, result)
+    assert again["atlas_dominatee"]["n_dominatees"] == meta["n_dominatees"]
+    for row in verified.get("verified") or []:
+        if row.get("status") == "REJECTED":
+            atlas = row.get("no_solution_atlas") or {}
+            assert atlas.get("schema") == "no_solution_atlas.v1"
+            assert "dominant_mechanism" in atlas
+            assert row.get("dominant_mechanism") == atlas["dominant_mechanism"]
 
 
 def test_pymoo_optional_not_required() -> None:

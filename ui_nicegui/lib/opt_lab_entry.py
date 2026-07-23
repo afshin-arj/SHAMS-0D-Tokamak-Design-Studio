@@ -90,7 +90,7 @@ OPT_LAB_NSGA2_HOOK_NOTE = (
     "Multi-objective NSGA-II / MOEA search proposes PointInputs only "
     "(pure-Python NSGA-II fallback; optional pymoo when installed); "
     "feasible-first shortlist must be CCFS-certified — never an authoritative optimum; "
-    "atlas-annotated dominatees arrive in the next Opt Lab ticket."
+    "dominated / REJECTED rows carry no_solution_atlas dominant hard mechanism."
 )
 
 # Phrases that must appear in the entry contract (honesty lock).
