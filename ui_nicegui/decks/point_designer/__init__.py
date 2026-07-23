@@ -84,7 +84,17 @@ def render_point_designer(session: DesignSession) -> None:
 
     # Studio default entry (Independence 3.4): verdict-first landing card until
     # the first evaluation (or dismiss). Propose-only — user still clicks Evaluate.
-    if not (session.pd_last_outputs or session.last_eval) and not session.studio_entry_dismissed:
+    # Forge promote/Apply sets pd_pending_forge_eval — show that path instead of Studio entry.
+    if getattr(session, "pd_pending_forge_eval", False) and not (
+        session.pd_last_outputs or session.last_eval
+    ):
+        ui.badge("FORGE PROMOTE — EVAL PENDING", color="orange").props("outline").classes("q-mb-xs")
+        ui.label(
+            "Inputs were loaded from Reactor Design Forge (promote/Apply). "
+            "Prior KPIs were cleared — open **Configure** if needed, then **Evaluate Point** "
+            "through the frozen evaluator to refresh truth."
+        ).classes("text-caption text-orange q-mb-sm")
+    elif not (session.pd_last_outputs or session.last_eval) and not session.studio_entry_dismissed:
         from ui_nicegui.components.studio_entry_panel import render_studio_entry
         from ui_nicegui.lib.navigation import refresh_active_deck
 
@@ -95,6 +105,10 @@ def render_point_designer(session: DesignSession) -> None:
         if out:
             ui.label("Evaluation loaded — open Telemetry or Constraints").classes(
                 "text-caption text-positive"
+            )
+        elif getattr(session, "pd_pending_forge_eval", False):
+            ui.label("Forge inputs loaded — Evaluate Point to refresh KPIs (STALE until then)").classes(
+                "text-caption text-orange"
             )
         else:
             ui.label("No evaluation yet — Configure then Evaluate Point").classes(

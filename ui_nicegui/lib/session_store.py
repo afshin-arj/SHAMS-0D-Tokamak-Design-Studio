@@ -128,6 +128,7 @@ def set_point_evaluation(
     session.pd_last_artifact = artifact
     session.pd_last_run_ts = time.time()
     _stamp_presentation_caches(session, outputs)
+    session.pd_pending_forge_eval = False
     if inputs is not None:
         from ui_nicegui.lib.pd_solver_helpers import compute_pd_inputs_hash
 

@@ -58,6 +58,8 @@ def render_archive_handoffs(
 
             clear_point_designer(session)
             session.inputs = promote_archive_row(session.inputs, run_rep, _ix())
+            session.pd_pending_forge_eval = True
+            session.studio_entry_dismissed = True
             navigate_to_point_designer(session)
             ui.notify(
                 "Opened Point Designer with archive row inputs — Evaluate Point to refresh KPIs.",

@@ -99,15 +99,36 @@ def test_reviewer_packet_watermarks_trinity_and_report_pack():
         tri = json.loads(zf.read("review_trinity/review_trinity.json").decode("utf-8"))
         rp_md = zf.read("report_pack/report_pack.md").decode("utf-8")
         rp_j = json.loads(zf.read("report_pack/report_pack.json").decode("utf-8"))
+        rp_csv = zf.read("report_pack/report_pack.csv").decode("utf-8")
+        cand = json.loads(zf.read("candidate.json").decode("utf-8"))
     assert "PHYS-KPI-001" in md
     assert "— (diagnostic)" in md
     assert (tri.get("stress_story") or {}).get("closure", {}).get("net_electric_MW") == "— (diagnostic)"
     assert "PHYS-KPI-001" in rp_md
     assert rp_j.get("key_outputs", {}).get("Q_DT_eqv") == "— (diagnostic)"
     assert rp_j.get("closure_bundle", {}).get("net_electric_MW") == "— (diagnostic)"
+    # CSV must not ship raw claim FoMs on INFEASIBLE.
+    assert "12.0" not in rp_csv or "diagnostic" in rp_csv
+    assert "Q_DT_eqv,— (diagnostic)" in rp_csv or "key_outputs.Q_DT_eqv,— (diagnostic)" in rp_csv
+    assert cand.get("outputs", {}).get("Q_DT_eqv") == "— (diagnostic)"
+    assert cand.get("outputs", {}).get("P_e_net_MW") == "— (diagnostic)"
 
 
 def test_inst_review_trinity_uses_source_markdown():
     eng = Path("ui_nicegui/lib/forge_instrument_engine.py").read_text(encoding="utf-8")
     assert "build_review_trinity" in eng
     assert 'tri.get("markdown")' in eng or "tri.get('markdown')" in eng
+
+
+def test_forge_soft_gate_keeps_workbench_after_pd_clear():
+    src = Path("ui_nicegui/decks/reactor_design_forge/__init__.py").read_text(encoding="utf-8")
+    assert "_has_forge_workbench" in src
+    assert "BASELINE CLEARED" in src
+    assert "FORGE_RUNNING_ATTRS" in src.split("def _set_forge_review_mode")[1].split("def ")[0]
+    hand = Path("ui_nicegui/decks/reactor_design_forge/handoff_panel.py").read_text(encoding="utf-8")
+    assert "pd_pending_forge_eval = True" in hand
+    pd = Path("ui_nicegui/decks/point_designer/__init__.py").read_text(encoding="utf-8")
+    assert "FORGE PROMOTE — EVAL PENDING" in pd
+    assert "pd_pending_forge_eval" in pd
+    cap = Path("ui_nicegui/lib/forge_machine_finder_helpers.py").read_text(encoding="utf-8")
+    assert "watermark_extopt_zip_bytes" in cap.split("def build_capsule_zip_bytes")[1].split("def ")[0]

@@ -466,7 +466,13 @@ def build_capsule_zip_bytes(run: dict, *, lens_contract: dict, bounds: dict, set
             resistance_report=rr if isinstance(rr, dict) else None,
             out_path=out_zip,
         )
-        return out_zip.read_bytes(), out_zip.name
+        raw = out_zip.read_bytes()
+        try:
+            from ui_nicegui.lib.external_optimizer_helpers import watermark_extopt_zip_bytes
+
+            return watermark_extopt_zip_bytes(raw), out_zip.name
+        except Exception:
+            return raw, out_zip.name
 
 
 def restore_workbench_from_capsule(capsule: dict) -> dict:
