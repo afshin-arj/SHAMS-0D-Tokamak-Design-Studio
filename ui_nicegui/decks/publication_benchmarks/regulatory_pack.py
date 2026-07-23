@@ -56,14 +56,28 @@ def render_regulatory_reviewer_pack(session: DesignSession) -> None:
     render_json_blob(artifact_snapshot(art))
 
     async def _gen() -> None:
+        from ui_nicegui.lib.pub_helpers import release_pub_lock, try_acquire_pub_lock
+        from ui_nicegui.lib.run_lock import current_lease, lease_valid
+
+        if not try_acquire_pub_lock(session, "Publication: Regulatory reviewer pack"):
+            return
+        lease = current_lease()
         try:
             data = await run.io_bound(build_regulatory_reviewer_pack, session)
+            if not lease_valid(lease):
+                ui.notify("Run was force-cleared — discarding results.", type="warning")
+                return
             session.pub_regulatory_zip_bytes = data
             session.pub_regulatory_validate = None
-            ui.notify("Reviewer pack generated", type="positive")
+            ui.notify(
+                "Reviewer pack generated (audit evidence — not a licensing determination)",
+                type="positive",
+            )
             _actions.refresh()
         except Exception as exc:
             ui.notify(f"Reviewer pack failed: {exc}", type="negative")
+        finally:
+            release_pub_lock(session)
 
     ui.button("Generate reviewer pack ZIP", icon="folder_zip", on_click=_gen).props("outline color=primary q-mt-sm")
     _actions(session)

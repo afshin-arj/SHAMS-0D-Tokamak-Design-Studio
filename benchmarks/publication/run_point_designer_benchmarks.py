@@ -345,6 +345,33 @@ def run_one(case_id: str, inp: PointInputs, *, design_intent: str) -> Dict[str, 
         artifact["authority_confidence"] = {"schema_version": "authority_confidence.v1", "design": {"design_confidence_class": "UNKNOWN"}, "subsystems": {}}
         row["design_confidence"] = "UNKNOWN"
 
+    # PHYS-KPI-001: pack ZIP artifacts/*.json are paper-facing — watermark claim KPIs on FAIL
+    # after confidence/authority snapshots (those need raw numeric outputs).
+    if not row["ok_blocking"] and isinstance(out, dict):
+        _CLAIM_OUT_KEYS = (
+            "H98",
+            "Q",
+            "Q_DT_eqv",
+            "Pfus_total_MW",
+            "P_fus_MW",
+            "Pfus_MW",
+            "Pfus_DT_MW",
+            "Pfus_DT_adj_MW",
+            "P_e_net_MW",
+            "P_net_e_MW",
+            "Pe_net_MW",
+            "P_net_MW",
+        )
+        display_out = dict(out)
+        for _ck in _CLAIM_OUT_KEYS:
+            if _ck in display_out:
+                display_out[_ck] = "— (diagnostic)"
+        artifact["outputs"] = display_out
+        artifact["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs (Q / H98 / Pfus / P_net) watermarked as diagnostic "
+            "on blocking FAIL — not paper achievements. Replay from inputs via Evaluator."
+        )
+
     return {"row": row, "artifact": artifact}
 
 

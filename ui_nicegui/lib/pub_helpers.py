@@ -157,7 +157,11 @@ def zip_pack_outdir(outdir: str) -> bytes:
 
 
 def promote_atlas_inputs_to_point_designer(session: DesignSession) -> int:
-    """Copy atlas artifact inputs into session.inputs (explicit promote; no auto-eval)."""
+    """Copy atlas artifact inputs into session.inputs (explicit promote; no auto-eval).
+
+    Clears Point Designer eval caches so prior-machine KPIs cannot linger beside
+    the new seed (STALE-with-wrong-machine is worse than an empty hero).
+    """
     res = session.pub_atlas_last
     if not isinstance(res, dict):
         raise ValueError("No atlas result — evaluate a preset first.")
@@ -176,6 +180,10 @@ def promote_atlas_inputs_to_point_designer(session: DesignSession) -> int:
         except (TypeError, ValueError):
             session.inputs[k] = v
             n += 1
+    if n:
+        from ui_nicegui.lib.session_store import clear_point_designer
+
+        clear_point_designer(session)
     return n
 
 

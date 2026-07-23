@@ -495,7 +495,8 @@ def test_licensing_pack_not_a_determination() -> None:
     src = inspect.getsource(lp)
     assert "not a licensing determination" in src
     assert "Pack integrity" in src or "integrity" in src.lower()
-    assert "PublicationBenchmarks" in src
+    assert "try_acquire_pub_lock" in src
+    assert "release_pub_lock" in src
 
 
 def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
