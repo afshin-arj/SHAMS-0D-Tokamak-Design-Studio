@@ -78,8 +78,10 @@ def test_scan_workbench_wires_physkpi_contour_banner():
 
 
 def test_forge_review_trinity_wires_watermark():
-    src = Path("ui_nicegui/lib/forge_instrument_engine.py").read_text(encoding="utf-8")
-    assert "format_claim_kpi_for_table" in src
-    # Review trinity path must watermark when infeasible
-    assert "_inst_review_trinity" in src
-    assert "PHYS-KPI-001: claim KPIs below are diagnostic" in src
+    # Source builder owns PHYS-KPI-001; NiceGUI surfaces its markdown/JSON.
+    src = Path("tools/sandbox/review_room.py").read_text(encoding="utf-8")
+    assert "PHYS-KPI-001" in src
+    assert "_watermark_closure" in src
+    eng = Path("ui_nicegui/lib/forge_instrument_engine.py").read_text(encoding="utf-8")
+    assert "_inst_review_trinity" in eng
+    assert "build_review_trinity" in eng

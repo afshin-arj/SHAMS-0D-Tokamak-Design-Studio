@@ -83,6 +83,71 @@ def _canonical_json_bytes(obj: Any) -> bytes:
     return json.dumps(obj, indent=2, sort_keys=True, default=_coerce).encode("utf-8")
 
 
+def _watermark_report_pack_for_export(rp: Dict[str, Any], *, feasible: bool, point_out: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """PHYS-KPI-001 for reviewer-packet exports (no UI dependency)."""
+    if not isinstance(rp, dict) or feasible:
+        return rp if isinstance(rp, dict) else {}
+    diag = "— (diagnostic)"
+    claim = frozenset(
+        {
+            "Q",
+            "Q_DT_eqv",
+            "H98",
+            "P_fus_MW",
+            "Pfus_MW",
+            "Pfus_total_MW",
+            "Pfus_DT_adj_MW",
+            "P_e_net_MW",
+            "P_net_e_MW",
+            "Pe_net_MW",
+            "net_electric_MW",
+            "LCOE_proxy_USD_per_MWh",
+            "COE_proxy_USD_per_MWh",
+        }
+    )
+    out = dict(rp)
+    j = dict(out.get("json") or {}) if isinstance(out.get("json"), dict) else {}
+    ko = j.get("key_outputs")
+    if isinstance(ko, dict):
+        j["key_outputs"] = {k: (diag if str(k) in claim else v) for k, v in ko.items()}
+    cb = j.get("closure_bundle")
+    if isinstance(cb, dict):
+        j["closure_bundle"] = {k: (diag if str(k) in claim else v) for k, v in cb.items()}
+    fcc = j.get("closure_certificate")
+    if isinstance(fcc, dict):
+        fcc2 = dict(fcc)
+        kn = dict(fcc2.get("key_numbers") or {})
+        fcc2["key_numbers"] = {k: (diag if str(k) in claim else v) for k, v in kn.items()}
+        notes = list(fcc2.get("notes") or [])
+        note = "PHYS-KPI-001: key_numbers claim FoMs are diagnostic on INFEASIBLE — not design claims."
+        if note not in notes:
+            notes.append(note)
+        fcc2["notes"] = notes
+        j["closure_certificate"] = fcc2
+    out["json"] = j
+    md = str(out.get("markdown") or "")
+    prefix = (
+        "PHYS-KPI-001: claim FoMs (Q / H98 / Pfus / P_net) on this INFEASIBLE candidate "
+        "are diagnostic residue — not design claims.\n\n"
+    )
+    if "PHYS-KPI-001" not in md:
+        md = prefix + md
+    # Replace raw net_electric line if present
+    if "net_electric_MW:" in md:
+        lines = []
+        for line in md.splitlines():
+            if line.strip().startswith("- net_electric_MW:"):
+                lines.append(f"- net_electric_MW: {diag}")
+            else:
+                lines.append(line)
+        md = "\n".join(lines) + ("\n" if md.endswith("\n") else "")
+    out["markdown"] = md
+    out["phys_kpi_note"] = (
+        "PHYS-KPI-001: claim FoMs watermarked as diagnostic on INFEASIBLE Forge candidate."
+    )
+    return out
+
+
 def build_reviewer_packet_zip(
     *,
     candidate: Dict[str, Any],
@@ -148,6 +213,13 @@ def build_reviewer_packet_zip(
     # --- Report pack ---
     if options.include_report_pack:
         rp = build_report_pack(candidate=candidate)
+        feas = bool(candidate.get("feasible", False))
+        outs = candidate.get("outputs") if isinstance(candidate.get("outputs"), dict) else {}
+        rp = _watermark_report_pack_for_export(
+            rp if isinstance(rp, dict) else {},
+            feasible=feas,
+            point_out=outs,
+        )
         add_bytes("report_pack/report_pack.json", _canonical_json_bytes(rp.get("json") or {}))
         add_text("report_pack/report_pack.md", str(rp.get("markdown") or ""))
         add_text("report_pack/report_pack.csv", str(rp.get("csv") or ""))
