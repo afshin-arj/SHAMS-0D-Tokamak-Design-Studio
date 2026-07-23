@@ -68,13 +68,13 @@ def render_intent_compiler(
             session.forge_intent_compiler_last = result
             session.forge_last_audit = None
             ui.notify(f"Compiler: {result.get('status')}", type="positive" if result.get("status") == "OK" else "warning")
-            if on_complete:
-                on_complete()
         except Exception as exc:
             session.last_error = str(exc)
             ui.notify(f"Compile failed: {exc}", type="negative")
         finally:
             session.forge_compiling = False
+            if on_complete:
+                on_complete()
 
     ui.button("Compile candidate", icon="build", on_click=_compile).props("color=primary outline")
 
@@ -131,8 +131,6 @@ def render_intent_compiler(
                     f"Audit: {audit.get('verdict', {}).get('verdict', 'done')}",
                     type="positive" if audit.get("feasible") else "warning",
                 )
-                if on_complete:
-                    on_complete()
             except Exception as exc:
                 ui.notify(f"Audit failed: {exc}", type="negative")
             finally:
@@ -142,6 +140,8 @@ def render_intent_compiler(
 
                 refresh_status()
                 refresh_helm()
+                if on_complete:
+                    on_complete()
 
         ui.button("Audit candidate (frozen evaluator)", icon="verified", on_click=_audit).props("outline")
 

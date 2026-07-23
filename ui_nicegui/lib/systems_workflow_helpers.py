@@ -527,18 +527,49 @@ def systems_run_payload(session: Any, artifact: Optional[dict] = None) -> dict:
 
 
 def systems_export_bytes(session: Any) -> bytes:
+    from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+
+    solve = getattr(session, "systems_last_solve_artifact", None)
+    if isinstance(solve, dict):
+        solve = watermark_run_artifact_export(solve)
+    rec = getattr(session, "systems_recovery_last", None)
+    if isinstance(rec, dict) and not bool(rec.get("ok")):
+        rec = dict(rec)
+        hl = rec.get("headline")
+        if isinstance(hl, dict):
+            rec["headline"] = watermark_claim_kpi_map(hl, feasible=False)
+    fs = getattr(session, "systems_feasible_search_last", None)
+    if isinstance(fs, dict):
+        fs = dict(fs)
+        cands = []
+        for c in fs.get("candidates") or []:
+            if not isinstance(c, dict):
+                continue
+            cc = dict(c)
+            if not bool(cc.get("feasible")):
+                if isinstance(cc.get("headline"), dict):
+                    cc["headline"] = watermark_claim_kpi_map(cc["headline"], feasible=False)
+                if isinstance(cc.get("metrics"), dict):
+                    cc["metrics"] = watermark_claim_kpi_map(cc["metrics"], feasible=False)
+            cands.append(cc)
+        fs["candidates"] = cands
     payload = {
         "exported_ts": time.time(),
         "design_intent": getattr(session, "design_intent", ""),
-        "systems_last_solve_artifact": getattr(session, "systems_last_solve_artifact", None),
+        "systems_last_solve_artifact": solve,
         "last_precheck_report": _serialize_report(getattr(session, "last_precheck_report", None)),
-        "systems_recovery_last": getattr(session, "systems_recovery_last", None),
-        "systems_feasible_search_last": getattr(session, "systems_feasible_search_last", None),
+        "systems_recovery_last": rec,
+        "systems_feasible_search_last": fs,
         "systems_run_cards": list(getattr(session, "systems_run_cards", []) or []),
         "systems_journal": list(getattr(session, "systems_journal", []) or []),
         "systems_bounds_overrides": getattr(session, "systems_bounds_overrides", None),
         "systems_targets_overrides": getattr(session, "systems_targets_overrides", None),
         "inputs": dict(getattr(session, "inputs", {}) or {}),
+        "phys_kpi_note": (
+            "PHYS-KPI-001: claim KPIs on INFEASIBLE solve/recovery/search nests are "
+            "— (diagnostic) — not design claims."
+        ),
     }
     return json.dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8")
 

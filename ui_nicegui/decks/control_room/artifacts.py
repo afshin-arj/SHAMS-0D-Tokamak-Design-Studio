@@ -17,6 +17,7 @@ from ui_nicegui.lib.cr_artifacts_helpers import (
     list_ui_run_dirs,
     load_json_bytes,
     load_json_path,
+    watermark_run_artifact_export,
 )
 from ui_nicegui.lib.cr_governance_helpers import design_confidence_class, nonfeasibility_certificate_view
 from ui_nicegui.lib.navigation import switch_deck
@@ -232,7 +233,10 @@ def _export_share(session: DesignSession) -> None:
     ui.button(
         "Download artifact JSON",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(art), "shams_run_artifact.json"),
+        on_click=lambda: ui.download(
+            report_to_json_bytes(watermark_run_artifact_export(art)),
+            "shams_run_artifact.json",
+        ),
     ).props("outline")
     ui.button(
         "Download artifact bundle ZIP",

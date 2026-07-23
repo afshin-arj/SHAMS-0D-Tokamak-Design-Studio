@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from ui_nicegui.bootstrap import repo_root
 from ui_nicegui.lib.cr_provenance_helpers import list_session_run_artifacts
@@ -75,7 +75,9 @@ def export_artifact_bundle(art: dict) -> bytes:
     import io
     import zipfile
 
-    payload = json.dumps(art, indent=2, sort_keys=True, default=str).encode("utf-8")
+    payload = json.dumps(watermark_run_artifact_export(art), indent=2, sort_keys=True, default=str).encode(
+        "utf-8"
+    )
     bio = io.BytesIO()
     with zipfile.ZipFile(bio, "w", compression=zipfile.ZIP_DEFLATED) as z:
         z.writestr("shams_run_artifact.json", payload)
@@ -88,3 +90,28 @@ def export_artifact_bundle(art: dict) -> bytes:
                 json.dumps(atlas, indent=2, sort_keys=True, default=str).encode("utf-8"),
             )
     return bio.getvalue()
+
+
+def watermark_run_artifact_export(art: Mapping[str, Any]) -> Dict[str, Any]:
+    """PHYS-KPI-001: download copy with claim KPIs watermarked on INFEASIBLE artifacts."""
+    from ui_nicegui.lib.plant_kpi_honesty_ui import watermark_claim_kpi_map
+    from ui_nicegui.lib.verdict_core import verdict_summary
+
+    out: Dict[str, Any] = dict(art) if isinstance(art, Mapping) else {}
+    outs = out.get("outputs") if isinstance(out.get("outputs"), Mapping) else {}
+    vs = verdict_summary(dict(outs)) if outs else {}
+    feasible = bool(vs.get("feasible")) if vs.get("loaded") else str(out.get("verdict") or "").upper() in (
+        "FEASIBLE",
+        "PASS",
+        "VERIFIED",
+        "OK",
+    )
+    if outs and not feasible:
+        out["outputs"] = watermark_claim_kpi_map(outs, feasible=False, point_out=outs)
+        kpis = out.get("kpis")
+        if isinstance(kpis, Mapping):
+            out["kpis"] = watermark_claim_kpi_map(kpis, feasible=False, point_out=outs)
+        out["phys_kpi_note"] = (
+            "PHYS-KPI-001: claim KPIs on INFEASIBLE artifacts are — (diagnostic) — not design claims."
+        )
+    return out

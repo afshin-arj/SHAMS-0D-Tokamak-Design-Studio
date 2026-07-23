@@ -5,7 +5,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 from nicegui import run, ui
 
@@ -42,9 +42,30 @@ from ui_nicegui.session import DesignSession
 _TRL_TIERS = ["TRL3", "TRL5", "TRL7", "TRL9"]
 _POLICY_ENFORCEMENT = ["hard", "diagnostic"]
 _RUN_START: dict[str, float] = {}
-# Recovery escape hatch: past this age, a "busy" state is more likely orphaned
-# (disconnected client / crashed worker thread) than a genuinely long run.
-_STUCK_RUN_THRESHOLD_S = 45
+_PROGRESS_SNAP: dict[str, tuple[float, str]] = {}
+# Point Designer / short evals: offer orphan recovery after this age.
+_STUCK_RUN_THRESHOLD_S = 90
+# Cartography / Pareto / Forge / Systems / Pub: longer before offering force-clear.
+_STUCK_RUN_THRESHOLD_LONG_S = 300
+_LONG_TASK_MARKERS = (
+    "cartograph",
+    "scan lab",
+    "pareto",
+    "trade",
+    "forge",
+    "machine finder",
+    "systems mode",
+    "publication",
+    "benchmark",
+    "atlas",
+)
+
+
+def _stuck_threshold_s(task: Optional[str]) -> int:
+    t = (task or "").lower()
+    if any(m in t for m in _LONG_TASK_MARKERS):
+        return _STUCK_RUN_THRESHOLD_LONG_S
+    return _STUCK_RUN_THRESHOLD_S
 
 
 def _activity_logger(session: DesignSession):
@@ -259,11 +280,30 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
     return busy, task, holder
 
 
+def _scan_progress_still_advancing(session: DesignSession) -> bool:
+    """True when Scan Lab progress text/value changed recently — not an orphan."""
+    if not getattr(session, "scan_running", False):
+        return False
+    key = "scan"
+    now = time.time()
+    snap = f"{getattr(session, 'scan_progress', 0)!s}|{getattr(session, 'scan_progress_text', '')!s}"
+    prev = _PROGRESS_SNAP.get(key)
+    _PROGRESS_SNAP[key] = (now, snap)
+    if prev is None:
+        return True
+    prev_t, prev_snap = prev
+    if snap != prev_snap:
+        return True
+    # Unchanged for <15s still counts as possibly live (coarse grid steps).
+    return (now - prev_t) < 15.0
+
+
 def _render_run_lock_banner(session: DesignSession) -> None:
     busy, task, holder = _session_or_lock_busy(session)
     if not busy:
         # Idle — drop age timers so a later job with the same label does not look "stuck".
         _RUN_START.clear()
+        _PROGRESS_SNAP.clear()
         return
     if task and task not in _RUN_START:
         _RUN_START[task] = time.time()
@@ -282,28 +322,65 @@ def _render_run_lock_banner(session: DesignSession) -> None:
         f'<div class="helm-info-banner"><strong>{badge}</strong>: {task or "evaluation"}{owner_hint} · t+{age}s</div>'
     ).classes("w-full q-mb-sm")
 
-    if age >= _STUCK_RUN_THRESHOLD_S:
-        def _force_clear() -> None:
-            cleared = force_clear_stuck_runs(session)
-            _RUN_START.clear()
-            ui.notify(
-                f"Cleared {len(cleared)} stuck flag(s): {', '.join(cleared) or '(none)'}",
-                type="warning",
-            )
-            from ui_nicegui.lib.navigation import refresh_current_deck
+    thr = _stuck_threshold_s(task)
+    if age >= thr:
+        def _open_force_clear_dialog() -> None:
+            if _scan_progress_still_advancing(session):
+                ui.notify(
+                    "Scan Lab progress is still advancing — not treating this as an orphaned lock. "
+                    "Wait for the scan to finish, or leave the tab open.",
+                    type="warning",
+                )
+                return
+            with ui.dialog() as dialog, ui.card().classes("w-full").style("min-width: 28rem"):
+                ui.label("Force-clear stuck run?").classes("text-h6")
+                ui.markdown(
+                    "Force-clear resets UI busy flags and the global run lock. "
+                    "It does **not** cancel a live worker thread — a finishing job may still "
+                    "write results afterward and can overlap a new evaluation (L0 risk)."
+                ).classes("text-body2 q-mb-sm")
+                confirm = ui.checkbox(
+                    "I confirm this is an orphaned lock (no live worker is running).",
+                    value=False,
+                )
 
-            refresh_current_deck()
+                def _do_clear() -> None:
+                    if not bool(confirm.value):
+                        ui.notify(
+                            "Check the orphan confirmation box before force-clearing.",
+                            type="warning",
+                        )
+                        return
+                    cleared = force_clear_stuck_runs(session)
+                    _RUN_START.clear()
+                    _PROGRESS_SNAP.clear()
+                    ui.notify(
+                        f"Cleared {len(cleared)} stuck flag(s): {', '.join(cleared) or '(none)'}",
+                        type="warning",
+                    )
+                    dialog.close()
+                    from ui_nicegui.lib.navigation import refresh_current_deck
+
+                    refresh_current_deck()
+
+                with ui.row().classes("w-full justify-end gap-2 q-mt-sm"):
+                    ui.button("Cancel", on_click=dialog.close).props("flat")
+                    ui.button(
+                        "Force-clear",
+                        icon="lock_open",
+                        on_click=_do_clear,
+                    ).props("outline color=negative")
+            dialog.open()
 
         with ui.row().classes("w-full items-center gap-2 q-mb-sm"):
             ui.label(
-                f"Busy for {age}s — if no run is actually in progress, this may be an orphaned lock. "
-                "Force-clear resets UI busy flags only; it does **not** cancel a live worker thread "
-                "(a finishing job may still write results afterward)."
+                f"Busy for {age}s (orphan CTA after {thr}s for this job class). "
+                "Force-clear requires orphan confirmation — it does **not** cancel a live worker."
             ).classes("text-caption text-orange")
             ui.button(
-                "Force-clear stuck run",
+                "Force-clear stuck run…",
                 icon="lock_open",
-                on_click=_force_clear,
+                on_click=_open_force_clear_dialog,
             ).props("outline dense color=negative")
 
 
@@ -334,7 +411,7 @@ def _render_posture(session: DesignSession) -> None:
     if not busy:
         ui.label("Run status: Ready — frozen evaluator armed.").classes("text-caption")
     else:
-        ui.label("Run status: see banner above (force-clear available after 45s).").classes(
+        ui.label("Run status: see banner above (force-clear available after orphan confirm).").classes(
             "text-caption text-grey"
         )
     out = session.pd_last_outputs or session.last_eval

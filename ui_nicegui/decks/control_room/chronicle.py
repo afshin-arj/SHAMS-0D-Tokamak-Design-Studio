@@ -142,7 +142,7 @@ def _sens_view(session: DesignSession) -> None:
         return
     ks = session.cr_sensitivity_knobs or []
     outs = session.cr_sensitivity_outputs or []
-    from ui_nicegui.lib.sensitivity_honesty import base_output_table_rows
+    from ui_nicegui.lib.sensitivity_honesty import base_output_table_rows, watermark_sensitivity_pack_export
     from ui_nicegui.lib.verdict_core import verdict_summary
 
     art = _artifact_for_chronicle(session)
@@ -185,7 +185,10 @@ def _sens_view(session: DesignSession) -> None:
     ui.button(
         "Download sensitivity JSON",
         icon="download",
-        on_click=lambda: ui.download(report_to_json_bytes(pack), "sensitivity_pack.json"),
+        on_click=lambda: ui.download(
+            report_to_json_bytes(watermark_sensitivity_pack_export(pack, feasible=feasible)),
+            "sensitivity_pack.json",
+        ),
     ).props("flat outline")
 
 
