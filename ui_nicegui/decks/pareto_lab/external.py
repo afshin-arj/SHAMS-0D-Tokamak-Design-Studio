@@ -240,7 +240,11 @@ def _robust_view(session: DesignSession) -> None:
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)
-            ui.notify("Opened Point Designer Configure with robust frontier inputs.", type="positive")
+            ui.notify(
+                "Opened Point Designer Configure with robust frontier inputs — "
+                "prior KPIs cleared; Evaluate Point to re-certify.",
+                type="warning",
+            )
 
         def _download_robust() -> None:
             payload = watermark_robust_pareto_export(res)
@@ -513,6 +517,34 @@ def _suite_view(session: DesignSession) -> None:
             icon="download",
             on_click=_dl_suite,
         ).props("flat outline")
+
+    def _promote_extopt() -> None:
+        from ui_nicegui.lib.opt_lab_promote import promote_extopt_first_feasible_to_point_designer
+        from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        n, src = promote_extopt_first_feasible_to_point_designer(session)
+        if n <= 0:
+            ui.notify(
+                "No feasible ExtOpt candidate inputs found in run_dir — "
+                "re-run suite or promote from Pareto Lab.",
+                type="warning",
+            )
+            return
+        refresh_helm()
+        refresh_status()
+        navigate_to_point_designer(session)
+        ui.notify(
+            f"Promoted {n} ExtOpt fields ({src}) → Point Designer — "
+            "prior KPIs cleared; Evaluate Point to re-certify.",
+            type="warning",
+        )
+
+    ui.button(
+        "Promote first feasible → Point Designer",
+        icon="upload",
+        on_click=_promote_extopt,
+    ).props("outline color=primary q-mt-sm data-testid=extopt-promote-feasible")
 
 
 def _render_extopt_copilot(session: DesignSession) -> None:
