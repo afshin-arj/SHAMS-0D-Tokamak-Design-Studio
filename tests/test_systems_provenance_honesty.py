@@ -117,7 +117,27 @@ def test_apply_ui_sets_point_designer_apply_source():
     src = Path("ui_nicegui/decks/systems_mode/apply_ui.py").read_text(encoding="utf-8")
     assert 'applied_art["source"] = "point_designer_apply"' in src
     assert "systems_last_solve_result = None" in src
-    assert "inputs_stale" in src
+    assert "pd_solver_helpers import inputs_stale" in src or "from ui_nicegui.lib.pd_solver_helpers import inputs_stale" in src
+
+
+def test_systems_stale_import_uses_pd_solver_helpers():
+    for panel in (
+        "ui_nicegui/decks/systems_mode/precheck_ui.py",
+        "ui_nicegui/decks/systems_mode/solve_ui.py",
+        "ui_nicegui/decks/systems_mode/apply_ui.py",
+    ):
+        src = Path(panel).read_text(encoding="utf-8")
+        assert "from ui_nicegui.lib.pd_solver_helpers import inputs_stale" in src
+        assert "from ui_nicegui.lib.session_store import inputs_stale" not in src
+
+
+def test_systems_reproduce_stamps_restored_and_watermarks_download():
+    src = Path("ui_nicegui/decks/systems_mode/reproduce_ui.py").read_text(encoding="utf-8")
+    assert 'art["source"] = "systems_restored"' in src
+    assert "systems_last_solve_result = None" in src
+    assert "watermark_run_artifact_export" in src
+    chron = Path("ui_nicegui/decks/systems_mode/chronicle_ui.py").read_text(encoding="utf-8")
+    assert "_watermark_systems_run_card" in chron
 
 
 def test_systems_baseline_chip_distinguishes_pd_seed():
@@ -157,10 +177,27 @@ def test_systems_posture_stale_and_apply_labels():
         "ui_nicegui/decks/systems_mode/solve_ui.py",
         "ui_nicegui/decks/systems_mode/apply_ui.py",
     ):
-        assert "inputs_stale" in Path(panel).read_text(encoding="utf-8")
+        assert "from ui_nicegui.lib.pd_solver_helpers import inputs_stale" in Path(panel).read_text(
+            encoding="utf-8"
+        )
     assert "Artifact source:" in Path("tools/reports/decision_report.py").read_text(encoding="utf-8")
     assert "Pfus_DT_adj_MW\": ()" in Path("ui_nicegui/lib/systems_target_banner.py").read_text(
         encoding="utf-8"
     ) or 'Pfus_DT_adj_MW": ()' in Path("ui_nicegui/lib/systems_target_banner.py").read_text(
         encoding="utf-8"
     )
+
+def test_pd_and_cr_busy_guards_wired():
+    pd = Path("ui_nicegui/decks/point_designer/__init__.py").read_text(encoding="utf-8")
+    assert "PD_RUNNING_ATTRS" in pd
+    assert "_refresh_pd_chrome_if_idle" in pd
+    cr = Path("ui_nicegui/decks/control_room/__init__.py").read_text(encoding="utf-8")
+    assert "_on_cr_tab_change" in cr
+    assert 'runlock_status("ControlRoom")' in cr
+    assert "watermark_run_artifact_export" in Path(
+        "ui_nicegui/decks/control_room/artifacts.py"
+    ).read_text(encoding="utf-8")
+    pub = Path("benchmarks/publication/run_point_designer_benchmarks.py").read_text(encoding="utf-8")
+    assert "Pfus_total_MW" in pub
+    assert "q95_proxy" in pub
+

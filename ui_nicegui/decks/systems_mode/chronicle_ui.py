@@ -29,13 +29,26 @@ def render_chronicle_panel(session: DesignSession) -> None:
 
     ui.button(
         "Download transcript JSON",
-        on_click=lambda: ui.download(
-            __import__("json").dumps(cards, indent=2, sort_keys=True, default=str).encode("utf-8"),
-            "systems_negotiation_transcript.json",
-        ),
+        on_click=lambda: _download_transcript(cards),
     ).props("flat q-mt-xs")
 
     with ui.expansion("Dominance switchboard (qualitative)", icon="hub").classes("w-full q-mt-sm"):
         ui.label("Curated map: what usually drives each constraint class.").classes("text-caption")
         for name, hint in _LIMITER_GRAPH.items():
             ui.markdown(f"- **{name}**: {hint}")
+
+
+def _download_transcript(cards: list) -> None:
+    from ui_nicegui.lib.systems_workflow_helpers import _watermark_systems_run_card
+
+    wm = [_watermark_systems_run_card(c) for c in (cards or [])]
+    payload = {
+        "phys_kpi_note": (
+            "PHYS-KPI-001: claim FoMs on INFEASIBLE run cards are — (diagnostic) — not design claims."
+        ),
+        "cards": wm,
+    }
+    ui.download(
+        __import__("json").dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8"),
+        "systems_negotiation_transcript.json",
+    )

@@ -45,6 +45,13 @@ PUB_RUNNING_ATTRS = (
 
 SUITE_RUNNING_ATTRS = ("suite_running",)
 
+PD_RUNNING_ATTRS = (
+    "evaluating",
+    "phase_envelopes_running",
+    "uq_contract_running",
+    "pd_forensics_running",
+)
+
 FORGE_RUNNING_ATTRS = (
     "forge_mf_running",
     "forge_auditing",

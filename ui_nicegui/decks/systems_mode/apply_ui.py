@@ -39,7 +39,7 @@ def render_apply_panel(session: DesignSession, *, on_complete=None) -> None:
         "Applies iteration variables to PD inputs, then re-evaluates through the frozen Evaluator choke point."
     ).classes("text-caption q-mb-sm")
     try:
-        from ui_nicegui.lib.session_store import inputs_stale
+        from ui_nicegui.lib.pd_solver_helpers import inputs_stale
 
         if inputs_stale(session):
             ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")

@@ -192,7 +192,11 @@ def _artifact_view(art: dict, session: DesignSession) -> None:
 
     if session.cr_expert_view:
         with ui.expansion("Full artifact JSON", icon="data_object").classes("w-full"):
-            render_json_blob(art)
+            from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
+            render_json_blob(
+                watermark_run_artifact_export(art) if isinstance(art, dict) else art
+            )
 
 
 def _run_library(session: DesignSession) -> None:

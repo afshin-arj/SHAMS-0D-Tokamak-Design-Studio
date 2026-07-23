@@ -642,7 +642,10 @@ def render_authority_ledger(
 
     if expert:
         with ui.expansion("Plasma power ledger", icon="bolt").classes("w-full q-mt-sm"):
-            rows = power_ledger_badged_rows(point_out, include_radiation=True)
+            from ui_nicegui.lib.verdict_core import verdict_summary
+
+            feas = bool(verdict_summary(point_out if isinstance(point_out, dict) else {}).get("feasible"))
+            rows = power_ledger_badged_rows(point_out, include_radiation=True, feasible=feas)
             if rows:
                 ui.table(
                     columns=[

@@ -165,6 +165,7 @@ def test_watermark_pareto_artifact_export_masks_infeasible():
             {"feasible": False, "Q_DT_eqv": 8.0, "R0_m": 4.0, "outputs": {"Q": 8.0}},
             {"feasible": True, "Q_DT_eqv": 2.5, "R0_m": 5.0},
             {"verdict": "INFEASIBLE", "H98": 1.1},
+            {"Q_DT_eqv": 9.0, "H98": 1.2},  # missing feasibility → treat as infeasible
         ]
     }
     out = watermark_pareto_artifact_export(art)
@@ -173,7 +174,20 @@ def test_watermark_pareto_artifact_export_masks_infeasible():
     assert out["pareto"][0]["R0_m"] == 4.0
     assert "diagnostic" not in str(out["pareto"][1]["Q_DT_eqv"]).lower()
     assert "diagnostic" in str(out["pareto"][2]["H98"]).lower()
+    assert "diagnostic" in str(out["pareto"][3]["Q_DT_eqv"]).lower()
     assert "PHYS-KPI-001" in str(out.get("phys_kpi_note") or "")
+
+
+def test_claim_kpi_keys_include_pfus_dt_mw():
+    from ui_nicegui.lib.plant_kpi_honesty_ui import is_claim_kpi_key
+
+    assert is_claim_kpi_key("Pfus_DT_MW")
+    assert is_claim_kpi_key("Pfus_total_MW")
+
+
+def test_suite_power_ledger_passes_feasible():
+    src = Path("ui_nicegui/lib/suite_helpers.py").read_text(encoding="utf-8")
+    assert "power_ledger_badged_rows(point_out, include_radiation=True, feasible=feas)" in src
 
 
 def test_systems_export_ui_wires_watermark_run_artifact_for_pdfs():

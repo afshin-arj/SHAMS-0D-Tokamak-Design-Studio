@@ -10,13 +10,22 @@ from ui_nicegui.lib.systems_reproduce import json_structural_diff, regression_js
 from ui_nicegui.session import DesignSession
 
 
-def _restore_ui_state(session: DesignSession, payload: dict) -> None:
+def _restore_ui_state(session: DesignSession, payload: dict, *, run_id: str = "") -> None:
     ui_state = payload.get("ui_state") if isinstance(payload.get("ui_state"), dict) else {}
     for k, v in ui_state.items():
         if hasattr(session, k):
             setattr(session, k, v)
     if isinstance(payload, dict) and payload:
-        session.systems_last_solve_artifact = payload
+        art = dict(payload)
+        # Restored history is not a fresh Newton solve (provenance honesty).
+        prev_src = str(art.get("source") or "").strip()
+        if prev_src:
+            art["restored_source"] = prev_src
+        art["source"] = "systems_restored"
+        if run_id:
+            art["restored_from_run_id"] = run_id
+        session.systems_last_solve_artifact = art
+        session.systems_last_solve_result = None
 
 
 def render_reproduce_panel(session: DesignSession, *, on_change=None) -> None:
@@ -57,15 +66,19 @@ def render_reproduce_panel(session: DesignSession, *, on_change=None) -> None:
             if not payload:
                 ui.notify("Run has no stored artifact payload", type="warning")
                 return
-            _restore_ui_state(session, payload)
-            ui.notify(f"Restored run {rid}", type="positive")
+            _restore_ui_state(session, payload, run_id=rid)
+            ui.notify(f"Restored run {rid} as systems_restored (re-certify via Precheck/Solve).", type="positive")
             if on_change:
                 on_change()
 
         def _download_run() -> None:
+            from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
+
             rid = str(pick.value or session.systems_repro_pick)
             run = next((r for r in runs if r["id"] == rid), None)
             payload = (run or {}).get("payload") or {}
+            if isinstance(payload, dict):
+                payload = watermark_run_artifact_export(payload)
             ui.download(
                 json.dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8"),
                 f"{rid}.json",

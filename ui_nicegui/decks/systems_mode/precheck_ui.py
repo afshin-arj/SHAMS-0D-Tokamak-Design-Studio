@@ -61,7 +61,7 @@ def render_precheck_panel(
         "Monte Carlo over declared variable bounds via frozen Evaluator. Run before target solve."
     ).classes("text-caption text-grey q-mb-sm")
     try:
-        from ui_nicegui.lib.session_store import inputs_stale
+        from ui_nicegui.lib.pd_solver_helpers import inputs_stale
 
         if inputs_stale(session):
             ui.badge("STALE", color="orange").props("outline").classes("q-mb-xs")
