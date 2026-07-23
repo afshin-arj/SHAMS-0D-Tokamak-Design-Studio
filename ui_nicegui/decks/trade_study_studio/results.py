@@ -140,6 +140,9 @@ def _render_promote(session: DesignSession, pareto: list[dict], rep: dict) -> No
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)
-            ui.notify("Opened Point Designer Configure with study inputs.", type="positive")
+            ui.notify(
+                "Opened Point Designer Configure with study inputs — KPIs STALE until Evaluate Point.",
+                type="warning",
+            )
 
         ui.button("Promote to Point Designer", on_click=_promote).props("outline")

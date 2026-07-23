@@ -9,7 +9,6 @@ from nicegui import run, ui
 from ui_nicegui.decks.systems_mode import assumption_lock_ui
 from ui_nicegui.lib.helm_helpers import log_ui_event
 from ui_nicegui.lib.pd_input_guardrails import notify_input_guardrails
-from ui_nicegui.lib.session_store import set_point_evaluation
 from ui_nicegui.lib.systems_solve_helpers import run_systems_solve
 from ui_nicegui.lib.systems_state_helpers import append_journal, resolve_systems_problem, validate_systems_problem
 from ui_nicegui.lib.systems_target_banner import systems_target_rows
@@ -123,6 +122,11 @@ def render_solve_panel(
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.systems_solve_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        # HELM-BUSY-001: acquire paints chrome; re-paint after session flag for orphan labels.
+        refresh_status()
+        refresh_helm()
         try:
             try:
                 notify_input_guardrails(base_now, context="Systems Mode")
@@ -163,11 +167,8 @@ def render_solve_panel(
                 return
             session.systems_last_solve_result = result
             session.systems_last_solve_artifact = result.get("artifact")
-            inp = result.get("inp")
-            out = result.get("out")
-            if inp is not None and isinstance(out, dict):
-                inputs_dict = inp.to_dict() if hasattr(inp, "to_dict") else dict(session.inputs)
-                set_point_evaluation(session, outputs=out, inputs=inputs_dict)
+            # Propose-only: never overwrite Point Designer via set_point_evaluation here.
+            # Promote exclusively through tab 4 · Apply (re-eval + runlock + undo).
             append_run_card(
                 session,
                 kind="SystemsSolve",
@@ -196,13 +197,14 @@ def render_solve_panel(
                 )
             elif converged and feasible:
                 ui.notify(
-                    f"Target floors met (≥) and intent-feasible ({result.get('iters')} iter)",
+                    f"Target floors met (≥) and intent-feasible ({result.get('iters')} iter) — "
+                    "use 4 · Apply to promote into Point Designer.",
                     type="positive",
                 )
             else:
                 ui.notify(
                     f"{'Finished without meeting target floors (≥)' if not converged else 'Floors met, not intent-feasible'} "
-                    f"({result.get('iters')} iter)",
+                    f"({result.get('iters')} iter) — Point Designer baseline unchanged; use 4 · Apply to promote.",
                     type="warning",
                 )
             _solve_result.refresh()

@@ -505,6 +505,12 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
     busy_src = inspect.getsource(helm_console._session_or_lock_busy)
     assert "helm_verify_running" in busy_src
     assert "pd_forensics_running" in busy_src
+    assert "forge_mf_running" in busy_src
+    assert "suite_running" in busy_src
+    assert "pub_running" in busy_src
+    assert "Reactor Design Forge: Machine Finder" in busy_src
+    assert "System Suite campaign" in busy_src
+    assert "Publication Benchmarks" in busy_src
     banner = inspect.getsource(helm_console._render_run_lock_banner)
     assert "_RUN_START.clear()" in banner
     assert "HelmIntegrity" in inspect.getsource(helm_console._render_integrity_gate)
@@ -578,6 +584,126 @@ def test_run_lock_non_reentrant_and_helm_verify_busy() -> None:
     assert "(diag)" in vals.get("Q [-]", "")
     assert "(diag)" in vals.get("H98 [-]", "")
     assert "(diag)" not in vals.get("Ip [MA]", "8")
+
+
+def test_systems_solve_does_not_overwrite_point_designer() -> None:
+    """Target solve is propose-only — Apply is the sole PD promote path."""
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import solve_ui
+
+    src = inspect.getsource(solve_ui)
+    assert "from ui_nicegui.lib.session_store import set_point_evaluation" not in src
+    assert "set_point_evaluation(session" not in src
+    assert "4 · Apply" in src
+    assert "systems_last_solve_artifact" in src
+
+
+def test_tbr_validity_never_maps_proxy_flag_to_ok() -> None:
+    import inspect
+
+    from ui_nicegui.decks.point_designer import pd_physics_deepening as deep
+
+    src = inspect.getsource(deep)
+    assert 'tbr_disp = "proxy" if tv < 0.5 else "out_of_range"' in src
+    assert 'tbr_disp = "OK"' not in src
+
+
+def test_helm_reference_preset_clears_pd_eval() -> None:
+    import inspect
+
+    from ui_nicegui.components import helm_console
+
+    src = inspect.getsource(helm_console)
+    assert "clear_point_designer" in src
+    assert "KPIs cleared" in src or "STALE" in src or "Evaluate Point" in src
+
+
+def test_systems_audit_suppresses_claim_kpis_on_infeasible() -> None:
+    import inspect
+
+    from ui_nicegui.decks.systems_mode import audit_ui
+
+    src = inspect.getsource(audit_ui)
+    assert "— (diagnostic)" in src
+    assert 'f"{q_raw} (diag)"' not in src
+
+
+def test_systems_feasible_search_headline_l0_aliases() -> None:
+    import inspect
+
+    from ui_nicegui.lib import systems_workflow_helpers as swh
+
+    src = inspect.getsource(swh)
+    assert "Pfus_total_MW" in src
+    assert "P_net_e_MW" in src
+
+
+def test_run_lock_paints_helm_busy_chrome() -> None:
+    """HELM-BUSY-001: acquire/release must refresh Helm so Ready never lingers mid-shot."""
+    import inspect
+    from unittest.mock import patch
+
+    from ui_nicegui.lib import run_lock
+
+    src = inspect.getsource(run_lock)
+    assert "_paint_busy_chrome" in src
+    assert "HELM-BUSY-001" in src
+    assert "refresh_status" in src
+    assert "refresh_helm" in src
+
+    run_lock.force_clear()
+    with patch("ui_nicegui.lib.navigation.refresh_status") as rs, patch(
+        "ui_nicegui.lib.navigation.refresh_helm"
+    ) as rh:
+        assert run_lock.acquire("Scan Lab: Cartography", "ScanLab") is True
+        assert rs.call_count >= 1
+        assert rh.call_count >= 1
+        rs.reset_mock()
+        rh.reset_mock()
+        run_lock.release("ScanLab")
+        assert rs.call_count >= 1
+        assert rh.call_count >= 1
+
+    run_lock.force_clear()
+    with patch("ui_nicegui.lib.navigation.refresh_status") as rs, patch(
+        "ui_nicegui.lib.navigation.refresh_helm"
+    ) as rh:
+        assert run_lock.acquire("tmp", "T") is True
+        rs.reset_mock()
+        rh.reset_mock()
+        assert run_lock.force_clear() == "T"
+        assert rs.call_count >= 1
+        assert rh.call_count >= 1
+
+
+def test_helm_busy_labels_cover_forge_suite_pub() -> None:
+    from ui_nicegui.components.helm_console import _session_or_lock_busy, helm_status_caption
+    from ui_nicegui.lib.run_lock import force_clear
+    from ui_nicegui.session import DesignSession
+
+    force_clear()
+    s = DesignSession()
+    s.active_deck = "Reactor Design Forge"
+    s.forge_mf_running = True
+    busy, task, _ = _session_or_lock_busy(s)
+    assert busy is True
+    assert task and "Forge" in task
+    assert "Ready" not in helm_status_caption(s)
+    assert "Running" in helm_status_caption(s)
+
+    s.forge_mf_running = False
+    s.suite_running = True
+    s.active_deck = "System Suite"
+    _, task, _ = _session_or_lock_busy(s)
+    assert task and "Suite" in task
+
+    s.suite_running = False
+    s.pub_atlas_running = True
+    s.active_deck = "Publication Benchmarks"
+    _, task, _ = _session_or_lock_busy(s)
+    assert task and "Publication" in task
+    s.pub_atlas_running = False
 
 
 def test_compare_refresh_syncs_helm_chrome() -> None:

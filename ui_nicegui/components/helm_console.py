@@ -243,6 +243,17 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         return busy, "Point Designer: Phase envelopes", holder
     if getattr(session, "uq_contract_running", False):
         return busy, "Point Designer: Uncertainty contract", holder
+    if session.forge_mf_running:
+        return busy, "Reactor Design Forge: Machine Finder", holder
+    if session.suite_running:
+        return busy, "System Suite campaign", holder
+    if (
+        session.pub_running
+        or session.pub_atlas_running
+        or session.pub_atlas_fragility_running
+        or session.pub_bench_running
+    ):
+        return busy, "Publication Benchmarks", holder
     if session.evaluating:
         return busy, "Point Designer: Evaluate", holder
     return busy, task, holder
@@ -602,13 +613,21 @@ def _render_benchmark_vault(session: DesignSession) -> None:
                             apply_reference_preset_to_session(session, key)
                         else:
                             apply_legacy_reference_machine_to_session(session, key)
-                        log_ui_event(session, "UI", "ReferencePresetLoaded", {"preset": key})
-                        ui.notify(f"Loaded preset: {key}", type="positive")
-                        _helm_settings_section.refresh()
-                        from ui_nicegui.lib.navigation import refresh_current_deck
+                        from ui_nicegui.lib.navigation import refresh_current_deck, refresh_helm, refresh_status
                         from ui_nicegui.lib.pd_handoff import prepare_point_designer_handoff
+                        from ui_nicegui.lib.session_store import clear_point_designer
 
+                        # Inputs replaced — drop prior eval so Captain's Ledger cannot look current.
+                        clear_point_designer(session)
                         prepare_point_designer_handoff(session)
+                        log_ui_event(session, "UI", "ReferencePresetLoaded", {"preset": key})
+                        ui.notify(
+                            f"Loaded preset: {key} — prior Point Designer KPIs cleared; Evaluate Point before trusting posture.",
+                            type="warning",
+                        )
+                        _helm_settings_section.refresh()
+                        refresh_status()
+                        refresh_helm()
                         if session.active_deck == "Point Designer":
                             refresh_current_deck()
                     except Exception as exc:

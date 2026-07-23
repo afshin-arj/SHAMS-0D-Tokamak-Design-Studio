@@ -67,6 +67,10 @@ def render_licensing_tier2_pack(session: DesignSession) -> None:
             ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
             return
         session.pub_running = True
+        from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+        refresh_status()
+        refresh_helm()
         try:
             data = await run.io_bound(build_licensing_tier2_pack, session)
             session.pub_licensing_zip_bytes = data
@@ -78,6 +82,8 @@ def render_licensing_tier2_pack(session: DesignSession) -> None:
         finally:
             session.pub_running = False
             runlock_release("PublicationBenchmarks")
+            refresh_status()
+            refresh_helm()
 
     ui.button("Generate Tier 2 licensing pack", icon="folder_zip", on_click=_gen).props("outline q-mt-sm")
     _actions(session)

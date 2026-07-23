@@ -242,7 +242,10 @@ def _render_inspector(
             from ui_nicegui.lib.pd_handoff import navigate_to_point_designer
 
             navigate_to_point_designer(session)
-            ui.notify("Opened Point Designer Configure with probed cell inputs.", type="positive")
+            ui.notify(
+                "Opened Point Designer Configure with probed cell inputs — KPIs STALE until Evaluate Point.",
+                type="warning",
+            )
 
         ui.button("Promote to Point Designer", on_click=_promote).props("outline")
 
