@@ -20,10 +20,16 @@ def render_pack_orientation(*, default_open: bool = True) -> None:
         with ui.row().classes("w-full gap-4 q-mt-sm"):
             with ui.column().classes("flex-1"):
                 ui.label("Research machines").classes("text-subtitle2")
-                ui.label("Policy: Research intent · q95 hard · plant constraints diagnostic").classes("text-caption")
+                ui.label(
+                    "Policy: Research intent · q95_proxy hard (proxy) · plant constraints diagnostic — "
+                    "pack screening, not L0 FEASIBLE"
+                ).classes("text-caption")
                 ui.markdown("- ITER / JET / DIII-D / EAST / KSTAR / JT-60SA\n- SPARC / NSTX-U / MAST-U")
             with ui.column().classes("flex-1"):
                 ui.label("Reactor & pilot plants").classes("text-subtitle2")
-                ui.label("Policy: Reactor intent · full feasibility gates").classes("text-caption")
+                ui.label(
+                    "Policy: Reactor intent · full feasibility gates on each case — "
+                    "aggregate pack KPIs are still screening, not a single L0 Verdict"
+                ).classes("text-caption")
                 ui.markdown("- ARC / ARIES-class\n- EU DEMO · STEP prototype (as configured)")
         ui.label("Every run is replayable. Every table is traceable.").classes("text-caption text-grey q-mt-sm")

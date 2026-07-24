@@ -203,6 +203,10 @@ def _pack_view(session: DesignSession) -> None:
             ("Fragile frac", f"{100.0 * summ['fragile_frac']:.0f}%"),
             ("Fail frac", f"{100.0 * summ['fail_frac']:.0f}%"),
         ])
+        ui.label(
+            f"{summ.get('posture', 'PACK')} — blocking-pass fractions are case-set screening "
+            "(intent-gate) — not Point Designer L0 FEASIBLE/INFEASIBLE."
+        ).classes("text-caption text-grey q-mb-xs")
 
     if int(rc or 1) != 0 and not summ.get("loaded"):
         return
