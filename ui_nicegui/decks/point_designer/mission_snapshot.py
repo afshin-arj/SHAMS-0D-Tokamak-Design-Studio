@@ -145,8 +145,10 @@ def render_mission_snapshot(session: DesignSession) -> None:
 
     with ui.expansion("Model Scope & Assumptions", icon="description").classes("w-full"):
         ui.markdown(
-            "**Badges:** **Authoritative** = used in feasibility/constraints · "
-            "**Proxy** = approximate model · **Diagnostic** = non-blocking checks"
+            "**Badges:** **Authoritative** = L0 input / constraint driver "
+            "(not first-principles certification) · "
+            "**Proxy** = screening / empirical scaling / 0-D plant bookkeeping · "
+            "**Diagnostic** = non-blocking checks"
         ).classes("text-caption")
         ui.label("Assumptions snapshot (UI-level):").classes("text-subtitle2")
         render_json_blob(assumptions_snapshot(session))
