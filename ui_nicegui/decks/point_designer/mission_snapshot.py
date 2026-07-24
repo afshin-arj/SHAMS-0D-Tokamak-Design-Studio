@@ -4,6 +4,7 @@ from __future__ import annotations
 from nicegui import ui
 
 from ui_nicegui.components.kpi_row import kpi_row
+from ui_nicegui.components.verdict_banner import verdict_banner
 from ui_nicegui.decks.point_designer.pd_physics_deepening import DEEP_VIEWS, render_physics_deepening
 from ui_nicegui.lib.pd_hero_kpis import hero_diagnostic_notes, hero_kpi_cells
 from ui_nicegui.lib.pd_parity_helpers import (
@@ -30,6 +31,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     raw_telemetry_rows,
     regime_compass_rows,
 )
+from ui_nicegui.lib.pd_solver_helpers import inputs_stale
 from ui_nicegui.lib.verdict_core import verdict_summary
 from ui_nicegui.session import DesignSession
 from ui_nicegui.components.json_view import render_json_blob
@@ -44,6 +46,17 @@ def render_mission_snapshot(session: DesignSession) -> None:
     art = session.pd_last_artifact if isinstance(session.pd_last_artifact, dict) else {}
     rs = art.get("run_summary") if isinstance(art.get("run_summary"), dict) else {}
     headline = rs.get("headline") if isinstance(rs.get("headline"), dict) else {}
+
+    detail_bits = [f"Dominant: {summary.get('dominant', '-')}"]
+    if session.pd_last_run_ts and inputs_stale(session):
+        detail_bits.insert(0, "STALE — re-evaluate in Point Designer")
+    if bool(out.get("mirage_flag_v402")):
+        detail_bits.append("MIRAGE / credibility-fragile")
+    verdict_banner(
+        str(summary.get("verdict") or "UNKNOWN"),
+        detail=" · ".join(detail_bits),
+    )
+
     for note in hero_diagnostic_notes(
         out,
         summary,

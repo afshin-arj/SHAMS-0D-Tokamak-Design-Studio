@@ -22,10 +22,29 @@ def _pick(art: dict, paths: list[list[str]]) -> Any:
     return None
 
 
-def compact_next_action(*, verdict: str, dominant: str, step: str) -> str:
+def compact_next_action(
+    *,
+    verdict: str,
+    dominant: str,
+    step: str,
+    artifact_source: str = "",
+) -> str:
+    from ui_nicegui.lib.systems_artifact import PD_BASELINE_SOURCES, is_systems_result_source
+
     v = str(verdict or "").upper()
     stp = str(step or "")
     dom = str(dominant or "unknown")
+    src = str(artifact_source or "").strip()
+    # PD seed / Apply re-eval: never suggest Apply-as-closure as if Systems certified.
+    if src in PD_BASELINE_SOURCES or (src and not is_systems_result_source(src)):
+        if v in ("FEASIBLE", "PASS", "PASS+DIAG", "FEASIBLE+DIAG"):
+            return "Run Step ② target solve — this is a PD seed, not a Systems result."
+        if v in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NOSOLUTION"):
+            return (
+                f"Diagnose PD limiter ({dom}), then run Systems precheck / target solve — "
+                "do not Apply as Systems closure."
+            )
+        return "Run precheck, then target solve — PD baseline is not a Systems result."
     # "FEAS" matches INFEASIBLE — require exact FEASIBLE / PASS.
     if v in ("FEASIBLE", "PASS"):
         if "Explore" in stp or "trade" in stp.lower():
@@ -77,13 +96,18 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
     qval = diag if not feas else fmt(out.get("Q_DT_eqv", out.get("Q")))
     h98 = diag if not feas else fmt(out.get("H98", out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98")))))
 
-    src = str(art.get("source") or "") or "unknown"
+    from ui_nicegui.lib.systems_artifact import (
+        PD_BASELINE_SOURCES,
+        normalize_systems_artifact_source,
+    )
+
+    src = normalize_systems_artifact_source(art)
     lines = [
         "# Systems cockpit summary",
         "",
         f"- Artifact source: {src}",
     ]
-    if src in ("point_designer_fallback", "point_designer_apply", "systems_apply_reeval"):
+    if src in PD_BASELINE_SOURCES:
         lines.append(
             "- Note: Point Designer baseline / Apply re-eval — not a Systems Mode target solve."
         )
@@ -116,7 +140,7 @@ def build_compact_cockpit_markdown(session: Any, art: Optional[dict]) -> str:
             f"- n/n_GW: {fmt(out.get('fG', out.get('n_over_nGW')))}",
             "",
             "## Suggested next action (diagnostic only)",
-            f"- {compact_next_action(verdict=str(verdict), dominant=str(dom), step=str(step))}",
+            f"- {compact_next_action(verdict=str(verdict), dominant=str(dom), step=str(step), artifact_source=src)}",
         ]
     )
     return "\n".join(lines)

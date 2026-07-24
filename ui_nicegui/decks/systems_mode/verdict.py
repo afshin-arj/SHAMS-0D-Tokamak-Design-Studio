@@ -8,12 +8,15 @@ from ui_nicegui.components.json_view import render_json_blob
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.pd_intent_policy import classify_failed_constraints, design_intent_key
 from ui_nicegui.lib.systems_artifact import (
+    PD_BASELINE_SOURCES,
     constraint_mechanism,
     constraint_margin,
     constraint_name,
     constraint_status,
     extract_constraints,
     fmt,
+    is_systems_result_source,
+    normalize_systems_artifact_source,
     pick_first,
 )
 
@@ -112,13 +115,13 @@ def render_posture_strip(
 
     from ui_nicegui.components.verdict_banner import verdict_banner
 
-    src = str(art.get("source") or "")
+    src = normalize_systems_artifact_source(art)
     if src == "point_designer_fallback":
         ui.badge("POINT DESIGNER BASELINE", color="orange").props("outline").classes("q-mb-xs")
         ui.label(
             "This posture is the Point Designer evaluation — run Precheck / Target solve for a Systems Mode result."
         ).classes("text-caption text-orange q-mb-xs")
-    elif src == "point_designer_apply":
+    elif src in ("point_designer_apply", "systems_apply_reeval"):
         ui.badge("POINT DESIGNER APPLY (RE-EVAL)", color="orange").props("outline").classes("q-mb-xs")
         ui.label(
             "This artifact is an Apply → Point Designer re-evaluation — not a Systems target solve."
@@ -137,7 +140,7 @@ def render_posture_strip(
     detail_bits = []
     if src == "point_designer_fallback":
         detail_bits.append("PD baseline (not a Systems solve)")
-    elif src == "point_designer_apply":
+    elif src in ("point_designer_apply", "systems_apply_reeval"):
         detail_bits.append("PD Apply re-eval (not a Systems solve)")
     elif src == "systems_recovery":
         detail_bits.append("Systems recovery seed")
@@ -153,7 +156,21 @@ def render_posture_strip(
         detail_bits.append(f"Margin: {fmt(dom_margin)}")
     if next_action:
         detail_bits.append(f"Next: {next_action}")
-    verdict_banner(str(verdict or "UNKNOWN"), detail=" · ".join(detail_bits))
+
+    # Never paint green FEASIBLE/PASS as Systems closure for PD seeds.
+    vu = str(verdict or "UNKNOWN").upper()
+    if src in PD_BASELINE_SOURCES or not is_systems_result_source(src):
+        if vu in ("INFEASIBLE", "FAIL", "NO-SOLUTION", "NOSOLUTION"):
+            banner = "PD INFEASIBLE"
+        elif src in PD_BASELINE_SOURCES:
+            banner = "PD BASELINE"
+        else:
+            banner = "UNVERIFIED"
+        if vu and vu not in ("-", "UNKNOWN"):
+            detail_bits.insert(0, f"Underlying PD: {verdict}")
+        verdict_banner(banner, detail=" · ".join(detail_bits))
+    else:
+        verdict_banner(str(verdict or "UNKNOWN"), detail=" · ".join(detail_bits))
     if kpis.get("mirage"):
         ui.badge("MIRAGE / credibility-fragile", color="orange").props("outline").classes("q-mb-xs")
     kpi_row([
