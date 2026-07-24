@@ -5,7 +5,11 @@ from typing import List, Optional
 
 
 def local_cartography_figure(rows: list) -> Optional[object]:
-    """Plotly heatmap of feasible (1) vs infeasible (0) from cartography grid rows."""
+    """Plotly heatmap of blocking-OK (1) vs fail (0) from cartography grid rows.
+
+    Colors are blue/amber (Scan Lab cartography posture parity) — never PD hero
+    green/red FEASIBLE chrome.
+    """
     if not rows:
         return None
     try:
@@ -32,10 +36,10 @@ def local_cartography_figure(rows: list) -> Optional[object]:
             z=grid,
             x=xs,
             y=ys,
-            colorscale=[[0, "#c62828"], [1, "#2e7d32"]],
+            colorscale=[[0, "#ef6c00"], [1, "#1565c0"]],
             zmin=0,
             zmax=1,
-            colorbar=dict(title="Feasible"),
+            colorbar=dict(title="Blocking-OK<br>(intent)"),
         )
     )
     fig.update_layout(
@@ -43,7 +47,7 @@ def local_cartography_figure(rows: list) -> Optional[object]:
         margin=dict(l=48, r=20, t=36, b=48),
         xaxis_title="x",
         yaxis_title="y",
-        title="Local feasibility map",
+        title="Local cartography (intent blocking — not PD hero verdict)",
     )
     return fig
 

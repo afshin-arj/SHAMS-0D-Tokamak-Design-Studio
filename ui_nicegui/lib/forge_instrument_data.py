@@ -98,4 +98,19 @@ INSTRUMENT_CAPTIONS: dict[str, str] = {
     "Conflict atlas": "Accumulated constraint conflicts across runs — descriptive, not causal.",
     "Inverse design / Why not?": "Explain infeasibility and residual distance to declared targets.",
     "Silence mode": "Review-room calm — suppresses celebratory UI noise (display only).",
+    "Local cartography": (
+        "Local intent-blocking grid around a candidate — screening occupancy, "
+        "not Point Designer Verdict: FEASIBLE/INFEASIBLE."
+    ),
+    "Uncertainty (Monte Carlo)": (
+        "Input-jitter Monte Carlo blocking-OK rate — screening only, not L0 FEASIBLE "
+        "and not Scan Lab neighborhood Robust/Brittle."
+    ),
+    "Robustness envelope": (
+        "Archive envelope of blocking-OK points — screening geometry, not UQ certification."
+    ),
+    "Design-space verdicts": (
+        "Archive-neighborhood heuristics (Allowed / Forbidden / Undecidable) — "
+        "NOT L0 FEASIBLE/INFEASIBLE; not Point Designer Verdict."
+    ),
 }

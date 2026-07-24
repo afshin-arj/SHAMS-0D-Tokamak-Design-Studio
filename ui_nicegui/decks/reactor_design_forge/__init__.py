@@ -87,10 +87,24 @@ def _has_forge_workbench(session: DesignSession) -> bool:
     return isinstance(run, dict) and run.get("archive") is not None
 
 
+def _render_busy_strip(session: DesignSession) -> None:
+    """Deck-level busy chrome — remount-safe when returning mid-job (NAV-IMMEDIATE)."""
+    busy = [a for a in FORGE_RUNNING_ATTRS if getattr(session, a, False)]
+    if not busy:
+        return
+    with ui.card().classes("w-full p-2 bg-blue-1 text-blue-10 q-mb-sm"):
+        ui.label(f"Forge busy — {', '.join(busy)}").classes("text-subtitle2")
+        ui.label(
+            "Helm deck switch stays immediate (NAV-IMMEDIATE-001). "
+            "Guided / Expert / tab remounts are blocked until the job finishes."
+        ).classes("text-caption")
+
+
 def render_reactor_design_forge(session: DesignSession) -> None:
     ui.label("Reactor Design Forge").classes("text-h5")
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-sm")
     render_mode_scope("forge", default_open=False)
+    _render_busy_strip(session)
 
     art, _, point_out = get_point_artifact_triple(session)
     has_wb = _has_forge_workbench(session)
@@ -236,12 +250,21 @@ def _render_dashboard(session: DesignSession) -> None:
     summary = summarize_forge_state(session.forge_intent_compiler_last, session.forge_last_audit)
     wb = summarize_workbench_run(session.forge_workbench_run)
     if wb.get("loaded"):
+        n_ok = wb.get("n_feasible_archive")
+        n_all = wb.get("n_archive")
+        prior_l0 = summary.get("audit_feasible")
         summary = {
-            **summary,
+            **{k: v for k, v in summary.items() if k != "audit_feasible"},
             "loaded": True,
             "workbench_loaded": True,
-            "audit_verdict": f"Archive {wb.get('n_feasible_archive')}/{wb.get('n_archive')} feasible",
+            "screening_posture": "ARCHIVE SCREENING",
+            "n_feasible_archive": n_ok,
+            "n_archive": n_all,
+            "audit_verdict": (
+                f"Archive blocking-OK {n_ok}/{n_all} (screening — not L0 hero)"
+            ),
             "dominant": wb.get("top_blocker") or wb.get("dominant_resistance") or summary.get("dominant"),
+            "l0_audit_feasible": prior_l0,
         }
     verdict.render_forge_dashboard(summary)
 

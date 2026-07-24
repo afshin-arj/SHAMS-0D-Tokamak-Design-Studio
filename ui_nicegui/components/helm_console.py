@@ -95,16 +95,26 @@ def _read_log_tail(session: DesignSession) -> str:
 
 def _on_expert_mode(session: DesignSession, enabled: bool) -> None:
     apply_expert_mode(session, enabled)
-    from ui_nicegui.lib.deck_busy_guard import SCAN_RUNNING_ATTRS
+    from ui_nicegui.lib.deck_busy_guard import FORGE_RUNNING_ATTRS, SCAN_RUNNING_ATTRS
     from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
 
     # Deck bodies that hide expert panels need a remount/refresh to pick up the flag.
-    # Do not tear down Scan Lab progress chrome mid-job (busy remount / SCAN_RUNNING_ATTRS).
+    # Do not tear down Scan Lab / Forge progress chrome mid-job.
     if session.active_deck == "Scan Lab" and any(
         getattr(session, a, False) for a in SCAN_RUNNING_ATTRS
     ):
         ui.notify(
             "Scan Lab job running — Expert mode saved; deck remount deferred until idle.",
+            type="warning",
+        )
+        refresh_helm()
+        refresh_status()
+        return
+    if session.active_deck == "Reactor Design Forge" and any(
+        getattr(session, a, False) for a in FORGE_RUNNING_ATTRS
+    ):
+        ui.notify(
+            "Forge job running — Expert mode saved; deck remount deferred until idle.",
             type="warning",
         )
         refresh_helm()
@@ -117,7 +127,7 @@ def _on_expert_mode(session: DesignSession, enabled: bool) -> None:
 
 def _on_guided_mode(session: DesignSession, enabled: bool) -> None:
     apply_guided_mode(session, enabled)
-    from ui_nicegui.lib.deck_busy_guard import SCAN_RUNNING_ATTRS
+    from ui_nicegui.lib.deck_busy_guard import FORGE_RUNNING_ATTRS, SCAN_RUNNING_ATTRS
     from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
 
     if session.active_deck == "Scan Lab" and any(
@@ -125,6 +135,16 @@ def _on_guided_mode(session: DesignSession, enabled: bool) -> None:
     ):
         ui.notify(
             "Scan Lab job running — Guided mode saved; deck remount deferred until idle.",
+            type="warning",
+        )
+        refresh_helm()
+        refresh_status()
+        return
+    if session.active_deck == "Reactor Design Forge" and any(
+        getattr(session, a, False) for a in FORGE_RUNNING_ATTRS
+    ):
+        ui.notify(
+            "Forge job running — Guided mode saved; deck remount deferred until idle.",
             type="warning",
         )
         refresh_helm()
@@ -295,6 +315,12 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
         return busy, "Point Designer: Uncertainty contract", holder
     if session.forge_mf_running:
         return busy, "Reactor Design Forge: Machine Finder", holder
+    if getattr(session, "forge_instrument_running", False):
+        return busy, "Reactor Design Forge: Instruments", holder
+    if getattr(session, "forge_compiling", False):
+        return busy, "Reactor Design Forge: Compile", holder
+    if getattr(session, "forge_auditing", False):
+        return busy, "Reactor Design Forge: Audit", holder
     if session.suite_running:
         return busy, "System Suite campaign", holder
     if (
