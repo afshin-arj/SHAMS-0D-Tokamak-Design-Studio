@@ -1036,12 +1036,18 @@ def _inst_local_cartography(ctx: ForgeContext) -> InstrumentView:
     if df is None:
         return InstrumentView(caption="Configure axes and click **Run local cartography** above.")
     if isinstance(df, list):
-        return InstrumentView(table_rows=df, table_columns=[
-            {"name": "x", "label": "x", "field": "x"},
-            {"name": "y", "label": "y", "field": "y"},
-            {"name": "feasible", "label": "OK", "field": "feasible"},
-            {"name": "min_margin", "label": "Margin", "field": "min_margin"},
-        ])
+        return InstrumentView(
+            caption=(
+                "Screening grid of intent blocking-OK cells — not a single L0 design verdict."
+            ),
+            table_rows=df,
+            table_columns=[
+                {"name": "x", "label": "x", "field": "x"},
+                {"name": "y", "label": "y", "field": "y"},
+                {"name": "feasible", "label": "Blocking-OK", "field": "feasible"},
+                {"name": "min_margin", "label": "Margin", "field": "min_margin"},
+            ],
+        )
     return InstrumentView(json_blob=df)
 
 
@@ -1088,11 +1094,17 @@ def run_local_cartography(ctx: ForgeContext, session: DesignSession) -> list:
 def _inst_monte_carlo(ctx: ForgeContext) -> InstrumentView:
     res = ctx.session.forge_uq_result
     if not isinstance(res, dict):
-        return InstrumentView(caption="Configure samples and click **Run robustness Monte Carlo** above.")
+        return InstrumentView(
+            caption="Configure samples and click **Run screening Monte Carlo (blocking-OK)** above."
+        )
     return InstrumentView(
+        caption=(
+            "Monte Carlo input jitter around archive candidate — screening p(blocking-OK), "
+            "not L0 FEASIBLE and not Scan Lab neighborhood Robust/Brittle."
+        ),
         kpis=[
-            ("Feasible rate", f"{100 * float(res.get('feasible_rate', 0)):.1f}%"),
-            ("N feasible", str(res.get("n_feasible", "-"))),
+            ("Blocking-OK rate (MC screening)", f"{100 * float(res.get('feasible_rate', 0)):.1f}%"),
+            ("N blocking-OK samples", str(res.get("n_feasible", "-"))),
         ],
         json_blob=res,
     )
@@ -1332,7 +1344,16 @@ def _inst_design_verdicts(ctx: ForgeContext) -> InstrumentView:
             v = candidate_verdict(cand, ctx.filtered_archive or ctx.archive, ctx.var_keys or ["R0_m"])
             cv = {"label": v.label, "confidence": v.confidence, "rationale": v.rationale}
         rv = region_verdict(ctx.trace)
-        return InstrumentView(json_blob={"candidate": cv, "region": {"label": rv.label, "confidence": rv.confidence, "rationale": rv.rationale}})
+        return InstrumentView(
+            caption=(
+                "Neighborhood / region heuristics (Allowed / Forbidden / Undecidable) — "
+                "NOT L0 FEASIBLE/INFEASIBLE; not Point Designer Verdict."
+            ),
+            json_blob={
+                "candidate": cv,
+                "region": {"label": rv.label, "confidence": rv.confidence, "rationale": rv.rationale},
+            },
+        )
     except Exception as exc:
         return InstrumentView(error=str(exc))
 

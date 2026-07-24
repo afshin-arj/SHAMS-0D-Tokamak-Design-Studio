@@ -14,6 +14,8 @@ _NON_L0_POSTURE_TOKENS = frozenset(
         "MODERATE SLICE",
         "SPARSE SLICE",
         "NEAR-EMPTY SLICE",
+        "ARCHIVE SCREENING",
+        "BLOCKING-OK SCREENING",
     }
 )
 
@@ -63,6 +65,8 @@ def verdict_banner(
         "MODERATE SLICE": "bg-blue-1 text-blue-10",
         "SPARSE SLICE": "bg-amber-1 text-orange-10",
         "NEAR-EMPTY SLICE": "bg-amber-1 text-orange-10",
+        "ARCHIVE SCREENING": "bg-blue-1 text-blue-10",
+        "BLOCKING-OK SCREENING": "bg-blue-1 text-blue-10",
         "UNKNOWN": "bg-grey-2",
     }.get(p, "bg-grey-2")
     with ui.card().classes(f"w-full p-3 {style}"):

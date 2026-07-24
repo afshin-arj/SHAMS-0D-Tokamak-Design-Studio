@@ -133,9 +133,10 @@ def _render_archive_overview(session: DesignSession, run_rep: dict, archive: lis
         session.forge_scatter_y = axis_opts[min(1, len(axis_opts) - 1)]
 
     ui.label("Archive scatter").classes("text-subtitle2")
-    ui.label("Green = feasible · Red = infeasible (non-claim axes only) · Star = dominant archive member").classes(
-        "text-caption"
-    )
+    ui.label(
+        "Blue = blocking-OK · Amber = blocking-fail "
+        "(archive screening — not PD Verdict) · Star = dominant archive member"
+    ).classes("text-caption")
     claim_cap = scatter_physkpi_caption(
         session.forge_scatter_x, session.forge_scatter_y, show_infeasible=True
     )
@@ -206,7 +207,7 @@ def _render_scatter(archive: list, x_key: str, y_key: str) -> None:
         xs.append(float(xv))
         ys.append(float(yv))
         dom = bool(a.get("is_dominant", False))
-        colors.append("#2e7d32" if ok else "#c62828")
+        colors.append("#1565c0" if ok else "#ef6c00")
         sizes.append(14 if dom else 8)
         texts.append(f"#{i} · {a.get('failure_mode') or 'OK'}")
 

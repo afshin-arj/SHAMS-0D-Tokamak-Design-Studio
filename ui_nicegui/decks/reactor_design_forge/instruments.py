@@ -176,6 +176,10 @@ def _render_body(session: DesignSession, *, review_mode: bool = False) -> None:
     if tool == "Local cartography" and session.forge_localcart_df:
         from ui_nicegui.lib.forge_viz_helpers import local_cartography_figure
 
+        ui.label(
+            "Local cartography: per-cell ui_evaluate / intent blocking — "
+            "map occupancy ≠ Point Designer Verdict: FEASIBLE/INFEASIBLE."
+        ).classes("text-caption text-orange q-mb-xs")
         rows = session.forge_localcart_df if isinstance(session.forge_localcart_df, list) else []
         fig = local_cartography_figure(rows)
         if fig:
@@ -185,10 +189,13 @@ def _render_body(session: DesignSession, *, review_mode: bool = False) -> None:
 def _render_archive_filters(session: DesignSession) -> None:
     with ui.expansion("Archive filters (apply to instruments)", icon="filter_list").classes("w-full q-mb-sm"):
         ui.checkbox(
-            "Keep only margin ≥ 0",
+            "Keep only min signed margin ≥ 0 (blocking-OK filter)",
             value=session.forge_filter_robust,
             on_change=lambda e: setattr(session, "forge_filter_robust", bool(e.value)),
         )
+        ui.label(
+            "Archive filter only — not Scan Lab neighborhood Robust / Brittle labels."
+        ).classes("text-caption text-grey q-mb-xs")
         ui.number(
             "Min score (optional)",
             value=session.forge_filter_min_score if session.forge_filter_min_score > -1e29 else None,
@@ -388,7 +395,11 @@ def _monte_carlo_controls(session: DesignSession, ctx: ForgeContext, review_mode
             if lease_valid(lease):
                 runlock_release(FORGE_RUNLOCK_OWNER, lease)
 
-    ui.button("Run robustness Monte Carlo", icon="casino", on_click=_run_uq).props("outline q-mb-sm")
+    ui.button(
+        "Run screening Monte Carlo (blocking-OK)",
+        icon="casino",
+        on_click=_run_uq,
+    ).props("outline q-mb-sm")
 
 
 def _casebook_controls(session: DesignSession, ctx: ForgeContext, review_mode: bool) -> None:
