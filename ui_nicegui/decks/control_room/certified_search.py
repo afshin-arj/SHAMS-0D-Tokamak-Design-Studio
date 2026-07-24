@@ -1,23 +1,24 @@
 """Control Room — certified search orchestrator (Chronicle).
 
-Honesty: Proposed — SHAMS-certified (Phase 1.3); VERIFIED vs REJECTED + atlas note.
+Honesty: Proposed — SHAMS-certified; budgeted search re-eval → L0 PASS / FAIL
+(not CCFS VERIFIED until shortlist re-certify).
 """
 from __future__ import annotations
 
 from nicegui import run, ui
 
 from ui_nicegui.components.certified_opt_honesty_banner import (
-    render_atlas_reject_note,
     render_certified_opt_honesty_banner,
 )
 from ui_nicegui.components.empty_state import empty_state
 from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.certified_opt_honesty import (
     BEST_PROPOSED_LABEL,
-    REJECTED_KPI_LABEL,
-    VERIFIED_KPI_LABEL,
+    CERTIFIED_SEARCH_FAIL_ATLAS_NOTE,
+    FAIL_KPI_LABEL,
+    PASS_KPI_LABEL,
     counts_from_pass_fail_rows,
-    format_verified_rejected_counts,
+    format_pass_fail_counts,
 )
 from ui_nicegui.lib.control_room_helpers import report_to_json_bytes
 from ui_nicegui.lib.cr_chronicle_helpers import (
@@ -44,7 +45,9 @@ _KNOB_OPTIONS = [
 def render_certified_search(session: DesignSession) -> None:
     ui.label("Certified Search").classes("text-subtitle1")
     ui.label(
-        "Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator."
+        "Budgeted multi-knob search (external to truth). Each candidate is "
+        "re-evaluated by frozen L0 → PASS/FAIL (governance hard-feasible) — "
+        "not CCFS VERIFIED until shortlist re-certify."
     ).classes("text-caption q-mb-sm")
     render_certified_opt_honesty_banner("certified_search")
 
@@ -72,7 +75,7 @@ def render_certified_search(session: DesignSession) -> None:
     ).classes("w-full")
     objective = ui.select(
         ["Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW"],
-        label="Score objective (VERIFIED / PASS-only ranking)",
+        label="Score objective (L0 PASS-only ranking)",
         value="Q_DT_eqv",
     ).classes("w-full")
 
@@ -161,8 +164,8 @@ def render_certified_search(session: DesignSession) -> None:
                 n_pass += sum(1 for r in recs if r.get("verdict") == "PASS")
             n_rej = max(0, n_tot - n_pass)
             ui.notify(
-                f"Certified search done — {format_verified_rejected_counts(n_verified=n_pass, n_rejected=n_rej, n_candidates=n_tot)}",
-                type="positive",
+                f"Certified search done — {format_pass_fail_counts(n_pass=n_pass, n_fail=n_rej, n_candidates=n_tot)}",
+                type="info",
             )
             _results.refresh(session)
         except Exception as exc:
@@ -183,7 +186,7 @@ def render_certified_search(session: DesignSession) -> None:
             from ui_nicegui.lib.cr_artifacts_helpers import watermark_run_artifact_export
 
             export = watermark_run_artifact_export(art)
-            # PHYS-KPI-001: watermark nested stage/record claim KPIs on REJECTED rows.
+            # PHYS-KPI-001: watermark nested stage/record claim KPIs on FAIL rows.
             stages_out = []
             has_infeasible = False
             for stg in export.get("stages") or []:
@@ -208,7 +211,7 @@ def render_certified_search(session: DesignSession) -> None:
                     export["best"] = wm[0] if wm else best
             if has_infeasible:
                 export["phys_kpi_note"] = (
-                    "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are "
+                    "PHYS-KPI-001: claim KPIs / scores on FAIL rows are "
                     "— (diagnostic) — not design claims."
                 )
 
@@ -226,7 +229,7 @@ def render_certified_search(session: DesignSession) -> None:
 
 
 def watermark_certified_search_rows(rows: list) -> list[dict]:
-    """PHYS-KPI-001: suppress claim KPIs on REJECTED / FAIL certified-search rows."""
+    """PHYS-KPI-001: suppress claim KPIs on FAIL / non-PASS certified-search rows."""
     from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
 
     out_rows: list[dict] = []
@@ -293,26 +296,26 @@ def _results(session: DesignSession) -> None:
     if not isinstance(art, dict) or not art.get("schema_version"):
         return
     rows = flatten_certified_search_table_rows(art)
-    n_verified, n_rejected = counts_from_pass_fail_rows(rows)
+    n_pass, n_fail = counts_from_pass_fail_rows(rows)
     kpi_row(
         [
             ("Candidates", str(len(rows))),
-            (VERIFIED_KPI_LABEL, str(n_verified)),
-            (REJECTED_KPI_LABEL, str(n_rejected)),
+            (PASS_KPI_LABEL, str(n_pass)),
+            (FAIL_KPI_LABEL, str(n_fail)),
             ("Digest", str(art.get("digest", "-"))[:12]),
         ]
     )
     ui.label(
-        format_verified_rejected_counts(
-            n_verified=n_verified,
-            n_rejected=n_rejected,
+        format_pass_fail_counts(
+            n_pass=n_pass,
+            n_fail=n_fail,
             n_candidates=len(rows),
         )
     ).classes("text-caption q-mb-xs")
-    if n_rejected > 0:
-        render_atlas_reject_note()
+    if n_fail > 0:
+        ui.label(CERTIFIED_SEARCH_FAIL_ATLAS_NOTE).classes("text-caption text-grey q-mb-xs")
         ui.label(
-            "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are — (diagnostic) — not design claims."
+            "PHYS-KPI-001: claim KPIs / scores on FAIL rows are — (diagnostic) — not design claims."
         ).classes("text-caption text-orange q-mb-xs")
     if rows:
         display = watermark_certified_search_rows(rows[:100])
@@ -333,7 +336,7 @@ def _results(session: DesignSession) -> None:
                 wm = watermark_certified_search_rows([best])
                 render_json_blob(wm[0] if wm else best)
                 ui.label(
-                    "PHYS-KPI-001: best blob claim FoMs watermarked — not VERIFIED design claims."
+                    "PHYS-KPI-001: best blob claim FoMs watermarked — not L0 PASS design claims."
                 ).classes("text-caption text-orange")
 
         def _promote_best() -> None:
@@ -349,7 +352,8 @@ def _results(session: DesignSession) -> None:
             navigate_to_point_designer(session)
             ui.notify(
                 f"Promoted {n} certified-search knobs → Point Designer — "
-                "prior KPIs cleared; Evaluate Point to re-certify.",
+                "prior KPIs cleared; seed is L0 PASS screening (not CCFS VERIFIED); "
+                "Evaluate Point to re-certify.",
                 type="warning",
             )
 
@@ -370,7 +374,7 @@ def _results(session: DesignSession) -> None:
                 wm = watermark_certified_search_rows([best])
                 export["best"] = wm[0] if wm else best
         export["phys_kpi_note"] = (
-            "PHYS-KPI-001: claim KPIs / scores on REJECTED rows are "
+            "PHYS-KPI-001: claim KPIs / scores on FAIL rows are "
             "— (diagnostic) — not design claims."
         )
         ui.download(report_to_json_bytes(export), "certified_search.json")

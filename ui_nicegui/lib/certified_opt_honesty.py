@@ -44,16 +44,25 @@ PARETO_LAB_HONESTY = (
 
 CERTIFIED_SEARCH_HONESTY = (
     f"{PROPOSED_CERTIFIED} — Certified Search is budgeted multi-knob propose-only; "
-    "each candidate is frozen-re-eval'd. " + VERIFIED_REJECTED_ATLAS_LINE
+    "each candidate is frozen-re-eval'd to L0 PASS / FAIL (governance hard-feasible). "
+    "FAIL rows carry NO-SOLUTION atlas attribution. "
+    "CCFS VERIFIED vs REJECTED applies only after shortlist re-certify — "
+    "PASS counts are not VERIFIED."
 )
 
-# Results panel labels (Certified Search).
+# Results panel labels (Certified Search = L0 PASS/FAIL; CCFS keeps VERIFIED/REJECTED).
 BEST_PROPOSED_LABEL = f"Best {PROPOSED_CERTIFIED} candidate"
+PASS_KPI_LABEL = "L0 PASS"
+FAIL_KPI_LABEL = "FAIL"
 VERIFIED_KPI_LABEL = "VERIFIED"
 REJECTED_KPI_LABEL = "REJECTED"
 ATLAS_REJECT_NOTE = (
-    "REJECTED / infeasible candidates: inspect NO-SOLUTION atlas mechanism attribution "
+    "REJECTED / FAIL candidates: inspect NO-SOLUTION atlas mechanism attribution "
     "(do not treat FoM as overriding hard constraints)."
+)
+CERTIFIED_SEARCH_FAIL_ATLAS_NOTE = (
+    "FAIL / hard-fail candidates: inspect NO-SOLUTION atlas mechanism attribution "
+    "(L0 PASS/FAIL screening — not CCFS REJECTED)."
 )
 
 REQUIRED_PHRASES: List[str] = [
@@ -118,9 +127,12 @@ def all_honesty_user_facing_texts() -> List[str]:
         PARETO_LAB_HONESTY,
         CERTIFIED_SEARCH_HONESTY,
         BEST_PROPOSED_LABEL,
+        PASS_KPI_LABEL,
+        FAIL_KPI_LABEL,
         VERIFIED_KPI_LABEL,
         REJECTED_KPI_LABEL,
         ATLAS_REJECT_NOTE,
+        CERTIFIED_SEARCH_FAIL_ATLAS_NOTE,
     ]
 
 
@@ -142,7 +154,11 @@ def format_verified_rejected_counts(
     n_rejected: int,
     n_candidates: int | None = None,
 ) -> str:
-    """One-line VERIFIED / REJECTED summary (no version tags)."""
+    """One-line CCFS VERIFIED / REJECTED summary (no version tags).
+
+    Use only for true CCFS / Opt Lab stamp counts — never for Certified Search
+    L0 PASS/FAIL screening.
+    """
     total = n_candidates if n_candidates is not None else (n_verified + n_rejected)
     return (
         f"{VERIFIED_KPI_LABEL}={int(n_verified)} · "
@@ -151,17 +167,39 @@ def format_verified_rejected_counts(
     )
 
 
+def format_pass_fail_counts(
+    *,
+    n_pass: int,
+    n_fail: int,
+    n_candidates: int | None = None,
+) -> str:
+    """One-line L0 PASS / FAIL summary for Certified Search screening."""
+    total = n_candidates if n_candidates is not None else (n_pass + n_fail)
+    return (
+        f"{PASS_KPI_LABEL}={int(n_pass)} · "
+        f"{FAIL_KPI_LABEL}={int(n_fail)} · "
+        f"candidates={int(total)} — {PROPOSED_CERTIFIED} "
+        f"(frozen re-eval; not CCFS VERIFIED)"
+    )
+
+
 def counts_from_pass_fail_rows(rows: Sequence[Mapping[str, object]]) -> tuple[int, int]:
-    """Map legacy PASS/FAIL rows to VERIFIED/REJECTED counts."""
-    n_ok = 0
-    n_bad = 0
+    """Count L0 PASS vs FAIL from Certified Search rows.
+
+    Returns ``(n_pass, n_fail)``. Does **not** mean CCFS VERIFIED/REJECTED —
+    orchestrator emits PASS/FAIL from frozen governance hard-feasibility only.
+    """
+    n_pass = 0
+    n_fail = 0
     for row in rows:
         verdict = str(row.get("verdict") or row.get("status") or "").upper()
-        if verdict in ("PASS", "VERIFIED", "FEASIBLE", "OK"):
-            n_ok += 1
+        # PASS is the orchestrator truth; FEASIBLE/OK/VERIFIED accepted defensively
+        # as hard-pass but still counted as L0 PASS, never as CCFS VERIFIED KPI.
+        if verdict in ("PASS", "FEASIBLE", "OK", "VERIFIED"):
+            n_pass += 1
         else:
-            n_bad += 1
-    return n_ok, n_bad
+            n_fail += 1
+    return n_pass, n_fail
 
 
 def scan_file_texts(repo_root: Path) -> List[tuple[str, str]]:

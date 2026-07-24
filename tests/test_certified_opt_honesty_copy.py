@@ -119,18 +119,21 @@ def test_certified_search_results_honesty_labels() -> None:
         ROOT / "ui_nicegui" / "decks" / "control_room" / "certified_search.py"
     ).read_text(encoding="utf-8")
     assert "BEST_PROPOSED_LABEL" in nice
-    assert "VERIFIED_KPI_LABEL" in nice
-    assert "REJECTED_KPI_LABEL" in nice
-    assert "render_atlas_reject_note" in nice
+    assert "PASS_KPI_LABEL" in nice
+    assert "FAIL_KPI_LABEL" in nice
+    assert "format_pass_fail_counts" in nice
+    assert "VERIFIED_KPI_LABEL" not in nice
+    assert "format_verified_rejected_counts" not in nice
     assert "Best PASS candidate" not in nice
+    assert "not CCFS VERIFIED" in nice
 
     streamlit = (ROOT / "ui" / "decks" / "control_room.py").read_text(encoding="utf-8")
     # Certified Search block must share honesty labels (Streamlit parity).
     assert "BEST_PROPOSED_LABEL" in streamlit
-    assert "VERIFIED_KPI_LABEL" in streamlit
-    assert "REJECTED_KPI_LABEL" in streamlit
-    assert "ATLAS_REJECT_NOTE" in streamlit
-    assert "format_verified_rejected_counts" in streamlit
+    assert "PASS_KPI_LABEL" in streamlit
+    assert "FAIL_KPI_LABEL" in streamlit
+    assert "format_pass_fail_counts" in streamlit
+    assert "CERTIFIED_SEARCH_FAIL_ATLAS_NOTE" in streamlit
     assert "Best PASS candidate" not in streamlit
     assert "PASS found:" not in streamlit
 
@@ -138,18 +141,26 @@ def test_certified_search_results_honesty_labels() -> None:
 def test_counts_helper() -> None:
     from ui_nicegui.lib.certified_opt_honesty import (
         counts_from_pass_fail_rows,
+        format_pass_fail_counts,
         format_verified_rejected_counts,
     )
 
-    n_ok, n_bad = counts_from_pass_fail_rows(
+    n_pass, n_fail = counts_from_pass_fail_rows(
         [{"verdict": "PASS"}, {"verdict": "FAIL"}, {"verdict": "PASS"}]
     )
-    assert (n_ok, n_bad) == (2, 1)
-    summary = format_verified_rejected_counts(n_verified=2, n_rejected=1, n_candidates=3)
-    assert "VERIFIED=2" in summary
-    assert "REJECTED=1" in summary
-    assert "Proposed — SHAMS-certified" in summary
-    assert not _VERSION_TAG.search(summary)
+    assert (n_pass, n_fail) == (2, 1)
+    screening = format_pass_fail_counts(n_pass=2, n_fail=1, n_candidates=3)
+    assert "L0 PASS=2" in screening
+    assert "FAIL=1" in screening
+    assert "not CCFS VERIFIED" in screening
+    assert "VERIFIED=" not in screening
+    assert "Proposed — SHAMS-certified" in screening
+    assert not _VERSION_TAG.search(screening)
+
+    # CCFS formatter remains for true VERIFIED paths.
+    ccfs = format_verified_rejected_counts(n_verified=2, n_rejected=1, n_candidates=3)
+    assert "VERIFIED=2" in ccfs
+    assert "REJECTED=1" in ccfs
 
 
 def test_systems_mode_post_solve_labels_unversioned() -> None:

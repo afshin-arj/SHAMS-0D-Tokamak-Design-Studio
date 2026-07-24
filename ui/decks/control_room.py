@@ -2941,19 +2941,21 @@ This panel also performs a lightweight hygiene scan of the working tree.
     # --- Control Room block 31 (was app.py lines 5899..6226) ---
     with tab_cert_search:
         st.header("Certified Search")
-        st.caption("Budgeted multi-knob search (external to truth). Each candidate is verified by the frozen evaluator.")
+        st.caption(
+            "Budgeted multi-knob search (external to truth). Each candidate is "
+            "re-evaluated by frozen L0 → PASS/FAIL — not CCFS VERIFIED until shortlist re-certify."
+        )
         from ui_nicegui.lib.certified_opt_honesty import (
-            ATLAS_REJECT_NOTE,
             BEST_PROPOSED_LABEL,
+            CERTIFIED_SEARCH_FAIL_ATLAS_NOTE,
             CERTIFIED_SEARCH_HONESTY,
-            REJECTED_KPI_LABEL,
-            VERIFIED_KPI_LABEL,
-            VERIFIED_REJECTED_ATLAS_LINE,
-            format_verified_rejected_counts,
+            FAIL_KPI_LABEL,
+            PASS_KPI_LABEL,
+            format_pass_fail_counts,
         )
 
         st.warning(CERTIFIED_SEARCH_HONESTY)
-        st.caption(VERIFIED_REJECTED_ATLAS_LINE)
+        st.caption(CERTIFIED_SEARCH_FAIL_ATLAS_NOTE)
 
         from dataclasses import replace
         from solvers.budgeted_search import SearchVar
@@ -2997,7 +2999,7 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 )
             with cols[2]:
                 objective = st.selectbox(
-                    "Score objective (VERIFIED / PASS-only ranking)",
+                    "Score objective (L0 PASS-only ranking)",
                     ["Q_DT_eqv", "P_fus_MW", "P_net_MW"],
                     index=0,
                     key="cs_single_obj",
@@ -3188,9 +3190,9 @@ This panel also performs a lightweight hygiene scan of the working tree.
                     except Exception:
                         pass
                     n_rej = max(0, int(n_tot) - int(n_pass))
-                    st.success(
+                    st.info(
                         f"Done. Digest: {str(art.get('digest',''))[:12]} | "
-                        f"{format_verified_rejected_counts(n_verified=n_pass, n_rejected=n_rej, n_candidates=n_tot)}"
+                        f"{format_pass_fail_counts(n_pass=n_pass, n_fail=n_rej, n_candidates=n_tot)}"
                     )
 
             art = st.session_state.get("v340_cert_search_last")
@@ -3201,21 +3203,21 @@ This panel also performs a lightweight hygiene scan of the working tree.
                 for stg in art.get("stages", []):
                     for r in stg.get("records", []):
                         rows.append({"stage": stg.get("name"), "i": r.get("i"), "verdict": r.get("verdict"), "score": r.get("score"), **(r.get("x") or {}), **{f"e_{k}": v for k, v in (r.get("evidence") or {}).items()}})
-                n_verified = sum(1 for r in rows if str(r.get("verdict", "")).upper() == "PASS")
-                n_rejected = max(0, len(rows) - n_verified)
+                n_pass = sum(1 for r in rows if str(r.get("verdict", "")).upper() == "PASS")
+                n_fail = max(0, len(rows) - n_pass)
                 c_v, c_r, c_n = st.columns(3)
-                c_v.metric(VERIFIED_KPI_LABEL, n_verified)
-                c_r.metric(REJECTED_KPI_LABEL, n_rejected)
+                c_v.metric(PASS_KPI_LABEL, n_pass)
+                c_r.metric(FAIL_KPI_LABEL, n_fail)
                 c_n.metric("Candidates", len(rows))
                 st.caption(
-                    format_verified_rejected_counts(
-                        n_verified=n_verified,
-                        n_rejected=n_rejected,
+                    format_pass_fail_counts(
+                        n_pass=n_pass,
+                        n_fail=n_fail,
                         n_candidates=len(rows),
                     )
                 )
-                if n_rejected > 0:
-                    st.caption(ATLAS_REJECT_NOTE)
+                if n_fail > 0:
+                    st.caption(CERTIFIED_SEARCH_FAIL_ATLAS_NOTE)
                 df = pd.DataFrame(rows)
                 with st.expander("Results table", expanded=False):
                     st.dataframe(df, use_container_width=True, hide_index=True)
