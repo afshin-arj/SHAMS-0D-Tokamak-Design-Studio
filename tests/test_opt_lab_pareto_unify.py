@@ -112,9 +112,16 @@ def test_certified_front_summary_from_ccfs_and_pareto() -> None:
             "summary": {"n_feasible": 2, "n_pareto": 1},
         }
     )
-    assert pareto["n_verified"] == 2
-    assert pareto["n_rejected"] == 98
+    assert pareto["n_verified"] == 0
+    assert pareto["n_rejected"] == 0
+    assert pareto["n_blocking_ok"] == 2
+    assert pareto["n_hard_fail"] == 98
     assert pareto["n_front"] == 1
+    assert pareto["screening_only"] is True
+    assert "blocking-OK" in pareto["counts_line"]
+    assert "VERIFIED=" not in pareto["counts_line"]
+    assert "not L0 FEASIBLE" in pareto["notes"]
+    assert "not CCFS VERIFIED" in pareto["notes"]
 
     session = DesignSession()
     store_certified_front(session, ccfs)
@@ -130,6 +137,58 @@ def test_certified_front_summary_from_ccfs_and_pareto() -> None:
     )
     assert empty["proposed_certified"] is True
     assert empty["authoritative_optimum"] is False
+
+
+def test_sync_prefers_ccfs_stamp_over_pareto_screening() -> None:
+    from ui_nicegui.lib.certified_front_viewer import (
+        store_certified_front,
+        summary_from_ccfs_bundle,
+        summary_from_pareto_last,
+        sync_certified_front_from_session,
+    )
+    from ui_nicegui.session import DesignSession
+
+    session = DesignSession()
+    session.pareto_last = {
+        "n_samples": 50,
+        "feasible": [{"id": "a"}],
+        "pareto": [{"id": "a"}],
+        "summary": {"n_feasible": 1, "n_pareto": 1},
+    }
+    session.opt_lab_last_run_stamp = {
+        "schema": "opt_run_stamp.v1",
+        "objective_contract_hash": "b" * 64,
+        "n_verified": 3,
+        "n_rejected": 1,
+        "n_candidates": 4,
+    }
+    out = sync_certified_front_from_session(session)
+    assert out is not None
+    assert out["n_verified"] == 3
+    assert out.get("screening_only") is False
+    assert out["source"] == "opt_lab"
+
+    # Without stamp, Pareto screening must not invent VERIFIED counts.
+    session2 = DesignSession()
+    session2.pareto_last = session.pareto_last
+    screen = sync_certified_front_from_session(session2)
+    assert screen is not None
+    assert screen["n_verified"] == 0
+    assert screen["n_blocking_ok"] == 1
+    assert screen["screening_only"] is True
+
+    # Stored CCFS handoff must not be overwritten by Pareto alone.
+    session3 = DesignSession()
+    store_certified_front(
+        session3,
+        summary_from_ccfs_bundle(
+            {"n_status_verified": 4, "n_status_rejected": 1, "n_candidates": 5}
+        ),
+    )
+    session3.pareto_last = session.pareto_last
+    kept = sync_certified_front_from_session(session3)
+    assert kept["n_verified"] == 4
+    assert kept.get("screening_only") is False
 
 
 def test_certified_front_honesty_and_no_version_tags() -> None:

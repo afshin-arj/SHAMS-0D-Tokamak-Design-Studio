@@ -32,8 +32,14 @@ def promote_opt_lab_best_to_point_designer(session: Any) -> Tuple[int, str]:
     return 0, ""
 
 
-def _candidate_inputs_from_extopt_run_dir(run_dir: Path) -> Optional[Dict[str, Any]]:
-    """Prefer verified/feasible candidate inputs from an ExtOpt orchestrator run_dir."""
+def _candidate_inputs_from_extopt_run_dir(run_dir: Path) -> Tuple[Optional[Dict[str, Any]], str]:
+    """Prefer CCFS VERIFIED inputs; screening PASS/FEASIBLE/OK is fallback seed only.
+
+    Returns ``(inputs, source_label)`` where source_label is
+    ``extopt_ccfs_verified`` or ``extopt_screening`` (never implied VERIFIED for screening).
+    """
+    screening_inp: Optional[Dict[str, Any]] = None
+    any_inp: Optional[Dict[str, Any]] = None
     for name in (
         "ccfs_verified.json",
         "verified_candidates.json",
@@ -64,26 +70,25 @@ def _candidate_inputs_from_extopt_run_dir(run_dir: Path) -> Optional[Dict[str, A
             feas = c.get("feasible_hard")
             if feas is False:
                 continue
-            if status and status not in ("VERIFIED", "PASS", "FEASIBLE", "OK", ""):
-                # Prefer verified; fall through to first with inputs if none match later.
-                if "inputs" in c and isinstance(c["inputs"], dict):
-                    # Keep as fallback but try others first.
-                    pass
-                else:
-                    continue
             inp = c.get("inputs")
-            if isinstance(inp, dict) and inp:
-                if status in ("VERIFIED", "PASS", "FEASIBLE", "OK") or feas is True or not status:
-                    return dict(inp)
-        # Fallback: first candidate with inputs
-        for c in cands:
-            if isinstance(c, dict) and isinstance(c.get("inputs"), dict) and c["inputs"]:
-                return dict(c["inputs"])
-    return None
+            if not isinstance(inp, dict) or not inp:
+                continue
+            if any_inp is None:
+                any_inp = dict(inp)
+            if status == "VERIFIED":
+                return dict(inp), "extopt_ccfs_verified"
+            if status in ("PASS", "FEASIBLE", "OK") or feas is True or not status:
+                if screening_inp is None:
+                    screening_inp = dict(inp)
+    if screening_inp is not None:
+        return screening_inp, "extopt_screening"
+    if any_inp is not None:
+        return any_inp, "extopt_screening"
+    return None, ""
 
 
 def promote_extopt_first_feasible_to_point_designer(session: Any) -> Tuple[int, str]:
-    """Seed PD from ExtOpt suite ``run_dir`` first verified/feasible candidate."""
+    """Seed PD from ExtOpt suite ``run_dir`` first VERIFIED (else screening) candidate."""
     last = getattr(session, "extopt_last_run", None)
     if not isinstance(last, dict):
         return 0, ""
@@ -93,7 +98,7 @@ def promote_extopt_first_feasible_to_point_designer(session: Any) -> Tuple[int, 
     run_dir = Path(str(run_dir_s))
     if not run_dir.is_dir():
         return 0, ""
-    inp = _candidate_inputs_from_extopt_run_dir(run_dir)
+    inp, source = _candidate_inputs_from_extopt_run_dir(run_dir)
     if not inp:
         return 0, ""
     n = 0
@@ -110,4 +115,4 @@ def promote_extopt_first_feasible_to_point_designer(session: Any) -> Tuple[int, 
         from ui_nicegui.lib.pd_handoff import invalidate_point_designer_after_seed
 
         invalidate_point_designer_after_seed(session)
-    return n, "extopt_suite"
+    return n, (source if n else "")

@@ -88,7 +88,7 @@ MODE_SCOPE: dict[str, dict[str, list[str]]] = {
     },
     "pareto": {
         "does": [
-            "Samples the feasible set (LHS) and reports non-dominated trade-off fronts.",
+            "Samples the blocking-OK (intent-gate) set (LHS) and reports non-dominated fronts — not L0 FEASIBLE.",
             "Annotates points with dominant constraints, intent, and robust-margin filters.",
             "Exports replayable Pareto artifacts and publication packs.",
         ],

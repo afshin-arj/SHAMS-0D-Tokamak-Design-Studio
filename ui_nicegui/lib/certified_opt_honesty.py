@@ -37,8 +37,9 @@ SYSTEMS_MODE_HONESTY = (
 )
 
 PARETO_LAB_HONESTY = (
-    f"{PROPOSED_CERTIFIED} — Pareto Lab maps the feasible set / front; "
-    "not an authoritative optimum. " + VERIFIED_REJECTED_ATLAS_LINE
+    f"{PROPOSED_CERTIFIED} — Pareto Lab maps the blocking-OK (intent-gate) set / front — "
+    "not L0 FEASIBLE. CCFS VERIFIED vs REJECTED applies only after frozen re-certify of "
+    "shortlisted PointInputs; screening counts are not VERIFIED."
 )
 
 CERTIFIED_SEARCH_HONESTY = (

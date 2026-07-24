@@ -374,7 +374,7 @@ def _study_dashboard(session: DesignSession) -> None:
         summary = rep.get("summary") or {}
         kpi_row([
             ("Samples", str(summary.get("n_samples", "-"))),
-            ("Feasible", str(summary.get("n_feasible", "-"))),
+            ("blocking-OK", str(summary.get("n_feasible", "-"))),
             ("Pareto", str(summary.get("n_pareto", "-"))),
         ])
     else:

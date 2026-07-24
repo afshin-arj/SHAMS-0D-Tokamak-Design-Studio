@@ -44,10 +44,11 @@ OPT_LAB_PITCH = PITCH_LINE
 # Three-step path to a certified search entry (user-facing; no version tags).
 OPT_LAB_STEPS: List[str] = [
     "Anchor a baseline in Point Designer (frozen evaluate) and pick the search path.",
-    "Propose candidates — Systems Mode (targets/solve), Pareto Lab (feasible front), "
+    "Propose candidates — Systems Mode (targets/solve), Pareto Lab (blocking-OK front), "
     "or Control Room Certified Search (budgeted multi-knob).",
     "Read the certified front — VERIFIED vs REJECTED with NO-SOLUTION atlas; "
-    "labels say Proposed — SHAMS-certified (not an authoritative optimum).",
+    "labels say Proposed — SHAMS-certified (not an authoritative optimum). "
+    "Pareto Lab fronts are blocking-OK screening until CCFS re-certify.",
 ]
 
 # Unified entry routes into existing surfaces (do not duplicate full decks).
@@ -59,7 +60,7 @@ OPT_LAB_ROUTES: List[Tuple[str, str, str]] = [
         "systems_mode",
     ),
     (
-        "Pareto Lab — feasible certified front",
+        "Pareto Lab — blocking-OK front (intent-gate)",
         "Pareto Lab",
         "pareto_lab",
     ),
@@ -89,14 +90,16 @@ OPT_LAB_NSGA2_DRIVER_IDS: Tuple[str, ...] = ("nsga2", "nsga2_fallback")
 OPT_LAB_NSGA2_HOOK_NOTE = (
     "Multi-objective NSGA-II / MOEA search proposes PointInputs only "
     "(pure-Python NSGA-II fallback; optional pymoo when installed); "
-    "feasible-first shortlist must be CCFS-certified — never an authoritative optimum; "
+    "blocking-OK-first shortlist must be CCFS-certified before any VERIFIED claim — "
+    "never an authoritative optimum; "
     "dominated / REJECTED rows carry no_solution_atlas dominant hard mechanism."
 )
 
 # Phase 3.3 — shared Opt Lab ↔ Pareto certified-front viewer (no deck duplication).
 OPT_LAB_CERTIFIED_FRONT_NOTE = (
-    "Certified-front viewer unifies Opt Lab and Pareto Lab: one VERIFIED/REJECTED + atlas "
-    "summary with handoff — Proposed — SHAMS-certified, not an authoritative optimum."
+    "Certified-front viewer unifies Opt Lab and Pareto Lab: CCFS shows VERIFIED/REJECTED + atlas; "
+    "Pareto handoffs are blocking-OK screening only (not L0 FEASIBLE / not VERIFIED) — "
+    "Proposed — SHAMS-certified applies after frozen re-certify, not an authoritative optimum."
 )
 
 # Phase 4.1 — surrogate propose-only SearchDriver (ranks only; CCFS certifies).
