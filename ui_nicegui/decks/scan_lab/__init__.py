@@ -42,12 +42,44 @@ def _refresh_tab_body_if_idle(session: DesignSession) -> None:
 
     busy = [a for a in SCAN_RUNNING_ATTRS if getattr(session, a, False)]
     if busy:
+        # Keep "Setup / Guided / Expert" wording — regression lock in test_trade_scan_busy_apply_undo.
         ui.notify(
             "Scan Lab job running — wait until it finishes before changing Setup / Guided / Expert.",
             type="warning",
         )
         return
     _render_tab_body.refresh()
+
+
+def _scan_busy(session: DesignSession) -> bool:
+    from ui_nicegui.lib.deck_busy_guard import SCAN_RUNNING_ATTRS
+
+    return any(getattr(session, a, False) for a in SCAN_RUNNING_ATTRS)
+
+
+def _render_busy_strip(session: DesignSession) -> None:
+    """Deck-level busy chrome — remount-safe when returning mid-job (NAV-IMMEDIATE)."""
+    if not _scan_busy(session):
+        return
+    bits = []
+    if getattr(session, "scan_running", False):
+        bits.append(session.scan_progress_text or "cartography / insight job")
+    if getattr(session, "scan_legacy_running", False):
+        bits.append("legacy nested scan")
+    detail = " · ".join(bits) if bits else "long job"
+    with ui.card().classes("w-full p-2 bg-blue-1 text-blue-10 q-mb-sm"):
+        ui.label(f"Scan Lab busy — {detail}").classes("text-subtitle2")
+        ui.label(
+            "Helm deck switch stays immediate (NAV-IMMEDIATE-001). "
+            "Setup / Guided / Expert remounts are blocked until the job finishes."
+        ).classes("text-caption")
+        if getattr(session, "scan_running", False) and session.scan_progress is not None:
+            try:
+                ui.linear_progress(
+                    value=float(session.scan_progress or 0.0), show_value=True
+                ).classes("w-full q-mt-xs")
+            except Exception:
+                pass
 
 
 def _consume_scan_probe_focus(session: DesignSession) -> None:
@@ -163,6 +195,7 @@ def render_scan_lab(session: DesignSession) -> None:
     from ui_nicegui.lib.pd_intent_policy import policy_caption
 
     ui.label(policy_caption(session.design_intent)).classes("text-caption text-grey q-mb-xs")
+    _render_busy_strip(session)
     _render_verdict(session)
     _render_workflow_chrome(session)
     _render_tab_body(session)
@@ -216,7 +249,7 @@ def _render_workflow_chrome(session: DesignSession) -> None:
 
 
 def _on_decision_scan(session: DesignSession, state: str) -> None:
-    if getattr(session, "scan_running", False) or getattr(session, "scan_legacy_running", False):
+    if _scan_busy(session):
         ui.notify(
             "Scan Lab job running — wait until it finishes before changing decision/Setup view.",
             type="warning",
@@ -235,7 +268,7 @@ def _on_decision_scan(session: DesignSession, state: str) -> None:
 def _handle_quick_jump(session: DesignSession, cmd: str) -> None:
     if cmd not in QUICK_JUMP:
         return
-    if getattr(session, "scan_running", False) or getattr(session, "scan_legacy_running", False):
+    if _scan_busy(session):
         ui.notify(
             "Scan Lab job running — wait until it finishes before quick-jumping tabs.",
             type="warning",
@@ -292,7 +325,7 @@ def _render_tab_body(session: DesignSession) -> None:
                 session, attr="scan_workflow_step", on_refresh=_refresh_all
             )
             return
-        workbench.render_workbench(session, rep, on_update=_render_tab_body.refresh)
+        workbench.render_workbench(session, rep, on_update=lambda: _refresh_tab_body_if_idle(session))
     elif step == "3 · Interpret":
         rep = session.scan_cartography_report
         if not isinstance(rep, dict):
@@ -301,13 +334,19 @@ def _render_tab_body(session: DesignSession) -> None:
                 session, attr="scan_workflow_step", on_refresh=_refresh_all
             )
             return
-        insights.render_interpret_tab(session, rep, on_update=_render_tab_body.refresh)
+        insights.render_interpret_tab(
+            session, rep, on_update=lambda: _refresh_tab_body_if_idle(session)
+        )
         ui.separator().classes("q-my-md")
         from ui_nicegui.decks.scan_lab.slice_diagnostics_ui import render_slice_diagnostics
 
-        render_slice_diagnostics(session, rep, on_update=_render_tab_body.refresh)
+        render_slice_diagnostics(
+            session, rep, on_update=lambda: _refresh_tab_body_if_idle(session)
+        )
         ui.separator().classes("q-my-md")
-        deep_maps.render_deep_landscape_maps(session, rep, on_update=_render_tab_body.refresh)
+        deep_maps.render_deep_landscape_maps(
+            session, rep, on_update=lambda: _refresh_tab_body_if_idle(session)
+        )
     elif step == "4 · Export & Archive":
         export_archive.render_export_tab(
             session,

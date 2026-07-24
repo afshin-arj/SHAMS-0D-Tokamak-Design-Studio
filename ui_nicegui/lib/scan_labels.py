@@ -61,7 +61,8 @@ TEACHING_HINTS = {
         "Probe indices (i, j) to read margins and failure order."
     ),
     DECISION_STATES[2]: (
-        "**Robustness verdict** (KPI) ≠ per-cell robustness label ≠ local p-feasible map — "
+        "**Cartography posture** (2-D slice occupancy: Dense/Moderate/Sparse/Near-empty) ≠ "
+        "per-cell Robust/Balanced/Brittle/Knife-edge (local p-feasible) ≠ L0 FEASIBLE/INFEASIBLE — "
         "each answers a different question. Counterfactual tools are visualization-only."
     ),
     DECISION_STATES[3]: (
@@ -118,9 +119,11 @@ RECOMMENDED_SLICES = [
 ]
 
 ROBUSTNESS_GLOSSARY = (
-    "**2-D slice occupancy** (banner KPI) = fraction of cells blocking-feasible → Dense / Moderate / "
-    "Sparse / Near-empty slice. **Cell robustness label** = local neighborhood p-feasible proxy. "
-    "**Robustness map** = heatmap of that proxy — not the KPI band."
+    "**Cartography posture** (banner) = fraction of cells **blocking-feasible** → Dense / Moderate / "
+    "Sparse / Near-empty slice — **not** L0 FEASIBLE/INFEASIBLE. "
+    "**Cell Robust / Balanced / Brittle / Knife-edge** = local neighborhood p-feasible proxy "
+    "(an INFEASIBLE cell can still be labeled Robust if neighbors pass). "
+    "**Robustness map** = heatmap of that proxy — never a constraint verdict."
 )
 
 NO_OPTIMIZATION_NOTICE = (

@@ -14,7 +14,8 @@ def render_orientation_panel(session: DesignSession, *, default_open: bool = Fal
         ui.markdown(
             "**What this mode does**\n"
             "- Maps frozen Point Designer truth across a chosen 2D parameter plane\n"
-            "- Reveals dominant constraints, cliffs, intent splits, and robustness categories\n"
+            "- Reveals dominant constraints, cliffs, intent splits, and neighborhood robustness labels "
+            "(Robust/Balanced/Brittle/Knife-edge = local p-feasible — not L0 FEASIBLE)\n"
             "- Exports replayable scan artifacts and atlases\n\n"
             "**What this mode does not do**\n"
             "- Optimize, relax constraints, or recommend a best design\n"
