@@ -102,6 +102,32 @@ def _baseline_chip_state(session: DesignSession) -> str:
     return "seed"
 
 
+def _systems_busy(session: DesignSession) -> bool:
+    return any(getattr(session, a, False) for a in SYSTEMS_RUNNING_ATTRS)
+
+
+def _render_busy_strip(session: DesignSession) -> None:
+    """Deck-level busy chrome — remount-safe when returning mid-job (NAV-IMMEDIATE)."""
+    if not _systems_busy(session):
+        return
+    labels = {
+        "systems_atlas_running": "micro-atlas screening",
+        "systems_solve_running": "Newton solve",
+        "systems_precheck_running": "precheck",
+        "systems_recovery_running": "recovery",
+        "systems_fs_running": "frontier sample",
+        "cmp_handoff_running": "Compare handoff",
+    }
+    bits = [labels[a] for a in SYSTEMS_RUNNING_ATTRS if getattr(session, a, False) and a in labels]
+    detail = " · ".join(bits) if bits else "long job"
+    with ui.card().classes("w-full p-2 bg-blue-1 text-blue-10 q-mb-sm"):
+        ui.label(f"Systems Mode busy — {detail}").classes("text-subtitle2")
+        ui.label(
+            "Helm deck switch stays immediate (NAV-IMMEDIATE-001). "
+            "Expert view / tab remounts are deferred until the job finishes."
+        ).classes("text-caption")
+
+
 def render_systems_mode(session: DesignSession) -> None:
     consume_systems_mode_queue(session)
     session.systems_workflow_step = normalize_systems_tab(session.systems_workflow_step)
@@ -127,6 +153,7 @@ def render_systems_mode(session: DesignSession) -> None:
             ),
         )
 
+    _render_busy_strip(session)
     ui.label(DECK_SUBTITLE).classes("text-caption text-grey q-mb-xs")
     ui.markdown(
         "**Systems Mode** — Monte Carlo precheck + Newton solve (proposes inputs; never changes L0). "

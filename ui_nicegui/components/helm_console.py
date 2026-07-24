@@ -306,7 +306,7 @@ def _session_or_lock_busy(session: DesignSession) -> tuple[bool, str | None, str
     if getattr(session, "systems_fs_running", False):
         return busy, "Systems Mode: Feasible search", holder
     if getattr(session, "systems_atlas_running", False):
-        return busy, "Systems Mode: Feasibility map", holder
+        return busy, "Systems Mode: Micro-atlas screening", holder
     if getattr(session, "systems_recovery_running", False):
         return busy, "Systems Mode: Recovery", holder
     if getattr(session, "phase_envelopes_running", False):
