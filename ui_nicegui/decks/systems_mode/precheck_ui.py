@@ -170,8 +170,10 @@ def render_precheck_panel(
                 {"ok": _precheck_ok(report), "n_samples": int(_precheck_attr(report, "n_samples", 0))},
             )
             ui.notify(
-                "Precheck feasible" if _precheck_ok(report) else "Precheck infeasible",
-                type="positive" if _precheck_ok(report) else "warning",
+                "Precheck screening OK (blocking bounds)"
+                if _precheck_ok(report)
+                else "Precheck screening fail (blocking / targets)",
+                type="info" if _precheck_ok(report) else "warning",
             )
             _status.refresh()
         except Exception as exc:
@@ -198,11 +200,14 @@ def _status(session: DesignSession) -> None:
     if report is None:
         return
     ok = _precheck_ok(report)
-    cls = "text-positive" if ok else "text-negative"
+    cls = "text-blue-10" if ok else "text-orange"
     ui.label(
-        f"Status: {'✓ feasible within bounds' if ok else '✗ infeasible within bounds'} "
+        f"Status: {'✓ blocking-OK within bounds (screening)' if ok else '✗ hard-fail / unreachable within bounds (screening)'} "
         f"({int(_precheck_attr(report, 'n_samples', 0))} samples)"
     ).classes(f"text-body2 q-mt-sm {cls}")
+    ui.label(
+        "Systems bound screening — NOT Point Designer L0 Verdict: FEASIBLE/INFEASIBLE."
+    ).classes("text-caption text-grey q-mb-xs")
 
     dom, margin = _precheck_dominant_limiter(report)
     if dom:

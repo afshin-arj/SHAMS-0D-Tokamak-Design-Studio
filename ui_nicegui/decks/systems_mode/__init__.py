@@ -330,7 +330,7 @@ def _render_workflow_chips(session: DesignSession) -> None:
         _chip("Targets", "ok" if targets and variables else "fail")
         _chip("Precheck", "ok" if pre else ("fail" if pre is False else "pending"))
         _chip("Solve", "ok" if sol else ("fail" if sol is False else "pending"))
-        ui.label(f"Candidates: {n} ({n_feas} feasible)").classes("text-caption q-mr-md")
+        ui.label(f"Candidates: {n} ({n_feas} blocking-OK)").classes("text-caption q-mr-md")
 
 
 @ui.refreshable
@@ -361,13 +361,14 @@ def _render_tab_content(session: DesignSession) -> None:
         return
 
     if step == "3 · Alternatives":
-        ui.label("When precheck or target solve fails, search for feasible alternatives.").classes(
-            "text-caption q-mb-md"
-        )
-        ui.label("A · Nearest feasible point").classes("text-subtitle2")
+        ui.label(
+            "When precheck or target solve fails, search for blocking-OK alternatives "
+            "(screening / intent-gate — not L0 FEASIBLE)."
+        ).classes("text-caption q-mb-md")
+        ui.label("A · Nearest blocking-OK point").classes("text-subtitle2")
         recover_ui.render_recover_panel(session, on_complete=refresh)
         ui.separator().classes("q-my-md")
-        ui.label("B · Budgeted feasible search").classes("text-subtitle2")
+        ui.label("B · Budgeted blocking-OK search").classes("text-subtitle2")
         explore_ui.render_explore_panel(session, on_complete=refresh)
         frontier_ui.render_frontier_panel(session)
         if session.systems_expert_view:
