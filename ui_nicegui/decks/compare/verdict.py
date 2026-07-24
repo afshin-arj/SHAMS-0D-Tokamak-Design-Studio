@@ -85,6 +85,22 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
         if summary.get("mirage_b"):
             ui.badge("MIRAGE B", color="orange").props("outline")
 
+    any_infeas = both_infeasible or (not summary.get("feasible_a")) or (not summary.get("feasible_b"))
+    if any_infeas and session is not None:
+        with ui.row().classes("gap-2 q-mt-sm flex-wrap"):
+            render_goto_setup_button(
+                session,
+                attr="cmp_workflow_step",
+                step="3 · Constraints",
+                label="Go to Constraints",
+                on_refresh=refresh_active_deck,
+            )
+            ui.button(
+                "Open Point Designer",
+                icon="design_services",
+                on_click=lambda: switch_deck("Point Designer"),
+            ).props("outline color=primary")
+
     sub_rows = summary.get("subsystem_diff") or []
     changed = [r for r in sub_rows if isinstance(r, dict) and r.get("changed")]
     expert = bool(getattr(session, "cmp_expert_view", False)) if session else False
@@ -96,7 +112,8 @@ def render_compare_verdict(summary: dict | None, *, session: DesignSession | Non
             value=expert or bool(changed),
         ).classes("w-full q-mt-sm"):
             ui.label(
-                "Pass/fail by engineering subsystem — highlights where B regressed vs A."
+                "Pass/fail by engineering subsystem — highlights where B regressed vs A. "
+                "Subsystem pass ≠ overall FEASIBLE."
             ).classes("text-caption text-grey q-mb-xs")
             ui.table(
                 columns=[

@@ -10,6 +10,7 @@ from ui_nicegui.lib.pd_parity_helpers import (
     assumptions_snapshot,
     authority_contract_rows,
     build_coils_metrics,
+    constraint_display_name,
     constraint_provenance,
     constraint_radar_rows,
     constraint_suggestion,
@@ -70,7 +71,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
         with ui.expansion("Why infeasible? (constraint trace)", icon="warning").classes("w-full"):
             for row in trace:
                 ui.markdown(
-                    f"**{row['constraint']}** — `{row['output_key']}` = {row['value']:.4g} "
+                    f"**{constraint_display_name(row['constraint'])}** — `{row['output_key']}` = {row['value']:.4g} "
                     f"({row['sense']} {row['limit']:.4g})"
                 )
 
@@ -312,6 +313,9 @@ def render_mission_snapshot(session: DesignSession) -> None:
         if not rows_c:
             ui.label("No constraints evaluated (missing keys).").classes("text-caption")
         else:
+            ui.label(
+                "Radar labels: q95 / βN are cylindrical / screening proxies — not equilibrium MHD."
+            ).classes("text-caption text-grey q-mb-xs")
             ui.table(
                 columns=[
                     {"name": "constraint", "label": "Constraint", "field": "constraint", "align": "left"},
@@ -348,8 +352,11 @@ def render_mission_snapshot(session: DesignSession) -> None:
                             "passed": rec.get("passed"),
                             "margin_frac": rec.get("margin_frac"),
                             "note": rec.get("note"),
+                            "constraint_id": rec.get("constraint_id"),
                         })
-                        prov = constraint_provenance(str(pick.value or ""))
+                        prov = constraint_provenance(
+                            str(rec.get("constraint_id") or pick.value or "")
+                        )
                         if prov:
                             render_json_blob(prov)
                         else:
@@ -360,9 +367,10 @@ def render_mission_snapshot(session: DesignSession) -> None:
             if failed or soft_failed:
                 ui.label("Actionable suggestions (rule-of-thumb):").classes("text-subtitle2 q-mt-sm")
                 for r in failed + soft_failed:
-                    ui.markdown(f"• **{r['constraint']}**: {constraint_suggestion(r['constraint'])}").classes(
-                        "text-body2"
-                    )
+                    canon = str(r.get("constraint_id") or r["constraint"])
+                    ui.markdown(
+                        f"• **{r['constraint']}**: {constraint_suggestion(canon)}"
+                    ).classes("text-body2")
 
     with ui.expansion(
         f"Physics deepening ({len(DEEP_VIEWS)} decks)",
