@@ -1,4 +1,4 @@
-"""Micro feasibility atlas — 2D slice with heatmap and cartography."""
+"""Micro-atlas screening map — 2D hard-constraint slice (not PD L0 Verdict)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,11 @@ from ui_nicegui.components.json_view import render_json_blob
 
 
 def render_atlas_panel(session: DesignSession) -> None:
-    with ui.expansion("Feasibility map (2D slice)", icon="grid_on").classes("w-full q-mt-sm"):
+    with ui.expansion("Hard-constraint screening map (2D slice)", icon="grid_on").classes("w-full q-mt-sm"):
         ui.label(
-            "Sweep two iteration variables over a small grid. "
-            "Each cell shows the dominant hard constraint — deterministic screening, not a full solve."
+            "Sweep two iteration variables. Each cell = dominant hard limiter "
+            "(blocking-OK vs fail) — Systems atlas screening, "
+            "NOT Point Designer L0 Verdict: FEASIBLE/INFEASIBLE."
         ).classes("text-caption q-mb-sm")
 
         base, _, variables = resolve_systems_problem(session)
@@ -48,13 +49,13 @@ def render_atlas_panel(session: DesignSession) -> None:
                 on_change=lambda e: setattr(session, "systems_atlas_grid_n", int(e.value or 12)),
             ).classes("w-24")
             ui.number(
-                "Robust margin threshold",
+                "Screening margin threshold (fraction)",
                 value=getattr(session, "systems_atlas_robust_thr", 0.10),
                 min=0.0,
                 max=0.5,
                 step=0.01,
                 on_change=lambda e: setattr(session, "systems_atlas_robust_thr", float(e.value or 0.10)),
-            ).classes("w-36")
+            ).classes("w-48")
 
         async def _compute() -> None:
             from ui_nicegui.lib.run_lock import (
@@ -69,18 +70,25 @@ def render_atlas_panel(session: DesignSession) -> None:
                 ui.notify("Pick two different variables", type="warning")
                 return
             if getattr(session, "systems_atlas_running", False):
-                ui.notify("Feasibility map already running", type="warning")
+                ui.notify("Micro-atlas screening already running", type="warning")
                 return
             locked, task, is_owner = runlock_status("SystemsMode")
             if locked and not is_owner:
                 ui.notify(f"Busy: {task} — wait or force-clear from Helm.", type="warning")
                 return
-            if not runlock_acquire("Systems Mode: Feasibility map", "SystemsMode"):
+            if not runlock_acquire("Systems Mode: Micro-atlas screening", "SystemsMode"):
                 ui.notify("Could not acquire run lock — another evaluation is active.", type="warning")
                 return
             lease = current_lease()
             session.systems_atlas_running = True
-            ui.notify("Computing feasibility map…", type="info")
+            try:
+                from ui_nicegui.lib.navigation import refresh_helm, refresh_status
+
+                refresh_status()
+                refresh_helm()
+            except Exception:
+                pass
+            ui.notify("Computing micro-atlas screening…", type="info")
             try:
                 b, _, v = resolve_systems_problem(session)
 
@@ -105,13 +113,20 @@ def render_atlas_panel(session: DesignSession) -> None:
                 session.systems_last_micro_atlas = atlas
                 _atlas_view.refresh()
             except Exception as exc:
-                ui.notify(f"Feasibility map failed: {exc}", type="negative")
+                ui.notify(f"Micro-atlas screening failed: {exc}", type="negative")
             finally:
                 if lease_valid(lease):
                     session.systems_atlas_running = False
                     runlock_release("SystemsMode", lease)
+                try:
+                    from ui_nicegui.lib.navigation import refresh_helm, refresh_status
 
-        ui.button("Compute map", icon="map", on_click=_compute).props("outline q-mb-sm")
+                    refresh_status()
+                    refresh_helm()
+                except Exception:
+                    pass
+
+        ui.button("Compute screening map", icon="map", on_click=_compute).props("outline q-mb-sm")
         _atlas_view(session)
 
 
@@ -124,19 +139,47 @@ def _atlas_view(session: DesignSession) -> None:
         ui.label(f"Map unavailable: {atlas.get('reason')}").classes("text-orange")
         return
 
+    dom = atlas.get("dominant") or []
+    n_pass = sum(1 for row in dom for c in row if str(c).lower() in ("ok", "pass", ""))
+    n_total = sum(len(row) for row in dom) if dom else 0
+    frac_ok = (float(n_pass) / float(n_total)) if n_total else 0.0
+    if frac_ok >= 0.75:
+        posture = "DENSE SLICE"
+    elif frac_ok >= 0.40:
+        posture = "MODERATE SLICE"
+    elif frac_ok >= 0.10:
+        posture = "SPARSE SLICE"
+    else:
+        posture = "NEAR-EMPTY SLICE"
+
+    from ui_nicegui.components.verdict_banner import verdict_banner
+
+    verdict_banner(
+        posture,
+        detail=(
+            "Systems micro-atlas screening (hard-constraint grid) — "
+            "NOT Point Designer L0 FEASIBLE/INFEASIBLE. "
+            f"Blocking-OK cells: {n_pass}/{n_total}."
+        ),
+        title_prefix="Systems atlas screening posture",
+    )
+
     png = atlas_heatmap_png(
         atlas,
-        title=f"Dominant limiter — {atlas.get('var_x', 'X')} vs {atlas.get('var_y', 'Y')}",
+        title=(
+            f"Dominant hard limiter (screening — not PD hero) — "
+            f"{atlas.get('var_x', 'X')} vs {atlas.get('var_y', 'Y')}"
+        ),
     )
     if png:
         ui.image(f"data:image/png;base64,{base64.b64encode(png).decode('ascii')}").classes("w-full max-w-2xl")
     else:
         ui.label("Heatmap unavailable — see cell table below.").classes("text-caption text-grey")
 
-    dom = atlas.get("dominant") or []
-    n_pass = sum(1 for row in dom for c in row if str(c).lower() in ("ok", "pass", ""))
-    n_total = sum(len(row) for row in dom) if dom else 0
-    ui.label(f"Cells: {n_total} | feasible-dominant: {n_pass}").classes("text-caption q-mt-sm")
+    ui.label(
+        f"Cells: {n_total} | blocking-OK (dominant='ok'): {n_pass} "
+        f"({100.0 * frac_ok:.0f}% slice) — screening, not L0 FEASIBLE"
+    ).classes("text-caption q-mt-sm")
 
     try:
         from src.systems.cartography2 import classify_cells, label_fractions, mechanism_histogram, mechanism_group_histogram
@@ -152,10 +195,21 @@ def _atlas_view(session: DesignSession) -> None:
     c2 = classify_cells(atlas, robust_margin_min=thr)
     if isinstance(c2, dict) and c2.get("ok"):
         fr = label_fractions(c2.get("labels") or [])
+        ui.label(
+            "Margin classes (screening only): robust = blocking-OK & margin≥thr; "
+            "fragile = blocking-OK & thin margin; empty = hard-fail — "
+            "not L0 FEASIBLE and not Scan Lab neighborhood Robust/Brittle."
+        ).classes("text-caption text-grey q-mb-xs")
         with ui.row().classes("gap-4 q-mb-sm"):
-            ui.label(f"Robust: {100.0 * fr.get('robust', 0.0):.1f}%").classes("text-caption")
-            ui.label(f"Fragile: {100.0 * fr.get('fragile', 0.0):.1f}%").classes("text-caption")
-            ui.label(f"Empty: {100.0 * fr.get('empty', 0.0):.1f}%").classes("text-caption")
+            ui.label(f"Robust (margin≥thr): {100.0 * fr.get('robust', 0.0):.1f}%").classes(
+                "text-caption text-blue-10"
+            )
+            ui.label(f"Fragile (thin margin): {100.0 * fr.get('fragile', 0.0):.1f}%").classes(
+                "text-caption text-orange-10"
+            )
+            ui.label(f"Empty (hard-fail): {100.0 * fr.get('empty', 0.0):.1f}%").classes(
+                "text-caption text-blue-grey-8"
+            )
 
         gh = mechanism_group_histogram(atlas)
         if gh:
