@@ -53,7 +53,7 @@ def test_promote_extopt_from_run_dir(tmp_path):
     s.extopt_last_run = {"run_dir": str(run_dir), "n_feasible": 1}
     n, src = promote_extopt_first_feasible_to_point_designer(s)
     assert n >= 1
-    assert src == "extopt_suite"
+    assert src == "extopt_ccfs_verified"
     assert float(s.inputs["Ip_MA"]) == 11.5
     assert s.pd_last_outputs is None
 

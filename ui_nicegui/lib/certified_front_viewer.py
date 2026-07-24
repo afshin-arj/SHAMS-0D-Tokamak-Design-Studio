@@ -1,9 +1,13 @@
 """Certified-front viewer — Opt Lab ↔ Pareto Lab unify (Phase 3.3).
 
 One shared summary + session handoff so Opt Lab and Pareto Lab show the same
-VERIFIED / REJECTED + atlas story without duplicating entire decks.
+story without duplicating entire decks.
 
-Honesty: Proposed — SHAMS-certified; never true minimum; no user-facing ``vNNN``.
+- **CCFS / Opt Lab stamp:** VERIFIED vs REJECTED + atlas (Proposed — SHAMS-certified).
+- **Pareto Lab screening:** blocking-OK / hard-fail / front counts only —
+  **not** L0 FEASIBLE and **not** CCFS VERIFIED until re-certified.
+
+Honesty: never true minimum; no user-facing ``vNNN``.
 L0 risk: none — display / session meta only.
 """
 from __future__ import annotations
@@ -24,21 +28,23 @@ CERTIFIED_FRONT_TITLE = "Certified front viewer"
 
 CERTIFIED_FRONT_TAGLINE = (
     f"{PROPOSED_CERTIFIED} front shared by Opt Lab and Pareto Lab — "
-    "search proposes outside L0; every claim re-evaluates through frozen truth."
+    "CCFS path: VERIFIED vs REJECTED; Pareto path: blocking-OK screening only "
+    "(intent-gate — not L0 FEASIBLE / not VERIFIED until re-certified)."
 )
 
 CERTIFIED_FRONT_HONESTY = (
-    f"{PROPOSED_CERTIFIED}: this viewer summarizes VERIFIED vs REJECTED candidates "
-    "with NO-SOLUTION atlas on rejects. Not an authoritative true minimum or "
-    "global optimum."
+    f"{PROPOSED_CERTIFIED}: CCFS shortlists show VERIFIED vs REJECTED with "
+    "NO-SOLUTION atlas on rejects. Pareto Lab handoffs are intent-gate "
+    "blocking-OK screening counts — not L0 FEASIBLE and not CCFS VERIFIED. "
+    "Not an authoritative true minimum or global optimum."
 )
 
 CERTIFIED_FRONT_EMPTY = (
-    "No certified-front handoff yet — run Pareto Lab, Certified Search / CCFS, "
-    "or an Opt Lab SearchDriver shortlist, then return here."
+    "No certified-front handoff yet — run Pareto Lab (blocking-OK screening), "
+    "Certified Search / CCFS, or an Opt Lab SearchDriver shortlist, then return here."
 )
 
-HANDOFF_TO_PARETO_LABEL = "Open Pareto Lab on certified front"
+HANDOFF_TO_PARETO_LABEL = "Open Pareto Lab on front handoff"
 HANDOFF_TO_OPT_LAB_LABEL = "Open Opt Lab certified-front viewer"
 
 # Session attribute holding the shared viewer payload.
@@ -52,6 +58,8 @@ REQUIRED_PHRASES: List[str] = [
 ]
 
 FORBIDDEN_PHRASES: List[str] = list(FORBIDDEN_POSITIVE_CLAIMS)
+
+_CCFS_SOURCES = frozenset({"ccfs", "opt_lab", "certified_search"})
 
 
 def certified_front_user_facing_texts() -> List[str]:
@@ -86,6 +94,10 @@ def build_certified_front_summary(
     contract_schema: str = "",
     notes: str = "",
     extopt_bridge_note: str = "",
+    screening_only: bool = False,
+    n_blocking_ok: Optional[int] = None,
+    n_hard_fail: Optional[int] = None,
+    counts_line: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a stable ``certified_front_viewer.v1`` payload for session handoff."""
     total = (
@@ -97,6 +109,12 @@ def build_certified_front_summary(
     hash_hex = str(objective_contract_hash or "").strip()
     if not hash_hex and stamp:
         hash_hex = str(stamp.get("objective_contract_hash") or "").strip()
+    if counts_line is None:
+        counts_line = format_verified_rejected_counts(
+            n_verified=int(n_verified),
+            n_rejected=int(n_rejected),
+            n_candidates=int(total),
+        )
     payload: Dict[str, Any] = {
         "schema": CERTIFIED_FRONT_SCHEMA,
         "source": str(source or "unknown").strip() or "unknown",
@@ -106,18 +124,19 @@ def build_certified_front_summary(
         "n_front": int(n_front) if n_front is not None else int(n_verified),
         "objective_contract_hash": hash_hex,
         "contract_schema": str(contract_schema or "").strip(),
-        "counts_line": format_verified_rejected_counts(
-            n_verified=int(n_verified),
-            n_rejected=int(n_rejected),
-            n_candidates=int(total),
-        ),
+        "counts_line": str(counts_line),
         "honesty": CERTIFIED_FRONT_HONESTY,
         "atlas_note": ATLAS_REJECT_NOTE,
         "notes": str(notes or ""),
         "extopt_bridge_note": str(extopt_bridge_note or ""),
-        "proposed_certified": True,
+        "proposed_certified": not bool(screening_only),
         "authoritative_optimum": False,
+        "screening_only": bool(screening_only),
     }
+    if n_blocking_ok is not None:
+        payload["n_blocking_ok"] = int(n_blocking_ok)
+    if n_hard_fail is not None:
+        payload["n_hard_fail"] = int(n_hard_fail)
     if stamp is not None:
         payload["opt_run_stamp"] = stamp
     return payload
@@ -161,6 +180,7 @@ def summary_from_ccfs_bundle(
         opt_run_stamp=stamp_m,
         contract_schema=contract_schema,
         notes="CCFS-certified shortlist (propose-only search upstream).",
+        screening_only=False,
     )
 
 
@@ -169,24 +189,27 @@ def summary_from_pareto_last(
     *,
     source: str = "pareto_lab",
 ) -> Dict[str, Any]:
-    """Derive viewer summary from Pareto Lab ``pareto_last`` artifact."""
+    """Derive viewer summary from Pareto Lab ``pareto_last`` artifact.
+
+    Pareto ``n_feasible`` is intent-gate **blocking-OK** screening — never mapped
+    into CCFS ``n_verified`` / ``n_rejected``.
+    """
     summary = pareto_last.get("summary")
     if not isinstance(summary, Mapping):
         summary = {}
     feasible = pareto_last.get("feasible") or []
     front = pareto_last.get("pareto") or []
     n_samples = _int_or(pareto_last.get("n_samples") or summary.get("n_samples"), 0)
-    n_feasible = (
+    n_blocking_ok = (
         _int_or(summary.get("n_feasible"), 0)
         if summary
         else (len(feasible) if isinstance(feasible, list) else 0)
     )
-    if isinstance(feasible, list) and n_feasible == 0:
-        n_feasible = len(feasible)
+    if isinstance(feasible, list) and n_blocking_ok == 0:
+        n_blocking_ok = len(feasible)
     n_front = len(front) if isinstance(front, list) else _int_or(summary.get("n_pareto"), 0)
-    # Rejected ≈ samples that did not land on the feasible set (when sample count known).
-    n_rejected = max(0, int(n_samples) - int(n_feasible)) if n_samples else 0
-    n_candidates = int(n_samples) if n_samples else (int(n_feasible) + int(n_rejected))
+    n_hard_fail = max(0, int(n_samples) - int(n_blocking_ok)) if n_samples else 0
+    n_candidates = int(n_samples) if n_samples else (int(n_blocking_ok) + int(n_hard_fail))
     objs = pareto_last.get("objectives")
     contract_schema = ""
     hash_hex = str(pareto_last.get("objective_contract_hash") or "").strip()
@@ -196,19 +219,28 @@ def summary_from_pareto_last(
     stamp_m = stamp if isinstance(stamp, Mapping) else None
     if stamp_m and not hash_hex:
         hash_hex = str(stamp_m.get("objective_contract_hash") or "").strip()
+    counts = (
+        f"blocking-OK={int(n_blocking_ok)} · hard-fail={int(n_hard_fail)} · "
+        f"Pareto front={int(n_front)} — intent-gate screening "
+        f"(not L0 FEASIBLE / not CCFS VERIFIED)"
+    )
     return build_certified_front_summary(
         source=source,
-        n_verified=int(n_feasible),
-        n_rejected=int(n_rejected),
+        n_verified=0,
+        n_rejected=0,
         n_candidates=int(n_candidates),
         n_front=int(n_front),
         objective_contract_hash=hash_hex,
         opt_run_stamp=stamp_m,
         contract_schema=contract_schema,
         notes=(
-            "Pareto Lab feasible set / nondominated front — Proposed — SHAMS-certified "
-            "points only; not an authoritative optimum."
+            "Pareto Lab blocking-OK (intent-gate) set / nondominated front — "
+            "screening only; not L0 FEASIBLE; not CCFS VERIFIED until re-certified."
         ),
+        screening_only=True,
+        n_blocking_ok=int(n_blocking_ok),
+        n_hard_fail=int(n_hard_fail),
+        counts_line=counts,
     )
 
 
@@ -235,6 +267,7 @@ def summary_from_opt_run_stamp(
         opt_run_stamp=stamp,
         contract_schema=contract_schema,
         notes="Opt Lab last-run stamp (CCFS-attached).",
+        screening_only=False,
     )
 
 
@@ -253,27 +286,40 @@ def get_certified_front(session: object) -> Optional[Dict[str, Any]]:
 
 
 def sync_certified_front_from_session(session: object) -> Optional[Dict[str, Any]]:
-    """Refresh handoff from Pareto last-run or Opt Lab stamp when present.
+    """Refresh handoff — prefer CCFS / Opt Lab stamp over Pareto screening.
 
-    Prefer an already-stored handoff if newer sources are absent; otherwise
-    rebuild from ``pareto_last`` then ``opt_lab_last_run_stamp``.
+    Pareto ``pareto_last`` must never overwrite a real VERIFIED handoff with
+    fake VERIFIED counts from blocking-OK screening.
     """
+    stamp = getattr(session, "opt_lab_last_run_stamp", None)
+    if isinstance(stamp, Mapping) and stamp:
+        n_ver = _int_or(stamp.get("n_verified") or stamp.get("n_status_verified"), 0)
+        n_rej = _int_or(stamp.get("n_rejected") or stamp.get("n_status_rejected"), 0)
+        has_hash = bool(str(stamp.get("objective_contract_hash") or "").strip())
+        if n_ver or n_rej or has_hash:
+            summary = summary_from_opt_run_stamp(stamp)
+            store_certified_front(session, summary)
+            return summary
+
+    existing = get_certified_front(session)
+    if (
+        existing
+        and not existing.get("screening_only")
+        and str(existing.get("source") or "") in _CCFS_SOURCES
+    ):
+        return existing
+
     pareto_last = getattr(session, "pareto_last", None)
     if isinstance(pareto_last, Mapping) and (
-        pareto_last.get("feasible") is not None or pareto_last.get("pareto") is not None
+        pareto_last.get("feasible") is not None
+        or pareto_last.get("pareto") is not None
         or pareto_last.get("summary") is not None
     ):
         summary = summary_from_pareto_last(pareto_last)
         store_certified_front(session, summary)
         return summary
 
-    stamp = getattr(session, "opt_lab_last_run_stamp", None)
-    if isinstance(stamp, Mapping) and stamp:
-        summary = summary_from_opt_run_stamp(stamp)
-        store_certified_front(session, summary)
-        return summary
-
-    return get_certified_front(session)
+    return existing
 
 
 def apply_handoff_to_pareto(session: object) -> None:
@@ -304,12 +350,21 @@ def format_front_caption(summary: Optional[Mapping[str, Any]]) -> str:
     n_front = summary.get("n_front")
     if n_front is not None:
         bits.append(f"front_points={int(n_front)}")
+    if summary.get("screening_only"):
+        bits.append("screening-only")
     return " · ".join(bits)
 
 
 def atlas_reject_hint(summary: Optional[Mapping[str, Any]]) -> str:
     if not isinstance(summary, Mapping):
         return ATLAS_REJECT_NOTE
+    if summary.get("screening_only"):
+        n_fail = _int_or(summary.get("n_hard_fail"), 0)
+        return (
+            f"Pareto screening handoff: hard-fail={n_fail} (intent-gate) — "
+            "not CCFS REJECTED; not L0 FEASIBLE. Re-certify shortlisted PointInputs "
+            "before treating any row as VERIFIED."
+        )
     n_rej = _int_or(summary.get("n_rejected"), 0)
     if n_rej <= 0:
         return (

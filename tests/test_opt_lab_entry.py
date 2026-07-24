@@ -52,6 +52,18 @@ def test_opt_lab_three_step_path() -> None:
     assert "pareto_lab" in hooks
 
 
+def test_opt_lab_pareto_route_blocking_ok_not_feasible_certified() -> None:
+    from ui_nicegui.lib.opt_lab_entry import OPT_LAB_ROUTES, OPT_LAB_STEPS, opt_lab_user_facing_texts
+
+    labels = " ".join(lbl for lbl, _, _ in OPT_LAB_ROUTES)
+    assert "blocking-OK" in labels
+    assert "feasible certified front" not in labels.lower()
+    steps = " ".join(OPT_LAB_STEPS).lower()
+    assert "blocking-ok" in steps
+    blob = " ".join(opt_lab_user_facing_texts()).lower()
+    assert "feasible certified front" not in blob
+
+
 def test_opt_lab_honesty_phrases() -> None:
     from ui_nicegui.lib.opt_lab_entry import (
         OPT_LAB_FORBIDDEN_PHRASES,

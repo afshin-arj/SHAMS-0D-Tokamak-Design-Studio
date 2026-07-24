@@ -360,7 +360,7 @@ def publication_pack_bytes(pareto_last: dict, *, narrative: str = "") -> bytes:
                 "# SHAMS Pareto Publication Pack",
                 "",
                 "- JSON artifact (authoritative) + CSV exports",
-                "- Feasible-only, non-optimizing, intent-aware",
+                "- blocking-OK-only, non-optimizing, intent-aware — not L0 FEASIBLE",
                 "",
                 f"- intent_mode: {pareto_last.get('intent_mode')}",
                 f"- n_samples: {pareto_last.get('n_samples')}",
@@ -392,7 +392,8 @@ def trade_narrative(pareto_last: dict) -> str:
     lines = [
         "# Pareto trade-off summary",
         "",
-        f"- Feasible: {summary.get('n_feasible', '-')} · Pareto: {summary.get('n_pareto', '-')}",
+        f"- blocking-OK: {summary.get('n_feasible', '-')} · Pareto: {summary.get('n_pareto', '-')} "
+        f"(intent-gate — not L0 FEASIBLE)",
         f"- Top dominant constraint on front: {summary.get('top_constraint', '-')} ",
         f"- Robust mix (margin ≥ thr): {summary.get('robust_mix', '-')}",
         f"- Sampling confidence: {summary.get('confidence', '-')}",
@@ -443,11 +444,11 @@ def explain_why_not(pareto_last: dict) -> dict:
     out: dict = {"messages": [], "failure_counts": []}
     if not feasible:
         out["messages"].append(
-            "No feasible designs in sampled bounds for selected intent(s) — not a plotting issue."
+            "No blocking-OK designs in sampled bounds for selected intent(s) — not a plotting issue."
         )
     elif not pareto:
         out["messages"].append(
-            "Feasible designs exist but no non-dominated Pareto set (objective redundancy or low variation)."
+            "blocking-OK designs exist but no non-dominated Pareto set (objective redundancy or low variation)."
         )
     counts: dict[str, int] = {}
     for row in samples:

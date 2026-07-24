@@ -226,7 +226,8 @@ def suggest_next_deck(session: Any, active_deck: str) -> tuple[Optional[str], st
     if active_deck == "Opt Lab":
         return (
             "Pareto Lab",
-            "Continue to Pareto Lab for a feasible certified front, or Compare for diffs.",
+            "Continue to Pareto Lab for a blocking-OK (intent-gate) front — "
+            "not L0 FEASIBLE / not VERIFIED — or Compare for diffs.",
         )
 
     if active_deck == "Compare" and not has_compare_slots(session):
