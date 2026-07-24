@@ -1,4 +1,4 @@
-"""Pareto Lab deck — 5-tab workflow on frozen feasible-only frontier (NiceGUI complete)."""
+"""Pareto Lab deck — 5-tab workflow on frozen blocking-OK-only frontier (NiceGUI complete)."""
 from __future__ import annotations
 
 from nicegui import ui

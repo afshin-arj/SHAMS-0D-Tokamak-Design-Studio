@@ -93,14 +93,14 @@ def frontier_posture(summary: dict) -> tuple[str, str]:
     n_feasible = int(summary.get("n_feasible") or 0)
     conf = str(summary.get("confidence") or "")
     if n_feasible == 0:
-        return "No feasible designs in sampled bounds — widen bounds or relax intent lens.", "negative"
+        return "No blocking-OK designs in sampled bounds (intent-gate) — widen bounds or relax intent lens.", "negative"
     if n_pareto == 0:
-        return "Feasible samples exist but no non-dominated front — check objective redundancy.", "warning"
+        return "blocking-OK samples exist but no non-dominated front — check objective redundancy.", "warning"
     if conf in ("Sparse", "Sampling-sparse", "Low"):
         return "Sparse sampled front — increase samples or widen bounds; not a certified optimum.", "warning"
     if conf in ("Sampling-moderate", "Moderate"):
         return "Moderate sample density — trade-offs are indicative, not UQ-certified.", "info"
-    return "Sampling-dense feasible-only front — explore trade-offs; not a convergence proof.", "info"
+    return "Sampling-dense blocking-OK front (intent-gate — not L0 FEASIBLE) — explore trade-offs; not a convergence proof.", "info"
 
 
 def default_objective_sense(key: str) -> str:

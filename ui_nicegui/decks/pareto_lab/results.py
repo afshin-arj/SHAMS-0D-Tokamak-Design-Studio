@@ -17,16 +17,16 @@ def render_pareto_results(session: DesignSession, pareto_last: dict) -> None:
     objectives = pareto_last.get("objectives") or {}
 
     if not pareto and not feasible:
-        ui.label("No feasible or Pareto points in this run.").classes("text-orange")
+        ui.label("No blocking-OK or Pareto points in this run.").classes("text-orange")
         _render_failure_hint(pareto_last)
         return
 
     if not pareto:
         ui.label(
-            "Feasible designs exist but no non-dominated Pareto set was produced "
+            "blocking-OK designs exist but no non-dominated Pareto set was produced "
             "(objective redundancy or insufficient variation)."
         ).classes("text-orange")
-        ui.label(f"Feasible points: {len(feasible)}").classes("text-caption")
+        ui.label(f"blocking-OK points: {len(feasible)}").classes("text-caption")
 
     if pareto:
         ui.label("Pareto front (constraint-annotated)").classes("text-subtitle2 q-mt-sm")
@@ -94,7 +94,7 @@ def _render_pareto_table(pareto: list[dict], obj_keys: list[str]) -> None:
         return
     with ui.expansion("Pareto table (first 50)", icon="table_chart").classes("w-full"):
         ui.label(
-            "Feasible-only front — Q / P_net cells are not claims from infeasible samples."
+            "blocking-OK-only front (not L0 FEASIBLE) — Q / P_net cells are not claims from hard-fail samples."
         ).classes("text-caption text-grey q-mb-xs")
         ui.table(
             columns=[{"name": k, "label": k, "field": k} for k in ["idx"] + [c for c in cols if c in rows[0]]],

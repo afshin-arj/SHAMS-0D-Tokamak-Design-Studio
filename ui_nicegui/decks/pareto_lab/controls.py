@@ -150,9 +150,9 @@ def render_pareto_controls(
             session.pareto_last = result
             summary = result.get("summary") or {}
             ui.notify(
-                f"Done: {summary.get('n_feasible', 0)} feasible, "
-                f"{summary.get('n_pareto', 0)} Pareto points",
-                type="positive",
+                f"Done: {summary.get('n_feasible', 0)} blocking-OK, "
+                f"{summary.get('n_pareto', 0)} Pareto points (screening — not L0 FEASIBLE)",
+                type="info",
             )
             _post_run_verdict.refresh()
         except Exception as exc:
@@ -165,7 +165,7 @@ def render_pareto_controls(
                 if on_complete:
                     on_complete()
 
-    btn = ui.button("Run Pareto (feasible-only)", icon="play_arrow", on_click=_run).props("color=primary")
+    btn = ui.button("Run Pareto (blocking-OK only)", icon="play_arrow", on_click=_run).props("color=primary")
     if session.pareto_running or len(session.pareto_sel_objs) < 2:
         btn.props("disable")
     _post_run_verdict(session)
@@ -187,7 +187,7 @@ def _post_run_verdict(session: DesignSession) -> None:
         ui.label(f"→ {q}").classes("text-caption text-grey")
     why = rep.get("summary", {})
     ui.markdown(
-        f"Feasible {why.get('n_feasible', '-')} · Pareto {why.get('n_pareto', '-')} · "
+        f"blocking-OK {why.get('n_feasible', '-')} · Pareto {why.get('n_pareto', '-')} · "
         f"Top limiter: {why.get('top_constraint', '-')} — open **Explore Frontier** to plot."
     ).classes("text-caption text-grey")
 

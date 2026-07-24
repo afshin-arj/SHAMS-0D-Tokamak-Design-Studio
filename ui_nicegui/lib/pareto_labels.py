@@ -37,15 +37,16 @@ _LEGACY_TAB_MAP = {
 }
 
 TAB_HELP = {
-    "1 · Setup & Run": "Declare bounds, objectives, intent, and sample the feasible set (LHS). Results persist after run.",
-    "2 · Explore Frontier": "Interactive Pareto plot — pick axes, inspect feasible set, failure shadow, robust overlay.",
+    "1 · Setup & Run": "Declare bounds, objectives, intent, and sample the blocking-OK set (LHS; intent-gate). Results persist after run.",
+    "2 · Explore Frontier": "Interactive Pareto plot — pick axes, inspect blocking-OK set, hard-fail shadow, robust overlay.",
     "3 · Interpret & Audit": "Trade-off matrix, knee regions, redundancy hints, self-audit checklist.",
     "4 · Export & Handoff": "Replay artifact, publication ZIP, promote to Point Designer, Scan Lab / Systems Mode handoffs.",
     "5 · External Tools": "Firewalled optimizers and robust screening — truth remains frozen.",
 }
 
 DECK_SUBTITLE = (
-    "Trade-off cartography over the **feasible** set only — descriptive, intent-aware, never prescriptive."
+    "Trade-off cartography over the **blocking-OK** set only (intent-gate — **not L0 FEASIBLE**) — "
+    "descriptive, intent-aware, never prescriptive."
 )
 
 DEFAULT_TAB = "1 · Setup & Run"
@@ -68,14 +69,14 @@ DECISION_TO_TAB = {
 
 TEACHING_HINTS = {
     DECISION_STATES[0]: "Pick **≥2 objectives** with explicit min/max. **Both (overlay)** doubles evaluations (Research + Reactor).",
-    DECISION_STATES[1]: "Gray points = infeasible shadow. **Robust overlay** filters by min margin threshold — not physics change.",
-    DECISION_STATES[2]: "Interaction matrix is **sign-only** on the feasible manifold — '+' co-moves, '-' trade-off.",
+    DECISION_STATES[1]: "Gray = hard-fail / blocking-fail shadow (plot-only). **Robust overlay** filters by min margin threshold — not physics change.",
+    DECISION_STATES[2]: "Interaction matrix is **sign-only** on the blocking-OK manifold — '+' co-moves, '-' trade-off.",
     DECISION_STATES[3]: "Promotion copies decision variables only — evaluate in Point Designer before trusting margins.",
     DECISION_STATES[4]: "External optimizers **propose** inputs; SHAMS re-evaluates with frozen truth.",
 }
 
 PARETO_LOCK_LINE = (
-    "**Pareto Lab is frozen** — trade-off cartography over feasible designs only. "
+    "**Pareto Lab is frozen** — trade-off cartography over blocking-OK (intent-gate) designs only — not L0 FEASIBLE. "
     "No optimization, relaxation, or recommendations. "
     "Labels say **Proposed — SHAMS-certified** — VERIFIED vs REJECTED with atlas on rejects; "
     "never a true minimum claim."
@@ -83,7 +84,8 @@ PARETO_LOCK_LINE = (
 
 ROBUST_MARGIN_HELP = (
     "**Margin-robust overlay** filters Pareto points by `min_constraint_margin` ≥ threshold — "
-    "a local feasibility cushion, not Phase+UQ uncertainty robustness (use External Tools for that)."
+    "a local blocking-OK margin cushion (not L0 FEASIBLE), not Phase+UQ uncertainty robustness "
+    "(use External Tools for that)."
 )
 
 QUESTION_PRESETS = {

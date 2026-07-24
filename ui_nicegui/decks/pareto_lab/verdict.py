@@ -13,7 +13,7 @@ def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") ->
     ui.label("Frontier Dashboard").classes("text-subtitle1")
     if not isinstance(summary, dict) or not summary:
         empty_state(
-            "No Pareto study yet. Configure objectives and run a feasible-only study on **Setup & Run** "
+            "No Pareto study yet. Configure objectives and run a blocking-OK (intent-gate) study on **Setup & Run** "
             "(requires a **Point Designer** baseline).",
             kind="info",
         )
@@ -25,23 +25,25 @@ def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") ->
         return
 
     if intent_mode:
-        ui.badge(f"Feasibility lens: {intent_mode}", color="blue-grey").props("outline").classes(
+        ui.badge(f"Intent-gate lens: {intent_mode}", color="blue-grey").props("outline").classes(
             "q-mb-xs"
         )
 
     posture, tone = frontier_posture(summary)
     from ui_nicegui.components.verdict_banner import verdict_banner
 
-    banner_posture = {
-        "positive": "PASS",
-        "info": "READY",
-        "warning": "MIXED",
-        "negative": "FAIL",
-    }.get(tone, "UNKNOWN")
-    # Sampling density must not present as a green PASS achievement.
-    if tone == "info" and banner_posture == "PASS":
-        banner_posture = "READY"
-    verdict_banner(banner_posture, detail=posture)
+    # Never paint sampling density as L0 green PASS / FEASIBLE.
+    if tone == "negative":
+        banner_posture = "FAIL"
+    elif tone == "warning":
+        banner_posture = "MIXED"
+    else:
+        banner_posture = "BLOCKING-OK SCREENING"
+    verdict_banner(
+        banner_posture,
+        detail=posture,
+        title_prefix="Frontier screening posture",
+    )
 
     feas_frac = summary.get("feasible_fraction")
     feas_pct = f"{100.0 * float(feas_frac):.1f}%" if isinstance(feas_frac, (int, float)) else "-"
@@ -57,9 +59,9 @@ def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") ->
     }.get(conf, "grey")
 
     kpi_row([
-        ("Feasible", summary.get("n_feasible", "-")),
+        ("blocking-OK", summary.get("n_feasible", "-")),
         ("Pareto", summary.get("n_pareto", "-")),
-        ("Feasible fraction", feas_pct),
+        ("blocking-OK fraction", feas_pct),
         ("Top limiter", summary.get("top_constraint", "-")),
         ("Margin-robust mix", summary.get("robust_mix", "-")),
         ("Mirage mix", summary.get("mirage_mix", "-")),
@@ -68,5 +70,5 @@ def render_frontier_dashboard(summary: dict | None, *, intent_mode: str = "") ->
     ui.label(
         "Sample density is not UQ/resampling confidence. "
         "Margin-robust mix = Pareto points with min_constraint_margin ≥ threshold. "
-        "Mirage mix = feasible but credibility-fragile — screening only."
+        "Mirage mix = blocking-OK but credibility-fragile — screening only; not L0 FEASIBLE."
     ).classes("text-caption text-grey q-mt-xs")

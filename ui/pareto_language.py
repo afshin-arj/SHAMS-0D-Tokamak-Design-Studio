@@ -2,15 +2,21 @@
 Centralizing these strings prevents semantic drift after freeze.
 """
 
-PARETO_LOCK_LINE = "🔒 **Pareto Lab is frozen** — Trade-off cartography over **feasible** designs only. No optimization, relaxation, or recommendations."
+PARETO_LOCK_LINE = (
+    "🔒 **Pareto Lab is frozen** — Trade-off cartography over **blocking-OK** "
+    "(intent-gate) designs only — **not L0 FEASIBLE**. "
+    "No optimization, relaxation, or recommendations."
+)
 
 PARETO_OPTIMAL_DEF = (
-    "ℹ️ **Definition (SHAMS):** This lab reports *non-dominated feasible* points for the declared objectives and intent. "
-    "This is a **trade-off slice**: it is descriptive, feasible-only, and never a recommendation."
+    "ℹ️ **Definition (SHAMS):** This lab reports *non-dominated blocking-OK* points "
+    "for the declared objectives and intent-gate. "
+    "This is a **trade-off slice**: it is descriptive, blocking-OK-only "
+    "(**not** Point Designer L0 FEASIBLE), and never a recommendation."
 )
 
 TRUST_BOUNDARIES = [
-    "✔ Feasible-only (intent-aware)",
+    "✔ blocking-OK only (intent-aware screening — not L0 FEASIBLE)",
     "✔ Deterministic and replayable",
     "✔ Policy-explicit",
     "✖ Not exhaustive over continuous space",

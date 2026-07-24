@@ -68,7 +68,7 @@ def render_interpret_tab(
 
     why = explain_why_not(pareto_last)
     if why.get("messages") or why.get("failure_counts"):
-        with ui.expansion("Explain why not (empty feasible / empty front)", icon="help").classes("w-full"):
+        with ui.expansion("Explain why not (empty blocking-OK / empty front)", icon="help").classes("w-full"):
             for msg in why.get("messages") or []:
                 ui.label(msg).classes("text-caption text-orange")
             for name, n in why.get("failure_counts") or []:
@@ -83,7 +83,8 @@ def render_interpret_tab(
     with ui.expansion("Governance parity (Pareto vs Point Designer)", icon="verified", value=session.pareto_teaching_mode).classes("w-full"):
         ui.label(
             f"Feasibility mode: {pareto_last.get('feasibility_mode', 'governance+intent')} — "
-            "Pareto feasible = no intent-blocking hard failures on unified governance ledger."
+            "Pareto blocking-OK = no intent-blocking hard failures on unified governance ledger "
+            "(**not** Point Designer L0 FEASIBLE)."
         ).classes("text-caption q-mb-sm")
         if str(pareto_last.get("intent_mode", "")).startswith("Both") and pareto_last.get("pareto_union"):
             ui.label(
@@ -95,9 +96,8 @@ def render_interpret_tab(
         )
         if n_gov_only:
             ui.label(
-                f"{n_gov_only} points are Pareto-feasible under Research intent but not governance-feasible — expected under intent lens."
+                f"{n_gov_only} points are blocking-OK under Research intent but not governance-feasible — expected under intent lens."
             ).classes("text-caption text-orange")
-
     rel = objective_relevance_table(feasible, pareto, obj_keys)
     if rel:
         with ui.expansion("Objective relevance on front", icon="insights").classes("w-full"):
@@ -132,7 +132,7 @@ def render_interpret_tab(
     with ui.expansion("Self-audit checklist", icon="fact_check", value=session.pareto_teaching_mode).classes("w-full"):
         checks = [
             ("≥2 objectives declared", len(obj_keys) >= 2),
-            ("Feasible samples exist", len(feasible) > 0),
+            ("blocking-OK samples exist", len(feasible) > 0),
             ("Non-dominated front produced", len(pareto) > 0),
             ("Intent mode recorded", bool(pareto_last.get("intent_mode"))),
             ("Seed recorded (replayable)", pareto_last.get("seed") is not None),
@@ -211,7 +211,7 @@ def render_interpret_tab(
             t_idx.on("update:model-value", lambda: _timeline_point.refresh())
             _timeline_point()
 
-    with ui.expansion("Policy lens (recompute front from feasible set)", icon="filter_alt").classes("w-full q-mt-md"):
+    with ui.expansion("Policy lens (recompute front from blocking-OK set)", icon="filter_alt").classes("w-full q-mt-md"):
         tbr_min = ui.number("TBR min (screening proxy)", value=1.0, step=0.05).classes("w-40")
         qdiv_max = ui.number("q_div max [MW/m²]", value=15.0, step=0.5).classes("w-36")
         sigma_max = ui.number("σ_vm max [MPa]", value=600.0, step=10.0).classes("w-36")
@@ -230,7 +230,7 @@ def render_interpret_tab(
                 hts_min=float(hts_min.value) if hts_min.value is not None else None,
             )
             ui.notify(
-                f"Policy lens: {len(filtered)} Pareto points from {len(feasible)} feasible samples",
+                f"Policy lens: {len(filtered)} Pareto points from {len(feasible)} blocking-OK samples",
                 type="info",
             )
             session.pareto_policy_filtered = filtered
