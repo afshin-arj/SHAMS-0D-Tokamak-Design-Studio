@@ -25,7 +25,7 @@ def render_explore_tab(
     all_samples = pareto_last.get("all") or []
 
     if not pareto and not feasible:
-        ui.markdown("No feasible points — adjust bounds or intent on **Setup & Run**.").classes("text-orange")
+        ui.markdown("No blocking-OK points (intent-gate) — adjust bounds or intent on **Setup & Run**.").classes("text-orange")
         return
 
     plot_keys = obj_keys + [k for k in ("R0_m", "Bt_T", "Ip_MA", "fG") if k not in obj_keys]
@@ -39,7 +39,8 @@ def render_explore_tab(
 
     ui.label("Frontier plot").classes("text-subtitle2")
     ui.label(
-        "Gray = infeasible shadow on non-claim axes only · Color = dominant constraint on Pareto points"
+        "Gray = hard-fail shadow on non-claim axes only · Color = dominant constraint on Pareto points · "
+        "Blue overlay = margin-robust on blocking-OK"
     ).classes("text-caption")
     ui.markdown(ROBUST_MARGIN_HELP).classes("text-caption text-grey q-mb-xs")
 
@@ -215,8 +216,8 @@ def _render_plot(
                     x=[p.get(x_key) for p in robust_highlight],
                     y=[p.get(y_key) for p in robust_highlight],
                     mode="markers",
-                    name="Margin-robust",
-                    marker=dict(size=12, symbol="x", color="#2e7d32", line=dict(width=2)),
+                    name="Margin-robust (blocking-OK)",
+                    marker=dict(size=12, symbol="x", color="#1565c0", line=dict(width=2)),
                 )
             )
     xu = OBJ_CATALOG.get(x_key, {}).get("units", "-")
@@ -296,8 +297,9 @@ def _render_table(pareto: list[dict], obj_keys: list[str], focus_keys: list[str]
         return
     ui.label(f"Pareto table ({len(pareto)} points, showing {len(rows)})").classes("text-subtitle2")
     ui.label(
-        "Front is feasible-only — Q / P_net / LCOE here are screening KPIs on hard-feasible points. "
-        "Infeasible shadow is plot-only (not in this table)."
+        "Front is blocking-OK only (intent-gate — not L0 FEASIBLE) — "
+        "Q / P_net / LCOE here are screening KPIs on hard-gate points. "
+        "Hard-fail shadow is plot-only (not in this table)."
     ).classes("text-caption text-grey q-mb-xs")
     col_names = ["idx"] + [c for c in cols if c in rows[0]]
     ui.table(

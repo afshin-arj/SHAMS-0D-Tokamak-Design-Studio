@@ -16,8 +16,9 @@ def render_setup_panel(*, default_open: bool = True, on_restore=None) -> None:
         for line in TRUST_BOUNDARIES:
             ui.label(line).classes("text-caption")
         ui.markdown(
-            "**Feasibility gate:** unified **governance** hard constraints + **intent-aware blocking** "
-            "(same policy as Point Designer Constraints tab). Research: only q95 blocks; TBR is ignored; "
+            "**Intent-gate (blocking):** unified **governance** hard constraints + **intent-aware blocking** "
+            "(same policy as Point Designer Constraints tab) — screening; **not L0 FEASIBLE**. "
+            "Research: only q95 blocks; TBR is ignored; "
             "engineering limits are diagnostic."
         ).classes("text-caption q-mt-sm")
         ui.markdown(
