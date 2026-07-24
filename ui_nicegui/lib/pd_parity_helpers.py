@@ -272,8 +272,8 @@ def regime_compass_rows(
 
     spec = [
         ("ρ*", "rho_star", "–", "Diagnostic"),
-        ("H98", "H98", "–", "Authoritative"),
-        ("fG", "fG", "–", "Authoritative"),
+        ("H98", "H98", "–", "Proxy"),
+        ("fG", "fG", "–", "Proxy"),
         ("nGW", "nGW", "×1e20 m⁻³", "Diagnostic"),
         ("βN (screening)", "beta_N", "–", "Proxy"),
         ("q95 (cyl. proxy)", "q95_proxy", "–", "Proxy"),
@@ -292,7 +292,9 @@ def regime_compass_rows(
     claim_blocked = feasible is False
     for label, key, unit, badge_type in spec:
         raw = out.get(key)
-        if key == "beta_N":
+        if key == "H98":
+            raw = out.get("H98", out.get("H_IPB98y2", out.get("H98y2", out.get("H_IPB98"))))
+        elif key == "beta_N":
             raw = out.get("beta_N", out.get("betaN_proxy", out.get("betaN")))
         elif key == "TBR":
             # Prefer binding v403 proxy when present; L0 still emits TBR.
@@ -364,6 +366,13 @@ def fuel_cycle_metric_groups(
         v = _safe_float(out.get(k, float("nan")))
         return (fmt.format(v) + suffix) if math.isfinite(v) else "n/a"
 
+    def _m_aliases(keys: tuple[str, ...], fmt: str = "{:.3g}") -> str:
+        for kk in keys:
+            v = _safe_float(out.get(kk, float("nan")))
+            if math.isfinite(v):
+                return fmt.format(v)
+        return "n/a"
+
     def _claim(k: str, fmt: str = "{:.3g}") -> str:
         if feasible is False:
             return format_claim_kpi_for_table(k, out.get(k), feasible=False, point_out=out)
@@ -373,7 +382,7 @@ def fuel_cycle_metric_groups(
         [
             ("T burn (g/day)", _m("T_burn_g_per_day", "{:.2f}")),
             ("T inventory proxy (g)", _m("T_inventory_proxy_g", "{:.2f}")),
-            ("TBR (proxy)", _m("TBR", "{:.2f}")),
+            ("TBR (proxy)", _m_aliases(("tbr_proxy_v403", "TBR", "tbr_proxy"), "{:.2f}")),
             ("FW dpa/y", _m("fw_dpa_per_year", "{:.2f}")),
         ],
         [
@@ -648,14 +657,14 @@ def costing_v421_summary(out: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 POWER_LEDGER_BADGED = [
-    ("Input power Pin", "Pin_MW", "Authoritative"),
+    ("Input power Pin", "Pin_MW", "Proxy"),
     ("Aux heating", "Paux_MW", "Authoritative"),
-    ("Ohmic", "Pohm_MW", "Proxy"),
-    ("Fusion alpha (generated)", "Palpha_MW", "Authoritative"),
+    ("Ohmic", "Pohm_MW", "Diagnostic"),
+    ("Fusion alpha (generated)", "Palpha_MW", "Proxy"),
     ("Fusion total", "Pfus_total_MW", "Proxy"),
     ("Core radiation", "Prad_core_MW", "Proxy"),
-    ("SOL/Separatrix power", "P_SOL_MW", "Authoritative"),
-    ("Total loss Ploss", "Ploss_MW", "Authoritative"),
+    ("SOL/Separatrix power", "P_SOL_MW", "Proxy"),
+    ("Total loss Ploss", "Ploss_MW", "Proxy"),
     ("Net electric", "P_e_net_MW", "Proxy"),
 ]
 
@@ -663,6 +672,8 @@ _POWER_LEDGER_ALIASES = {
     "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe"),
     "Palpha_MW": ("Palpha_MW",),
     "Pfus_total_MW": ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"),
+    "Pin_MW": ("Pin_MW", "P_in_MW"),
+    "Pohm_MW": ("Pohm_MW", "P_tf_ohmic_MW"),
 }
 
 
@@ -879,13 +890,13 @@ def dominant_limiter_summary(rows: List[Dict[str, Any]]) -> Optional[str]:
 
 BASELINE_DELTA_KPIS = [
     ("Q_DT_eqv", "Q_DT_eqv", "–", ("Q_DT_eqv", "Q")),
-    ("H98", "H98", "–", ("H98",)),
-    ("P_net_e", "P_e_net_MW", "MW(e)", ("P_e_net_MW", "P_net_e_MW")),
+    ("H98", "H98", "–", ("H98", "H_IPB98y2", "H98y2", "H_IPB98")),
+    ("P_net_e", "P_e_net_MW", "MW(e)", ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe")),
     ("q95 (cyl. proxy)", "q95_proxy", "–", ("q95_proxy", "q95")),
     ("βN (screening)", "beta_N", "–", ("beta_N", "betaN_proxy", "betaN")),
     ("q_div", "q_div_MW_m2", "MW/m²", ("q_div_MW_m2",)),
     ("P_SOL", "P_SOL_MW", "MW", ("P_SOL_MW",)),
-    ("TBR (proxy)", "TBR", "–", ("TBR",)),
+    ("TBR (proxy)", "TBR", "–", ("tbr_proxy_v403", "TBR", "tbr_proxy")),
 ]
 
 
