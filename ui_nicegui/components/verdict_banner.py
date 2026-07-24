@@ -19,6 +19,10 @@ def verdict_banner(posture: str, *, detail: str = "") -> None:
         "READY": "bg-blue-1 text-blue-10",
         "SEMANTICS": "bg-blue-grey-1 text-blue-grey-10",
         "MISSING ARTIFACT": "bg-orange-1 text-orange-10",
+        # Systems Mode: PD seed / unverified — never green "Systems FEASIBLE"
+        "PD BASELINE": "bg-amber-1 text-orange-10",
+        "PD INFEASIBLE": "bg-orange-1 text-orange-10",
+        "UNVERIFIED": "bg-blue-grey-1 text-blue-grey-10",
         # Scan Lab cartography robustness proxies (not L0 constraint verdicts)
         "ROBUST": "bg-green-1 text-green-10",
         "BALANCED": "bg-blue-1 text-blue-10",

@@ -108,8 +108,8 @@ def power_ledger_rows(out: Dict[str, Any]) -> List[Dict[str, str]]:
     rows = []
     # Alias map when L0 uses a different primary key than the ledger label key.
     aliases = {
-        "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
-        "Pfus_total_MW": ("Pfus_total_MW",),
+        "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe"),
+        "Pfus_total_MW": ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"),
         "Pfus_DT_adj_MW": ("Pfus_DT_adj_MW",),
         "Palpha_MW": ("Palpha_MW",),
     }
@@ -660,7 +660,7 @@ POWER_LEDGER_BADGED = [
 ]
 
 _POWER_LEDGER_ALIASES = {
-    "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW"),
+    "P_e_net_MW": ("P_e_net_MW", "P_net_e_MW", "Pe_net_MW", "P_net_MW", "Pnet_MWe"),
     "Palpha_MW": ("Palpha_MW",),
     "Pfus_total_MW": ("Pfus_total_MW", "P_fus_MW", "Pfus_MW"),
 }

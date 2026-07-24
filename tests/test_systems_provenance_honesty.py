@@ -99,7 +99,7 @@ def test_next_action_hint_apply_not_systems_solve():
 
 
 def test_cockpit_markdown_labels_pd_source():
-    from ui_nicegui.lib.systems_cockpit import build_compact_cockpit_markdown
+    from ui_nicegui.lib.systems_cockpit import build_compact_cockpit_markdown, compact_next_action
 
     md = build_compact_cockpit_markdown(
         SimpleNamespace(systems_decision_state=None),
@@ -111,6 +111,54 @@ def test_cockpit_markdown_labels_pd_source():
     )
     assert "Artifact source: point_designer_fallback" in md
     assert "not a Systems Mode target solve" in md
+    assert "Apply to Point Designer" not in md
+
+    md_feas = build_compact_cockpit_markdown(
+        SimpleNamespace(systems_decision_state="Apply & iterate (update Base/x0)"),
+        {
+            "source": "point_designer_fallback",
+            "verdict": "FEASIBLE",
+            "outputs": {
+                "Q_DT_eqv": 5.0,
+                "Pfus_total_MW": 400.0,
+                "P_e_net_MW": 80.0,
+                "feasible": True,
+                "hard_failures": [],
+            },
+        },
+    )
+    assert "not a Systems Mode target solve" in md_feas
+    assert "Apply to Point Designer" not in md_feas
+    assert "PD seed" in md_feas or "not a Systems result" in md_feas
+
+    action = compact_next_action(
+        verdict="FEASIBLE",
+        dominant="q95",
+        step="Apply & iterate (update Base/x0)",
+        artifact_source="point_designer_fallback",
+    )
+    assert "PD seed" in action or "not a Systems result" in action
+    assert "Apply to Point Designer" not in action
+
+    solve_action = compact_next_action(
+        verdict="FEASIBLE",
+        dominant="-",
+        step="Apply & iterate (update Base/x0)",
+        artifact_source="systems_solve",
+    )
+    assert "Apply to Point Designer" in solve_action
+
+
+def test_systems_posture_banner_never_green_feasible_on_pd_seed():
+    vsrc = Path("ui_nicegui/decks/systems_mode/verdict.py").read_text(encoding="utf-8")
+    assert "PD BASELINE" in vsrc
+    assert "normalize_systems_artifact_source" in vsrc
+    assert "is_systems_result_source" in vsrc
+    # Must not call verdict_banner with raw FEASIBLE for PD seeds as the only path.
+    assert 'banner = "PD BASELINE"' in vsrc or 'banner = "PD INFEASIBLE"' in vsrc
+    banner = Path("ui_nicegui/components/verdict_banner.py").read_text(encoding="utf-8")
+    assert '"PD BASELINE"' in banner
+    assert '"PD INFEASIBLE"' in banner
 
 
 def test_apply_ui_sets_point_designer_apply_source():
