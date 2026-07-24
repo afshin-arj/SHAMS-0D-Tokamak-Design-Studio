@@ -20,7 +20,7 @@ def render_study_results(session: DesignSession, rep: dict) -> None:
         return
 
     if not feasible and not pareto:
-        ui.label("No feasible points in sampled bounds.").classes("text-orange")
+        ui.label("No blocking-OK points in sampled bounds (intent-gate).").classes("text-orange")
         _render_blocking_hint(records)
 
     if len(objectives) >= 2 and pareto:
@@ -35,8 +35,8 @@ def render_study_results(session: DesignSession, rep: dict) -> None:
                     {"name": "family", "label": "Family", "field": "family", "align": "left"},
                     {"name": "title", "label": "Title", "field": "title"},
                     {"name": "n", "label": "N", "field": "n"},
-                    {"name": "n_feasible", "label": "Feasible", "field": "n_feasible"},
-                    {"name": "feasible_frac", "label": "Feasible frac", "field": "feasible_frac"},
+                    {"name": "n_feasible", "label": "blocking-OK", "field": "n_feasible"},
+                    {"name": "feasible_frac", "label": "blocking-OK frac", "field": "feasible_frac"},
                 ],
                 rows=[r for r in fam_rows if isinstance(r, dict)][:20],
                 row_key="family",
@@ -44,9 +44,9 @@ def render_study_results(session: DesignSession, rep: dict) -> None:
 
     _render_table("All samples", records[:100], objectives)
     if feasible:
-        _render_table("Feasible samples", feasible[:100], objectives)
+        _render_table("blocking-OK samples", feasible[:100], objectives)
     if pareto:
-        _render_table("Feasible Pareto subset", pareto[:100], objectives)
+        _render_table("blocking-OK Pareto subset", pareto[:100], objectives)
         _render_promote(session, pareto, rep)
 
     ui.separator()
@@ -92,7 +92,7 @@ def _render_pareto_plot(pareto: list[dict], x_key: str, y_key: str) -> None:
         x=xs,
         y=ys,
         color=colors if any(colors) else None,
-        title="Feasible Pareto subset",
+        title="blocking-OK Pareto subset",
         labels={"x": x_key, "y": y_key},
     )
     fig.update_layout(height=360, margin=dict(l=40, r=20, t=40, b=40))

@@ -38,14 +38,14 @@ def render_explore_tab(
     if session.trade_plot_y not in plot_keys:
         session.trade_plot_y = objectives[1] if len(objectives) > 1 else plot_keys[min(1, len(plot_keys) - 1)]
 
-    ui.label("Feasible Pareto plot").classes("text-subtitle2")
+    ui.label("blocking-OK Pareto plot (intent-gate — not L0 FEASIBLE)").classes("text-subtitle2")
     with ui.row().classes("w-full gap-2 items-end"):
         x_sel = ui.select(plot_keys, label="X axis", value=session.trade_plot_x).classes("flex-1")
         y_sel = ui.select(plot_keys, label="Y axis", value=session.trade_plot_y).classes("flex-1")
         color_opts = ["design_family", "dominant_constraint", "(none)"] + objectives
         c_val = session.trade_plot_color if session.trade_plot_color in color_opts else "design_family"
         c_sel = ui.select(color_opts, label="Color", value=c_val).classes("flex-1")
-        fail_sw = ui.switch("Show infeasible shadow", value=session.trade_show_failures).classes("flex-none")
+        fail_sw = ui.switch("Show blocking-fail shadow", value=session.trade_show_failures).classes("flex-none")
 
     def _sync() -> None:
         session.trade_plot_x = str(x_sel.value)
@@ -71,12 +71,12 @@ def render_explore_tab(
             show_infeasible=bool(session.trade_show_failures),
         )
     elif not pareto:
-        ui.label("No Pareto front — insufficient feasible variation or single objective.").classes("text-orange")
+        ui.label("No Pareto front — insufficient blocking-OK variation or single objective.").classes("text-orange")
 
     ui.separator().classes("q-my-sm")
-    _render_sample_table("Feasible Pareto subset", pareto[:80], objectives)
+    _render_sample_table("blocking-OK Pareto subset", pareto[:80], objectives)
     if feasible and len(feasible) != len(pareto):
-        _render_sample_table("All feasible samples", feasible[:80], objectives)
+        _render_sample_table("All blocking-OK samples", feasible[:80], objectives)
 
 
 def _infeasible_shadow(records: list, x_key: str, y_key: str) -> list[dict]:
@@ -116,7 +116,7 @@ def _render_plot(
                 x=[p.get(x_key) for p in infeasible],
                 y=[p.get(y_key) for p in infeasible],
                 mode="markers",
-                name="Infeasible (non-claim axes)",
+                name="hard-fail (non-claim axes)",
                 marker=dict(color="rgba(160,160,160,0.3)", size=4),
             )
         )

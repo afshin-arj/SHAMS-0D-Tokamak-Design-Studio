@@ -22,16 +22,16 @@ def study_narrative(rep: dict) -> str:
     lines = [
         "# Trade study summary",
         "",
-        f"- Samples: {summary.get('n_samples', '-')} · Feasible: {summary.get('n_feasible', '-')} · Pareto: {summary.get('n_pareto', '-')}",
-        f"- Feasible fraction: {100.0 * float(summary.get('feasible_fraction', 0.0)):.1f}%",
-        f"- Confidence: {summary.get('confidence', '-')}",
+        f"- Samples: {summary.get('n_samples', '-')} · blocking-OK: {summary.get('n_feasible', '-')} · Pareto: {summary.get('n_pareto', '-')}",
+        f"- blocking-OK fraction: {100.0 * float(summary.get('feasible_fraction', 0.0)):.1f}%",
+        f"- Sample density: {summary.get('confidence', '-')}",
         f"- Knob set: {summary.get('knob_set', rep.get('knob_set_name', '-'))}",
         f"- Objectives: {', '.join(objs) if objs else '-'}",
         f"- Seed: {summary.get('seed', meta.get('seed', '-'))}",
         f"- Design intent: {summary.get('design_intent', rep.get('design_intent', '-'))}",
-        f"- Feasibility mode: {summary.get('feasibility_mode', rep.get('feasibility_mode', '-'))}",
+        f"- Intent-gate mode: {summary.get('feasibility_mode', rep.get('feasibility_mode', '-'))} — not L0 FEASIBLE",
         "",
-        "Budgeted LHS over declared knobs — descriptive trade-off slice, not a design recommendation.",
+        "Budgeted LHS over declared knobs — descriptive blocking-OK trade-off slice, not a design recommendation.",
     ]
     return "\n".join(lines)
 

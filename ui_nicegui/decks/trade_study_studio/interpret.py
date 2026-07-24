@@ -19,19 +19,19 @@ def render_interpret_tab(session: DesignSession, rep: dict) -> None:
         checks = [
             ("Knob set recorded", bool(summary.get("knob_set") or rep.get("knob_set_name"))),
             ("Objectives declared", bool((rep.get("meta") or {}).get("objectives"))),
-            ("Feasible samples exist", int(summary.get("n_feasible", 0)) > 0),
+            ("blocking-OK samples exist", int(summary.get("n_feasible", 0)) > 0),
             ("Pareto subset produced", int(summary.get("n_pareto", 0)) > 0),
             ("Seed recorded", summary.get("seed") is not None),
             ("Study capsule active", isinstance(session.active_study_capsule, dict)),
         ]
         for label, ok in checks:
             ui.label(f"{'✓' if ok else '✗'} {label}").classes(
-                "text-caption" + (" text-positive" if ok else " text-orange")
+                "text-caption" + (" text-blue-10" if ok else " text-orange")
             )
 
     blockers = blocking_constraints(records)
     if blockers:
-        ui.label("Top blocking constraints (infeasible samples)").classes("text-subtitle2 q-mt-md")
+        ui.label("Top blocking constraints (hard-fail samples)").classes("text-subtitle2 q-mt-md")
         for name, n in blockers:
             ui.label(f"{name}: {n}").classes("text-caption")
 
@@ -41,12 +41,13 @@ def render_interpret_tab(session: DesignSession, rep: dict) -> None:
     )
     if n_gov_gap:
         ui.label(
-            f"{n_gov_gap} samples are intent-feasible but governance-infeasible — expected under Research intent."
+            f"{n_gov_gap} samples are blocking-OK under intent but not governance-feasible — expected under Research intent."
         ).classes("text-caption text-orange q-mt-sm")
 
     feas_mode = rep.get("feasibility_mode") or (rep.get("meta") or {}).get("feasibility_mode", "governance+intent")
     ui.label(
-        f"Feasibility mode: {feas_mode} · Intent: {rep.get('design_intent') or summary.get('design_intent', session.design_intent)}"
+        f"Intent-gate mode: {feas_mode} · Intent: {rep.get('design_intent') or summary.get('design_intent', session.design_intent)} "
+        f"— screening; not L0 FEASIBLE"
     ).classes("text-caption text-grey")
 
     fam_rows = fam.get("rows") if isinstance(fam, dict) else None
@@ -57,12 +58,11 @@ def render_interpret_tab(session: DesignSession, rep: dict) -> None:
                 {"name": "family", "label": "Family", "field": "family", "align": "left"},
                 {"name": "title", "label": "Title", "field": "title", "align": "left"},
                 {"name": "n", "label": "N", "field": "n"},
-                {"name": "n_feasible", "label": "Feasible", "field": "n_feasible"},
-                {"name": "feasible_frac", "label": "Feasible frac", "field": "feasible_frac"},
+                {"name": "n_feasible", "label": "blocking-OK", "field": "n_feasible"},
+                {"name": "feasible_frac", "label": "blocking-OK frac", "field": "feasible_frac"},
             ],
             rows=[r for r in fam_rows if isinstance(r, dict)][:30],
             row_key="family",
         ).classes("w-full")
-
     ui.separator().classes("q-my-sm")
     ui.label(f"Lane mode at run: {session.trade_last_lane or 'Nominal only'}").classes("text-caption text-grey")

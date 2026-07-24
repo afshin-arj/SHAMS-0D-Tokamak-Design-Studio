@@ -90,15 +90,17 @@ def test_evaluate_concept_family_legacy_kwargs_backcompat():
 
 
 def test_trade_study_dashboard_does_not_green_pass_on_sampling_confidence():
-    """Feasible+Pareto sampling must not show green PASS as design certification."""
+    """blocking-OK + Pareto sampling must not show green PASS as design certification."""
     import inspect
 
     from ui_nicegui.decks.trade_study_studio import verdict as vmod
 
     src = inspect.getsource(vmod.render_study_dashboard)
-    assert "PASS+DIAG" in src
-    assert "Sampling conf" in src or "sampling confidence" in src.lower()
+    assert "BLOCKING-OK SCREENING" in src
+    assert 'title_prefix="Frontier screening posture"' in src
+    assert "PASS+DIAG" not in src
     assert 'verdict_banner("PASS"' not in src
+    assert "blocking-OK" in src
 
 
 def test_extopt_helpers_inject_ui_evaluator():

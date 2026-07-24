@@ -113,7 +113,7 @@ MODE_SCOPE: dict[str, dict[str, list[str]]] = {
     "trade": {
         "does": [
             "Runs budgeted LHS trade studies over explicit knob sets.",
-            "Extracts Pareto subsets only from feasible sampled points.",
+            "Extracts Pareto subsets only from blocking-OK (intent-gate) sampled points — not L0 FEASIBLE.",
             "Launches firewalled external optimizer kits and study capsules.",
         ],
         "does_not": [

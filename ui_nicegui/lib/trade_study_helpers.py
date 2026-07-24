@@ -118,11 +118,11 @@ def summarize_trade_study(rep: dict) -> Dict[str, Any]:
     n_pareto = len(rep.get("pareto") or [])
     feas_frac = float(n_feasible) / max(n_samples, 1)
     if feas_frac >= 0.05 and n_pareto >= 5:
-        confidence = "High"
+        confidence = "Sampling-dense"
     elif n_pareto >= 1:
-        confidence = "Moderate"
+        confidence = "Sampling-moderate"
     elif n_feasible >= 1:
-        confidence = "Low"
+        confidence = "Sampling-sparse"
     else:
         confidence = "Sparse"
     return {
@@ -137,6 +137,29 @@ def summarize_trade_study(rep: dict) -> Dict[str, Any]:
         "design_intent": rep.get("design_intent") or meta.get("design_intent"),
         "feasibility_mode": rep.get("feasibility_mode") or meta.get("feasibility_mode", "governance+intent"),
     }
+
+
+def frontier_posture(summary: dict) -> tuple[str, str]:
+    """Return (message, tone) for Trade Study screening dashboard — not L0 Verdict."""
+    n_pareto = int(summary.get("n_pareto") or 0)
+    n_feasible = int(summary.get("n_feasible") or 0)
+    conf = str(summary.get("confidence") or "")
+    if n_feasible == 0:
+        return (
+            "No blocking-OK designs in sampled knobs (intent-gate) — widen knobs or relax intent lens.",
+            "negative",
+        )
+    if n_pareto == 0:
+        return "blocking-OK samples exist but no non-dominated front — check objective redundancy.", "warning"
+    if conf in ("Sparse", "Sampling-sparse", "Low"):
+        return "Sparse sampled front — increase samples or widen knobs; not a certified optimum.", "warning"
+    if conf in ("Sampling-moderate", "Moderate"):
+        return "Moderate sample density — trade-offs are indicative, not UQ-certified.", "info"
+    return (
+        "Sampling-dense blocking-OK front (intent-gate — not L0 FEASIBLE) — "
+        "explore trade-offs; not a convergence proof.",
+        "info",
+    )
 
 
 def build_study_capsule(rep: dict, base, knob_set: KnobSet, *, lane_mode: str) -> dict:

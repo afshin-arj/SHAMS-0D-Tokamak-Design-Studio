@@ -40,22 +40,26 @@ _LEGACY_TAB_MAP = {
 }
 
 TAB_HELP = {
-    "1 · Setup & Run": "Pick knob set, objectives, budget — LHS samples frozen truth; Pareto is over feasible points only.",
-    "2 · Explore Results": "Interactive Pareto plot, feasible/infeasible shadow, design-family coloring.",
+    "1 · Setup & Run": (
+        "Pick knob set, objectives, budget — LHS samples frozen truth; "
+        "Pareto over blocking-OK (intent-gate) points only — not L0 FEASIBLE."
+    ),
+    "2 · Explore Results": "Interactive Pareto plot, blocking-OK / hard-fail shadow, design-family coloring.",
     "3 · Interpret & Families": "Blocking constraints, family mix, study narrative and self-audit.",
     "4 · Export & Handoff": "Study report + capsule JSON, restore replay, promote to Point Designer.",
     "5 · Advanced Tools": "Frontier atlas, robust certification, surrogate, optimizer kits, mirage pathfinding.",
 }
 
 DECK_SUBTITLE = (
-    "Feasibility-first trade studies and firewalled optimizers — truth frozen; optimization proposes only."
+    "Budgeted LHS trade studies over the **blocking-OK** set only "
+    "(intent-gate — **not L0 FEASIBLE**) — truth frozen; optimizers propose only."
 )
 
 DEFAULT_TAB = "1 · Setup & Run"
 
 DECISION_STATES = [
     "Run a new trade study",
-    "Explore the feasible Pareto set",
+    "Explore the blocking-OK Pareto set",
     "Understand families & blockers",
     "Export or promote a point",
     "Run atlas / certification / optimizers",
@@ -70,7 +74,10 @@ DECISION_TO_TAB = {
 }
 
 TEACHING_HINTS = {
-    DECISION_STATES[0]: "Knob sets define the sampling hyper-rectangle. Objectives are **outputs** — Pareto never includes infeasible points.",
+    DECISION_STATES[0]: (
+        "Knob sets define the sampling hyper-rectangle. Objectives are **outputs** — "
+        "Pareto never includes blocking-fail points (intent-gate — not L0 FEASIBLE)."
+    ),
     DECISION_STATES[1]: "Color by **design_family** or **dominant_constraint** to see mechanism structure on the front.",
     DECISION_STATES[2]: "Family labels are narrative only — they do not change evaluator truth.",
     DECISION_STATES[3]: "Study capsule is the cross-deck handoff artifact (Pareto Lab, Compare, advanced decks).",
