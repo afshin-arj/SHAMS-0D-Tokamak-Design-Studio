@@ -110,6 +110,7 @@ def _result(session: DesignSession) -> None:
     from ui_nicegui.lib.plant_kpi_honesty_ui import format_claim_kpi_for_table, is_claim_kpi_key
 
     feasible = bool(vs.get("feasible"))
+    design_intent = str(getattr(session, "design_intent", "") or "")
     ui.label(f"Verdict: {vs.get('verdict', 'n/a')}").classes(
         "text-h6 " + ("text-positive" if feasible else "text-negative")
     )
@@ -117,7 +118,7 @@ def _result(session: DesignSession) -> None:
     q_nt = f"{vs.get('q_label', '')} · {vs.get('nt_label', '')}"
     if not feasible:
         ui.label(
-            "PHYS-KPI-001: Q / Pfus / P_net below are diagnostic residue — not design claims."
+            "PHYS-KPI-001: Q / H98 / Pfus / P_net below are diagnostic residue — not design claims."
         ).classes("text-caption text-orange")
         q_nt = "Q / n·T — (diagnostic)"
     ui.label(q_nt).classes("text-caption")
@@ -127,7 +128,8 @@ def _result(session: DesignSession) -> None:
         ui.label(f"Hard feasible (artifact KPI): {'YES' if kpis.get('feasible_hard') else 'NO'}").classes(
             "text-caption"
         )
-    keys = ("Q_DT_eqv", "Pfus_total_MW", "P_e_net_MW", "tauE_eff_s", "beta_N", "q95_proxy")
+    # H98 included so alias chain is reachable; claim keys watermarked on INFEASIBLE.
+    keys = ("Q_DT_eqv", "H98", "Pfus_total_MW", "P_e_net_MW", "tauE_eff_s", "beta_N", "q95_proxy")
     outs = payload.get("outputs") if isinstance(payload.get("outputs"), dict) else payload
     for k in keys:
         val = outs.get(k) if isinstance(outs, dict) else None
@@ -148,7 +150,9 @@ def _result(session: DesignSession) -> None:
                     break
         if val is not None:
             if is_claim_kpi_key(k):
-                disp = format_claim_kpi_for_table(k, val, feasible=feasible, point_out=outs)
+                disp = format_claim_kpi_for_table(
+                    k, val, feasible=feasible, point_out=outs, design_intent=design_intent
+                )
             else:
                 disp = str(val)
             ui.label(f"{k}: {disp}").classes("text-caption")

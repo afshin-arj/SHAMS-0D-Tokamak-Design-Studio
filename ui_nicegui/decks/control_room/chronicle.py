@@ -80,6 +80,21 @@ def _artifact_for_chronicle(session: DesignSession) -> dict | None:
     return None
 
 
+# Output keys offered in Sensitivity Explorer — values are L0 keys; labels are honesty-facing.
+_SENS_OUTPUT_OPTIONS: dict[str, str] = {
+    "Q_DT_eqv": "Q_DT_eqv (claim)",
+    "H98": "H98 (claim)",
+    "Pfus_total_MW": "Pfus_total_MW (claim)",
+    "P_e_net_MW": "P_e_net_MW (claim)",
+    "beta_N": "beta_N (screening)",
+    "q95_proxy": "q95_proxy (cyl. proxy)",
+    "TBR": "TBR (proxy)",
+}
+_SENS_CLAIM_OUTPUTS = frozenset(
+    k for k, lab in _SENS_OUTPUT_OPTIONS.items() if "(claim)" in lab
+)
+
+
 def _sensitivity(session: DesignSession) -> None:
     ui.label("Sensitivity Explorer").classes("text-subtitle1")
     ui.label(
@@ -101,12 +116,16 @@ def _sensitivity(session: DesignSession) -> None:
     knob_defaults = ["Ip_MA", "fG", "Bt_T", "R0_m", "a_m", "kappa", "Paux_MW", "Ti_keV"]
     available = [k for k in knob_defaults if hasattr(base, k)]
     knobs = ui.select(available, label="Knobs", value=available[:2], multiple=True).classes("w-full")
+    # Options map: value = L0 key (pack/jacobian), label = honesty annotation.
     outputs = ui.select(
-        ["Q_DT_eqv", "H98", "Pfus_total_MW", "beta_N", "P_e_net_MW", "q95_proxy", "TBR"],
+        _SENS_OUTPUT_OPTIONS,
         label="Outputs",
         value=["Q_DT_eqv", "H98"],
         multiple=True,
     ).classes("w-full")
+    ui.label(
+        "Claim outputs watermark on INFEASIBLE baselines; β_N is screening-only; TBR is a fuel-cycle proxy."
+    ).classes("text-caption text-grey q-mb-xs")
     step = ui.number("Step size (relative)", value=1e-3, format="%.6f")
 
     async def _run() -> None:
@@ -126,7 +145,19 @@ def _sensitivity(session: DesignSession) -> None:
             session.cr_sensitivity_last = pack
             session.cr_sensitivity_knobs = ks
             session.cr_sensitivity_outputs = outs
-            ui.notify("Sensitivity pack ready", type="positive")
+            from ui_nicegui.lib.verdict_core import verdict_summary as _vs
+
+            base_out = (art.get("outputs") if isinstance(art.get("outputs"), dict) else None) or {}
+            if not base_out:
+                base_out = pack.get("base_outputs") if isinstance(pack.get("base_outputs"), dict) else {}
+            feas = bool(_vs(base_out if isinstance(base_out, dict) else {}).get("feasible"))
+            if not feas and any(o in _SENS_CLAIM_OUTPUTS for o in outs):
+                ui.notify(
+                    "Sensitivity pack ready — claim-KPI jacobians are diagnostic (INFEASIBLE baseline).",
+                    type="warning",
+                )
+            else:
+                ui.notify("Sensitivity pack ready", type="positive")
             _sens_view.refresh()
         except Exception as exc:
             ui.notify(f"Sensitivity failed: {exc}", type="negative")
