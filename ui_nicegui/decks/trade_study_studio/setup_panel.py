@@ -14,7 +14,7 @@ def render_setup_panel(*, default_open: bool = True) -> None:
         ui.markdown(
             "**What this mode does**\n"
             "- Budgeted LHS trade studies over explicit knob sets\n"
-            "- Pareto fronts **only over feasible** sampled points\n"
+            "- Pareto fronts **only over blocking-OK** (intent-gate) sampled points — **not L0 FEASIBLE**\n"
             "- Study capsules for cross-deck handoff\n\n"
             "**What this mode does not do**\n"
             "- Modify frozen physics or use internal solvers\n"
@@ -22,8 +22,9 @@ def render_setup_panel(*, default_open: bool = True) -> None:
             "- Smooth or relax constraints"
         )
         ui.markdown(
-            "**Feasibility gate:** unified **governance** + **intent-aware blocking** "
-            "(same policy as Point Designer). Pareto membership uses intent-feasible samples only."
+            "**Intent-gate (blocking):** unified **governance** hard constraints + **intent-aware blocking** "
+            "(same policy as Point Designer Constraints tab) — screening; **not L0 FEASIBLE**. "
+            "Pareto membership uses blocking-OK samples only."
         ).classes("text-caption q-mt-sm")
         ui.label("Knob sets (sampling domains)").classes("text-subtitle2 q-mt-sm")
         for ks in default_knob_sets()[:6]:

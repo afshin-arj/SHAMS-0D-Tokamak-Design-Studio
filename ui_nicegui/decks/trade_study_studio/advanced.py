@@ -212,12 +212,12 @@ def _v351_view(session: DesignSession) -> None:
         return
     kpi_row([
         ("Total", str(atlas.get("n_total", "-"))),
-        ("Feasible", str(atlas.get("n_feasible", "-"))),
+        ("blocking-OK", str(atlas.get("n_feasible", "-"))),
         ("Pareto", str(atlas.get("n_pareto", "-"))),
     ])
     if atlas.get("all_infeasible"):
         ui.label(
-            "No intent-feasible samples in this study — frontier atlas is empty (NO-SOLUTION is valid)."
+            "No blocking-OK samples in this study — frontier atlas is empty (NO-SOLUTION is valid)."
         ).classes("text-caption text-orange")
     lanes = session.v351_lane_rows
     if isinstance(lanes, list) and lanes:
@@ -289,7 +289,7 @@ def _render_v352(session: DesignSession) -> None:
         return
     ui.label("Robust envelope certification under ROBUST UQ-lite contract (budgeted).").classes("text-caption")
     source = ui.select(
-        ["Trade Study: Feasible", "Trade Study: Pareto"],
+        ["Trade Study: blocking-OK", "Trade Study: Pareto"],
         label="Candidate source",
         value="Trade Study: Pareto",
     )
@@ -298,7 +298,7 @@ def _render_v352(session: DesignSession) -> None:
     async def _run() -> None:
         from ui_nicegui.lib.run_lock import lease_valid
 
-        key = "feasible" if "Feasible" in str(source.value) else "pareto"
+        key = "feasible" if "blocking-OK" in str(source.value) else "pareto"
         rows = list(rep.get(key) or [])
         if not rows:
             ui.notify("Empty candidate source", type="warning")
@@ -438,8 +438,8 @@ def _render_surrogate_accel(session: DesignSession) -> None:
             session.ts_sa_verified_rows = vrows
             n_ok = sum(1 for r in vrows if isinstance(r, dict) and bool(r.get("is_feasible")))
             ui.notify(
-                f"Truth-verified {len(vrows)} candidates ({n_ok} feasible)",
-                type="positive" if n_ok == len(vrows) and n_ok > 0 else "info",
+                f"Truth-verified {len(vrows)} candidates ({n_ok} blocking-OK)",
+                type="info" if n_ok == len(vrows) and n_ok > 0 else "warning",
             )
             _sa_view.refresh()
         except Exception as exc:
@@ -460,12 +460,12 @@ def _sa_view(session: DesignSession) -> None:
     vrows = session.ts_sa_verified_rows
     if isinstance(vrows, list) and vrows:
         n_ok = sum(1 for r in vrows if isinstance(r, dict) and bool(r.get("is_feasible")))
-        tone = "text-positive" if n_ok == len(vrows) else "text-warning"
-        ui.label(f"Truth-verified: {len(vrows)} ({n_ok} feasible)").classes(f"text-caption {tone}")
+        tone = "text-blue-10" if n_ok == len(vrows) else "text-warning"
+        ui.label(f"Truth-verified: {len(vrows)} ({n_ok} blocking-OK)").classes(f"text-caption {tone}")
         ui.table(
             columns=[
                 {"name": "i", "label": "i", "field": "i"},
-                {"name": "is_feasible", "label": "Feasible", "field": "is_feasible"},
+                {"name": "is_feasible", "label": "blocking-OK", "field": "is_feasible"},
                 {"name": "dominant_constraint", "label": "Dominant", "field": "dominant_constraint", "align": "left"},
             ],
             rows=[{k: r.get(k) for k in ("i", "is_feasible", "dominant_constraint")} for r in vrows[:30]],
@@ -583,7 +583,7 @@ def _render_family_atlas(session: DesignSession) -> None:
             columns=[
                 {"name": "family", "label": "Family", "field": "family", "align": "left"},
                 {"name": "n", "label": "N", "field": "n"},
-                {"name": "feasible_frac", "label": "Feasible frac", "field": "feasible_frac"},
+                {"name": "feasible_frac", "label": "blocking-OK frac", "field": "feasible_frac"},
             ],
             rows=rows,
             row_key="family",
@@ -605,7 +605,7 @@ def _render_v324(session: DesignSession) -> None:
 
         feas = [r for r in records if isinstance(r, dict) and bool(r.get("is_feasible"))]
         if not feas:
-            ui.notify("No feasible points", type="warning")
+            ui.notify("No blocking-OK points", type="warning")
             return
         lease = _trade_busy_guard(session, "Trade Study: Regime maps")
         if lease is None:

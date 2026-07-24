@@ -68,7 +68,7 @@ def render_study_controls(
 
     ui.select(
         obj_names,
-        label="Objectives (Pareto over feasible points)",
+        label="Objectives (Pareto over blocking-OK points)",
         value=session.trade_objectives,
         multiple=True,
         on_change=lambda e: setattr(
@@ -153,9 +153,9 @@ def render_study_controls(
             )
             summary = rep.get("summary") or {}
             ui.notify(
-                f"Done: {summary.get('n_feasible', 0)} feasible, "
-                f"{summary.get('n_pareto', 0)} Pareto points",
-                type="positive",
+                f"Done: {summary.get('n_feasible', 0)} blocking-OK, "
+                f"{summary.get('n_pareto', 0)} Pareto points (screening — not L0 FEASIBLE)",
+                type="info",
             )
         except Exception as exc:
             session.last_error = str(exc)
@@ -168,7 +168,7 @@ def render_study_controls(
                 if on_complete:
                     on_complete()
 
-    btn = ui.button("Run trade study", icon="play_arrow", on_click=_run).props("color=primary")
+    btn = ui.button("Run trade study (blocking-OK only)", icon="play_arrow", on_click=_run).props("color=primary")
     if session.trade_running or not session.trade_objectives:
         btn.props("disable")
 
