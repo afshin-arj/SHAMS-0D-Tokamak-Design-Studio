@@ -66,7 +66,17 @@ def render_compare(session: DesignSession) -> None:
     with ui.row().classes("w-full items-center justify-between q-mb-sm"):
         art_a, art_b = setup.resolve_artifacts(session)
         if art_a and art_b:
-            ui.label("Both slots loaded — ready to compare").classes("text-caption text-positive")
+            s = summarize_comparison(art_a, art_b)
+            if s.get("feasible_a") and s.get("feasible_b"):
+                ui.label("Both slots loaded — ready to compare").classes("text-caption text-positive")
+            elif not s.get("feasible_a") and not s.get("feasible_b"):
+                ui.label(
+                    "Both slots loaded — dual INFEASIBLE (diagnostic compare)"
+                ).classes("text-caption text-orange")
+            else:
+                ui.label(
+                    "Both slots loaded — mixed feasibility (not a PASS)"
+                ).classes("text-caption text-orange")
         elif art_a or art_b:
             ui.label("One slot loaded — load the other on tab 1").classes("text-caption text-orange")
         else:

@@ -709,15 +709,67 @@ def pin_ploss_closure_mw(out: Dict[str, Any]) -> Optional[float]:
 
 
 CONSTRAINT_PROVENANCE: Dict[str, Dict[str, str]] = {
-    "q95": {"def": "Proxy q95 computed from geometry/Bt/Ip assumptions.", "drivers": "Ip, Bt, R0, a, κ", "sense": ">=", "notes": "Always hard in both intents."},
+    "q95": {
+        "def": "Cylindrical q95_proxy from geometry/Bt/Ip — not Grad–Shafranov equilibrium q95.",
+        "drivers": "Ip, Bt, R0, a, κ",
+        "sense": ">=",
+        "notes": "Always hard in both intents. Screening only.",
+    },
     "q_div": {"def": "Divertor peak heat flux proxy from P_SOL and wetted area / λq model.", "drivers": "P_SOL, R0, λq, f_rad", "sense": "<=", "notes": "Definition depends on SOL-width toggle."},
     "P_SOL/R": {"def": "Separatrix power normalized by major radius.", "drivers": "P_SOL, R0", "sense": "<=", "notes": "Often used as a heat-exhaust severity proxy."},
     "sigma_vm": {"def": "Von Mises stress proxy in TF structure from peak field + build.", "drivers": "B_peak, coil build, R0", "sense": "<=", "notes": "Engineering screening, not a full FEA."},
     "HTS margin": {"def": "HTS current-density/temperature margin proxy.", "drivers": "B_peak, Top, Jop, conductor assumption", "sense": ">=", "notes": "Screening margin; label as proxy if conductor model simplified."},
     "TBR": {"def": "Tritium breeding ratio proxy from blanket/shield thickness + coverage assumptions.", "drivers": "t_blanket, t_shield, coverage", "sense": ">=", "notes": "Proxy unless driven by external neutronics."},
     "NWL": {"def": "Neutron wall loading proxy from fusion power and surface area.", "drivers": "Pfus, R0, a, κ", "sense": "<=", "notes": "Screening metric."},
-    "beta": {"def": "Beta or normalized beta proxy guardrail.", "drivers": "pressure, Bt, Ip", "sense": "<=", "notes": "Proxy stability screen."},
+    "beta": {
+        "def": "0-D screening βN (Troyon-normalized definition) — not Grad–Shafranov / ideal-wall Troyon analysis.",
+        "drivers": "pressure, Bt, Ip, a",
+        "sense": "<=",
+        "notes": "Proxy stability screen.",
+    },
+    "troyon": {
+        "def": "Optional cap on 0-D screening βN (Troyon-normalized), not ideal-wall Troyon analysis.",
+        "drivers": "beta_N / betaN_proxy vs betaN_troyon_max",
+        "sense": "<=",
+        "notes": "Screening only.",
+    },
 }
+
+# UI display remaps for Mission Snapshot constraint radar (canonical IDs stay in constraint_id).
+CONSTRAINT_RADAR_DISPLAY_NAMES: Dict[str, str] = {
+    "q95": "q95 (cyl. proxy)",
+    "q95_min": "q95 (cyl. proxy) min",
+    "q95_max": "q95 (cyl. proxy) max",
+    "q0": "q0 (proxy)",
+    "betaN": "βN (screening)",
+    "betaN_proxy": "βN (screening)",
+    "betaN_troyon": "βN Troyon-like cap (screening)",
+    "fG": "Greenwald fraction fG",
+    "q_div": "q_div (proxy)",
+    "TBR": "TBR (proxy)",
+    "Safety factor (q95)": "q95 (cyl. proxy)",
+    "Troyon beta_N": "βN Troyon-like cap (screening)",
+    "Normalized beta (betaN)": "βN (screening)",
+    "RWM ideal-wall beta_N limit": "RWM ideal-wall βN (screening)",
+    "Tritium breeding ratio": "TBR (proxy)",
+    "Divertor heat flux (target)": "q_div (proxy)",
+    "Divertor heat flux": "q∥ / divertor heat flux (proxy)",
+}
+
+
+def constraint_display_name(name: str) -> str:
+    """Map constraint registry names to fusion-honest UI labels (proxy/screening)."""
+    n = str(name or "").strip()
+    if n in CONSTRAINT_RADAR_DISPLAY_NAMES:
+        return CONSTRAINT_RADAR_DISPLAY_NAMES[n]
+    low = n.lower()
+    if "safety factor" in low and "q95" in low:
+        return "q95 (cyl. proxy)"
+    if low.startswith("troyon") and "beta" in low:
+        return "βN Troyon-like cap (screening)"
+    if low in ("betan", "beta_n", "betan_proxy"):
+        return "βN (screening)"
+    return n
 
 
 def constraint_provenance(name: str) -> Optional[Dict[str, str]]:
@@ -738,10 +790,16 @@ def constraint_suggestion(name: str) -> str:
         return "Increase blanket/shield thickness or improve breeding/coverage assumptions."
     if "nwl" in n:
         return "Reduce fusion power density (increase size R0 or reduce performance targets) or improve shielding."
-    if "beta" in n:
-        return "Increase size R0 or reduce Ip/pressure (lower Ti or fG) to bring beta below limit."
+    if "beta" in n or "troyon" in n:
+        return (
+            "Reduce screening βN (lower pressure / Ti / fG, or increase a·Bt/Ip) "
+            "below the optional cap — not a Troyon ideal-wall solve."
+        )
     if "q95" in n:
-        return "Increase q95 (reduce Ip or increase Bt/R0) for stability margin."
+        return (
+            "Increase cylindrical q95 proxy (reduce Ip or increase Bt/R0/a·κ) "
+            "for screening stability margin — not an equilibrium q95."
+        )
     if "fg" in n:
         return "Reduce density target (lower fG) or increase Ip to raise Greenwald limit."
     if "p_net" in n:
@@ -767,13 +825,14 @@ def constraint_radar_rows(out: Dict[str, Any], art: Optional[Dict[str, Any]] = N
             cons = []
     for c in cons:
         if isinstance(c, dict):
-            name = str(c.get("name", ""))
+            canon = str(c.get("name", ""))
             try:
                 margin = float(c.get("margin_frac", c.get("margin", float("nan"))))
             except (TypeError, ValueError):
                 margin = float("nan")
             rows.append({
-                "constraint": name,
+                "constraint": constraint_display_name(canon),
+                "constraint_id": canon,
                 "sense": c.get("sense", ""),
                 "value": c.get("value"),
                 "limit": c.get("limit"),
@@ -788,8 +847,10 @@ def constraint_radar_rows(out: Dict[str, Any], art: Optional[Dict[str, Any]] = N
                 margin = float(getattr(c, "margin", float("nan")))
             except (TypeError, ValueError):
                 margin = float("nan")
+            canon = str(getattr(c, "name", ""))
             rows.append({
-                "constraint": str(getattr(c, "name", "")),
+                "constraint": constraint_display_name(canon),
+                "constraint_id": canon,
                 "sense": getattr(c, "sense", ""),
                 "value": getattr(c, "value", None),
                 "limit": getattr(c, "limit", None),
@@ -812,7 +873,8 @@ def dominant_limiter_summary(rows: List[Dict[str, Any]]) -> Optional[str]:
     mf = float(dom.get("margin_frac", float("nan")))
     if not math.isfinite(mf):
         return None
-    return f"**Dominant limiter:** {dom.get('constraint')} (margin {mf:.3g}). This is the tightest hard constraint at this point."
+    label = constraint_display_name(str(dom.get("constraint_id") or dom.get("constraint") or ""))
+    return f"**Dominant limiter:** {label} (margin {mf:.3g}). This is the tightest hard constraint at this point."
 
 
 BASELINE_DELTA_KPIS = [
