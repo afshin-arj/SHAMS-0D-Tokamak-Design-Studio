@@ -31,7 +31,7 @@ def verdict_banner(
     Default title is ``Verdict:`` for L0 FEASIBLE / INFEASIBLE / NO-SOLUTION.
     Cartography robustness / slice-occupancy tokens auto-switch to
     ``Cartography posture:`` so they are not read as L0 feasibility.
-    Pass ``title_prefix`` to override (e.g. ``"Pack"`` → ``Pack: …``).
+    Pass ``title_prefix`` to override (e.g. ``"Pack screening posture"``).
     """
     p = str(posture or "UNKNOWN").upper()
     if title_prefix is None:

@@ -57,9 +57,20 @@ def _render_deck_status(session: DesignSession) -> None:
         )
     elif step == "2 · Publication Pack":
         out = session.pub_bench_last_outdir
-        ui.label(f"Pack ready: {out}" if out else "Acknowledge → generate publication pack").classes(
-            "text-caption " + ("text-positive" if out else "text-grey")
-        )
+        if not out:
+            ui.label("Acknowledge → generate publication pack").classes("text-caption text-grey")
+        else:
+            from ui_nicegui.lib.pub_helpers import pack_summary_from_outdir
+
+            summ = pack_summary_from_outdir(out)
+            posture = str(summ.get("posture") or "PACK READY") if summ.get("loaded") else "PACK READY"
+            tone = {
+                "PACK PASS": "text-blue-10",
+                "PACK FAIL": "text-negative",
+                "PACK MIXED": "text-orange",
+            }.get(posture, "text-grey")
+            short = out if len(str(out)) < 48 else ("…" + str(out)[-44:])
+            ui.label(f"{posture} · {short}").classes(f"text-caption {tone}")
     elif step == "3 · Cross-Code Parity":
         ok = isinstance(session.pub_crosscode_last, dict)
         ui.label("Semantics compare ready" if ok else "Compare external clause semantics").classes(

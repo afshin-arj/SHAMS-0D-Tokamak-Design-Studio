@@ -254,20 +254,45 @@ def render_pub_handoffs(session: DesignSession) -> None:
 
 
 def render_pack_verdict_strip(session: DesignSession) -> None:
+    """Pack aggregate posture — screening, never L0 Verdict: PASS/FEASIBLE."""
     summ = pack_summary_from_outdir(session.pub_bench_last_outdir)
     if not summ.get("loaded"):
-        verdict_banner("UNKNOWN", detail="Acknowledge → Generate pack → download CSV/ZIP tables.")
+        verdict_banner(
+            "UNKNOWN",
+            detail="Acknowledge → Generate pack → download CSV/ZIP tables.",
+            title_prefix="Pack screening posture",
+        )
         return
+    pack_posture = str(summ.get("posture") or "PACK READY")
     detail = (
-        f"{summ['n_pass']}/{summ['n_rows']} blocking-pass · "
+        f"{pack_posture} · {summ['n_pass']}/{summ['n_rows']} blocking-pass · "
         f"fail frac={100.0 * summ['fail_frac']:.0f}%"
     )
     if summ.get("shams_version"):
         detail += f" · SHAMS {summ['shams_version']}"
-    verdict_banner(summ["posture"].replace("PACK ", ""), detail=detail)
+    detail += (
+        " · Pack blocking pass/fail is case-set screening — "
+        "NOT Point Designer L0 FEASIBLE/INFEASIBLE."
+    )
+    if pack_posture == "PACK PASS":
+        banner = "BLOCKING-OK SCREENING"
+    elif pack_posture == "PACK FAIL":
+        banner = "FAIL"
+    elif pack_posture == "PACK MIXED":
+        banner = "MIXED"
+    else:
+        banner = "READY"
+    verdict_banner(
+        banner,
+        detail=detail,
+        title_prefix="Pack screening posture",
+    )
     kpi_row([
         ("Rows", str(summ["n_rows"])),
         ("Blocking pass", str(summ["n_pass"])),
         ("Blocking fail", str(summ["n_fail"])),
         ("Pass frac", f"{100.0 * summ['pass_frac']:.0f}%"),
     ])
+    ui.label(
+        "blocking-pass fractions are case-set screening — not L0 FEASIBLE."
+    ).classes("text-caption text-grey q-mt-xs")
