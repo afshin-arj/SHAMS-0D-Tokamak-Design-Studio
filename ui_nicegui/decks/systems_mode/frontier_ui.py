@@ -71,7 +71,15 @@ def _frontier_view(session: DesignSession, src: str, x_key: str, y_key: str) -> 
 
     n_feas = sum(1 for p in pts if p[2])
     n_infeas = len(pts) - n_feas
-    ui.label(f"Points: {len(pts)} | feasible: {n_feas}").classes("text-caption q-mb-xs")
+    ui.label(
+        f"Points: {len(pts)} | blocking-OK: {n_feas} "
+        f"(screening / intent-gate — not L0 FEASIBLE)"
+    ).classes("text-caption q-mb-xs")
+    ui.label(
+        "Frontier markers = hard/intent gate on sampled traces "
+        "(Precheck: no hard_failed). Systems screening — "
+        "NOT Point Designer L0 Verdict: FEASIBLE/INFEASIBLE."
+    ).classes("text-caption text-grey q-mb-xs")
     cap = scatter_physkpi_caption(x_key, y_key, show_infeasible=n_infeas > 0)
     if cap:
         ui.label(cap).classes("text-caption text-orange q-mb-xs")
@@ -94,7 +102,7 @@ def _frontier_view(session: DesignSession, src: str, x_key: str, y_key: str) -> 
             columns=[
                 {"name": "x", "label": "X", "field": "x"},
                 {"name": "y", "label": "Y", "field": "y"},
-                {"name": "feasible", "label": "Feasible", "field": "feasible"},
+                {"name": "feasible", "label": "blocking-OK", "field": "feasible"},
             ],
             rows=rows,
             row_key="x",
@@ -118,7 +126,7 @@ def _render_plotly_scatter(pts: list[tuple[float, float, bool]], x_key: str, y_k
                 x=[p[0] for p in infeas],
                 y=[p[1] for p in infeas],
                 mode="markers",
-                name="Infeasible",
+                name="hard-fail",
                 marker=dict(color="rgba(160,160,160,0.35)", size=5),
             )
         )
@@ -128,7 +136,7 @@ def _render_plotly_scatter(pts: list[tuple[float, float, bool]], x_key: str, y_k
                 x=[p[0] for p in feas],
                 y=[p[1] for p in feas],
                 mode="markers",
-                name="Feasible",
+                name="blocking-OK",
                 marker=dict(color="#1976d2", size=7),
             )
         )

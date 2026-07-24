@@ -46,10 +46,11 @@ def _fs_start_values(session: DesignSession, search_vars: list[str], bounds: dic
 
 
 def render_explore_panel(session: DesignSession, *, on_complete=None) -> None:
-    ui.label("Feasible design search (top-K)").classes("text-subtitle1")
+    ui.label("Intent-gated design search (top-K)").classes("text-subtitle1")
     ui.label(
         "Hard constraints must pass under active Design Intent; then optimize an engineering objective "
-        "among feasible machines. Multi-seed merges Top-K across runs."
+        "among blocking-OK machines. Multi-seed merges Top-K across runs. "
+        "Not PD L0 FEASIBLE until Apply re-eval."
     ).classes("text-caption q-mb-sm")
 
     base = session.build_point_inputs()
@@ -260,7 +261,7 @@ def _results(session: DesignSession) -> None:
         ui.table(
             columns=[
                 {"name": "rank", "label": "#", "field": "rank"},
-                {"name": "feasible", "label": "Feasible", "field": "feasible"},
+                {"name": "feasible", "label": "blocking-OK", "field": "feasible"},
                 {"name": "obj", "label": "Objective", "field": "obj"},
                 {"name": "Q", "label": "Q", "field": "Q"},
                 {"name": "H98", "label": "H98", "field": "H98"},
@@ -318,8 +319,8 @@ def _trace_plot(session: DesignSession) -> None:
                 x=feas_x,
                 y=feas_y,
                 mode="markers",
-                name="Feasible",
-                marker=dict(color="#2e7d32", size=6),
+                name="blocking-OK (intent)",
+                marker=dict(color="#1565c0", size=6),
             )
         )
     fig.update_layout(
@@ -327,7 +328,7 @@ def _trace_plot(session: DesignSession) -> None:
         margin=dict(l=48, r=20, t=36, b=48),
         xaxis_title="Q_DT_eqv",
         yaxis_title="H98",
-        title="Search trace (Q vs H98, feasible only)",
+        title="Search trace (Q vs H98, blocking-OK only — not PD hero)",
         legend=dict(orientation="h"),
     )
     ui.plotly(fig).classes("w-full q-mt-sm")
