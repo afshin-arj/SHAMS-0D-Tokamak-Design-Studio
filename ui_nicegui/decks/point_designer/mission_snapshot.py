@@ -157,7 +157,7 @@ def render_mission_snapshot(session: DesignSession) -> None:
             ui.label("Model cards (provenance):").classes("text-subtitle2 q-mt-sm")
             render_json_blob(mc)
 
-    _magnet_card(out)
+    _magnet_card(out, artifact=art, design_intent=str(session.design_intent))
     v400 = magnet_v400_summary(out)
     if v400:
         with ui.expansion("Magnet technology margin ledger", icon="electrical_services").classes("w-full"):
@@ -434,7 +434,12 @@ def render_mission_snapshot(session: DesignSession) -> None:
         ).classes("w-full")
 
 
-def _magnet_card(out: dict) -> None:
+def _magnet_card(
+    out: dict,
+    *,
+    artifact: dict | None = None,
+    design_intent: str = "",
+) -> None:
     mc = magnet_card_metrics(out)
     ui.label("Magnet Card").classes("text-subtitle1 q-mt-sm")
     kpi_row([
@@ -453,6 +458,8 @@ def _magnet_card(out: dict) -> None:
         ui.label(f"TF_SC policy: {mc['tf_note']}").classes("text-caption")
     from ui_nicegui.lib.plant_kpi_honesty_ui import pe_net_display
 
+    # PHYS-KPI-001 / plant_kpi_honesty: prefer stamped artifact + design_intent
+    # so magnet Pe_net cannot disagree with hero / v419 watermarking.
     kpi_row([
         (
             "SC margin" if mc["tf_sc"] == 1.0 else "TF ohmic [MW]",
@@ -460,5 +467,8 @@ def _magnet_card(out: dict) -> None:
         ),
         ("Lifetime [yr]", fmt_num(mc["hts_lifetime_yr"])),
         ("Vdump [kV]", fmt_num(mc["V_dump_kV"])),
-        ("P_net,e [MW]", pe_net_display(out)),
+        (
+            "P_net,e [MW]",
+            pe_net_display(out, artifact=artifact, design_intent=design_intent),
+        ),
     ])

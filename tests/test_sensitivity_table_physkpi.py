@@ -15,6 +15,7 @@ def test_format_sens_value_watermarks_claim_kpi_on_infeasible():
 
     assert format_sens_value("Q_DT_eqv", 1.23, feasible=False).startswith("diag·")
     assert format_sens_value("H98", 1.1, feasible=False).startswith("diag·")
+    assert format_sens_value("H_IPB98y2", 1.15, feasible=False).startswith("diag·")
     assert format_sens_value("P_e_net_MW", 50.0, feasible=False).startswith("diag·")
     assert format_sens_value("q95_proxy", 3.2, feasible=False) == "3.2"
     assert format_sens_value("Q_DT_eqv", 1.23, feasible=True) == "1.23"

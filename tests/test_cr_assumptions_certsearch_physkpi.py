@@ -26,6 +26,27 @@ def test_assumptions_panel_watermarks_claim_kpis():
     assert "format_claim_kpi_for_table" in src
     assert "PHYS-KPI-001" in src
     assert "point is INFEASIBLE" in src
+    # H98 must be in displayed keys (aliases alone are dead code).
+    assert '"H98"' in src or "'H98'" in src
+    assert "H_IPB98y2" in src
+    assert "Q / H98 / Pfus / P_net" in src
+    assert "design_intent" in src
+
+
+def test_magnet_card_pe_net_passes_artifact_intent():
+    src = Path("ui_nicegui/decks/point_designer/mission_snapshot.py").read_text(encoding="utf-8")
+    assert "def _magnet_card" in src
+    assert "pe_net_display(out, artifact=artifact, design_intent=design_intent)" in src
+    assert "_magnet_card(out, artifact=art, design_intent=str(session.design_intent))" in src
+
+
+def test_chronicle_sensitivity_selectors_label_claim_outputs():
+    src = Path("ui_nicegui/decks/control_room/chronicle.py").read_text(encoding="utf-8")
+    assert "_SENS_OUTPUT_OPTIONS" in src
+    assert "H98 (claim)" in src
+    assert "beta_N (screening)" in src
+    assert "TBR (proxy)" in src
+    assert "claim-KPI jacobians are diagnostic" in src
 
 
 def test_watermark_certified_search_rows():
