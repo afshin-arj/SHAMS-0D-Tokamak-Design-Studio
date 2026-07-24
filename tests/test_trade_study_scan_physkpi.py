@@ -126,8 +126,12 @@ def test_scan_export_archive_wires_watermark_scan_cartography():
 
 def test_scan_lab_busy_guards_include_legacy_running():
     src = Path("ui_nicegui/decks/scan_lab/__init__.py").read_text(encoding="utf-8")
-    assert "scan_legacy_running" in src
-    assert src.count("scan_legacy_running") >= 3
+    assert "SCAN_RUNNING_ATTRS" in src
+    assert "_scan_busy" in src
+    assert "scan_legacy_running" in src  # busy-strip / attr still named
+    guard = Path("ui_nicegui/lib/deck_busy_guard.py").read_text(encoding="utf-8")
+    assert 'SCAN_RUNNING_ATTRS = ("scan_running", "scan_legacy_running")' in guard
+    assert src.count("_scan_busy") >= 2
 
 
 def test_scan_cartography_compact_keep_includes_l0_keys():

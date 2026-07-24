@@ -1,4 +1,4 @@
-"""Scan Lab verdict-first banner."""
+"""Scan Lab cartography posture banner (not L0 FEASIBLE/INFEASIBLE)."""
 from __future__ import annotations
 
 from nicegui import ui
@@ -8,6 +8,11 @@ from ui_nicegui.components.kpi_row import kpi_row
 from ui_nicegui.lib.navigation import switch_deck
 from ui_nicegui.lib.scan_helpers import summarize_scan_report
 from ui_nicegui.lib.scan_labels import ROBUSTNESS_GLOSSARY
+
+_CARTOGRAPHY_DISCLAIMER = (
+    "Cartography posture (2-D slice occupancy) — NOT L0 FEASIBLE / INFEASIBLE. "
+    "Cell Robust/Balanced/Brittle/Knife-edge labels are local p-feasible proxies only."
+)
 
 
 def render_scan_verdict(rep: dict | None, *, map_stale: bool = False) -> None:
@@ -32,22 +37,25 @@ def render_scan_verdict(rep: dict | None, *, map_stale: bool = False) -> None:
     if map_stale:
         ui.badge("SCAN MAP STALE", color="orange").props("outline").classes("q-mb-xs")
         ui.label(
-            "This cartography was built on a different baseline — re-run scan before claiming feasible fraction / dominance."
+            "This cartography was built on a different baseline — re-run scan before claiming "
+            "feasible fraction / dominance."
         ).classes("text-caption text-orange q-mb-xs")
 
     rob = str(summary.get("robustness") or "UNKNOWN")
     detail = (
+        f"{_CARTOGRAPHY_DISCLAIMER} · "
         f"Dominant: {summary['dominant']} · "
-        f"Feasible ({summary['intent']}): {summary['feasible_pct']} · "
+        f"Blocking-feasible ({summary['intent']}): {summary['feasible_pct']} · "
         f"Cliffiness proxy: {summary['cliffiness']:.2f} "
         "(screening proxy — not UQ robustness)"
     )
     if map_stale:
         detail = "SCAN MAP STALE · " + detail
-    verdict_banner(rob, detail=detail)
+    # Explicit non-L0 title — never "Verdict: ROBUST/DENSE SLICE"
+    verdict_banner(rob, detail=detail, title_prefix="Cartography posture")
     kpi_row([
         ("Dominant constraint", summary["dominant"]),
-        (f"Feasible fraction ({summary['intent']})", summary["feasible_pct"]),
+        (f"Blocking-feasible fraction ({summary['intent']})", summary["feasible_pct"]),
         ("2-D slice occupancy", summary["robustness"]),
         ("Cliffiness proxy", f"{summary['cliffiness']:.2f}"),
     ])

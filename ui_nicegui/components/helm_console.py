@@ -95,9 +95,21 @@ def _read_log_tail(session: DesignSession) -> str:
 
 def _on_expert_mode(session: DesignSession, enabled: bool) -> None:
     apply_expert_mode(session, enabled)
+    from ui_nicegui.lib.deck_busy_guard import SCAN_RUNNING_ATTRS
     from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
 
     # Deck bodies that hide expert panels need a remount/refresh to pick up the flag.
+    # Do not tear down Scan Lab progress chrome mid-job (busy remount / SCAN_RUNNING_ATTRS).
+    if session.active_deck == "Scan Lab" and any(
+        getattr(session, a, False) for a in SCAN_RUNNING_ATTRS
+    ):
+        ui.notify(
+            "Scan Lab job running — Expert mode saved; deck remount deferred until idle.",
+            type="warning",
+        )
+        refresh_helm()
+        refresh_status()
+        return
     refresh_active_deck()
     refresh_helm()
     refresh_status()
@@ -105,8 +117,19 @@ def _on_expert_mode(session: DesignSession, enabled: bool) -> None:
 
 def _on_guided_mode(session: DesignSession, enabled: bool) -> None:
     apply_guided_mode(session, enabled)
+    from ui_nicegui.lib.deck_busy_guard import SCAN_RUNNING_ATTRS
     from ui_nicegui.lib.navigation import refresh_active_deck, refresh_helm, refresh_status
 
+    if session.active_deck == "Scan Lab" and any(
+        getattr(session, a, False) for a in SCAN_RUNNING_ATTRS
+    ):
+        ui.notify(
+            "Scan Lab job running — Guided mode saved; deck remount deferred until idle.",
+            type="warning",
+        )
+        refresh_helm()
+        refresh_status()
+        return
     refresh_active_deck()
     refresh_helm()
     refresh_status()

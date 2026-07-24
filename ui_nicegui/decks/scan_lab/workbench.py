@@ -138,7 +138,8 @@ def _render_nav(
     with ui.expansion("Legend", icon="info").classes("w-full"):
         ui.label(
             "Dominant limiter map: color = worst blocking constraint. "
-            "Robustness map: local p-feasible proxy (not the KPI verdict band)."
+            "Robustness map: local p-feasible proxy — not L0 FEASIBLE/INFEASIBLE "
+            "and not the cartography posture (slice occupancy) band."
         ).classes("text-caption")
         try:
             from ui_nicegui.lib.scan_workbench_helpers import dominance_labels
@@ -273,33 +274,53 @@ def _render_inspector(
 
 def _render_probe_block(session: DesignSession, rep: dict, grid: dict, intent: str) -> None:
     summary = probe_cell_summary(grid, rep, intent, session.scan_wb_i, session.scan_wb_j)
+    feasible = bool(summary.get("blocking_feasible"))
+    rob = str(summary.get("robustness") or "-")
     ui.label(f"Intent: {intent}").classes("text-subtitle2")
+    if feasible:
+        ui.badge("BLOCKING-FEASIBLE (intent)", color="green").props("outline").classes("q-mb-xs")
+    else:
+        ui.badge("BLOCKING-INFEASIBLE (intent) — not a design point", color="orange").props(
+            "outline"
+        ).classes("q-mb-xs")
     ui.markdown(
-        f"- Blocking feasible: **{summary.get('blocking_feasible')}**\n"
+        f"- Blocking feasible (L0 intent lens): **{feasible}**\n"
         f"- Dominant limiter: **{summary.get('dominant_blocking') or '-'}**\n"
         f"- Min blocking margin: **{summary.get('min_blocking_margin') or '-'}**\n"
-        f"- Cell robustness label: **{summary.get('robustness') or '-'}**"
+        f"- Cell neighborhood label: **{rob}** "
+        f"(local p-feasible proxy — **not** L0 FEASIBLE/INFEASIBLE)"
     ).classes("text-body2")
+    if not feasible and rob.lower() in ("robust", "balanced"):
+        ui.label(
+            f"Neighborhood '{rob}' does not mean this cell is FEASIBLE — "
+            "neighbors may pass while this cell fails blocking constraints."
+        ).classes("text-caption text-orange q-mb-xs")
     perf = summary.get("performance") or {}
     if perf:
         from ui_nicegui.lib.plant_kpi_honesty_ui import honest_performance_caption
 
-        feasible = bool(summary.get("blocking_feasible"))
         # Prefer cell outputs when present so Pe_net watermark can resolve aliases.
         cell = grid.get((int(session.scan_wb_i), int(session.scan_wb_j)), {})
         outs = cell.get("outputs") if isinstance(cell, dict) else None
+        prefix = (
+            "Diagnostic residue (INFEASIBLE cell): "
+            if not feasible
+            else "Operating point: "
+        )
         cap = honest_performance_caption(
             perf,
             feasible=feasible,
             point_out=outs if isinstance(outs, dict) else None,
             design_intent=str(intent),
+            prefix=prefix,
         )
         ui.label(cap).classes(
             "text-caption text-orange q-mb-xs" if not feasible else "text-caption q-mb-xs"
         )
         if not feasible:
             ui.label(
-                "Q / P_net / LCOE suppressed on blocking-infeasible cells — diagnostic residue only."
+                "PHYS-KPI-001: Q / H98 / Pfus / P_net / LCOE are — (diagnostic) on "
+                "blocking-infeasible cells — not design claims."
             ).classes("text-caption text-grey q-mb-xs")
     v396 = summary.get("v396")
     if isinstance(v396, dict) and v396:

@@ -82,7 +82,11 @@ def _maps(session: DesignSession, rep: dict, intents: list) -> None:
 
     counts = robustness_label_counts(rep, it)
     if counts:
-        with ui.expansion("Cell robustness labels (counts)", icon="analytics").classes("w-full"):
+        with ui.expansion("Cell neighborhood labels (counts)", icon="analytics").classes("w-full"):
+            ui.label(
+                "Robust / Balanced / Brittle / Knife-edge = local p-feasible neighborhood — "
+                "not L0 FEASIBLE/INFEASIBLE (an infeasible cell can still count as Robust)."
+            ).classes("text-caption text-orange q-mb-xs")
             total = sum(counts.values()) or 1
             for lab, n in sorted(counts.items(), key=lambda x: -x[1]):
                 ui.label(f"{lab}: {n} ({100.0 * n / total:.0f}%)").classes("text-caption")
